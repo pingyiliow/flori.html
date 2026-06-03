@@ -1273,15 +1273,37 @@ function updateConnectedUI() {
   if (tok) document.getElementById('cfg-tok').value = tok;
 }
 
-function connectShopify() {
+async function connectShopify() {
   const raw = document.getElementById('cfg-url').value.trim()
     .replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
   if (!raw || !raw.includes('.myshopify.com')) {
     setSpStatus('err', LANG==='zh' ? '请输入正确的商店网址' : 'Enter a valid .myshopify.com URL');
     return;
   }
-  // Redirect to the backend OAuth initiator
-  window.location.href = `/api/auth?shop=${encodeURIComponent(raw)}`;
+  setSpStatus('ok', LANG==='zh' ? '连接中…' : 'Connecting…');
+  try {
+    const r = await fetch('/api/connect', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ shop: raw }),
+    });
+    const d = await r.json();
+    if (d.token) {
+      localStorage.setItem('flori-url',   d.shop);
+      localStorage.setItem('flori-token', d.token);
+      updateConnectedUI();
+      setSpStatus('ok', LANG==='zh' ? '✓ 连接成功！' : '✓ Connected!');
+      setTimeout(() => { closeSP(); syncOrders(); }, 800);
+    } else if (d.error === 'shop_not_permitted') {
+      setSpStatus('err', LANG==='zh'
+        ? '商店不在同一组织 — 请在 Shopify 后台右上角点击店铺名 → Dev Dashboard，然后重试'
+        : 'Store not in same org — in Shopify Admin, click your store name (top right) → Dev Dashboard, then retry');
+    } else {
+      setSpStatus('err', '✕ ' + (d.message || d.error || 'Connection failed'));
+    }
+  } catch (e) {
+    setSpStatus('err', LANG==='zh' ? '网络错误，请重试' : 'Network error — please try again');
+  }
 }
 
 function saveToken() {
