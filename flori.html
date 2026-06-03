@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Flori">
+<meta name="theme-color" content="#2C4929">
+<title>Flori · Florist Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── tokens ──────────────────────────────────────────────────── */
+:root{
+  --c-bg:       #F5F0E8;
+  --c-surface:  #FEFDF9;
+  --c-border:   #E0D9CE;
+  --c-border2:  #C8BFAF;
+  --c-ink:      #1E1C18;
+  --c-muted:    #7A746A;
+  --c-forest:   #2C4929;
+  --c-sage:     #5A7B58;
+  --c-sage-bg:  #EBF2E9;
+  --c-amber:    #B8916A;
+  --c-amber-bg: #F6EDDF;
+  --c-blush:    #C87860;
+  --c-blush-bg: #FAF0EB;
+  --c-red:      #9C2E24;
+  --c-red-bg:   #FCEAE8;
+  --c-blue:     #2856A0;
+  --c-blue-bg:  #EBF0FA;
+  --f-head: 'Cormorant Garamond',Georgia,serif;
+  --f-body: 'Jost',system-ui,-apple-system,sans-serif;
+  --r:   6px;
+  --r-lg: 10px;
+  --sh:  0 1px 4px rgba(0,0,0,.07);
+  --sh-lg: 0 6px 20px rgba(0,0,0,.11);
+  --sidebar: 210px;
+  --hdr: 58px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{-webkit-font-smoothing:antialiased}
+body{font-family:var(--f-body);background:var(--c-bg);color:var(--c-ink);min-height:100vh;font-size:14px}
+button{font-family:var(--f-body);cursor:pointer;border:none;background:none}
+input,select,textarea{font-family:var(--f-body);font-size:13px;color:var(--c-ink)}
+img{display:block;max-width:100%}
+
+/* ── layout ──────────────────────────────────────────────────── */
+.shell{
+  display:grid;
+  grid-template-columns:var(--sidebar) 1fr;
+  grid-template-rows:var(--hdr) 1fr;
+  min-height:100vh;
+}
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr;grid-template-rows:var(--hdr) 1fr auto}
+}
+
+/* ── header ──────────────────────────────────────────────────── */
+.hdr{
+  grid-column:1/-1;
+  background:var(--c-forest);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;gap:12px;
+  position:sticky;top:0;z-index:200;
+}
+.hdr-brand{display:flex;align-items:baseline;gap:8px}
+.hdr-logo{
+  font-family:var(--f-head);font-size:20px;font-weight:500;
+  color:#fff;letter-spacing:.06em;
+}
+.hdr-tagline{
+  font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:rgba(255,255,255,.45);
+}
+.hdr-pill{
+  font-size:10px;padding:3px 9px;border-radius:20px;
+  background:rgba(255,255,255,.1);color:rgba(255,255,255,.6);
+  font-style:italic;font-family:var(--f-head);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;
+}
+.hdr-actions{display:flex;align-items:center;gap:6px}
+.hdr-btn{
+  width:34px;height:34px;border-radius:var(--r);
+  background:rgba(255,255,255,.08);
+  display:flex;align-items:center;justify-content:center;
+  color:rgba(255,255,255,.7);font-size:16px;
+  transition:background .15s,color .15s;
+}
+.hdr-btn:hover{background:rgba(255,255,255,.18);color:#fff}
+.sync-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:0 14px;height:32px;
+  background:var(--c-amber);color:#fff;border-radius:var(--r);
+  font-size:11px;font-weight:600;letter-spacing:.05em;
+  transition:background .15s;white-space:nowrap;
+}
+.sync-btn:hover{background:#9C7A55}
+.spin{animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── sidebar ─────────────────────────────────────────────────── */
+.sidebar{
+  background:var(--c-surface);border-right:1px solid var(--c-border);
+  display:flex;flex-direction:column;
+  position:sticky;top:var(--hdr);
+  height:calc(100vh - var(--hdr));overflow-y:auto;
+}
+@media(max-width:860px){.sidebar{display:none}}
+.nav-sep{
+  padding:14px 18px 5px;
+  font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--c-border2);
+}
+.nav-btn{
+  display:flex;align-items:center;gap:9px;
+  padding:10px 18px;
+  color:var(--c-muted);font-size:13px;font-weight:500;
+  border-left:2px solid transparent;
+  transition:all .15s;
+}
+.nav-btn:hover{background:var(--c-bg);color:var(--c-ink)}
+.nav-btn.on{background:var(--c-sage-bg);color:var(--c-forest);border-left-color:var(--c-forest)}
+.nav-icon{font-size:15px;width:18px;text-align:center;flex-shrink:0}
+.nav-badge{
+  margin-left:auto;background:var(--c-forest);color:#fff;
+  font-size:9px;font-weight:600;padding:2px 6px;border-radius:10px;
+}
+.sidebar-foot{
+  margin-top:auto;border-top:1px solid var(--c-border);
+  padding:14px 18px;
+  font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);
+}
+
+/* ── mobile nav ──────────────────────────────────────────────── */
+.mob-nav{
+  display:none;background:var(--c-surface);
+  border-top:1px solid var(--c-border);
+  padding-bottom:max(0px,env(safe-area-inset-bottom));
+}
+@media(max-width:860px){.mob-nav{display:flex;grid-column:1/-1}}
+.mob-tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:9px 4px;
+  color:var(--c-muted);font-size:9px;font-weight:600;letter-spacing:.05em;
+  border-bottom:2px solid transparent;transition:all .15s;
+}
+.mob-tab:hover{color:var(--c-forest)}
+.mob-tab.on{color:var(--c-forest);border-bottom-color:var(--c-forest)}
+.mob-icon{font-size:19px}
+
+/* ── main ────────────────────────────────────────────────────── */
+.main{
+  padding:28px 28px 60px;overflow-y:auto;background:var(--c-bg);
+}
+@media(max-width:860px){.main{padding:16px 14px 24px}}
+.page{display:none;flex-direction:column;gap:22px}
+.page.on{display:flex}
+
+/* ── section titles ──────────────────────────────────────────── */
+.page-hdr{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.page-title{font-family:var(--f-head);font-size:26px;font-weight:500;letter-spacing:.01em;line-height:1}
+.page-sub{font-family:var(--f-head);font-size:13px;font-style:italic;color:var(--c-muted);margin-top:4px}
+
+/* ── stat cards ──────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{
+  background:var(--c-surface);border:1px solid var(--c-border);
+  border-radius:var(--r-lg);padding:18px 16px 14px;
+  box-shadow:var(--sh);position:relative;overflow:hidden;
+}
+.stat::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+  background:var(--c-border);
+}
+.stat.f::after{background:var(--c-forest)}
+.stat.s::after{background:var(--c-sage)}
+.stat.a::after{background:var(--c-amber)}
+.stat.b::after{background:var(--c-blush)}
+.stat-n{font-family:var(--f-head);font-size:36px;font-weight:500;line-height:1;color:var(--c-forest)}
+.stat-l{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--c-muted);margin-top:6px}
+
+/* ── card ────────────────────────────────────────────────────── */
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
+.card-hdr{
+  padding:16px 18px;border-bottom:1px solid var(--c-border);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+}
+.card-ttl{font-family:var(--f-head);font-size:16px;font-weight:500;letter-spacing:.01em}
+
+/* ── orders table ────────────────────────────────────────────── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+  padding:9px 14px;text-align:left;
+  font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--c-muted);background:var(--c-bg);border-bottom:1px solid var(--c-border);
+}
+.tbl td{padding:12px 14px;border-bottom:1px solid var(--c-border);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#f9f7f2}
+.tbl tr.late td{background:var(--c-red-bg)}
+.tbl tr.late:hover td{background:#f8e2e0}
+
+.o-cell{display:flex;align-items:center;gap:10px}
+.o-thumb{
+  width:44px;height:44px;border-radius:var(--r);
+  background:var(--c-bg);border:1px solid var(--c-border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;overflow:hidden;
+}
+.o-thumb img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;border-radius:var(--r)}
+.o-thumb.ph{cursor:default}
+.o-num{font-size:11px;font-weight:600;color:var(--c-muted)}
+.o-prod{font-size:13px;font-weight:500;color:var(--c-ink);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:860px){.o-prod{max-width:160px}}
+
+.tag{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:3px 8px;border-radius:4px;
+  font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;
+}
+.tag-pu{background:var(--c-blue-bg);color:var(--c-blue)}
+.tag-de{background:var(--c-amber-bg);color:#7A5030}
+.tag-late{background:var(--c-red-bg);color:var(--c-red)}
+.tag-ready{background:var(--c-sage-bg);color:var(--c-forest)}
+.tag-manual{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border2)}
+
+.o-time{font-size:13px;font-weight:500;white-space:nowrap}
+.o-date{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-top:2px}
+
+.act-btn{
+  width:28px;height:28px;border-radius:var(--r);
+  border:1px solid var(--c-border);background:var(--c-surface);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:13px;color:var(--c-muted);transition:all .12s;
+}
+.act-btn:hover{border-color:var(--c-forest);color:var(--c-forest);background:var(--c-sage-bg)}
+.act-btn.on{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
+.act-btn.x:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
+
+.grp-row td{padding:6px 14px}
+.grp-label{
+  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--c-muted);display:flex;align-items:center;gap:8px;
+}
+.grp-label::after{content:'';flex:1;height:1px;background:var(--c-border)}
+
+/* ── inventory ───────────────────────────────────────────────── */
+.inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}
+@media(max-width:480px){.inv-grid{grid-template-columns:repeat(2,1fr)}}
+.inv-card{
+  background:var(--c-surface);border:1px solid var(--c-border);
+  border-radius:var(--r-lg);padding:14px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--sh);
+}
+.inv-cat{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-border2)}
+.inv-name{font-size:13px;font-weight:500;color:var(--c-ink)}
+.inv-q{display:flex;align-items:baseline;gap:4px}
+.inv-n{font-family:var(--f-head);font-size:28px;font-weight:500;color:var(--c-forest);line-height:1}
+.inv-u{font-size:11px;color:var(--c-muted)}
+.inv-note{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.4}
+.inv-acts{display:flex;gap:5px}
+.inv-act{
+  flex:1;padding:6px;border:1px solid var(--c-border);
+  background:var(--c-surface);border-radius:var(--r);
+  font-size:14px;font-weight:600;color:var(--c-muted);transition:all .12s;
+  display:flex;align-items:center;justify-content:center;
+}
+.inv-act:hover{border-color:var(--c-forest);color:var(--c-forest);background:var(--c-sage-bg)}
+.inv-act.x:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
+
+/* ── purchase list ───────────────────────────────────────────── */
+.pur-item{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--c-border)}
+.pur-item:last-child{border-bottom:none}
+.pur-chk{
+  width:18px;height:18px;border:1.5px solid var(--c-border2);border-radius:3px;
+  flex-shrink:0;margin-top:2px;cursor:pointer;background:var(--c-surface);
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  transition:all .12s;
+}
+.pur-chk.done{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
+.pur-info{flex:1}
+.pur-name{font-size:13px;font-weight:500}
+.pur-sub{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-top:3px}
+.pur-tags{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+.pur-qty{font-size:11px;font-weight:600;color:var(--c-amber)}
+.pur-del{
+  width:26px;height:26px;border-radius:var(--r);border:1px solid var(--c-border);
+  background:var(--c-surface);display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:var(--c-muted);cursor:pointer;transition:all .12s;flex-shrink:0;
+}
+.pur-del:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
+
+/* ── forms ───────────────────────────────────────────────────── */
+.ff{display:flex;flex-direction:column;gap:5px}
+.ff-l{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--c-muted)}
+.ff input,.ff select,.ff textarea{
+  padding:9px 11px;border:1px solid var(--c-border);border-radius:var(--r);
+  background:var(--c-surface);color:var(--c-ink);outline:none;
+  transition:border-color .15s,box-shadow .15s;
+}
+.ff input:focus,.ff select:focus,.ff textarea:focus{
+  border-color:var(--c-sage);box-shadow:0 0 0 3px rgba(90,123,88,.1);
+}
+.ff textarea{resize:vertical;min-height:80px;line-height:1.5}
+.fg{display:grid;gap:14px}
+.fg-2{grid-template-columns:1fr 1fr}
+@media(max-width:480px){.fg-2{grid-template-columns:1fr}}
+
+/* photo upload zone */
+.photo-zone{
+  border:2px dashed var(--c-border2);border-radius:var(--r);
+  background:var(--c-bg);padding:20px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  cursor:pointer;transition:all .15s;position:relative;min-height:100px;
+}
+.photo-zone:hover{border-color:var(--c-sage);background:var(--c-sage-bg)}
+.photo-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.photo-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)}
+.photo-zone-icon{font-size:26px;opacity:.5}
+.photo-zone-lbl{font-size:11px;color:var(--c-muted);text-align:center;line-height:1.4}
+
+/* ── buttons ─────────────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 16px;border-radius:var(--r);
+  font-size:12px;font-weight:600;letter-spacing:.04em;
+  transition:all .15s;cursor:pointer;border:none;font-family:var(--f-body);
+  white-space:nowrap;
+}
+.btn-primary{background:var(--c-forest);color:#fff}
+.btn-primary:hover{background:#1E3220}
+.btn-amber{background:var(--c-amber);color:#fff}
+.btn-amber:hover{background:#9C7A55}
+.btn-ghost{background:transparent;color:var(--c-muted);border:1px solid var(--c-border)}
+.btn-ghost:hover{background:var(--c-bg);color:var(--c-ink);border-color:var(--c-border2)}
+.btn-sm{padding:6px 12px;font-size:11px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── filter tabs ─────────────────────────────────────────────── */
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.f-btn{
+  padding:5px 12px;border-radius:var(--r);border:1px solid var(--c-border);
+  background:var(--c-surface);font-size:11px;font-weight:600;color:var(--c-muted);
+  letter-spacing:.04em;transition:all .15s;
+}
+.f-btn:hover{background:var(--c-bg);border-color:var(--c-border2);color:var(--c-ink)}
+.f-btn.on{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
+
+/* ── empty state ─────────────────────────────────────────────── */
+.empty{text-align:center;padding:48px 20px;color:var(--c-muted)}
+.empty-ico{font-size:34px;opacity:.4;margin-bottom:10px}
+.empty-txt{font-family:var(--f-head);font-size:16px;font-style:italic}
+
+/* ── settings panel ──────────────────────────────────────────── */
+.ov{
+  position:fixed;inset:0;background:rgba(30,28,24,.42);z-index:900;
+  display:none;opacity:0;transition:opacity .2s;
+}
+.ov.on{display:block;opacity:1}
+.sp{
+  position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);
+  background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .24s ease;
+}
+.sp.on{transform:translateX(0)}
+.sp-hdr{
+  background:var(--c-forest);padding:18px 20px;
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.sp-ttl{font-family:var(--f-head);font-size:19px;font-style:italic;color:#fff;font-weight:400}
+.sp-x{
+  width:30px;height:30px;border-radius:var(--r);
+  background:rgba(255,255,255,.12);color:#fff;font-size:17px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:background .15s;
+}
+.sp-x:hover{background:rgba(255,255,255,.25)}
+.sp-body{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:24px}
+.sp-section-ttl{
+  font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--c-muted);padding-bottom:8px;border-bottom:1px solid var(--c-border);margin-bottom:10px;
+}
+.sp-status{font-family:var(--f-head);font-style:italic;font-size:12px;text-align:center;padding:5px;color:var(--c-muted)}
+.sp-status.ok{color:var(--c-sage)}
+.sp-status.err{color:var(--c-red)}
+
+/* ── modals ──────────────────────────────────────────────────── */
+.modal{
+  position:fixed;inset:0;background:rgba(30,28,24,.5);z-index:950;
+  display:none;align-items:center;justify-content:center;padding:16px;
+}
+.modal.on{display:flex}
+.mc{
+  background:var(--c-surface);border-radius:var(--r-lg);
+  box-shadow:var(--sh-lg);width:100%;max-width:520px;max-height:92vh;
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.mc-hdr{
+  padding:18px 20px;border-bottom:1px solid var(--c-border);
+  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
+}
+.mc-ttl{font-family:var(--f-head);font-size:19px;font-weight:500;font-style:italic}
+.mc-x{
+  width:28px;height:28px;border-radius:var(--r);border:1px solid var(--c-border);
+  background:var(--c-bg);display:flex;align-items:center;justify-content:center;
+  font-size:15px;color:var(--c-muted);cursor:pointer;transition:all .12s;
+}
+.mc-x:hover{background:var(--c-red-bg);color:var(--c-red);border-color:var(--c-red)}
+.mc-body{padding:20px;display:flex;flex-direction:column;gap:14px;flex:1}
+
+/* ── zoom overlay ────────────────────────────────────────────── */
+.zoom{
+  position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;
+  display:none;align-items:center;justify-content:center;padding:20px;
+  cursor:zoom-out;
+}
+.zoom.on{display:flex}
+.zoom img{
+  max-width:88vw;max-height:88vh;object-fit:contain;
+  border-radius:var(--r);box-shadow:var(--sh-lg);
+}
+.zoom-cap{
+  position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.75);color:#fff;border-radius:20px;
+  padding:7px 16px;font-size:12px;font-style:italic;font-family:var(--f-head);
+  white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ── toast ───────────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:var(--c-ink);color:#fff;padding:10px 18px;border-radius:var(--r);
+  font-size:12px;font-weight:500;z-index:9998;transition:transform .22s ease;
+  box-shadow:var(--sh-lg);white-space:nowrap;
+}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+/* ── scroll wrap ─────────────────────────────────────────────── */
+.scroll-x{overflow-x:auto}
+.hide-m{display:table-cell}
+@media(max-width:860px){.hide-m{display:none}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ══ HEADER ═════════════════════════════════════════════════ -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <span class="hdr-logo" data-en="Flori" data-zh="Flori">Flori</span>
+    <span class="hdr-tagline hide-m" data-en="Florist Studio" data-zh="花店管理">Florist Studio</span>
+  </div>
+  <div id="hdr-pill" class="hdr-pill"></div>
+  <div class="hdr-actions">
+    <button class="sync-btn" id="sync-btn" onclick="syncOrders()">
+      <span id="sync-ico" style="display:inline-block">⟳</span>
+      <span class="hide-m" data-en="Sync Orders" data-zh="同步订单">Sync Orders</span>
+    </button>
+    <button class="hdr-btn" onclick="toggleLang()" title="Language" data-en="中文" data-zh="EN">中文</button>
+    <button class="hdr-btn" onclick="openSP()" title="Settings">⚙</button>
+  </div>
+</header>
+
+<!-- ══ SIDEBAR ════════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div>
+    <div class="nav-sep" data-en="Operations" data-zh="运营">Operations</div>
+    <button class="nav-btn on" data-pg="home">
+      <span class="nav-icon">◈</span>
+      <span data-en="Dashboard" data-zh="主页">Dashboard</span>
+    </button>
+    <button class="nav-btn" data-pg="orders">
+      <span class="nav-icon">◫</span>
+      <span data-en="Daily Orders" data-zh="每日订单">Daily Orders</span>
+      <span class="nav-badge" id="nb-orders">0</span>
+    </button>
+    <div class="nav-sep" style="margin-top:6px" data-en="Stock" data-zh="库存管理">Stock</div>
+    <button class="nav-btn" data-pg="inventory">
+      <span class="nav-icon">◉</span>
+      <span data-en="Flower Inventory" data-zh="鲜花库存">Flower Inventory</span>
+    </button>
+    <button class="nav-btn" data-pg="purchase">
+      <span class="nav-icon">✦</span>
+      <span data-en="Purchase List" data-zh="采购清单">Purchase List</span>
+    </button>
+  </div>
+  <div class="sidebar-foot" id="sb-foot">Not yet synced</div>
+</aside>
+
+<!-- ══ MAIN ═══════════════════════════════════════════════════ -->
+<main class="main">
+
+  <!-- ── Dashboard ──────────────────────────────────────────── -->
+  <div id="pg-home" class="page on">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title" id="dash-date">—</div>
+        <div class="page-sub" data-en="Today's overview" data-zh="今日概览">Today's overview</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="goPage('orders')" data-en="View all orders →" data-zh="查看全部订单 →">View all orders →</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l" data-en="Total Pending" data-zh="待完成">Total Pending</div></div>
+      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l" data-en="Due Today" data-zh="今日到期">Due Today</div></div>
+      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l" data-en="Self Collect" data-zh="自取">Self Collect</div></div>
+      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l" data-en="Delivery" data-zh="送货">Delivery</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-ttl" data-en="Today's Schedule" data-zh="今日安排">Today's Schedule</div>
+      </div>
+      <div class="scroll-x">
+        <table class="tbl">
+          <thead><tr>
+            <th data-en="Order" data-zh="订单">#</th>
+            <th data-en="Product / Customer" data-zh="产品 / 客户">Product / Customer</th>
+            <th class="hide-m" data-en="Time" data-zh="时间">Time</th>
+            <th data-en="Type" data-zh="类型">Type</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="home-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Daily Orders ────────────────────────────────────────── -->
+  <div id="pg-orders" class="page">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title" data-en="Daily Orders" data-zh="每日订单">Daily Orders</div>
+        <div class="page-sub" data-en="Shopify + manual orders" data-zh="Shopify + 手动订单">Shopify + manual orders</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="openAddOrder()" data-en="+ Add Order" data-zh="+ 手动添加">+ Add Order</button>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div class="filters" id="filters">
+        <button class="f-btn on" data-f="all"  data-en="All" data-zh="全部">All</button>
+        <button class="f-btn" data-f="today"    data-en="Today" data-zh="今日">Today</button>
+        <button class="f-btn" data-f="pickup"   data-en="Pickup" data-zh="自取">Pickup</button>
+        <button class="f-btn" data-f="delivery" data-en="Delivery" data-zh="送货">Delivery</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="scroll-x">
+        <table class="tbl">
+          <thead><tr>
+            <th data-en="Order" data-zh="订单">#</th>
+            <th data-en="Product / Customer" data-zh="产品 / 客户">Product / Customer</th>
+            <th class="hide-m" data-en="Date · Time" data-zh="日期 · 时间">Date · Time</th>
+            <th data-en="Type" data-zh="类型">Type</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="orders-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Inventory ───────────────────────────────────────────── -->
+  <div id="pg-inventory" class="page">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title" data-en="Flower Inventory" data-zh="鲜花库存">Flower Inventory</div>
+        <div class="page-sub" data-en="Track stems, materials & supplies" data-zh="追踪花材及材料">Track stems, materials & supplies</div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddInv()" data-en="+ Add Item" data-zh="+ 新增">+ Add Item</button>
+    </div>
+    <div id="inv-body"></div>
+  </div>
+
+  <!-- ── Purchase List ───────────────────────────────────────── -->
+  <div id="pg-purchase" class="page">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title" data-en="Purchase List" data-zh="采购清单">Purchase List</div>
+        <div class="page-sub" data-en="What to order this week" data-zh="本周需订购的花材">What to order this week</div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddPur()" data-en="+ Add Item" data-zh="+ 新增">+ Add Item</button>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-ttl" data-en="Items to Order" data-zh="待订购项目">Items to Order</div>
+        <button class="btn btn-ghost btn-sm" onclick="clearDone()" data-en="Clear done" data-zh="清除已完成">Clear done</button>
+      </div>
+      <div style="padding:0 18px" id="pur-body"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-hdr"><div class="card-ttl" data-en="Supplier Notes" data-zh="供应商备注">Supplier Notes</div></div>
+      <div style="padding:16px">
+        <textarea class="ff" id="pur-notes" style="width:100%;padding:10px 11px;border:1px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:110px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
+<nav class="mob-nav">
+  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span data-en="Home" data-zh="主页">Home</span></button>
+  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span data-en="Orders" data-zh="订单">Orders</span></button>
+  <button class="mob-tab" data-pg="inventory"><span class="mob-icon">◉</span><span data-en="Stock" data-zh="库存">Stock</span></button>
+  <button class="mob-tab" data-pg="purchase"><span class="mob-icon">✦</span><span data-en="Buy" data-zh="采购">Buy</span></button>
+</nav>
+
+</div><!-- .shell -->
+
+<!-- ══ SETTINGS PANEL ════════════════════════════════════════ -->
+<div class="ov" id="sp-ov" onclick="closeSP()"></div>
+<div class="sp" id="sp">
+  <div class="sp-hdr">
+    <div class="sp-ttl" data-en="Settings" data-zh="设置">Settings</div>
+    <button class="sp-x" onclick="closeSP()">✕</button>
+  </div>
+  <div class="sp-body">
+    <div>
+      <div class="sp-section-ttl" data-en="Shopify Connection" data-zh="Shopify 连接">Shopify Connection</div>
+
+      <!-- Connected state -->
+      <div id="cfg-connected" style="display:none;flex-direction:column;gap:10px">
+        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">✓</span>
+          <div>
+            <div style="font-weight:600" data-en="Connected" data-zh="已连接">Connected</div>
+            <div id="cfg-shop-label" style="font-size:11px;opacity:.8"></div>
+          </div>
+        </div>
+        <button class="btn btn-ghost" onclick="disconnectShopify()" data-en="Disconnect store" data-zh="断开连接">Disconnect store</button>
+      </div>
+
+      <!-- Not connected: OAuth (primary) -->
+      <div id="cfg-oauth" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head)">
+          <span data-en="Enter your store URL and click Connect. You'll approve permissions on Shopify in one click — no tokens, no setup." data-zh="输入商店网址，点击连接。在 Shopify 上一键授权，无需令牌和复杂设置。">Enter your store URL and click Connect. Approve on Shopify in one click.</span>
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Store URL" data-zh="商店网址">Store URL</label>
+          <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
+        </div>
+        <button class="btn btn-primary" onclick="connectShopify()" style="gap:10px">
+          <span style="font-size:18px">🛍</span>
+          <span data-en="Connect with Shopify" data-zh="连接 Shopify">Connect with Shopify</span>
+        </button>
+        <div class="sp-status" id="cfg-st"></div>
+
+        <!-- Divider -->
+        <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+          <div style="flex:1;height:1px;background:var(--c-border)"></div>
+          <span style="font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em" data-en="or use a token" data-zh="或使用令牌">or use a token</span>
+          <div style="flex:1;height:1px;background:var(--c-border)"></div>
+        </div>
+
+        <!-- Legacy token (fallback) -->
+        <div class="ff">
+          <label class="ff-l" data-en="Admin API Token (shpat_…)" data-zh="管理员 Token">Admin API Token</label>
+          <input id="cfg-tok" type="password" placeholder="shpat_…">
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="saveToken()" data-en="Save token" data-zh="保存令牌">Save token</button>
+      </div>
+    </div>
+    <div>
+      <div class="sp-section-ttl" data-en="Language" data-zh="语言">Language</div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="setLang('en')">English</button>
+        <button class="btn btn-ghost" onclick="setLang('zh')">简体中文</button>
+      </div>
+    </div>
+    <div>
+      <div class="sp-section-ttl" data-en="Keyboard Shortcuts" data-zh="键盘快捷键">Keyboard Shortcuts</div>
+      <table style="font-size:12px;color:var(--c-muted);width:100%;border-collapse:collapse">
+        <tr><td style="padding:4px 0" data-en="Dashboard" data-zh="主页">Dashboard</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">1</code></td></tr>
+        <tr><td style="padding:4px 0" data-en="Orders" data-zh="订单">Orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">2</code></td></tr>
+        <tr><td style="padding:4px 0" data-en="Inventory" data-zh="库存">Inventory</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">3</code></td></tr>
+        <tr><td style="padding:4px 0" data-en="Purchase List" data-zh="采购清单">Purchase List</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">4</code></td></tr>
+        <tr><td style="padding:4px 0" data-en="Sync orders" data-zh="同步订单">Sync orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">R</code></td></tr>
+        <tr><td style="padding:4px 0" data-en="Settings" data-zh="设置">Settings</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">S</code></td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="sp-section-ttl" data-en="Data" data-zh="数据">Data</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-ghost" onclick="exportData()" data-en="↓  Export all data" data-zh="↓ 导出所有数据">↓  Export all data</button>
+        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()" data-en="✕  Clear all local data" data-zh="✕ 清除所有本地数据">✕  Clear all local data</button>
+      </div>
+    </div>
+    <div>
+      <div class="sp-section-ttl" data-en="About" data-zh="关于">About</div>
+      <div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.7">
+        Flori v2.0 · Florist Studio<br>
+        Built for Bamboo Green Florist, Penang
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Add Order ══════════════════════════════════════ -->
+<div id="m-order" class="modal">
+  <div class="mc">
+    <div class="mc-hdr">
+      <div class="mc-ttl" data-en="Add Order Manually" data-zh="手动添加订单">Add Order Manually</div>
+      <button class="mc-x" onclick="closeModal('m-order')">✕</button>
+    </div>
+    <div class="mc-body">
+      <div class="ff" style="grid-column:1/-1">
+        <label class="ff-l" data-en="Photo (Optional)" data-zh="照片（可选）">Photo</label>
+        <div class="photo-zone" id="order-photo-zone">
+          <div class="photo-zone-icon">📷</div>
+          <div class="photo-zone-lbl" data-en="Click or tap to upload photo" data-zh="点击上传照片">Click or tap to upload photo</div>
+          <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">
+        </div>
+        <input type="hidden" id="order-photo-b64">
+      </div>
+      <div class="fg fg-2">
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Product / Bouquet Name" data-zh="产品 / 花束名称">Product / Bouquet Name</label>
+          <input id="o-prod" type="text" placeholder="e.g. Dear Heroine · 玫瑰花束">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Customer Name" data-zh="客户姓名">Customer Name</label>
+          <input id="o-cust" type="text" placeholder="Name">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Order #" data-zh="订单号">Order #</label>
+          <input id="o-num" type="text" placeholder="#manual-001">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Due Date" data-zh="到期日期">Due Date</label>
+          <input id="o-date" type="date">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Due Time" data-zh="到期时间">Due Time</label>
+          <input id="o-time" type="text" placeholder="e.g. 2pm – 4pm">
+        </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Type" data-zh="类型">Type</label>
+          <select id="o-type">
+            <option value="delivery" data-en="Delivery" data-zh="送货">Delivery</option>
+            <option value="pickup" data-en="Self Collect / Pickup" data-zh="自取">Self Collect / Pickup</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="saveOrder()" data-en="Save Order" data-zh="保存订单">Save Order</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-order')" data-en="Cancel" data-zh="取消">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
+<div id="m-inv" class="modal">
+  <div class="mc">
+    <div class="mc-hdr">
+      <div class="mc-ttl" data-en="Add Stock Item" data-zh="新增库存">Add Stock Item</div>
+      <button class="mc-x" onclick="closeModal('m-inv')">✕</button>
+    </div>
+    <div class="mc-body">
+      <div class="fg fg-2">
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Item Name" data-zh="名称">Item Name</label>
+          <input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Category" data-zh="分类">Category</label>
+          <select id="i-cat">
+            <option value="cut">Cut Flowers · 鲜切花</option>
+            <option value="green">Greenery · 绿叶</option>
+            <option value="dried">Dried · 干花</option>
+            <option value="ribbon">Ribbons · 丝带</option>
+            <option value="vase">Vases · 花瓶</option>
+            <option value="foam">Foam · 花泥</option>
+            <option value="other">Other · 其他</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Quantity" data-zh="数量">Quantity</label>
+          <input id="i-qty" type="number" value="0" min="0">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Unit" data-zh="单位">Unit</label>
+          <input id="i-unit" type="text" placeholder="stems / pcs / rolls">
+        </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Notes (Supplier, Price…)" data-zh="备注（供应商、价格）">Notes</label>
+          <textarea id="i-notes" placeholder="Supplier, price per stem, order day…"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="saveInv()" data-en="Save Item" data-zh="保存">Save Item</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-inv')" data-en="Cancel" data-zh="取消">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
+<div id="m-pur" class="modal">
+  <div class="mc">
+    <div class="mc-hdr">
+      <div class="mc-ttl" data-en="Add to Purchase List" data-zh="新增采购项目">Add to Purchase List</div>
+      <button class="mc-x" onclick="closeModal('m-pur')">✕</button>
+    </div>
+    <div class="mc-body">
+      <div class="fg fg-2">
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Item Name" data-zh="花材名称">Item Name</label>
+          <input id="p-name" type="text" placeholder="e.g. White Tulips · 白郁金香">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Qty Needed" data-zh="需要数量">Qty Needed</label>
+          <input id="p-qty" type="text" placeholder="50 stems">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Urgency" data-zh="紧急程度">Urgency</label>
+          <select id="p-urg">
+            <option value="today" data-en="Today" data-zh="今日">Today</option>
+            <option value="week" data-en="This Week" data-zh="本周">This Week</option>
+            <option value="stock" data-en="Stock Up" data-zh="补货">Stock Up</option>
+          </select>
+        </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Notes" data-zh="备注">Notes</label>
+          <input id="p-notes" type="text" placeholder="Supplier / price / delivery day">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="savePur()" data-en="Add Item" data-zh="添加">Add Item</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-pur')" data-en="Cancel" data-zh="取消">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ZOOM OVERLAY ══════════════════════════════════════════ -->
+<div id="zoom" class="zoom" onclick="closeZoom()">
+  <img id="zoom-img" src="" alt="">
+  <div id="zoom-cap" class="zoom-cap"></div>
+</div>
+
+<!-- ══ TOAST ════════════════════════════════════════════════ -->
+<div id="toast" class="toast"></div>
+
+<script>
+/* ─── Language ──────────────────────────────────────────────── */
+let LANG = localStorage.getItem('flori-lang') || 'en';
+
+function setLang(l) {
+  LANG = l;
+  localStorage.setItem('flori-lang', l);
+  document.querySelectorAll('[data-en]').forEach(el => {
+    const v = el.getAttribute('data-' + l) || el.getAttribute('data-en');
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') {
+      if (!el.children.length) el.textContent = v;
+    }
+  });
+  // Update hdr lang toggle button
+  const langBtn = document.querySelector('.hdr-btn[onclick="toggleLang()"]');
+  if (langBtn) langBtn.textContent = l === 'en' ? '中文' : 'EN';
+  renderAll();
+}
+
+function toggleLang() { setLang(LANG === 'en' ? 'zh' : 'en'); }
+
+/* ─── Date helpers ──────────────────────────────────────────── */
+const MN = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+
+function pd(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  let m;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) return new Date(+m[3],+m[2]-1,+m[1]);
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);   if (m) return new Date(+m[3],+m[2]-1,+m[1]);
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);         if (m) return new Date(+m[1],+m[2]-1,+m[3]);
+  m = s.match(/(?:\w+,?\s*)?(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
+  if (m) return new Date(+m[3], MN[m[2].toLowerCase().slice(0,3)] ?? 0, +m[1]);
+  return null;
+}
+
+function fd(d) {
+  if (!d) return '–';
+  return d.toLocaleDateString('en-MY', {weekday:'short', day:'numeric', month:'short'});
+}
+
+function tdi(d) {
+  if (!d) return '';
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function today0() { const t = new Date(); t.setHours(0,0,0,0); return t; }
+
+function isToday(d) {
+  if (!d) return false;
+  const t = today0();
+  return d >= t && d < new Date(t.getTime() + 86400000);
+}
+
+function isPast(d) { return d && d < today0(); }
+
+/* ─── Shopify API ────────────────────────────────────────────── */
+function gAttr(attrs, key) {
+  const f = attrs.find(a => a.key === key || a.key.toLowerCase() === key.toLowerCase());
+  return f ? f.value : '';
+}
+
+function getType(attrs) {
+  const t = (gAttr(attrs,'Order Fulfillment Type') || gAttr(attrs,'Type Of Order') || '').toLowerCase();
+  return (t.includes('pick') || t.includes('collect')) ? 'pickup' : 'delivery';
+}
+
+function getDueDate(attrs) { return gAttr(attrs,'Order Due Date') || gAttr(attrs,'Delivery Date') || gAttr(attrs,'Pickup Date'); }
+function getDueTime(attrs) { return gAttr(attrs,'Order Due Time') || gAttr(attrs,'Delivery Time') || gAttr(attrs,'Pickup Time'); }
+
+async function getAccessToken() {
+  const t = localStorage.getItem('flori-token') || '';
+  if (!t) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
+  return t;
+}
+
+async function shopifyGQL(query) {
+  const url   = localStorage.getItem('flori-url') || '';
+  if (!url) throw new Error('Store URL not configured');
+  const token = await getAccessToken();
+  const r = await fetch(`https://${url}/admin/api/2025-01/graphql.json`, {
+    method: 'POST',
+    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query })
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j = await r.json();
+  if (j.errors) throw new Error(j.errors[0]?.message || 'GraphQL error');
+  return j.data;
+}
+
+async function syncOrders() {
+  const btn = document.getElementById('sync-btn');
+  const ico = document.getElementById('sync-ico');
+  ico.classList.add('spin');
+  setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
+  try {
+    const q = `{
+      orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){
+        edges{node{
+          id name createdAt
+          customer{firstName lastName}
+          lineItems(first:5){edges{node{title quantity
+            product{featuredMedia{preview{image{url}}}}
+          }}}
+          customAttributes{key value}
+        }}
+      }
+    }`;
+    const data = await shopifyGQL(q);
+    const raw  = data.orders.edges.map(e => e.node);
+
+    // Merge: keep manual orders, replace Shopify orders
+    const manuals = ORDERS.filter(o => o.src === 'manual');
+    const shopify = raw.map(n => {
+      const attrs  = n.customAttributes || [];
+      const ds     = getDueDate(attrs);
+      const imgUrl = n.lineItems.edges[0]?.node?.product?.featuredMedia?.preview?.image?.url || null;
+      return {
+        id: n.id, name: n.name, src: 'shopify',
+        customer: [(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ') || 'Guest',
+        product: n.lineItems.edges.map(e=>e.node.title).join(', '),
+        image: imgUrl,
+        dueDate: ds, dueTime: getDueTime(attrs),
+        dateObj: null, // rehydrated on load
+        type: getType(attrs), ready: false
+      };
+    });
+
+    ORDERS = [...shopify, ...manuals];
+    saveOrders();
+    rehydrateOrders();
+
+    const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
+    setPill(`Synced ${shopify.length} · ${now}`);
+    setSBFoot(`Last sync: ${now}`);
+    toast(LANG==='zh' ? `✓ 同步 ${shopify.length} 个订单` : `✓ Synced ${shopify.length} orders`);
+    renderAll();
+  } catch(e) {
+    setPill('Sync failed');
+    toast(LANG==='zh' ? '⚠ 同步失败 — 请检查设置' : '⚠ Sync failed — check Settings');
+  }
+  ico.classList.remove('spin');
+}
+
+/* ─── Data stores ────────────────────────────────────────────── */
+let ORDERS    = [];
+let INVENTORY = [];
+let PURCHASES = [];
+
+function saveOrders()    { localStorage.setItem('flori-orders',    JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
+function saveInventory() { localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY)); }
+function savePurchases() { localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES)); }
+
+function loadData() {
+  try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
+  try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
+  try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
+  rehydrateOrders();
+  const notes = localStorage.getItem('flori-pur-notes') || '';
+  const ta = document.getElementById('pur-notes');
+  if (ta) ta.value = notes;
+  const url = localStorage.getItem('flori-url') || '';
+  const tok = localStorage.getItem('flori-token') || '';
+  if (url) { const el = document.getElementById('cfg-url'); if(el) el.value = url; }
+  if (tok) { const el = document.getElementById('cfg-tok'); if(el) el.value = tok; }
+  if (url) setPill(url);
+}
+
+function rehydrateOrders() {
+  ORDERS.forEach(o => { o.dateObj = o.dueDate ? pd(o.dueDate) : null; });
+}
+
+/* ─── Order rendering helpers ────────────────────────────────── */
+let orderFilter = 'all';
+
+function filteredOrders() {
+  const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
+  return ORDERS.filter(o => {
+    if (orderFilter === 'today')    return o.dateObj && o.dateObj >= t0 && o.dateObj < t1;
+    if (orderFilter === 'pickup')   return o.type === 'pickup';
+    if (orderFilter === 'delivery') return o.type === 'delivery';
+    return true;
+  });
+}
+
+function sortedOrders(list) {
+  return [...list].sort((a,b) => {
+    // Overdue at bottom
+    const la = isPast(a.dateObj), lb = isPast(b.dateObj);
+    if (la && !lb) return 1;
+    if (!la && lb) return -1;
+    if (!a.dateObj && !b.dateObj) return 0;
+    if (!a.dateObj) return 1;
+    if (!b.dateObj) return -1;
+    return a.dateObj - b.dateObj;
+  });
+}
+
+function thumbCell(o) {
+  if (o.image) {
+    const safe = o.image.replace(/'/g,"\\'");
+    const cap  = (o.product||'').replace(/'/g,"\\'");
+    return `<div class="o-thumb"><img src="${o.image}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`;
+  }
+  return `<div class="o-thumb ph">🌸</div>`;
+}
+
+function tagRow(o) {
+  const zh = LANG === 'zh';
+  let h = o.type === 'pickup'
+    ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>`
+    : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
+  if (isPast(o.dateObj))  h += ` <span class="tag tag-late">${zh?'逾期':'Overdue'}</span>`;
+  if (o.ready)            h += ` <span class="tag tag-ready">${zh?'已准备':'Ready'}</span>`;
+  if (o.src === 'manual') h += ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>`;
+  return h;
+}
+
+function actionBtns(id) {
+  const o = ORDERS.find(x=>x.id===id);
+  if (!o) return '';
+  return `<div style="display:flex;gap:5px;justify-content:flex-end">
+    <button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button>
+    <button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button>
+  </div>`;
+}
+
+function orderRow(o, showDate = true) {
+  const cls = isPast(o.dateObj) ? ' class="late"' : '';
+  const dtCell = showDate
+    ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
+    : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
+  return `<tr${cls}>
+    <td><div class="o-cell">${thumbCell(o)}<div><div class="o-num">${o.name}</div><div class="o-prod">${esc(o.product)}</div><div style="font-size:11px;color:var(--c-muted);margin-top:2px">${esc(o.customer)}</div></div></div></td>
+    ${dtCell}
+    <td>${tagRow(o)}</td>
+    <td>${actionBtns(o.id)}</td>
+  </tr>`;
+}
+
+/* ─── Render ─────────────────────────────────────────────────── */
+function renderAll() {
+  updateBadge();
+  renderHome();
+  renderOrders();
+  renderInventory();
+  renderPurchase();
+}
+
+function renderHome() {
+  const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
+  const todayO = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+
+  document.getElementById('s-total').textContent = ORDERS.length;
+  document.getElementById('s-today').textContent = todayO.length;
+  document.getElementById('s-pu').textContent    = ORDERS.filter(o=>o.type==='pickup').length;
+  document.getElementById('s-de').textContent    = ORDERS.filter(o=>o.type==='delivery').length;
+
+  document.getElementById('dash-date').textContent =
+    new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
+
+  const sorted = sortedOrders(todayO);
+  const tb = document.getElementById('home-tbody');
+  tb.innerHTML = sorted.length
+    ? sorted.map(o => orderRow(o, false)).join('')
+    : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">${LANG==='zh'?'今日暂无订单':'No orders today'}</div></div></td></tr>`;
+}
+
+function renderOrders() {
+  const list = sortedOrders(filteredOrders());
+  const tb = document.getElementById('orders-tbody');
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="4" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${LANG==='zh'?'暂无订单 — 请同步或手动添加':'No orders — sync or add manually'}</div></div></td></tr>`;
+    return;
+  }
+
+  // Group by date
+  const groups = [];
+  list.forEach(o => {
+    const k = o.dateObj ? o.dateObj.toDateString() : '__';
+    let g = groups.find(x => x.k === k);
+    if (!g) { g = {k, d: o.dateObj, items:[]}; groups.push(g); }
+    g.items.push(o);
+  });
+
+  let html = '';
+  groups.forEach(g => {
+    let lbl = '–';
+    if (g.d) {
+      if (isPast(g.d))   lbl = (LANG==='zh'?'⚠ 逾期 · ':'⚠ Overdue · ') + fd(g.d);
+      else if (isToday(g.d)) lbl = (LANG==='zh'?'● 今日 · ':'● Today · ') + fd(g.d);
+      else lbl = fd(g.d);
+    }
+    html += `<tr class="grp-row"><td colspan="4"><div class="grp-label">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
+    html += g.items.map(o => orderRow(o, true)).join('');
+  });
+  tb.innerHTML = html;
+}
+
+function renderInventory() {
+  const CAT = {
+    cut:    {en:'Cut Flowers', zh:'鲜切花'},
+    green:  {en:'Greenery',   zh:'绿叶'},
+    dried:  {en:'Dried Flowers', zh:'干花'},
+    ribbon: {en:'Ribbons & Wrapping', zh:'丝带包装'},
+    vase:   {en:'Vases & Containers', zh:'花瓶容器'},
+    foam:   {en:'Floral Foam', zh:'花泥'},
+    other:  {en:'Other',      zh:'其他'},
+  };
+  const cont = document.getElementById('inv-body');
+  if (!INVENTORY.length) {
+    cont.innerHTML = `<div class="empty"><div class="empty-ico">◉</div><div class="empty-txt">${LANG==='zh'?'暂无库存 — 点 + 新增':'No items — tap + Add Item'}</div></div>`;
+    return;
+  }
+  const byCat = {};
+  INVENTORY.forEach(i => { (byCat[i.cat] = byCat[i.cat]||[]).push(i); });
+  let html = '';
+  Object.entries(byCat).forEach(([cat, items]) => {
+    const label = CAT[cat] ? CAT[cat][LANG]||CAT[cat].en : cat;
+    const cards = items.map(i => `
+      <div class="inv-card">
+        <div class="inv-cat">${label}</div>
+        <div class="inv-name">${esc(i.name)}</div>
+        <div class="inv-q"><div class="inv-n">${i.qty}</div><div class="inv-u">${esc(i.unit)}</div></div>
+        ${i.notes ? `<div class="inv-note">${esc(i.notes)}</div>` : ''}
+        <div class="inv-acts">
+          <button class="inv-act" onclick="invAdj('${i.id}',1)" title="${LANG==='zh'?'加货':'+'}">+</button>
+          <button class="inv-act" onclick="invAdj('${i.id}',-1)" title="${LANG==='zh'?'用掉':'−'}">−</button>
+          <button class="inv-act x" onclick="invDel('${i.id}')" title="${LANG==='zh'?'删除':'Delete'}">✕</button>
+        </div>
+      </div>`).join('');
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--c-border)">${label}</div>
+      <div class="inv-grid">${cards}</div>
+    </div>`;
+  });
+  cont.innerHTML = html;
+}
+
+function renderPurchase() {
+  const URG = {
+    today: {en:'Today',     zh:'今日',   c:'var(--c-red)'},
+    week:  {en:'This Week', zh:'本周',   c:'var(--c-amber)'},
+    stock: {en:'Stock Up',  zh:'补货',   c:'var(--c-muted)'},
+  };
+  const cont = document.getElementById('pur-body');
+  if (!PURCHASES.length) {
+    cont.innerHTML = `<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">${LANG==='zh'?'暂无项目':'No items'}</div></div>`;
+    return;
+  }
+  const ord = {today:0,week:1,stock:2};
+  const sorted = [...PURCHASES].sort((a,b) => (ord[a.urg]||2) - (ord[b.urg]||2));
+  cont.innerHTML = sorted.map(p => {
+    const u = URG[p.urg] || URG.stock;
+    return `<div class="pur-item">
+      <div class="pur-chk ${p.done?'done':''}" onclick="togglePur('${p.id}')">${p.done?'✓':''}</div>
+      <div class="pur-info" style="${p.done?'opacity:.4;text-decoration:line-through':''}">
+        <div class="pur-name">${esc(p.name)}</div>
+        ${p.notes ? `<div class="pur-sub">${esc(p.notes)}</div>` : ''}
+        <div class="pur-tags">
+          ${p.qty ? `<span class="pur-qty">${esc(p.qty)}</span>` : ''}
+          <span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:${u.c}">${u[LANG]||u.en}</span>
+        </div>
+      </div>
+      <button class="pur-del" onclick="delPur('${p.id}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+/* ─── Navigation ─────────────────────────────────────────────── */
+const PAGES = ['home','orders','inventory','purchase'];
+
+function goPage(pg) {
+  PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
+  document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
+  if (pg === 'inventory') renderInventory();
+  if (pg === 'purchase')  renderPurchase();
+}
+
+document.querySelectorAll('[data-pg]').forEach(btn => {
+  btn.addEventListener('click', () => goPage(btn.dataset.pg));
+});
+
+// Filter buttons
+document.querySelectorAll('[data-f]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    orderFilter = btn.dataset.f;
+    document.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === orderFilter));
+    renderOrders();
+  });
+});
+
+/* ─── Settings Panel ─────────────────────────────────────────── */
+function openSP() {
+  updateConnectedUI();
+  document.getElementById('sp').classList.add('on');
+  document.getElementById('sp-ov').classList.add('on');
+}
+function closeSP() {
+  document.getElementById('sp').classList.remove('on');
+  document.getElementById('sp-ov').classList.remove('on');
+}
+
+function updateConnectedUI() {
+  const tok  = localStorage.getItem('flori-token') || '';
+  const url  = localStorage.getItem('flori-url')   || '';
+  const conn = document.getElementById('cfg-connected');
+  const oauth= document.getElementById('cfg-oauth');
+  if (tok && url) {
+    conn.style.display  = 'flex';
+    oauth.style.display = 'none';
+    document.getElementById('cfg-shop-label').textContent = url;
+  } else {
+    conn.style.display  = 'none';
+    oauth.style.display = 'flex';
+  }
+  if (url) document.getElementById('cfg-url').value = url;
+  if (tok) document.getElementById('cfg-tok').value = tok;
+}
+
+function connectShopify() {
+  const raw = document.getElementById('cfg-url').value.trim()
+    .replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+  if (!raw || !raw.includes('.myshopify.com')) {
+    setSpStatus('err', LANG==='zh' ? '请输入正确的商店网址' : 'Enter a valid .myshopify.com URL');
+    return;
+  }
+  // Redirect to the backend OAuth initiator
+  window.location.href = `/api/auth?shop=${encodeURIComponent(raw)}`;
+}
+
+function saveToken() {
+  const url = document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
+  const tok = document.getElementById('cfg-tok').value.trim();
+  if (!url) { setSpStatus('err', LANG==='zh'?'请填写商店网址':'Store URL required'); return; }
+  if (!tok) { setSpStatus('err', LANG==='zh'?'请填写 Token':'Token required'); return; }
+  localStorage.setItem('flori-url', url);
+  localStorage.setItem('flori-token', tok);
+  updateConnectedUI();
+  setSpStatus('ok', LANG==='zh'?'✓ 已保存':'✓ Saved');
+  setTimeout(() => syncOrders(), 500);
+}
+
+function disconnectShopify() {
+  if (!confirm(LANG==='zh'?'断开 Shopify 连接？':'Disconnect Shopify?')) return;
+  ['flori-url','flori-token','flori-cc-cache'].forEach(k => localStorage.removeItem(k));
+  updateConnectedUI();
+  setPill('');
+}
+
+function setSpStatus(cls, msg) {
+  const el = document.getElementById('cfg-st');
+  el.className = 'sp-status ' + cls;
+  el.textContent = msg;
+  setTimeout(() => el.textContent='', 5000);
+}
+
+/* ─── OAuth callback handler ─────────────────────────────────── */
+function handleOAuthCallback() {
+  // After OAuth, backend redirects to /#connected?shop=xxx&token=xxx
+  const hash = window.location.hash;
+  if (!hash.startsWith('#connected?')) return false;
+  const params = new URLSearchParams(hash.slice('#connected?'.length));
+  const shop  = params.get('shop');
+  const token = params.get('token');
+  if (shop && token) {
+    localStorage.setItem('flori-url',   shop);
+    localStorage.setItem('flori-token', token);
+    // Clean URL
+    history.replaceState(null, '', window.location.pathname);
+    toast(LANG==='zh' ? `✓ 已连接 ${shop}` : `✓ Connected to ${shop}`);
+    setPill(shop);
+    setTimeout(() => syncOrders(), 600);
+    return true;
+  }
+  return false;
+}
+
+/* ─── Modals ─────────────────────────────────────────────────── */
+function openModal(id)  { document.getElementById(id).classList.add('on'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('on');
+  // Reset photo zone
+  const zone = document.getElementById('order-photo-zone');
+  if (zone) zone.innerHTML = `<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl" data-en="Click or tap to upload photo" data-zh="点击上传照片">${LANG==='zh'?'点击上传照片':'Click or tap to upload photo'}</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
+  const b64 = document.getElementById('order-photo-b64');
+  if (b64) b64.value = '';
+}
+
+function openAddOrder()   { openModal('m-order'); }
+function openAddInv()     { openModal('m-inv'); }
+function openAddPur()     { openModal('m-pur'); }
+
+/* ─── Photo upload ───────────────────────────────────────────── */
+function handlePhotoUpload(input, zoneId, hiddenId) {
+  const file = input.files[0];
+  if (!file) return;
+  // Check file size (max 3MB to keep localStorage manageable)
+  if (file.size > 3 * 1024 * 1024) { toast(LANG==='zh'?'照片太大，请选择 3MB 以内的照片':'Photo too large — max 3MB'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    const zone = document.getElementById(zoneId);
+    if (zone) {
+      zone.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
+    }
+    const hidden = document.getElementById(hiddenId);
+    if (hidden) hidden.value = b64;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ─── Save actions ───────────────────────────────────────────── */
+function saveOrder() {
+  const prod = document.getElementById('o-prod').value.trim();
+  const cust = document.getElementById('o-cust').value.trim();
+  if (!prod) { toast(LANG==='zh'?'请填写产品名称':'Product name required'); return; }
+  const dateVal = document.getElementById('o-date').value;
+  const order = {
+    id: 'manual-' + Date.now(),
+    src: 'manual',
+    name: document.getElementById('o-num').value.trim() || ('#M-' + Date.now().toString().slice(-4)),
+    product: prod,
+    customer: cust || 'Guest',
+    image: document.getElementById('order-photo-b64').value || null,
+    dueDate: dateVal,
+    dueTime: document.getElementById('o-time').value.trim(),
+    dateObj: dateVal ? pd(dateVal) : null,
+    type: document.getElementById('o-type').value,
+    ready: false
+  };
+  ORDERS.push(order);
+  saveOrders();
+  closeModal('m-order');
+  // Reset form fields
+  ['o-prod','o-cust','o-num','o-time'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
+  document.getElementById('o-date').value = '';
+  toast(LANG==='zh'?'✓ 订单已保存':'✓ Order saved');
+  renderAll();
+}
+
+function saveInv() {
+  const name = document.getElementById('i-name').value.trim();
+  if (!name) { toast(LANG==='zh'?'请填写名称':'Name required'); return; }
+  INVENTORY.push({
+    id: 'inv-' + Date.now(),
+    name,
+    cat:   document.getElementById('i-cat').value,
+    qty:   parseInt(document.getElementById('i-qty').value) || 0,
+    unit:  document.getElementById('i-unit').value.trim() || 'pcs',
+    notes: document.getElementById('i-notes').value.trim()
+  });
+  saveInventory();
+  closeModal('m-inv');
+  ['i-name','i-unit','i-notes'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
+  document.getElementById('i-qty').value = '0';
+  toast(LANG==='zh'?'✓ 已新增':'✓ Item added');
+  renderInventory();
+}
+
+function savePur() {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) { toast(LANG==='zh'?'请填写名称':'Name required'); return; }
+  PURCHASES.push({
+    id: 'pur-' + Date.now(),
+    name,
+    qty:   document.getElementById('p-qty').value.trim(),
+    urg:   document.getElementById('p-urg').value,
+    notes: document.getElementById('p-notes').value.trim(),
+    done: false
+  });
+  savePurchases();
+  closeModal('m-pur');
+  ['p-name','p-qty','p-notes'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
+  toast(LANG==='zh'?'✓ 已添加到采购清单':'✓ Added to purchase list');
+  renderPurchase();
+}
+
+function savePurNotes() {
+  localStorage.setItem('flori-pur-notes', document.getElementById('pur-notes').value);
+}
+
+/* ─── CRUD ───────────────────────────────────────────────────── */
+function toggleReady(id) {
+  const o = ORDERS.find(x=>x.id===id);
+  if (o) o.ready = !o.ready;
+  saveOrders();
+  renderHome(); renderOrders();
+}
+
+function delOrder(id) {
+  if (!confirm(LANG==='zh'?'删除此订单？':'Remove this order?')) return;
+  ORDERS = ORDERS.filter(x=>x.id!==id);
+  saveOrders(); renderAll();
+  toast(LANG==='zh'?'已删除':'Removed');
+}
+
+function invAdj(id, delta) {
+  const i = INVENTORY.find(x=>x.id===id);
+  if (i) i.qty = Math.max(0, (i.qty||0) + delta);
+  saveInventory(); renderInventory();
+}
+
+function invDel(id) {
+  if (!confirm(LANG==='zh'?'删除此项目？':'Remove item?')) return;
+  INVENTORY = INVENTORY.filter(x=>x.id!==id);
+  saveInventory(); renderInventory();
+  toast(LANG==='zh'?'已删除':'Removed');
+}
+
+function togglePur(id) {
+  const p = PURCHASES.find(x=>x.id===id);
+  if (p) p.done = !p.done;
+  savePurchases(); renderPurchase();
+}
+
+function delPur(id) {
+  PURCHASES = PURCHASES.filter(x=>x.id!==id);
+  savePurchases(); renderPurchase();
+}
+
+function clearDone() {
+  PURCHASES = PURCHASES.filter(x=>!x.done);
+  savePurchases(); renderPurchase();
+  toast(LANG==='zh'?'已清除完成项目':'Cleared done items');
+}
+
+/* ─── Zoom ───────────────────────────────────────────────────── */
+function openZoom(src, cap) {
+  document.getElementById('zoom-img').src = src;
+  document.getElementById('zoom-cap').textContent = cap || '';
+  document.getElementById('zoom').classList.add('on');
+}
+function closeZoom() { document.getElementById('zoom').classList.remove('on'); }
+
+/* ─── Toast ──────────────────────────────────────────────────── */
+let _toastT;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => el.classList.remove('on'), 2400);
+}
+
+/* ─── UI helpers ─────────────────────────────────────────────── */
+function setPill(msg) { const el=document.getElementById('hdr-pill'); if(el) el.textContent=msg; }
+function setSBFoot(msg) { const el=document.getElementById('sb-foot'); if(el) el.textContent=msg; }
+function updateBadge() { const el=document.getElementById('nb-orders'); if(el) el.textContent=ORDERS.length; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ─── Data management ────────────────────────────────────────── */
+function exportData() {
+  const d = { orders: ORDERS.map(o=>({...o,dateObj:undefined})), inventory: INVENTORY, purchases: PURCHASES, notes: localStorage.getItem('flori-pur-notes')||'', at: new Date().toISOString() };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
+  a.download = 'flori-' + tdi(new Date()) + '.json';
+  a.click();
+  toast(LANG==='zh'?'✓ 数据已导出':'✓ Data exported');
+}
+
+function clearAll() {
+  if (!confirm(LANG==='zh'?'清除所有本地数据？（Shopify 订单不受影响）':'Clear all local data? (Shopify is unaffected)')) return;
+  ['flori-orders','flori-inventory','flori-purchases','flori-pur-notes'].forEach(k => localStorage.removeItem(k));
+  ORDERS=[]; INVENTORY=[]; PURCHASES=[];
+  renderAll(); closeSP();
+  toast(LANG==='zh'?'已清除所有本地数据':'All local data cleared');
+}
+
+/* ─── Keyboard shortcuts ─────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if (e.key==='1') goPage('home');
+  if (e.key==='2') goPage('orders');
+  if (e.key==='3') goPage('inventory');
+  if (e.key==='4') goPage('purchase');
+  if (e.key==='r'||e.key==='R') syncOrders();
+  if (e.key==='s'||e.key==='S') openSP();
+  if (e.key==='l'||e.key==='L') toggleLang();
+  if (e.key==='Escape') { closeSP(); closeZoom(); }
+});
+
+/* ─── Init ───────────────────────────────────────────────────── */
+function init() {
+  // Check for OAuth callback first (#connected?shop=...&token=...)
+  const wasCallback = handleOAuthCallback();
+  loadData();
+  setLang(LANG);
+  renderAll();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
+
+init();
+</script>
+</body>
+</html>
