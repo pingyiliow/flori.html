@@ -968,9 +968,7 @@ async function syncOrders() {
         edges{node{
           id name createdAt
           customer{firstName lastName}
-          lineItems(first:5){edges{node{title quantity
-            product{featuredMedia{preview{image{url}}}}
-          }}}
+          lineItems(first:5){edges{node{title quantity}}}
           customAttributes{key value}
         }}
       }
