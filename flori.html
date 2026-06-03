@@ -930,14 +930,28 @@ async function getAccessToken() {
 
 async function shopifyGQL(query) {
   const url   = localStorage.getItem('flori-url') || '';
-  if (!url) throw new Error('Store URL not configured');
+  if (!url) throw new Error('Store URL not configured — open Settings');
   const token = await getAccessToken();
-  const r = await fetch(`https://${url}/admin/api/2025-01/graphql.json`, {
-    method: 'POST',
-    headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query })
-  });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  let r;
+  try {
+    r = await fetch(`https://${url}/admin/api/2025-01/graphql.json`, {
+      method: 'POST',
+      headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+  } catch (corsErr) {
+    r = await fetch('/api/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shop: url, token, query })
+    });
+  }
+  if (r.status === 401) throw new Error('Token rejected (401) — check token in Settings');
+  if (r.status === 403) throw new Error('Access denied (403) — token may lack read_orders scope');
+  if (!r.ok) {
+    const txt = await r.text().catch(()=>'');
+    throw new Error('HTTP ' + r.status + ': ' + txt.slice(0,120));
+  }
   const j = await r.json();
   if (j.errors) throw new Error(j.errors[0]?.message || 'GraphQL error');
   return j.data;
@@ -992,7 +1006,8 @@ async function syncOrders() {
     renderAll();
   } catch(e) {
     setPill('Sync failed');
-    toast(LANG==='zh' ? '⚠ 同步失败 — 请检查设置' : '⚠ Sync failed — check Settings');
+    toast('⚠ ' + (e.message || 'Sync failed'));
+    console.error('Sync error:', e);
   }
   ico.classList.remove('spin');
 }
