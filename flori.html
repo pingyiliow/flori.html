@@ -1192,12 +1192,22 @@ let orderFilter = 'all';
 
 function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
-  return ORDERS.filter(o => {
-    if (orderFilter === 'today')    return o.dateObj && o.dateObj >= t0 && o.dateObj < t1;
-    if (orderFilter === 'pickup')   return o.type === 'pickup';
-    if (orderFilter === 'delivery') return o.type === 'delivery';
-    return true;
-  });
+  let list = ORDERS;
+  // Primary date filter
+  if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
+  // Calendar date filter (overrides primary if set)
+  if (calFilter) {
+    const [cy,cm,cd] = calFilter.split('-').map(Number);
+    list = list.filter(o => {
+      if (!o.dateObj) return false;
+      return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd;
+    });
+  }
+  // Type sub-filter
+  if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
+  if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
+  return list;
 }
 
 function sortedOrders(list) {
@@ -1248,8 +1258,10 @@ function orderRow(o, showDate = true) {
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
+  // 5 columns: Order# | Product · Customer | Date · Time | Type | Actions
   return `<tr${cls}>
-    <td><div class="o-cell">${thumbCell(o)}<div><div class="o-num">${o.name}</div><div class="o-prod">${esc(o.product)}</div><div style="font-size:11px;color:var(--c-muted);margin-top:2px">${esc(o.customer)}</div></div></div></td>
+    <td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td>
+    <td><div class="o-prod">${esc(o.product)}</div><div style="font-size:11px;color:var(--c-muted);margin-top:2px">${esc(o.customer)}</div></td>
     ${dtCell}
     <td>${tagRow(o)}</td>
     <td>${actionBtns(o.id)}</td>
@@ -1396,7 +1408,7 @@ function renderPurchase() {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','inventory','purchase'];
+const PAGES = ['home','orders','inventory','purchase','followup'];
 
 function goPage(pg) {
   if (pg === 'followup') renderFollowup();
@@ -1414,8 +1426,38 @@ document.querySelectorAll('[data-pg]').forEach(btn => {
 document.querySelectorAll('[data-f]').forEach(btn => {
   btn.addEventListener('click', () => {
     orderFilter = btn.dataset.f;
+    calFilter = null;
+    const lbl = document.getElementById('cal-active-lbl');
+    if (lbl) lbl.style.display = 'none';
+    const btnLbl = document.getElementById('cal-btn-label');
+    const selLbl = document.getElementById('cal-selected-lbl');
+    if (btnLbl) btnLbl.textContent = 'Select date';
+    if (selLbl) selLbl.textContent = '';
+    const tb = document.getElementById('cal-toggle-btn');
+    if (tb) tb.style.color = 'var(--c-muted)';
     document.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === orderFilter));
+    renderCalendar();
     renderOrders();
+  });
+});
+
+// Pickup / Delivery sub-filter
+document.querySelectorAll('[data-ft]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-ft]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    typeFilter = btn.dataset.ft;
+    renderOrders();
+  });
+});
+
+// Follow-up status filter
+document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#fu-filters [data-fu]').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    fuFilter = btn.dataset.fu;
+    renderFollowup();
   });
 });
 
