@@ -588,28 +588,47 @@ img{display:block;max-width:100%}
       </div>
     </div>
 
-    <!-- Calendar -->
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--c-border)">
-        <button class="hdr-btn" onclick="calPrev()" style="width:28px;height:28px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
-        <div id="cal-title" style="font-family:var(--f-head);font-size:15px;font-weight:400;font-style:italic;color:var(--c-ink)"></div>
-        <button class="hdr-btn" onclick="calNext()" style="width:28px;height:28px;border:1px solid var(--c-border);border-radius:var(--r)">›</button>
+    <!-- Calendar — collapsed by default, opens on click -->
+    <div style="position:relative">
+      <button id="cal-toggle-btn" onclick="toggleCalendar()"
+        style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s"
+        onmouseover="this.style.borderColor='var(--c-border2)';this.style.color='var(--c-ink)'"
+        onmouseout="this.style.borderColor='var(--c-border)';this.style.color=document.getElementById('cal-selected-lbl').textContent?'var(--c-forest)':'var(--c-muted)'">
+        <span style="font-size:15px">📅</span>
+        <span id="cal-selected-lbl" style="font-style:italic;font-family:var(--f-head)"></span>
+        <span id="cal-btn-label">Select date</span>
+        <span id="cal-chevron" style="font-size:10px;opacity:.5">▾</span>
+      </button>
+      <!-- Calendar panel — hidden by default -->
+      <div id="cal-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:min(320px,90vw);overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--c-border)">
+          <button class="hdr-btn" onclick="calPrev()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
+          <div id="cal-title" style="font-family:var(--f-head);font-size:14px;font-weight:400;font-style:italic;color:var(--c-ink)"></div>
+          <button class="hdr-btn" onclick="calNext()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">›</button>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
       </div>
-      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
     </div>
 
     <!-- Filters -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <div class="filters" id="filters">
           <button class="f-btn on" data-f="all"   data-en="All" data-zh="全部">All</button>
           <button class="f-btn" data-f="today"     data-en="Today" data-zh="今日">Today</button>
           <button class="f-btn" data-f="overdue"   data-en="Overdue" data-zh="逾期">Overdue</button>
         </div>
-        <div class="filters" id="filters-type">
-          <button class="f-btn on" data-ft="all"      data-en="All Types" data-zh="全部类型">All Types</button>
-          <button class="f-btn" data-ft="pickup"       data-en="Pickup" data-zh="自取">Pickup</button>
-          <button class="f-btn" data-ft="delivery"     data-en="Delivery" data-zh="送货">Delivery</button>
+        <!-- Pickup / Delivery sub-column for All & Today -->
+        <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
+          <button class="f-btn on" data-ft="all"      style="display:flex;align-items:center;gap:4px" data-en="All" data-zh="全部" id="ft-all">All</button>
+          <button class="f-btn"    data-ft="pickup"    style="display:flex;align-items:center;gap:4px" data-en="Pickup" data-zh="自取" id="ft-pickup">
+            <span style="font-size:8px;background:var(--c-blue-bg);color:var(--c-blue);padding:1px 4px;border-radius:2px;letter-spacing:.04em">P</span>
+            Pickup <span id="count-pickup" style="font-size:9px;opacity:.6"></span>
+          </button>
+          <button class="f-btn"    data-ft="delivery"  style="display:flex;align-items:center;gap:4px" data-en="Delivery" data-zh="送货" id="ft-delivery">
+            <span style="font-size:8px;background:var(--c-amber-bg);color:var(--c-amber);padding:1px 4px;border-radius:2px;letter-spacing:.04em">D</span>
+            Delivery <span id="count-delivery" style="font-size:9px;opacity:.6"></span>
+          </button>
         </div>
       </div>
       <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
@@ -681,20 +700,32 @@ img{display:block;max-width:100%}
       <button class="btn btn-primary" onclick="openAddFollowup()" data-en="+ Add Customer" data-zh="+ 添加客户">+ Add Customer</button>
     </div>
 
-    <!-- Summary pills -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+    <!-- Summary stats -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;background:var(--c-surface)">
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
         <div id="fu-total" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-ink)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Total" data-zh="总计">Total</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Total</div>
       </div>
-      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
+        <div id="fu-followup-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-blush)">0</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Follow-up</div>
+      </div>
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
         <div id="fu-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-amber)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Pending Payment" data-zh="待付款">Pending</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Unpaid</div>
       </div>
-      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+      <div style="padding:16px 18px">
         <div id="fu-paid" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-forest)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Paid" data-zh="已付款">Paid</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Completed</div>
       </div>
+    </div>
+
+    <!-- Status filter tabs -->
+    <div class="filters" id="fu-filters">
+      <button class="f-btn on" data-fu="all"              data-en="All" data-zh="全部">All</button>
+      <button class="f-btn" data-fu="followup-pending"    data-en="Pending Follow-up" data-zh="待跟进">Pending Follow-up</button>
+      <button class="f-btn" data-fu="payment-pending"     data-en="Pending Payment" data-zh="待付款">Pending Payment</button>
+      <button class="f-btn" data-fu="completed"           data-en="Completed" data-zh="已完成">Completed</button>
     </div>
 
     <div class="card">
@@ -705,6 +736,7 @@ img{display:block;max-width:100%}
             <th data-en="Contact" data-zh="联系方式">Contact</th>
             <th data-en="Channel" data-zh="渠道">Channel</th>
             <th data-en="Payment" data-zh="付款">Payment</th>
+            <th data-en="Status" data-zh="状态">Status</th>
             <th data-en="Notes" data-zh="备注">Notes</th>
             <th></th>
           </tr></thead>
@@ -1257,6 +1289,14 @@ function renderHome() {
 function renderOrders() {
   const list = sortedOrders(filteredOrders());
   const tb = document.getElementById('orders-tbody');
+  // Update pickup/delivery sub-column counts
+  const allFiltered = filteredOrders();
+  const puCount = allFiltered.filter(o=>o.type==='pickup').length;
+  const deCount = allFiltered.filter(o=>o.type==='delivery').length;
+  const cntPu = document.getElementById('count-pickup');
+  const cntDe = document.getElementById('count-delivery');
+  if (cntPu) cntPu.textContent = puCount > 0 ? puCount : '';
+  if (cntDe) cntDe.textContent = deCount > 0 ? deCount : '';
   if (!list.length) {
     tb.innerHTML = `<tr><td colspan="4" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${LANG==='zh'?'暂无订单 — 请同步或手动添加':'No orders — sync or add manually'}</div></div></td></tr>`;
     return;
@@ -1694,6 +1734,7 @@ function openAddFollowup() {
   ['fu-name','fu-contact','fu-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
+  const stEl2 = document.getElementById('fu-status'); if(stEl2) stEl2.value = 'pending';
   openModal('m-followup');
 }
 
@@ -1706,6 +1747,7 @@ function editFollowup(id) {
   document.getElementById('fu-contact').value = f.contact || '';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
+  const stEl = document.getElementById('fu-status'); if(stEl) stEl.value = f.status || 'pending';
   document.getElementById('fu-notes').value   = f.notes   || '';
   openModal('m-followup');
 }
@@ -1714,12 +1756,14 @@ function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast(LANG==='zh'?'请填写客户姓名':'Customer name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
+  const statusEl = document.getElementById('fu-status');
   const entry = {
     id:      editId || ('fu-' + Date.now()),
     name,
     contact: document.getElementById('fu-contact').value.trim(),
     channel: document.getElementById('fu-channel').value,
     payment: document.getElementById('fu-payment').value,
+    status:  statusEl ? statusEl.value : 'pending',
     notes:   document.getElementById('fu-notes').value.trim(),
     ts:      Date.now()
   };
@@ -1749,31 +1793,50 @@ function togglePayment(id) {
   renderFollowup();
 }
 
+let fuFilter = 'all';
+
+function toggleComplete(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id);
+  if (f) f.status = f.status === 'completed' ? 'pending' : 'completed';
+  saveFollowups();
+  renderFollowup();
+}
+
 function renderFollowup() {
   const zh = LANG === 'zh';
   const tb = document.getElementById('followup-tbody');
   if (!tb) return;
 
-  const paid    = FOLLOWUPS.filter(x=>x.payment==='paid').length;
-  const pending = FOLLOWUPS.filter(x=>x.payment==='pending').length;
+  const totalAll    = FOLLOWUPS.length;
+  const fuPending   = FOLLOWUPS.filter(x=>x.status !== 'completed').length;
+  const payPending  = FOLLOWUPS.filter(x=>x.payment === 'pending' && x.status !== 'completed').length;
+  const completed   = FOLLOWUPS.filter(x=>x.status === 'completed').length;
+
   const fuTotal = document.getElementById('fu-total');
   const fuPaid  = document.getElementById('fu-paid');
   const fuPend  = document.getElementById('fu-pending');
-  if (fuTotal) fuTotal.textContent = FOLLOWUPS.length;
-  if (fuPaid)  fuPaid.textContent  = paid;
-  if (fuPend)  fuPend.textContent  = pending;
+  const fuFuP   = document.getElementById('fu-followup-pending');
+  if (fuTotal) fuTotal.textContent = totalAll;
+  if (fuFuP)   fuFuP.textContent   = fuPending;
+  if (fuPend)  fuPend.textContent  = payPending;
+  if (fuPaid)  fuPaid.textContent  = completed;
 
-  // Badge badge update
   const nb = document.getElementById('nb-followup');
   if (nb) {
-    if (pending > 0) { nb.textContent = pending; nb.style.display=''; }
+    if (fuPending > 0) { nb.textContent = fuPending; nb.style.display=''; }
     else nb.style.display='none';
   }
 
-  if (!FOLLOWUPS.length) {
-    tb.innerHTML = `<tr><td colspan="6" style="padding:56px;text-align:center">
+  // Apply status filter
+  let list = FOLLOWUPS.slice().reverse();
+  if (fuFilter === 'followup-pending')  list = list.filter(x => x.status !== 'completed');
+  if (fuFilter === 'payment-pending')   list = list.filter(x => x.payment === 'pending' && x.status !== 'completed');
+  if (fuFilter === 'completed')         list = list.filter(x => x.status === 'completed');
+
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="7" style="padding:56px;text-align:center">
       <div class="empty"><div class="empty-ico">☎</div>
-      <div class="empty-txt">${zh?'暂无跟进记录':'No follow-up entries yet'}</div>
+      <div class="empty-txt">${zh?'暂无记录':'No entries'}</div>
       </div></td></tr>`;
     return;
   }
@@ -1781,21 +1844,32 @@ function renderFollowup() {
   const chLabel = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
   const chCls   = {whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
 
-  tb.innerHTML = FOLLOWUPS.slice().reverse().map(f => {
-    const ch    = chLabel[f.channel] || f.channel;
-    const chCl  = chCls[f.channel]  || 'ch-ot';
-    const payLbl= f.payment==='paid' ? (zh?'已付款':'Paid') : (zh?'待付款':'Pending');
-    const payCl = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
-    return `<tr>
+  tb.innerHTML = list.map(f => {
+    const ch      = chLabel[f.channel] || f.channel;
+    const chCl    = chCls[f.channel]  || 'ch-ot';
+    const payLbl  = f.payment==='paid' ? (zh?'已付款':'Paid') : (zh?'待付款':'Pending');
+    const payCl   = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
+    const isDone  = f.status === 'completed';
+    const stLbl   = isDone ? (zh?'已完成':'Completed') : (zh?'跟进中':'Follow-up');
+    const stStyle = isDone
+      ? 'background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be'
+      : 'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
+    const rowStyle = isDone ? 'opacity:.55' : '';
+    return `<tr style="${rowStyle}">
       <td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td>
       <td><div style="font-size:12px;color:var(--c-muted);font-family:monospace">${esc(f.contact||'–')}</div></td>
       <td><span class="ch-badge ${chCl}">${ch}</span></td>
       <td>
-        <button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0">
+        <button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0" title="Toggle payment">
           <span class="pay-badge ${payCl}">${payLbl}</span>
         </button>
       </td>
-      <td><div style="font-size:11px;color:var(--c-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td>
+      <td>
+        <button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0" title="Toggle status">
+          <span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span>
+        </button>
+      </td>
+      <td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td>
       <td>
         <div style="display:flex;gap:4px;justify-content:flex-end">
           <button class="act-btn" onclick="editFollowup('${f.id}')" title="Edit">✎</button>
@@ -1811,12 +1885,43 @@ let calYear  = new Date().getFullYear();
 let calMonth = new Date().getMonth(); // 0-indexed
 let calFilter = null; // selected date string YYYY-MM-DD or null
 
+function toggleCalendar() {
+  const panel = document.getElementById('cal-panel');
+  const chevron = document.getElementById('cal-chevron');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.textContent = isOpen ? '▾' : '▴';
+  if (!isOpen) renderCalendar();
+  // Close on outside click
+  if (!isOpen) {
+    setTimeout(() => {
+      const handler = e => {
+        const panel2 = document.getElementById('cal-panel');
+        const btn = document.getElementById('cal-toggle-btn');
+        if (panel2 && btn && !panel2.contains(e.target) && !btn.contains(e.target)) {
+          panel2.style.display = 'none';
+          document.getElementById('cal-chevron').textContent = '▾';
+          document.removeEventListener('click', handler);
+        }
+      };
+      document.addEventListener('click', handler);
+    }, 10);
+  }
+}
+
 function calPrev() { if(calMonth===0){calMonth=11;calYear--;}else calMonth--; renderCalendar(); }
 function calNext() { if(calMonth===11){calMonth=0;calYear++;}else calMonth++; renderCalendar(); }
 
 function clearCalFilter() {
   calFilter = null;
-  document.getElementById('cal-active-lbl').style.display = 'none';
+  const lbl = document.getElementById('cal-active-lbl');
+  if (lbl) lbl.style.display = 'none';
+  const btnLbl = document.getElementById('cal-btn-label');
+  const selLbl = document.getElementById('cal-selected-lbl');
+  if (btnLbl) btnLbl.textContent = 'Select date';
+  if (selLbl) selLbl.textContent = '';
+  const toggleBtn = document.getElementById('cal-toggle-btn');
+  if (toggleBtn) toggleBtn.style.color = 'var(--c-muted)';
   renderCalendar();
   renderOrders();
 }
@@ -1881,6 +1986,27 @@ function selectCalDay(key) {
   calFilter = calFilter === key ? null : key;
   const lbl = document.getElementById('cal-active-lbl');
   if (lbl) lbl.style.display = calFilter ? '' : 'none';
+  // Update button label
+  const btnLbl  = document.getElementById('cal-btn-label');
+  const selLbl  = document.getElementById('cal-selected-lbl');
+  const chevron = document.getElementById('cal-chevron');
+  if (calFilter) {
+    const [cy,cm,cd] = calFilter.split('-').map(Number);
+    const d = new Date(cy, cm-1, cd);
+    const formatted = d.toLocaleDateString('en-MY', {day:'numeric',month:'short'});
+    if (btnLbl) btnLbl.textContent = '';
+    if (selLbl) selLbl.textContent = formatted;
+    const toggleBtn = document.getElementById('cal-toggle-btn');
+    if (toggleBtn) toggleBtn.style.color = 'var(--c-forest)';
+  } else {
+    if (btnLbl) btnLbl.textContent = 'Select date';
+    if (selLbl) selLbl.textContent = '';
+    const toggleBtn = document.getElementById('cal-toggle-btn');
+    if (toggleBtn) toggleBtn.style.color = 'var(--c-muted)';
+  }
+  // Close panel after selecting
+  const panel = document.getElementById('cal-panel');
+  if (panel && calFilter) { panel.style.display = 'none'; if(chevron) chevron.textContent='▾'; }
   renderCalendar();
   renderOrders();
 }
@@ -1960,6 +2086,13 @@ init();
           <select id="fu-payment">
             <option value="pending">Pending</option>
             <option value="paid">Paid</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Follow-up Status" data-zh="跟进状态">Follow-up Status</label>
+          <select id="fu-status">
+            <option value="pending">Pending Follow-up</option>
+            <option value="completed">Completed</option>
           </select>
         </div>
         <div class="ff" style="grid-column:1/-1">
