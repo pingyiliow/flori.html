@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 
-// GET /api/auth?shop=bamboo-florist.myshopify.com
 export default function handler(req, res) {
   const { shop } = req.query;
 
@@ -18,24 +17,18 @@ export default function handler(req, res) {
   const appUrl   = process.env.APP_URL || `https://${req.headers.host}`;
 
   if (!clientId) {
-    return res.status(500).send('SHOPIFY_CLIENT_ID environment variable not set');
+    return res.status(500).send('SHOPIFY_CLIENT_ID environment variable not set.');
   }
 
   const state       = crypto.randomBytes(16).toString('hex');
   const redirectUri = `${appUrl}/api/callback`;
   const scopes      = 'read_orders,read_products,read_customers';
 
-  // Save state in cookie (10 min) for CSRF verification
-  res.setHeader('Set-Cookie',
-    `flori_oauth_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`
-  );
-
   const authUrl = `https://${shop}/admin/oauth/authorize?` + new URLSearchParams({
-    client_id:        clientId,
-    scope:            scopes,
-    redirect_uri:     redirectUri,
-    state:            state,
-    'grant_options[]': '',
+    client_id:    clientId,
+    scope:        scopes,
+    redirect_uri: redirectUri,
+    state:        state,
   });
 
   res.redirect(302, authUrl);
