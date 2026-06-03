@@ -1,7 +1,4 @@
 // POST /api/connect  { shop: "bamboo-florist.myshopify.com" }
-// Exchanges stored Dev Dashboard credentials for a Shopify access token
-// Runs server-side on Vercel — no CORS issues
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,28 +12,28 @@ export default async function handler(req, res) {
 
   if (!clientId || !clientSecret) {
     return res.status(500).json({
-      error: 'Server not configured — SHOPIFY_CLIENT_ID or SHOPIFY_CLIENT_SECRET missing in Vercel environment variables.'
+      error: 'Server not configured — SHOPIFY_CLIENT_ID or SHOPIFY_CLIENT_SECRET missing in Vercel.'
     });
   }
 
-  let shop;
-  try {
-    const body = await req.json().catch(() => req.body);
-    shop = (body?.shop || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
-  } catch (_) {
-    return res.status(400).json({ error: 'Invalid request body' });
-  }
+  // Vercel Node.js runtime auto-parses JSON body into req.body
+  const body = req.body || {};
+  const shop = String(body.shop || '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
 
   if (!shop || !shop.endsWith('.myshopify.com')) {
-    return res.status(400).json({ error: 'Invalid shop URL — must end with .myshopify.com' });
+    return res.status(400).json({ error: 'Enter a valid .myshopify.com URL' });
   }
 
   try {
     const tokenResp = await fetch(`https://${shop}/admin/oauth/access_token`, {
-      method:  'POST',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept':       'application/json',
+        'Accept': 'application/json',
       },
       body: new URLSearchParams({
         grant_type:    'client_credentials',
@@ -48,25 +45,30 @@ export default async function handler(req, res) {
     const text = await tokenResp.text();
     let data;
     try { data = JSON.parse(text); } catch (_) {
-      return res.status(502).json({ error: 'Shopify returned unexpected response', detail: text.slice(0, 200) });
+      return res.status(502).json({
+        error: 'Shopify returned unexpected response',
+        detail: text.slice(0, 300)
+      });
     }
 
     if (data.access_token) {
       return res.status(200).json({ token: data.access_token, shop });
     }
 
-    // Handle known Shopify errors with clear messages
-    const shopifyErr = data.error || '';
-    if (shopifyErr.includes('shop_not_permitted')) {
+    const errCode = data.error || '';
+    if (errCode.includes('shop_not_permitted')) {
       return res.status(403).json({
         error: 'shop_not_permitted',
-        message: 'This store is not in the same Shopify organisation as your Dev Dashboard app. Open Shopify Admin → click your store name (top right) → Dev Dashboard — this links them together. Then try again.'
+        message: 'Store is not linked to this Dev Dashboard app. Fix: open Shopify Admin → click store name (top right) → Dev Dashboard. Then try again.'
       });
     }
 
-    return res.status(400).json({ error: data.error_description || data.error || 'Unknown error', raw: data });
+    return res.status(400).json({
+      error: data.error_description || data.error || 'Shopify refused the request',
+      raw: data
+    });
 
   } catch (e) {
-    return res.status(502).json({ error: 'Network error reaching Shopify: ' + e.message });
+    return res.status(502).json({ error: 'Network error: ' + e.message });
   }
 }
