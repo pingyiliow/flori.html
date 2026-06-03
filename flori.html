@@ -219,6 +219,18 @@ img{display:block;max-width:100%}
 .o-num{font-size:11px;font-weight:600;color:var(--c-muted)}
 .o-prod{font-size:13px;font-weight:500;color:var(--c-ink);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:860px){.o-prod{max-width:160px}}
+.o-items{display:flex;flex-direction:column;gap:4px}
+.o-item-line{display:flex;align-items:center;gap:7px}
+.o-item-mini{
+  width:26px;height:26px;object-fit:cover;flex-shrink:0;
+  border-radius:3px;cursor:zoom-in;border:1px solid var(--c-border);
+  transition:opacity .12s;
+}
+.o-item-mini:hover{opacity:.8}
+.o-item-dot{width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-border2)}
+.o-item-title{font-size:12px;font-weight:400;color:var(--c-ink);line-height:1.2}
+.o-item-qty{font-size:10px;color:var(--c-muted);margin-left:2px;font-weight:400}
+.o-item-customer{font-size:11px;color:var(--c-muted);margin-top:3px}
 
 .tag{
   display:inline-flex;align-items:center;gap:3px;
@@ -1146,16 +1158,20 @@ async function syncOrders() {
     // Merge: keep manual orders, replace Shopify orders
     const manuals = ORDERS.filter(o => o.src === 'manual');
     const shopify = raw.map(n => {
-      const attrs  = n.customAttributes || [];
-      const ds     = getDueDate(attrs);
-      // Use lineItem.image.url (direct, works for linked products) or fallback to featuredMedia
-      const imgUrl = n.lineItems.edges.find(e => e.node.image?.url)?.node?.image?.url
-        || n.lineItems.edges[0]?.node?.product?.featuredMedia?.preview?.image?.url || null;
+      const attrs     = n.customAttributes || [];
+      const ds        = getDueDate(attrs);
+      const lineItems = n.lineItems.edges.map(e => ({
+        title:    e.node.title,
+        quantity: e.node.quantity || 1,
+        image:    e.node.image?.url || null
+      }));
+      const imgUrl = lineItems.find(i => i.image)?.image || null;
       return {
         id: n.id, name: n.name, src: 'shopify',
         customer: [(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ') || 'Guest',
-        product: n.lineItems.edges.map(e=>e.node.title).join(', '),
-        image: imgUrl,
+        product:   lineItems.map(i => i.title).join(', '),
+        lineItems,
+        image:     imgUrl,
         dueDate: ds, dueTime: getDueTime(attrs),
         dateObj: null, // rehydrated on load
         type: getType(attrs), ready: false
@@ -1245,12 +1261,52 @@ function sortedOrders(list) {
 }
 
 function thumbCell(o) {
-  if (o.image) {
-    const safe = o.image.replace(/'/g,"\\'");
+  // First item with an image wins for the main thumbnail
+  const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
+  const src   = (items ? items.find(i => i.image)?.image : null) || o.image || null;
+  if (src) {
+    const safe = src.replace(/'/g,"\\'");
     const cap  = (o.product||'').replace(/'/g,"\\'");
-    return `<div class="o-thumb"><img src="${o.image}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`;
+    return `<div class="o-thumb"><img src="${src}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`;
   }
   return `<div class="o-thumb ph" title="No product image">🌸</div>`;
+}
+
+function itemsCell(o) {
+  const items = o.lineItems && o.lineItems.length > 0
+    ? o.lineItems
+    : [{ title: o.product || '–', quantity: null, image: o.image }];
+
+  let html = '';
+
+  if (items.length === 1) {
+    // Single item — simple one-liner
+    html = `<div class="o-prod">${esc(items[0].title)}</div>`;
+  } else {
+    // Multiple items — stacked list with mini thumbnails
+    const lines = items.map(item => {
+      const qty = item.quantity > 1
+        ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
+      if (item.image) {
+        const s = item.image.replace(/'/g,"\\'");
+        const t = item.title.replace(/'/g,"\\'");
+        return `<div class="o-item-line">
+          <img class="o-item-mini" src="${item.image}" loading="lazy" alt=""
+            onclick="event.stopPropagation();openZoom('${s}','${t}')"
+            onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
+          <span class="o-item-title">${esc(item.title)}${qty}</span>
+        </div>`;
+      }
+      return `<div class="o-item-line">
+        <span class="o-item-dot">🌸</span>
+        <span class="o-item-title">${esc(item.title)}${qty}</span>
+      </div>`;
+    }).join('');
+    html = `<div class="o-items">${lines}</div>`;
+  }
+
+  html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
+  return html;
 }
 
 function tagRow(o) {
@@ -1279,10 +1335,9 @@ function orderRow(o, showDate = true) {
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  // 5 columns: Order# | Product · Customer | Date · Time | Type | Actions
   return `<tr${cls}>
     <td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td>
-    <td><div class="o-prod">${esc(o.product)}</div><div style="font-size:11px;color:var(--c-muted);margin-top:2px">${esc(o.customer)}</div></td>
+    <td>${itemsCell(o)}</td>
     ${dtCell}
     <td>${tagRow(o)}</td>
     <td>${actionBtns(o.id)}</td>
