@@ -1,31 +1,54 @@
 import crypto from 'crypto';
 
-// GET /api/callback?code=xxx&shop=xxx&state=xxx&hmac=xxx
+// GET /api/callback?code=xxx&shop=xxx&state=xxx&hmac=xxx&timestamp=xxx
 export default async function handler(req, res) {
-  const { code, shop, state, hmac, timestamp, ...rest } = req.query;
+  const query = req.query;
 
-  // ── 1. Verify state (CSRF protection) ─────────────────────────
-  const cookieHeader  = req.headers.cookie || '';
-  const stateCookie   = cookieHeader.split(';').map(c => c.trim()).find(c => c.startsWith('flori_oauth_state='));
-  const savedState    = stateCookie ? stateCookie.split('=').slice(1).join('=') : null;
+  // ── 1. Verify HMAC signature from Shopify ─────────────────────
+  // Build message from ALL params except hmac itself, sorted alphabetically
+  const { hmac: receivedHmac, ...paramsForHmac } = query;
+  const secret = process.env.SHOPIFY_CLIENT_SECRET || '';
+
+  const message = Object.keys(paramsForHmac)
+    .sort()
+    .map(k => `${k}=${paramsForHmac[k]}`)
+    .join('&');
+
+  const computedHmac = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+
+  if (computedHmac !== receivedHmac) {
+    return res.status(403).send(`
+      <html><body style="font-family:sans-serif;padding:40px;max-width:500px">
+        <h2>HMAC verification failed</h2>
+        <p>The <strong>SHOPIFY_CLIENT_SECRET</strong> in Vercel does not match the one in your Shopify Partners app.</p>
+        <p>Steps to fix:</p>
+        <ol>
+          <li>Go to <a href="https://partners.shopify.com">partners.shopify.com</a></li>
+          <li>Click your Flori app → <strong>App credentials</strong></li>
+          <li>Copy the <strong>Client secret</strong> exactly</li>
+          <li>Go to Vercel → Settings → Environment Variables</li>
+          <li>Update <strong>SHOPIFY_CLIENT_SECRET</strong> with the correct value</li>
+          <li>Redeploy</li>
+        </ol>
+        <a href="/">← Go back</a>
+      </body></html>
+    `);
+  }
+
+  // ── 2. Verify state (CSRF protection) ─────────────────────────
+  const { code, shop, state } = query;
+  const cookieHeader = req.headers.cookie || '';
+  const stateCookie  = cookieHeader.split(';').map(c => c.trim()).find(c => c.startsWith('flori_oauth_state='));
+  const savedState   = stateCookie ? stateCookie.split('=').slice(1).join('=') : null;
 
   if (!savedState || state !== savedState) {
-    return res.status(403).send('State mismatch — possible CSRF attempt. Please try connecting again.');
+    return res.status(403).send('State mismatch. Please try connecting again from the app.');
   }
 
-  // ── 2. Verify HMAC signature from Shopify ─────────────────────
-  const secret   = process.env.SHOPIFY_CLIENT_SECRET;
-  const toVerify = Object.entries({ ...rest, shop, state, timestamp })
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
-    .join('&');
-  const digest   = crypto.createHmac('sha256', secret).update(toVerify).digest('hex');
-
-  if (!crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(hmac || ''))) {
-    return res.status(403).send('HMAC verification failed — the request may have been tampered with.');
-  }
-
-  // ── 3. Exchange code for access token ────────────────────────
+  // ── 3. Exchange code for access token ─────────────────────────
   let access_token;
   try {
     const tokenResp = await fetch(`https://${shop}/admin/oauth/access_token`, {
@@ -43,7 +66,7 @@ export default async function handler(req, res) {
 
     if (!access_token) {
       const err = data.error_description || data.error || JSON.stringify(data);
-      return res.status(400).send(`Shopify did not return a token: ${err}`);
+      return res.status(400).send('Shopify did not return a token: ' + err);
     }
   } catch (e) {
     return res.status(502).send('Could not reach Shopify: ' + e.message);
@@ -54,7 +77,6 @@ export default async function handler(req, res) {
     'flori_oauth_state=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0'
   );
 
-  // Token is passed in URL hash — never sent to server, extracted by JS
   const appUrl = process.env.APP_URL || `https://${req.headers.host}`;
   res.redirect(302, `${appUrl}/#connected?shop=${encodeURIComponent(shop)}&token=${access_token}`);
 }
