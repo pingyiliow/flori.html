@@ -448,6 +448,42 @@ img{display:block;max-width:100%}
 .scroll-x{overflow-x:auto}
 .hide-m{display:table-cell}
 @media(max-width:860px){.hide-m{display:none}}
+/* ── calendar ────────────────────────────────────────────────── */
+.cal-dow{
+  text-align:center;padding:8px 2px;
+  font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--c-muted);border-bottom:1px solid var(--c-border);
+}
+.cal-day{
+  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;cursor:pointer;font-size:13px;font-weight:400;color:var(--c-muted);
+  border-bottom:1px solid var(--c-border);border-right:1px solid var(--c-border);
+  transition:all .12s;min-height:44px;position:relative;
+}
+.cal-day:hover{background:var(--c-bg)}
+.cal-day.has-orders{color:var(--c-ink);}
+.cal-day.today-cell{color:var(--c-forest);font-weight:500;}
+.cal-day.today-cell::after{content:'';position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--c-forest)}
+.cal-day.selected{background:var(--c-forest);color:#fff;}
+.cal-day.selected::after{background:#fff}
+.cal-day.other-month{color:var(--c-border2)}
+.cal-dot{width:16px;height:4px;border-radius:2px;background:var(--c-sage-bg);font-size:9px;text-align:center;color:var(--c-sage);line-height:4px;font-weight:500}
+.cal-day.has-orders .cal-dot{background:var(--c-sage-bg);color:var(--c-forest)}
+.cal-day.selected .cal-dot{background:rgba(255,255,255,.3);color:#fff}
+
+/* ── follow-up table ─────────────────────────────────────────── */
+.ch-wa{background:#E7F7EE;color:#1A7A3A;border:1px solid #C2EDD1}
+.ch-fb{background:#E8EDFF;color:#1B3FA0;border:1px solid #C5D0F8}
+.ch-ig{background:#FDEDF5;color:#9B1B6A;border:1px solid #F5C4E2}
+.ch-wi{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
+.ch-ot{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
+.pay-paid{background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be}
+.pay-pend{background:var(--c-amber-bg);color:var(--c-amber);border:1px solid #e8c8a0}
+.ch-badge,.pay-badge{
+  font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;
+  padding:2px 7px;border-radius:3px;white-space:nowrap;display:inline-block;
+}
+
 </style>
 </head>
 <body>
@@ -465,7 +501,6 @@ img{display:block;max-width:100%}
       <span id="sync-ico" style="display:inline-block">⟳</span>
       <span class="hide-m" data-en="Sync Orders" data-zh="同步订单">Sync Orders</span>
     </button>
-    <button class="hdr-btn" onclick="toggleLang()" title="Language" data-en="中文" data-zh="EN">中文</button>
     <button class="hdr-btn" onclick="openSP()" title="Settings">⚙</button>
   </div>
 </header>
@@ -482,6 +517,12 @@ img{display:block;max-width:100%}
       <span class="nav-icon">◫</span>
       <span data-en="Daily Orders" data-zh="每日订单">Daily Orders</span>
       <span class="nav-badge" id="nb-orders">0</span>
+    </button>
+    <div class="nav-sep" style="margin-top:6px" data-en="Admin" data-zh="管理">Admin</div>
+    <button class="nav-btn" data-pg="followup">
+      <span class="nav-icon">☎</span>
+      <span data-en="Follow-up List" data-zh="跟进列表">Follow-up List</span>
+      <span class="nav-badge" id="nb-followup" style="display:none">0</span>
     </button>
     <div class="nav-sep" style="margin-top:6px" data-en="Stock" data-zh="库存管理">Stock</div>
     <button class="nav-btn" data-pg="inventory">
@@ -523,11 +564,11 @@ img{display:block;max-width:100%}
       <div class="scroll-x">
         <table class="tbl">
           <thead><tr>
-            <th data-en="Order" data-zh="订单">#</th>
-            <th data-en="Product / Customer" data-zh="产品 / 客户">Product / Customer</th>
+            <th data-en="Order" data-zh="订单">Order</th>
+            <th data-en="Product · Customer" data-zh="产品 · 客户">Product · Customer</th>
             <th class="hide-m" data-en="Time" data-zh="时间">Time</th>
-            <th data-en="Type" data-zh="类型">Type</th>
-            <th></th>
+            <th data-en="Pickup / Delivery" data-zh="类型">Type</th>
+            <th data-en="Actions" data-zh="操作"></th>
           </tr></thead>
           <tbody id="home-tbody"></tbody>
         </table>
@@ -547,12 +588,32 @@ img{display:block;max-width:100%}
       </div>
     </div>
 
+    <!-- Calendar -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--c-border)">
+        <button class="hdr-btn" onclick="calPrev()" style="width:28px;height:28px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
+        <div id="cal-title" style="font-family:var(--f-head);font-size:15px;font-weight:400;font-style:italic;color:var(--c-ink)"></div>
+        <button class="hdr-btn" onclick="calNext()" style="width:28px;height:28px;border:1px solid var(--c-border);border-radius:var(--r)">›</button>
+      </div>
+      <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
+    </div>
+
+    <!-- Filters -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-      <div class="filters" id="filters">
-        <button class="f-btn on" data-f="all"  data-en="All" data-zh="全部">All</button>
-        <button class="f-btn" data-f="today"    data-en="Today" data-zh="今日">Today</button>
-        <button class="f-btn" data-f="pickup"   data-en="Pickup" data-zh="自取">Pickup</button>
-        <button class="f-btn" data-f="delivery" data-en="Delivery" data-zh="送货">Delivery</button>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="filters" id="filters">
+          <button class="f-btn on" data-f="all"   data-en="All" data-zh="全部">All</button>
+          <button class="f-btn" data-f="today"     data-en="Today" data-zh="今日">Today</button>
+          <button class="f-btn" data-f="overdue"   data-en="Overdue" data-zh="逾期">Overdue</button>
+        </div>
+        <div class="filters" id="filters-type">
+          <button class="f-btn on" data-ft="all"      data-en="All Types" data-zh="全部类型">All Types</button>
+          <button class="f-btn" data-ft="pickup"       data-en="Pickup" data-zh="自取">Pickup</button>
+          <button class="f-btn" data-ft="delivery"     data-en="Delivery" data-zh="送货">Delivery</button>
+        </div>
+      </div>
+      <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
+        <button onclick="clearCalFilter()" style="font-size:11px;color:var(--c-muted);text-decoration:underline;cursor:pointer;background:none;border:none" data-en="× Clear date filter" data-zh="× 清除日期筛选">× Clear date filter</button>
       </div>
     </div>
 
@@ -560,11 +621,11 @@ img{display:block;max-width:100%}
       <div class="scroll-x">
         <table class="tbl">
           <thead><tr>
-            <th data-en="Order" data-zh="订单">#</th>
-            <th data-en="Product / Customer" data-zh="产品 / 客户">Product / Customer</th>
+            <th data-en="Order" data-zh="订单">Order</th>
+            <th data-en="Product · Customer" data-zh="产品 · 客户">Product · Customer</th>
             <th class="hide-m" data-en="Date · Time" data-zh="日期 · 时间">Date · Time</th>
-            <th data-en="Type" data-zh="类型">Type</th>
-            <th></th>
+            <th data-en="Pickup / Delivery" data-zh="类型">Pickup / Delivery</th>
+            <th data-en="Actions" data-zh="操作"></th>
           </tr></thead>
           <tbody id="orders-tbody"></tbody>
         </table>
@@ -610,6 +671,49 @@ img{display:block;max-width:100%}
     </div>
   </div>
 
+  <!-- ── Follow-up List ─────────────────────────────────────── -->
+  <div id="pg-followup" class="page">
+    <div class="page-hdr">
+      <div>
+        <div class="page-title" data-en="Follow-up List" data-zh="跟进列表">Follow-up List</div>
+        <div class="page-sub" data-en="Track customers, payments & order channels" data-zh="跟踪客户、付款及订单来源">Track customers, payments & channels</div>
+      </div>
+      <button class="btn btn-primary" onclick="openAddFollowup()" data-en="+ Add Customer" data-zh="+ 添加客户">+ Add Customer</button>
+    </div>
+
+    <!-- Summary pills -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+        <div id="fu-total" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-ink)">0</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Total" data-zh="总计">Total</div>
+      </div>
+      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+        <div id="fu-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-amber)">0</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Pending Payment" data-zh="待付款">Pending</div>
+      </div>
+      <div style="background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:14px 20px;min-width:100px">
+        <div id="fu-paid" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-forest)">0</div>
+        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px" data-en="Paid" data-zh="已付款">Paid</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="scroll-x">
+        <table class="tbl">
+          <thead><tr>
+            <th data-en="Customer" data-zh="客户">Customer</th>
+            <th data-en="Contact" data-zh="联系方式">Contact</th>
+            <th data-en="Channel" data-zh="渠道">Channel</th>
+            <th data-en="Payment" data-zh="付款">Payment</th>
+            <th data-en="Notes" data-zh="备注">Notes</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="followup-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
@@ -618,6 +722,7 @@ img{display:block;max-width:100%}
   <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span data-en="Orders" data-zh="订单">Orders</span></button>
   <button class="mob-tab" data-pg="inventory"><span class="mob-icon">◉</span><span data-en="Stock" data-zh="库存">Stock</span></button>
   <button class="mob-tab" data-pg="purchase"><span class="mob-icon">✦</span><span data-en="Buy" data-zh="采购">Buy</span></button>
+  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span data-en="Follow" data-zh="跟进">Follow</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -714,7 +819,7 @@ img{display:block;max-width:100%}
 <div id="m-order" class="modal">
   <div class="mc">
     <div class="mc-hdr">
-      <div class="mc-ttl" data-en="Add Order Manually" data-zh="手动添加订单">Add Order Manually</div>
+      <div class="mc-ttl" id="o-modal-ttl" data-en="Add Order" data-zh="添加订单">Add Order</div>
       <button class="mc-x" onclick="closeModal('m-order')">✕</button>
     </div>
     <div class="mc-body">
@@ -757,7 +862,8 @@ img{display:block;max-width:100%}
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="saveOrder()" data-en="Save Order" data-zh="保存订单">Save Order</button>
+        <input type="hidden" id="o-edit-id">
+        <button class="btn btn-primary" style="flex:1" onclick="saveOrder()" id="o-save-btn" data-en="Save Order" data-zh="保存订单">Save Order</button>
         <button class="btn btn-ghost" onclick="closeModal('m-order')" data-en="Cancel" data-zh="取消">Cancel</button>
       </div>
     </div>
@@ -1033,6 +1139,7 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
+  loadFollowups();
   rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
   const ta = document.getElementById('pur-notes');
@@ -1097,8 +1204,9 @@ function tagRow(o) {
 function actionBtns(id) {
   const o = ORDERS.find(x=>x.id===id);
   if (!o) return '';
-  return `<div style="display:flex;gap:5px;justify-content:flex-end">
+  return `<div style="display:flex;gap:4px;justify-content:flex-end">
     <button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button>
+    <button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button>
     <button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button>
   </div>`;
 }
@@ -1120,9 +1228,11 @@ function orderRow(o, showDate = true) {
 function renderAll() {
   updateBadge();
   renderHome();
+  renderCalendar();
   renderOrders();
   renderInventory();
   renderPurchase();
+  renderFollowup();
 }
 
 function renderHome() {
@@ -1249,6 +1359,7 @@ function renderPurchase() {
 const PAGES = ['home','orders','inventory','purchase'];
 
 function goPage(pg) {
+  if (pg === 'followup') renderFollowup();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   if (pg === 'inventory') renderInventory();
@@ -1394,25 +1505,34 @@ function saveOrder() {
   const cust = document.getElementById('o-cust').value.trim();
   if (!prod) { toast(LANG==='zh'?'请填写产品名称':'Product name required'); return; }
   const dateVal = document.getElementById('o-date').value;
-  const order = {
-    id: 'manual-' + Date.now(),
-    src: 'manual',
-    name: document.getElementById('o-num').value.trim() || ('#M-' + Date.now().toString().slice(-4)),
-    product: prod,
+  const editId  = document.getElementById('o-edit-id').value;
+  const entry = {
+    id:       editId || ('manual-' + Date.now()),
+    src:      'manual',
+    name:     document.getElementById('o-num').value.trim() || ('#M-' + Date.now().toString().slice(-4)),
+    product:  prod,
     customer: cust || 'Guest',
-    image: document.getElementById('order-photo-b64').value || null,
-    dueDate: dateVal,
-    dueTime: document.getElementById('o-time').value.trim(),
-    dateObj: dateVal ? pd(dateVal) : null,
-    type: document.getElementById('o-type').value,
-    ready: false
+    image:    document.getElementById('order-photo-b64').value || null,
+    dueDate:  dateVal,
+    dueTime:  document.getElementById('o-time').value.trim(),
+    dateObj:  dateVal ? pd(dateVal) : null,
+    type:     document.getElementById('o-type').value,
+    ready:    editId ? (ORDERS.find(x=>x.id===editId)?.ready || false) : false
   };
-  ORDERS.push(order);
+  if (editId) {
+    const idx = ORDERS.findIndex(x=>x.id===editId);
+    if (idx !== -1) ORDERS[idx] = entry; else ORDERS.push(entry);
+  } else {
+    ORDERS.push(entry);
+  }
   saveOrders();
   closeModal('m-order');
-  // Reset form fields
-  ['o-prod','o-cust','o-num','o-time'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
-  document.getElementById('o-date').value = '';
+  // Reset form
+  ['o-prod','o-cust','o-num','o-time'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('o-date').value='';
+  document.getElementById('o-edit-id').value='';
+  const ttl = document.getElementById('o-modal-ttl');
+  if (ttl) ttl.textContent = LANG==='zh'?'添加订单':'Add Order';
   toast(LANG==='zh'?'✓ 订单已保存':'✓ Order saved');
   renderAll();
 }
@@ -1559,6 +1679,241 @@ document.addEventListener('keydown', e => {
 });
 
 /* ─── Init ───────────────────────────────────────────────────── */
+/* ─── Follow-up data ─────────────────────────────────────────── */
+let FOLLOWUPS = [];
+function loadFollowups() {
+  try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];}
+}
+function saveFollowups() {
+  localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
+}
+
+function openAddFollowup() {
+  document.getElementById('fu-edit-id').value = '';
+  document.getElementById('fu-modal-ttl').textContent = LANG==='zh'?'添加客户':'Add Customer';
+  ['fu-name','fu-contact','fu-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fu-channel').value = 'whatsapp';
+  document.getElementById('fu-payment').value = 'pending';
+  openModal('m-followup');
+}
+
+function editFollowup(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id);
+  if (!f) return;
+  document.getElementById('fu-edit-id').value = id;
+  document.getElementById('fu-modal-ttl').textContent = LANG==='zh'?'编辑客户':'Edit Customer';
+  document.getElementById('fu-name').value    = f.name    || '';
+  document.getElementById('fu-contact').value = f.contact || '';
+  document.getElementById('fu-channel').value = f.channel || 'whatsapp';
+  document.getElementById('fu-payment').value = f.payment || 'pending';
+  document.getElementById('fu-notes').value   = f.notes   || '';
+  openModal('m-followup');
+}
+
+function saveFollowup() {
+  const name = document.getElementById('fu-name').value.trim();
+  if (!name) { toast(LANG==='zh'?'请填写客户姓名':'Customer name required'); return; }
+  const editId = document.getElementById('fu-edit-id').value;
+  const entry = {
+    id:      editId || ('fu-' + Date.now()),
+    name,
+    contact: document.getElementById('fu-contact').value.trim(),
+    channel: document.getElementById('fu-channel').value,
+    payment: document.getElementById('fu-payment').value,
+    notes:   document.getElementById('fu-notes').value.trim(),
+    ts:      Date.now()
+  };
+  if (editId) {
+    const idx = FOLLOWUPS.findIndex(x=>x.id===editId);
+    if (idx !== -1) FOLLOWUPS[idx] = entry;
+  } else {
+    FOLLOWUPS.push(entry);
+  }
+  saveFollowups();
+  closeModal('m-followup');
+  toast(LANG==='zh'?'✓ 已保存':'✓ Saved');
+  renderFollowup();
+}
+
+function delFollowup(id) {
+  if (!confirm(LANG==='zh'?'删除此记录？':'Remove this entry?')) return;
+  FOLLOWUPS = FOLLOWUPS.filter(x=>x.id!==id);
+  saveFollowups();
+  renderFollowup();
+}
+
+function togglePayment(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id);
+  if (f) { f.payment = f.payment === 'paid' ? 'pending' : 'paid'; }
+  saveFollowups();
+  renderFollowup();
+}
+
+function renderFollowup() {
+  const zh = LANG === 'zh';
+  const tb = document.getElementById('followup-tbody');
+  if (!tb) return;
+
+  const paid    = FOLLOWUPS.filter(x=>x.payment==='paid').length;
+  const pending = FOLLOWUPS.filter(x=>x.payment==='pending').length;
+  const fuTotal = document.getElementById('fu-total');
+  const fuPaid  = document.getElementById('fu-paid');
+  const fuPend  = document.getElementById('fu-pending');
+  if (fuTotal) fuTotal.textContent = FOLLOWUPS.length;
+  if (fuPaid)  fuPaid.textContent  = paid;
+  if (fuPend)  fuPend.textContent  = pending;
+
+  // Badge badge update
+  const nb = document.getElementById('nb-followup');
+  if (nb) {
+    if (pending > 0) { nb.textContent = pending; nb.style.display=''; }
+    else nb.style.display='none';
+  }
+
+  if (!FOLLOWUPS.length) {
+    tb.innerHTML = `<tr><td colspan="6" style="padding:56px;text-align:center">
+      <div class="empty"><div class="empty-ico">☎</div>
+      <div class="empty-txt">${zh?'暂无跟进记录':'No follow-up entries yet'}</div>
+      </div></td></tr>`;
+    return;
+  }
+
+  const chLabel = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
+  const chCls   = {whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
+
+  tb.innerHTML = FOLLOWUPS.slice().reverse().map(f => {
+    const ch    = chLabel[f.channel] || f.channel;
+    const chCl  = chCls[f.channel]  || 'ch-ot';
+    const payLbl= f.payment==='paid' ? (zh?'已付款':'Paid') : (zh?'待付款':'Pending');
+    const payCl = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
+    return `<tr>
+      <td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td>
+      <td><div style="font-size:12px;color:var(--c-muted);font-family:monospace">${esc(f.contact||'–')}</div></td>
+      <td><span class="ch-badge ${chCl}">${ch}</span></td>
+      <td>
+        <button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0">
+          <span class="pay-badge ${payCl}">${payLbl}</span>
+        </button>
+      </td>
+      <td><div style="font-size:11px;color:var(--c-muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td>
+      <td>
+        <div style="display:flex;gap:4px;justify-content:flex-end">
+          <button class="act-btn" onclick="editFollowup('${f.id}')" title="Edit">✎</button>
+          <button class="act-btn x" onclick="delFollowup('${f.id}')" title="Delete">✕</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ─── Calendar ───────────────────────────────────────────────── */
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+let calFilter = null; // selected date string YYYY-MM-DD or null
+
+function calPrev() { if(calMonth===0){calMonth=11;calYear--;}else calMonth--; renderCalendar(); }
+function calNext() { if(calMonth===11){calMonth=0;calYear++;}else calMonth++; renderCalendar(); }
+
+function clearCalFilter() {
+  calFilter = null;
+  document.getElementById('cal-active-lbl').style.display = 'none';
+  renderCalendar();
+  renderOrders();
+}
+
+function renderCalendar() {
+  const grid = document.getElementById('cal-grid');
+  const ttl  = document.getElementById('cal-title');
+  if (!grid) return;
+
+  const monthNames = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+  ttl.textContent = monthNames[calMonth] + ' ' + calYear;
+
+  // Count orders per date
+  const counts = {};
+  ORDERS.forEach(o => {
+    if (!o.dateObj) return;
+    const key = o.dateObj.getFullYear() + '-' +
+      String(o.dateObj.getMonth()+1).padStart(2,'0') + '-' +
+      String(o.dateObj.getDate()).padStart(2,'0');
+    counts[key] = (counts[key]||0) + 1;
+  });
+
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html = days.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
+  const today = new Date(); 
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+
+  // Prev month padding
+  for (let i = firstDay - 1; i >= 0; i--) {
+    html += `<div class="cal-day other-month">${daysInPrev - i}</div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const cnt = counts[key] || 0;
+    const isToday_ = key === todayStr;
+    const isSel   = key === calFilter;
+    let cls = 'cal-day';
+    if (cnt > 0)   cls += ' has-orders';
+    if (isToday_)  cls += ' today-cell';
+    if (isSel)     cls += ' selected';
+    const dot = cnt > 0 ? `<div class="cal-dot">${cnt}</div>` : '';
+    html += `<div class="${cls}" onclick="selectCalDay('${key}')">${d}${dot}</div>`;
+  }
+
+  // Fill remaining cells
+  const total = firstDay + daysInMonth;
+  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
+  for (let i = 1; i <= rem; i++) {
+    html += `<div class="cal-day other-month">${i}</div>`;
+  }
+
+  grid.innerHTML = html;
+}
+
+function selectCalDay(key) {
+  calFilter = calFilter === key ? null : key;
+  const lbl = document.getElementById('cal-active-lbl');
+  if (lbl) lbl.style.display = calFilter ? '' : 'none';
+  renderCalendar();
+  renderOrders();
+}
+
+/* ─── Edit order ─────────────────────────────────────────────── */
+function editOrder(id) {
+  const o = ORDERS.find(x=>x.id===id);
+  if (!o) return;
+  const ttl = document.getElementById('o-modal-ttl');
+  if (ttl) ttl.textContent = LANG==='zh'?'编辑订单':'Edit Order';
+  document.getElementById('o-edit-id').value   = id;
+  document.getElementById('o-prod').value       = o.product  || '';
+  document.getElementById('o-cust').value       = o.customer || '';
+  document.getElementById('o-num').value        = o.name     || '';
+  document.getElementById('o-date').value       = o.dueDate  || '';
+  document.getElementById('o-time').value       = o.dueTime  || '';
+  document.getElementById('o-type').value       = o.type     || 'delivery';
+  // Show existing photo
+  const zone = document.getElementById('order-photo-zone');
+  const b64  = document.getElementById('order-photo-b64');
+  if (o.image) {
+    zone.innerHTML = `<img src="${o.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
+    b64.value = o.image;
+  } else {
+    zone.innerHTML = `<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">${LANG==='zh'?'点击上传照片':'Click or tap to upload photo'}</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
+    b64.value = '';
+  }
+  openModal('m-order');
+}
+
+/* ─── Type filter ────────────────────────────────────────────── */
+let typeFilter = 'all';
+
 function init() {
   // Check for OAuth callback first (#connected?shop=...&token=...)
   const wasCallback = handleOAuthCallback();
@@ -1572,5 +1927,53 @@ function init() {
 
 init();
 </script>
+<!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
+<div id="m-followup" class="modal">
+  <div class="mc">
+    <div class="mc-hdr">
+      <div class="mc-ttl" id="fu-modal-ttl" data-en="Add Customer" data-zh="添加客户">Add Customer</div>
+      <button class="mc-x" onclick="closeModal('m-followup')">✕</button>
+    </div>
+    <div class="mc-body">
+      <input type="hidden" id="fu-edit-id">
+      <div class="fg fg-2">
+        <div class="ff">
+          <label class="ff-l" data-en="Customer Name" data-zh="客户姓名">Customer Name</label>
+          <input id="fu-name" type="text" placeholder="e.g. Sarah Lim">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Contact Number" data-zh="联系电话">Contact</label>
+          <input id="fu-contact" type="text" placeholder="+60 12-345 6789">
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Order Channel" data-zh="订单来源">Channel</label>
+          <select id="fu-channel">
+            <option value="whatsapp">WhatsApp</option>
+            <option value="facebook">Facebook</option>
+            <option value="instagram">Instagram</option>
+            <option value="walkin">Walk-in</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label class="ff-l" data-en="Payment" data-zh="付款状态">Payment</label>
+          <select id="fu-payment">
+            <option value="pending">Pending</option>
+            <option value="paid">Paid</option>
+          </select>
+        </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l" data-en="Notes (order details, remarks…)" data-zh="备注">Notes</label>
+          <textarea id="fu-notes" style="min-height:70px" placeholder="Order details, follow-up notes…"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()" data-en="Save" data-zh="保存">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-followup')" data-en="Cancel" data-zh="取消">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
