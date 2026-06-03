@@ -930,30 +930,35 @@ async function getAccessToken() {
 
 async function shopifyGQL(query) {
   const url   = localStorage.getItem('flori-url') || '';
-  if (!url) throw new Error('Store URL not configured — open Settings');
+  if (!url) throw new Error('Store URL not set — open ⚙ Settings');
   const token = await getAccessToken();
+
+  // Always use server-side proxy — avoids all CORS issues
   let r;
   try {
-    r = await fetch(`https://${url}/admin/api/2025-01/graphql.json`, {
-      method: 'POST',
-      headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
-    });
-  } catch (corsErr) {
     r = await fetch('/api/query', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shop: url, token, query })
     });
+  } catch (netErr) {
+    throw new Error('Network error — is Vercel deployed? ' + netErr.message);
   }
-  if (r.status === 401) throw new Error('Token rejected (401) — check token in Settings');
-  if (r.status === 403) throw new Error('Access denied (403) — token may lack read_orders scope');
-  if (!r.ok) {
-    const txt = await r.text().catch(()=>'');
-    throw new Error('HTTP ' + r.status + ': ' + txt.slice(0,120));
+
+  let text = '';
+  try { text = await r.text(); } catch(_) {}
+
+  if (r.status === 401) throw new Error('Token invalid (401) — get a new token from Dev Dashboard');
+  if (r.status === 403) throw new Error('Token lacks permission (403) — check read_orders scope in Dev Dashboard');
+  if (!r.ok) throw new Error('Server error ' + r.status + ': ' + text.slice(0, 150));
+
+  let j;
+  try { j = JSON.parse(text); } catch(_) {
+    throw new Error('Bad response from proxy: ' + text.slice(0, 150));
   }
-  const j = await r.json();
-  if (j.errors) throw new Error(j.errors[0]?.message || 'GraphQL error');
+  if (j.error) throw new Error('Proxy error: ' + j.error);
+  if (j.errors) throw new Error('Shopify: ' + (j.errors[0]?.message || JSON.stringify(j.errors[0])));
+  if (!j.data)  throw new Error('No data returned — ' + JSON.stringify(j).slice(0, 150));
   return j.data;
 }
 
