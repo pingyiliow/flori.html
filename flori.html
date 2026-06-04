@@ -364,6 +364,43 @@ img{display:block;max-width:100%}
 .pay-paid{background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be}
 .pay-pend{background:var(--c-amber-bg);color:var(--c-amber);border:1px solid #e8c8a0}
 .ch-badge,.pay-badge{font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;white-space:nowrap;display:inline-block;}
+
+/* ── order detail panel ──────────────────────────────────────── */
+.dp{
+  position:fixed;top:0;right:0;bottom:0;width:min(420px,100vw);
+  background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .24s ease;
+}
+.dp.on{transform:translateX(0)}
+.dp-hdr{
+  background:var(--c-surface);border-bottom:1px solid var(--c-border);
+  padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
+}
+.dp-body{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:20px}
+.dp-section-ttl{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--c-border2);margin-bottom:8px}
+.dp-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--c-border)}
+.dp-row:last-child{border-bottom:none}
+.dp-row-lbl{font-size:12px;color:var(--c-muted)}
+.dp-row-val{font-size:12px;font-weight:500;text-align:right}
+.dp-total{font-size:14px;font-weight:500;color:var(--c-forest)}
+.dp-addr{font-size:12px;line-height:1.6;color:var(--c-ink)}
+.dp-loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)}
+.wa-link{color:var(--c-sage);text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-size:12px}
+.wa-link:hover{color:var(--c-forest);text-decoration:underline}
+
+/* ── flower recipe ───────────────────────────────────────────── */
+.recipe-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--c-border)}
+.recipe-row:last-child{border-bottom:none}
+.recipe-flower-name{flex:1;padding:6px 8px;border:1px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;}
+.recipe-flower-name:focus{border-color:var(--c-sage)}
+.recipe-qty{width:52px;padding:6px 6px;border:1px solid var(--c-border);border-radius:var(--r);font-size:12px;text-align:center;outline:none;}
+.recipe-qty:focus{border-color:var(--c-sage)}
+.recipe-unit{padding:6px 4px;border:1px solid var(--c-border);border-radius:var(--r);font-size:11px;background:var(--c-surface);color:var(--c-ink);outline:none;}
+.recipe-unit:focus{border-color:var(--c-sage)}
+.recipe-del{width:26px;height:26px;border-radius:var(--r);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-muted);cursor:pointer;flex-shrink:0;}
+.recipe-del:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
+.recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -960,7 +997,14 @@ function tagRow(o) {
 
 function actionBtns(id) {
   const o = ORDERS.find(x=>x.id===id); if (!o) return '';
-  return `<div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button><button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button><button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button></div>`;
+  const hasRecipe = o.recipe && o.recipe.length > 0;
+  return `<div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
+    <button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button>
+    <button class="act-btn" onclick="openDP('${id}')" title="View details" style="font-size:12px">⊙</button>
+    <button class="act-btn${hasRecipe?' on':''}" onclick="openRecipe('${id}')" title="Flower recipe" style="font-size:12px">🌿</button>
+    <button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button>
+    <button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button>
+  </div>`;
 }
 
 function orderRow(o, showDate=true) {
@@ -1091,7 +1135,7 @@ function renderFollowup() {
     const payLbl=f.payment==='paid'?(zh?'已付款':'Paid'):(zh?'待付款':'Pending'), payCl=f.payment==='paid'?'pay-paid':'pay-pend';
     const isDone=f.status==='completed', stLbl=isDone?(zh?'已完成':'Completed'):(zh?'跟进中':'Follow-up');
     const stStyle=isDone?'background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be':'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
-    return `<tr style="${isDone?'opacity:.55':''}"><td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td><td><div style="font-size:12px;color:var(--c-muted);font-family:monospace">${esc(f.contact||'–')}</div></td><td><span class="ch-badge ${chCl}">${ch}</span></td><td><button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td><td><button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button></td><td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td><td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn" onclick="editFollowup('${f.id}')">✎</button><button class="act-btn x" onclick="delFollowup('${f.id}')">✕</button></div></td></tr>`;
+    return `<tr style="${isDone?'opacity:.55':''}"><td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td><td><div style="font-size:12px;color:var(--c-muted)">${waLink(f.contact)}</div></td><td><span class="ch-badge ${chCl}">${ch}</span></td><td><button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td><td><button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button></td><td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td><td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn" onclick="editFollowup('${f.id}')">✎</button><button class="act-btn x" onclick="delFollowup('${f.id}')">✕</button></div></td></tr>`;
   }).join('');
 }
 
@@ -1288,12 +1332,302 @@ function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders',
 document.addEventListener('keydown', e => {
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('inventory'); if(e.key==='4') goPage('purchase');
-  if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();}
+  if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();}
 });
 
 /* ─── Init ───────────────────────────────────────────────────── */
+
+/* ─── WhatsApp link ──────────────────────────────────────────── */
+function waLink(phone) {
+  if (!phone || phone === '–') return `<span style="font-family:monospace">–</span>`;
+  let digits = phone.replace(/\D/g,'');
+  // Malaysian: if starts with 0, prefix with country code
+  if (digits.startsWith('0')) digits = '60' + digits.slice(1);
+  const url = 'https://wa.me/' + digits;
+  return `<a href="${url}" target="_blank" class="wa-link" onclick="event.stopPropagation()">
+    <span style="font-size:14px">💬</span>${esc(phone)}
+  </a>`;
+}
+
+/* ─── Recipe system ──────────────────────────────────────────── */
+let _recipeId = '';
+
+function openRecipe(id) {
+  const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  _recipeId = id;
+  document.getElementById('recipe-order-lbl').textContent = o.name + (o.customer ? ' · ' + o.customer : '');
+  const rows = document.getElementById('recipe-rows');
+  rows.innerHTML = '';
+  const recipe = o.recipe && o.recipe.length ? o.recipe : [];
+  if (!recipe.length) recipe.push({name:'',qty:1,unit:'stems'});
+  recipe.forEach((f,i) => _renderRecipeRow(f, i));
+  openModal('m-recipe');
+}
+
+function _renderRecipeRow(f, idx) {
+  const rows = document.getElementById('recipe-rows');
+  const div = document.createElement('div');
+  div.className = 'recipe-row';
+  div.id = 'rrow-'+idx;
+  div.innerHTML = `
+    <input class="recipe-flower-name" placeholder="e.g. Red Rose, Baby's Breath" value="${esc(f.name||'')}" oninput="updateRecipeRow(${idx},'name',this.value)">
+    <input class="recipe-qty" type="number" min="1" value="${f.qty||1}" oninput="updateRecipeRow(${idx},'qty',this.value)">
+    <select class="recipe-unit" onchange="updateRecipeRow(${idx},'unit',this.value)">
+      <option value="stems"   ${f.unit==='stems'?'selected':''}>stems</option>
+      <option value="pcs"     ${f.unit==='pcs'?'selected':''}>pcs</option>
+      <option value="bunches" ${f.unit==='bunches'?'selected':''}>bunches</option>
+      <option value="sprays"  ${f.unit==='sprays'?'selected':''}>sprays</option>
+      <option value="rolls"   ${f.unit==='rolls'?'selected':''}>rolls</option>
+    </select>
+    <button class="recipe-del" onclick="removeRecipeRow(${idx})">✕</button>`;
+  rows.appendChild(div);
+}
+
+let _recipeDraft = {};
+function updateRecipeRow(idx, field, val) {
+  if (!_recipeDraft[idx]) _recipeDraft[idx] = {};
+  _recipeDraft[idx][field] = val;
+}
+
+function addRecipeRow() {
+  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
+  if (!o.recipe) o.recipe = [];
+  o.recipe.push({name:'',qty:1,unit:'stems'});
+  const idx = o.recipe.length - 1;
+  _renderRecipeRow(o.recipe[idx], idx);
+}
+
+function removeRecipeRow(idx) {
+  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
+  if (!o.recipe || idx >= o.recipe.length) return;
+  o.recipe.splice(idx, 1);
+  openRecipe(_recipeId); // re-render
+}
+
+function saveRecipe() {
+  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
+  // Collect all values from inputs directly
+  const rows = document.querySelectorAll('.recipe-row');
+  const recipe = [];
+  rows.forEach((row, idx) => {
+    const name = row.querySelector('.recipe-flower-name')?.value.trim() || '';
+    const qty  = parseInt(row.querySelector('.recipe-qty')?.value) || 1;
+    const unit = row.querySelector('.recipe-unit')?.value || 'stems';
+    if (name) recipe.push({name, qty, unit});
+  });
+  o.recipe = recipe;
+  saveOrders();
+  closeModal('m-recipe');
+  toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':''));
+  renderOrders(); renderHome();
+}
+
+/* ─── Order detail panel ─────────────────────────────────────── */
+function openDP(id) {
+  const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  document.getElementById('dp-ttl').textContent = o.name;
+  document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
+  document.getElementById('dp-body').innerHTML = '<div class="dp-loading">Loading…</div>';
+  document.getElementById('dp').classList.add('on');
+  document.getElementById('dp-ov').classList.add('on');
+
+  if (o.src === 'shopify') {
+    _fetchOrderDetail(id, o);
+  } else {
+    _renderDPManual(o);
+  }
+}
+
+function closeDP() {
+  document.getElementById('dp').classList.remove('on');
+  document.getElementById('dp-ov').classList.remove('on');
+}
+
+async function _fetchOrderDetail(id, o) {
+  try {
+    const q = `{ order(id:"${id}"){
+      name note createdAt
+      customer { firstName lastName phone email }
+      shippingAddress { address1 address2 city province zip country phone }
+      lineItems(first:10){ edges{ node{
+        title quantity
+        originalUnitPriceSet { shopMoney { amount currencyCode } }
+        originalTotalSet     { shopMoney { amount currencyCode } }
+      }}}
+      currentSubtotalPriceSet { shopMoney { amount currencyCode } }
+      currentTotalPriceSet    { shopMoney { amount currencyCode } }
+      totalShippingPriceSet   { shopMoney { amount currencyCode } }
+      customAttributes { key value }
+    }}`;
+    const data = await shopifyGQL(q);
+    _renderDP(data.order, o);
+  } catch(e) {
+    document.getElementById('dp-body').innerHTML = `<div style="padding:24px;color:var(--c-red);font-size:12px">⚠ ${esc(e.message)}</div>`;
+  }
+}
+
+function _fmt(amount, currency) {
+  if (!amount) return '–';
+  const n = parseFloat(amount);
+  return (currency === 'MYR' ? 'RM ' : (currency+' ')) + n.toFixed(2);
+}
+
+function _renderDP(order, localOrder) {
+  const cust   = order.customer || {};
+  const addr   = order.shippingAddress;
+  const items  = order.lineItems?.edges?.map(e=>e.node) || [];
+  const attrs  = order.customAttributes || [];
+  const getAttr = k => attrs.find(a=>a.key===k)?.value || '';
+
+  // Customer phone — from shippingAddress (most reliable for Malaysian shops)
+  const phone = addr?.phone || cust.phone || '';
+  const email = cust.email || '';
+  const size  = getAttr('Bouquet Size') || getAttr('Size') || getAttr('bouquet_size') || '';
+  const note  = order.note || '';
+
+  // Recipe
+  const recipe = localOrder.recipe || [];
+
+  let html = '';
+
+  // ── Customer ──
+  html += `<div>
+    <div class="dp-section-ttl">Customer</div>
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc((cust.firstName||'')+' '+(cust.lastName||'')).trim()||'Guest'}</div>
+    ${email?`<div style="font-size:11px;color:var(--c-muted);margin-bottom:3px">✉ ${esc(email)}</div>`:''}
+    ${phone?`<div style="margin-top:2px">${waLink(phone)}</div>`:''}
+  </div>`;
+
+  // ── Address ──
+  if (addr) {
+    const lines = [addr.address1, addr.address2, [addr.city, addr.province].filter(Boolean).join(', '), [addr.zip, addr.country].filter(Boolean).join(' ')].filter(Boolean);
+    html += `<div>
+      <div class="dp-section-ttl">${localOrder.type==='pickup'?'Pickup Info':'Delivery Address'}</div>
+      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
+    </div>`;
+  }
+
+  // ── Time + Size ──
+  const dueTime = getAttr('Order Due Time') || localOrder.dueTime || '';
+  if (dueTime || size) {
+    html += `<div style="display:flex;gap:16px;flex-wrap:wrap">
+      ${dueTime?`<div><div class="dp-section-ttl">Time</div><div style="font-size:13px;font-weight:500">${esc(dueTime)}</div></div>`:''}
+      ${size?`<div><div class="dp-section-ttl">Bouquet Size</div><div style="font-size:13px;font-weight:500">${esc(size)}</div></div>`:''}
+    </div>`;
+  }
+
+  // ── Items & Price ──
+  if (items.length) {
+    const currency = items[0]?.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR';
+    const subtotal = order.currentSubtotalPriceSet?.shopMoney?.amount;
+    const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
+    const total    = order.currentTotalPriceSet?.shopMoney?.amount;
+
+    const itemRows = items.map(i => {
+      const price = i.originalUnitPriceSet?.shopMoney?.amount;
+      const lineTotal = i.originalTotalSet?.shopMoney?.amount;
+      return `<div class="dp-row">
+        <div class="dp-row-lbl">${esc(i.title)} ${i.quantity>1?`<span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
+        <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
+      </div>`;
+    }).join('');
+
+    html += `<div>
+      <div class="dp-section-ttl">Items & Price</div>
+      ${itemRows}
+      ${subtotal?`<div class="dp-row" style="margin-top:8px"><div class="dp-row-lbl" style="color:var(--c-muted)">Subtotal</div><div class="dp-row-val">${_fmt(subtotal,currency)}</div></div>`:''}
+      ${shipping && parseFloat(shipping)>0?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">Delivery fee</div><div class="dp-row-val">${_fmt(shipping,currency)}</div></div>`:''}
+      ${total?`<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">${_fmt(total,currency)}</div></div>`:''}
+    </div>`;
+  }
+
+  // ── Flower Recipe ──
+  html += `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="dp-section-ttl" style="margin-bottom:0">Flower Recipe</div>
+      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'Edit recipe':'+ Add recipe'}</button>
+    </div>
+    ${recipe.length
+      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted)">🌿</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
+      : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`
+    }
+  </div>`;
+
+  // ── Order Note ──
+  if (note) {
+    html += `<div>
+      <div class="dp-section-ttl">Order Note</div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.6;white-space:pre-wrap;font-style:italic;font-family:var(--f-head)">${esc(note)}</div>
+    </div>`;
+  }
+
+  document.getElementById('dp-body').innerHTML = html;
+}
+
+function _renderDPManual(o) {
+  const recipe = o.recipe || [];
+  let html = `<div>
+    <div class="dp-section-ttl">Customer</div>
+    <div style="font-size:13px;font-weight:500">${esc(o.customer||'–')}</div>
+  </div>`;
+
+  html += `<div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="dp-section-ttl" style="margin-bottom:0">Flower Recipe</div>
+      <button onclick="closeDP();openRecipe('${o.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'Edit':'+ Add recipe'}</button>
+    </div>
+    ${recipe.length
+      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span>🌿</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
+      : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`}
+  </div>`;
+
+  if (o.image) {
+    html += `<div><div class="dp-section-ttl">Photo</div><img src="${o.image}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
+  }
+
+  document.getElementById('dp-body').innerHTML = html;
+}
+
 function init() { handleOAuthCallback(); loadData(); setLang(LANG); renderAll(); if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 init();
 </script>
+
+<!-- ══ ORDER DETAIL PANEL ════════════════════════════════════ -->
+<div class="ov" id="dp-ov" onclick="closeDP()"></div>
+<div class="dp" id="dp">
+  <div class="dp-hdr">
+    <div>
+      <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400" id="dp-ttl">Order Detail</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:2px" id="dp-sub"></div>
+    </div>
+    <button class="sp-x" onclick="closeDP()">✕</button>
+  </div>
+  <div class="dp-body" id="dp-body">
+    <div class="dp-loading">Loading…</div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Flower Recipe ══════════════════════════════════ -->
+<div id="m-recipe" class="modal">
+  <div class="mc">
+    <div class="mc-hdr">
+      <div>
+        <div class="mc-ttl">🌿 Flower Recipe</div>
+        <div id="recipe-order-lbl" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div>
+      </div>
+      <button class="mc-x" onclick="closeModal('m-recipe')">✕</button>
+    </div>
+    <div class="mc-body">
+      <div style="font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">List the flowers used in this arrangement. Saved locally to this device.</div>
+      <div id="recipe-rows" style="display:flex;flex-direction:column"></div>
+      <button class="btn btn-ghost btn-sm" onclick="addRecipeRow()" style="align-self:flex-start;margin-top:4px">+ Add flower</button>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveRecipe()">Save Recipe</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-recipe')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
