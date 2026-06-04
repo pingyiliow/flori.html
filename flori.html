@@ -914,7 +914,7 @@ async function syncOrders() {
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{ orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt customer{firstName lastName} lineItems(first:5){edges{node{title quantity image{url}}}} customAttributes{key value} }} } }`;
+    const q = `{ orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:5){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const data = await shopifyGQL(q);
     const raw  = data.orders.edges.map(e => e.node);
     const manuals = ORDERS.filter(o => o.src === 'manual');
