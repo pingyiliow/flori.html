@@ -1285,6 +1285,9 @@ function parseOrderForm() {
   const raw = document.getElementById('fu-raw-paste')?.value || '';
   if (!raw.trim()) return null;
   const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const result = {};
+
+  // ── Helpers ──
   const get = (patterns) => {
     for (const pat of patterns) {
       for (const line of lines) {
@@ -1295,96 +1298,225 @@ function parseOrderForm() {
     return '';
   };
 
-  const result = {};
+  // Phone regex — Malaysian & international
+  const PHONE_RE = /(\+?6?0[\s\-]?\d[\d\s\-]{7,14}|\+\d[\d\s\-]{7,14})/;
 
-  // ── Sender ──
-  result.senderName  = get([/^(?:sender\s*)?name\s*[:\-]\s*(.+)/i, /^name\s*[:\-]\s*(.+)/i]);
-  result.senderPhone = get([/^(?:sender\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:sender\s*)?(?:mobile|tel|whatsapp)\s*[:\-]\s*(.+)/i]);
-  result.senderEmail = get([/^(?:sender\s*)?email\s*[:\-]\s*(.+)/i]);
+  // ── parseDate: handles every casual format ──
+  const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+    january:1,february:2,march:3,april:4,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+    mei:5,mac:3,ogos:8,dis:12,okt:10,nov:11,julai:7,januari:1,februari:2,april:4,jun:6,
+    januari:1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12};
+  function parseDate(s) {
+    if (!s) return '';
+    s = s.trim().replace(/[,\s]+/g,' ');
+    const yr = new Date().getFullYear();
+    let d, m, y;
 
-  // ── Recipient ──
-  // Look for recipient section first
-  const recipIdx = lines.findIndex(l => /recipient|recipient\s*details/i.test(l));
-  const recipLines = recipIdx >= 0 ? lines.slice(recipIdx) : lines;
-  const getRecip = (patterns) => {
-    for (const pat of patterns) {
-      for (const line of recipLines) {
-        const m = line.match(pat);
-        if (m && m[1] && m[1].trim()) return m[1].trim();
+    // DD/MM/YYYY or D/M/YYYY or DD-MM-YYYY etc
+    let mt = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+    if (mt) { d=+mt[1]; m=+mt[2]; y=+mt[3]; }
+
+    // DD/MM/YY (2-digit year)
+    if (!d) { mt = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/);
+      if (mt) { d=+mt[1]; m=+mt[2]; y=2000+(+mt[3]); } }
+
+    // DD/MM or D/M (no year — assume current year)
+    if (!d) { mt = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})$/);
+      if (mt) { d=+mt[1]; m=+mt[2]; y=yr; } }
+
+    // "5 May" or "5th May" or "5 May 2026" or "May 5" or "May 5 2026"
+    if (!d) { mt = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)(?:\s+(\d{4}))?$/i);
+      if (mt && MONTHS[mt[2].toLowerCase()]) { d=+mt[1]; m=MONTHS[mt[2].toLowerCase()]; y=mt[3]?+mt[3]:yr; } }
+    if (!d) { mt = s.match(/^([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s+(\d{4}))?$/i);
+      if (mt && MONTHS[mt[1].toLowerCase()]) { m=MONTHS[mt[1].toLowerCase()]; d=+mt[2]; y=mt[3]?+mt[3]:yr; } }
+
+    // "5/6" shorthand already caught by DD/MM above
+    if (!d) return '';
+    if (d<1||d>31||m<1||m>12) return '';
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  // ── isPickup: comprehensive casual detection ──
+  function isPickup(text) {
+    return /\b(pick\s*up|pickup|self[\s\-]*(collect|pickup|pick\s*up)|collect\s*myself|own\s*pick|walk[\s\-]*in|walkin|datang\s*ambil|ambil\s*sendiri|self\s*take)\b/i.test(text);
+  }
+
+  // ── Detect format: structured (has "Name:" / "Phone:" labels) vs freeform ──
+  const isStructured = lines.some(l => /^(name|phone|mobile|email|address|item|product|date|sender|recipient)\s*[:\-]/i.test(l));
+
+  if (isStructured) {
+    // ── STRUCTURED FORM (e.g. Delivery Order Form) ──
+    result.senderName  = get([/^(?:sender\s*)?name\s*[:\-]\s*(.+)/i]);
+    result.senderPhone = get([/^(?:sender\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:sender\s*)?(?:mobile|tel|whatsapp)\s*[:\-]\s*(.+)/i]);
+    result.senderEmail = get([/^(?:sender\s*)?email\s*[:\-]\s*(.+)/i]);
+
+    const recipIdx = lines.findIndex(l => /recipient|recipient\s*details/i.test(l));
+    const recipLines = recipIdx >= 0 ? lines.slice(recipIdx) : lines;
+    const getRecip = (patterns) => {
+      for (const pat of patterns) {
+        for (const line of recipLines) {
+          const m = line.match(pat);
+          if (m && m[1] && m[1].trim()) return m[1].trim();
+        }
+      }
+      return '';
+    };
+    result.recipName  = getRecip([/^(?:recipient\s*)?name\s*[:\-]\s*(.+)/i]);
+    result.recipPhone = getRecip([/^(?:recipient\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:recipient\s*)?(?:mobile|tel)\s*[:\-]\s*(.+)/i]);
+    result.addr       = getRecip([/^address\s*[:\-]\s*(.+)/i, /^(?:delivery\s*)?address\s*[:\-]\s*(.+)/i]);
+
+    // Date — use parseDate for all formats
+    const rawDate = get([
+      /date\s*of\s*delivery\s*[:\-]\s*(.+)/i,
+      /delivery\s*date\s*[:\-]\s*(.+)/i,
+      /pickup\s*date\s*[:\-]\s*(.+)/i,
+      /due\s*date\s*[:\-]\s*(.+)/i,
+      /date\s*[:\-]\s*(.+)/i,
+    ]);
+    if (rawDate) result.dueDate = parseDate(rawDate);
+
+    // Items
+    result.items = get([
+      /^item\(s\)\s*[:\-]\s*(.+)/i,
+      /^items?\s*[:\-]\s*(.+)/i,
+      /^product\s*[:\-]\s*(.+)/i,
+      /^order\s*details?\s*[:\-]\s*(.+)/i,
+    ]) || '';
+
+    // Card message (multi-line)
+    const cardIdx = lines.findIndex(l => /^card\s*message\s*[:\-]/i.test(l));
+    if (cardIdx >= 0) {
+      const cardLines = [];
+      const firstVal = lines[cardIdx].replace(/^card\s*message\s*[:\-]\s*/i,'').trim();
+      if (firstVal) cardLines.push(firstVal);
+      for (let i = cardIdx+1; i < lines.length; i++) {
+        if (/^(remarks|total|amount|item|name|phone|address|date)/i.test(lines[i])) break;
+        if (/^[─—]{3,}$/.test(lines[i])) break;
+        cardLines.push(lines[i]);
+      }
+      result.cardMsg = cardLines.join('\n');
+    } else { result.cardMsg = ''; }
+
+    result.remarks = get([/^remarks?\s*[:\-]\s*(.+)/i]) || '';
+
+    // Amount
+    const amtLine = get([
+      /total\s*(?:order\s*)?amount\s*[:\-]\s*(.+)/i,
+      /amount\s*[:\-]\s*(.+)/i,
+      /total\s*[:\-]\s*(.+)/i,
+    ]);
+    if (amtLine) {
+      const amtMatches = [...amtLine.matchAll(/rm\s*(\d+(?:\.\d+)?)/gi)];
+      if (amtMatches.length) result.amount = parseFloat(amtMatches[amtMatches.length-1][1]);
+    }
+
+    result.fulfil = isPickup(raw) ? 'pickup' : 'delivery';
+
+  } else {
+    // ── FREEFORM / CASUAL MESSAGE ──
+    // Strategy: scan each line for known patterns, classify what's left
+
+    const usedLines = new Set();
+
+    // Phone — find line containing a phone number
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(PHONE_RE);
+      if (m) {
+        result.senderPhone = m[1].replace(/\s/g,'');
+        // Name is whatever is on the same line after stripping the phone
+        const namePart = lines[i].replace(m[1],'').replace(/^[\s,\-]+|[\s,\-]+$/g,'').trim();
+        if (namePart && namePart.length > 1) result.senderName = namePart;
+        usedLines.add(i);
+        break;
       }
     }
-    return '';
-  };
-  result.recipName  = getRecip([/^(?:recipient\s*)?name\s*[:\-]\s*(.+)/i]);
-  result.recipPhone = getRecip([/^(?:recipient\s*)?phone\s*[:\-]\s*(.+)/i,/^(?:recipient\s*)?(?:mobile|tel)\s*[:\-]\s*(.+)/i]);
-  result.addr       = getRecip([/^address\s*[:\-]\s*(.+)/i, /^(?:delivery\s*)?address\s*[:\-]\s*(.+)/i]);
 
-  // Address type hint → if Office/Commercial/Hospital ticked → not residential
-  result.addrType = get([/address\s*type\s*[:\-]\s*(.+)/i]);
-
-  // ── Dates ──
-  const rawDate = get([
-    /date\s*of\s*delivery\s*[:\-]\s*(.+)/i,
-    /delivery\s*date\s*[:\-]\s*(.+)/i,
-    /pickup\s*date\s*[:\-]\s*(.+)/i,
-    /due\s*date\s*[:\-]\s*(.+)/i,
-  ]);
-  if (rawDate) {
-    // parse DD/MM/YYYY or D/M/YYYY
-    const dm = rawDate.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-    if (dm) result.dueDate = `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
-    else result.dueDateRaw = rawDate;
-  }
-
-  // ── Items — handles Item(s): with literal bracket ──
-  const itemText = get([
-    /^item\(s\)\s*[:\-]\s*(.+)/i,
-    /^items?\s*[:\-]\s*(.+)/i,
-    /^product\s*[:\-]\s*(.+)/i,
-    /^order\s*details?\s*[:\-]\s*(.+)/i,
-  ]);
-  result.items = itemText || '';
-
-  // ── Card message — collect multi-line ──
-  const cardIdx = lines.findIndex(l => /^card\s*message\s*[:\-]/i.test(l));
-  if (cardIdx >= 0) {
-    const cardLines = [];
-    const firstVal = lines[cardIdx].replace(/^card\s*message\s*[:\-]\s*/i,'').trim();
-    if (firstVal) cardLines.push(firstVal);
-    for (let i = cardIdx+1; i < lines.length; i++) {
-      if (/^(remarks|total|amount|item|name|phone|address|date)/i.test(lines[i])) break;
-      if (/^[─—]{3,}$/.test(lines[i])) break;
-      cardLines.push(lines[i]);
+    // Channel — WhatsApp / Facebook / Instagram / Walk-in
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const l = lines[i].toLowerCase();
+      if (/whatsapp|whasapp|wapp/.test(l)) { result.channel = 'whatsapp'; usedLines.add(i); break; }
+      if (/facebook|fb/.test(l))            { result.channel = 'facebook'; usedLines.add(i); break; }
+      if (/instagram|ig/.test(l))           { result.channel = 'instagram'; usedLines.add(i); break; }
+      if (/walk.?in/.test(l))               { result.channel = 'walkin'; usedLines.add(i); break; }
     }
-    result.cardMsg = cardLines.join('\n');
-  } else {
+
+    // Payment
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const l = lines[i].toLowerCase();
+      if (/paid|payment.*done|already paid/.test(l)) { result.payment = 'paid'; usedLines.add(i); break; }
+      if (/pending|not yet|unpaid/.test(l))           { result.payment = 'pending'; usedLines.add(i); break; }
+    }
+
+    // Amount — any line with RM
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const amtMatches = [...lines[i].matchAll(/rm\s*(\d+(?:\.\d+)?)/gi)];
+      if (amtMatches.length) {
+        result.amount = parseFloat(amtMatches[amtMatches.length-1][1]);
+        usedLines.add(i);
+        break;
+      }
+    }
+
+    // Date — try parseDate on every unused line
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const parsed = parseDate(lines[i]);
+      if (parsed) {
+        result.dueDate = parsed;
+        usedLines.add(i);
+        break;
+      }
+    }
+
+    // Address — line that looks like an address (contains number + street words, or postcode)
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const l = lines[i];
+      if (/\d{5}/.test(l) || /\b(jalan|jln|lorong|blok|block|no\.|unit|apt|flat|taman|tesco|mall|hospital|hotel|kondо)\b/i.test(l)) {
+        result.addr = l;
+        usedLines.add(i);
+        break;
+      }
+    }
+
+    // Delivery or pickup
+    result.fulfil = isPickup(raw) ? 'pickup' : 'delivery';
+
+    // Items — remaining unclassified lines that look like product descriptions
+    // (contain numbers like "20 stalks" or product keywords)
+    const itemLines = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const l = lines[i];
+      // Skip very short lines or lines that look like names already captured
+      if (l.length < 3) continue;
+      if (result.senderName && l === result.senderName) continue;
+      // Likely an item if it has a quantity word or flower/product keywords
+      if (/\d+\s*(stalk|pcs?|piece|bunch|bouquet|cake|box|set|roll|stem)/i.test(l) ||
+          /rose|tulip|lily|sunflower|carnation|orchid|daisy|peony|cake|gift|hamper|balloon/i.test(l)) {
+        itemLines.push(l);
+        usedLines.add(i);
+      }
+    }
+
+    // Any remaining unclassified lines → treat as items/notes if they weren't caught
+    for (let i = 0; i < lines.length; i++) {
+      if (usedLines.has(i)) continue;
+      const l = lines[i];
+      if (l.length > 3 && !(result.senderName && l === result.senderName)) {
+        itemLines.push(l);
+      }
+    }
+
+    result.items   = itemLines.join('\n');
     result.cardMsg = '';
+    result.remarks = '';
   }
 
-  // ── Remarks ──
-  result.remarks = get([/^remarks?\s*[:\-]\s*(.+)/i]) || '';
-
-  // legacy notes field (not used for display but kept for compat)
   result.notes = [result.items, result.cardMsg, result.remarks].filter(Boolean).join(' | ');
-
-  // ── Amount ──
-  const amtLine = get([
-    /total\s*(?:order\s*)?amount\s*[:\-]\s*(.+)/i,
-    /amount\s*[:\-]\s*(.+)/i,
-    /total\s*[:\-]\s*(.+)/i,
-  ]);
-  if (amtLine) {
-    // Extract last RM figure e.g. "rm218 + rm30 = RM248" → 248
-    const amtMatches = [...amtLine.matchAll(/rm\s*(\d+(?:\.\d+)?)/gi)];
-    if (amtMatches.length) {
-      result.amount = parseFloat(amtMatches[amtMatches.length - 1][1]);
-    }
-  }
-
-  // ── Fulfil type ──
-  const rawFulfil = raw.toLowerCase();
-  result.fulfil = rawFulfil.includes('pickup') || rawFulfil.includes('self collect') || rawFulfil.includes('self-collect') ? 'pickup' : 'delivery';
-
   return result;
 }
 
@@ -1409,7 +1541,9 @@ function parseAndFill() {
   set('fu-remarks',     parsed.remarks);
   if (parsed.dueDate) set('fu-due-date', parsed.dueDate);
   if (parsed.amount)  set('fu-amount',   parsed.amount);
-  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = parsed.fulfil;
+  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = parsed.fulfil || 'delivery';
+  if (parsed.channel) { const ch = document.getElementById('fu-channel'); if(ch) ch.value = parsed.channel; }
+  if (parsed.payment) { const pm = document.getElementById('fu-payment'); if(pm) pm.value = parsed.payment; }
 
   // Build summary for user
   const found = [];
@@ -1423,6 +1557,8 @@ function parseAndFill() {
   if (parsed.items)       found.push('Items: ' + parsed.items.slice(0,40));
   if (parsed.cardMsg)     found.push('Card message ✓');
   if (parsed.remarks)     found.push('Remarks ✓');
+  if (parsed.channel)     found.push('Channel: ' + parsed.channel);
+  if (parsed.payment)     found.push('Payment: ' + parsed.payment);
 
   const resultEl = document.getElementById('fu-parse-result');
   resultEl.style.display = '';
