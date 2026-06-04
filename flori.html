@@ -560,7 +560,7 @@ img{display:block;max-width:100%}
         <div class="filters" id="filters">
           <button class="f-btn on" data-f="all">All</button>
           <button class="f-btn" data-f="today">Today</button>
-          
+          <button class="f-btn" data-f="overdue">Overdue</button>
         </div>
         <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
           <button class="f-btn on" data-ft="all" id="ft-all">All</button>
@@ -1119,9 +1119,8 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
-  // Never show past orders in Daily Orders list
-  list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  if (orderFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.ready);
   if (calFilter) {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
@@ -1134,8 +1133,11 @@ function filteredOrders() {
 function sortedOrders(list) {
   return [...list].sort((a,b) => {
     const la = isPast(a.dateObj), lb = isPast(b.dateObj);
-    if (la && !lb) return -1; if (!la && lb) return 1;
-    if (!a.dateObj && !b.dateObj) return 0; if (!a.dateObj) return 1; if (!b.dateObj) return -1;
+    // Past (overdue) goes to bottom
+    if (la && !lb) return 1; if (!la && lb) return -1;
+    // Undated goes after dated future
+    if (!a.dateObj && !b.dateObj) return 0;
+    if (!a.dateObj) return 1; if (!b.dateObj) return -1;
     return a.dateObj - b.dateObj;
   });
 }
@@ -1223,7 +1225,8 @@ function orderRow(o, showDate=true) {
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  const readyCls = o.ready ? 'opacity:.4;' : '';
+  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer;${readyCls}"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1231,7 +1234,7 @@ function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrde
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayO  = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  const activeO = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated
+  const activeO = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated only
   document.getElementById('s-total').textContent = activeO.length;
   document.getElementById('s-today').textContent = todayO.length;
   document.getElementById('s-pu').textContent    = todayO.filter(o=>o.type==='pickup').length;
@@ -1256,8 +1259,6 @@ function renderOrders() {
   list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
   let html = '';
   groups.forEach(g => {
-    // In 'all' view, skip any past-date groups entirely
-    if (orderFilter === 'all' && g.d && isPast(g.d)) return;
     let lbl='–';
     if (g.d) { if(isPast(g.d)) lbl='⚠ '+fd(g.d)+' · Overdue'; else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
     else lbl='📋 No date set';
