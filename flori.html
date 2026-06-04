@@ -158,16 +158,16 @@ img{display:block;max-width:100%}
   padding:0;overflow-y:auto;background:var(--c-bg);
   display:flex;flex-direction:column;
 }
-.stat-band{background:var(--c-burg);padding:16px 36px;display:flex;gap:12px;flex-shrink:0}
-@media(max-width:860px){.stat-band{padding:12px 18px;gap:7px}}
+.stat-band{background:var(--c-burg);padding:18px 44px;display:flex;gap:12px;flex-shrink:0}
+@media(max-width:860px){.stat-band{padding:12px 20px;gap:7px}}
 .sc{flex:1;background:rgba(238,228,218,.1);border:1px solid rgba(238,228,218,.18);border-radius:var(--r-lg);padding:10px 14px;display:flex;align-items:center;gap:10px}
 .sc-icon{font-size:16px;color:var(--c-dpink);opacity:.8}
 .sc-num{font-family:var(--f-head);font-size:26px;font-weight:700;color:var(--c-bg);line-height:1}
 .sc-lbl{font-size:9px;color:var(--c-dpink);text-transform:uppercase;letter-spacing:.12em;margin-top:2px;opacity:.85}
 .stat-wave{height:16px;background:var(--c-burg);position:relative;flex-shrink:0}
 .stat-wave::after{content:'';position:absolute;bottom:0;left:0;right:0;height:16px;background:var(--c-bg);border-radius:16px 16px 0 0}
-.pc{padding:28px 36px 60px;display:flex;flex-direction:column;gap:24px}
-@media(max-width:860px){.pc{padding:16px 18px 24px}}
+.pc{padding:28px 44px 60px;display:flex;flex-direction:column;gap:28px}
+@media(max-width:860px){.pc{padding:20px 20px 24px}}
 
 .page{display:none;flex-direction:column;gap:0}
 .page.on{display:flex}
@@ -206,7 +206,8 @@ img{display:block;max-width:100%}
 .tbl td{padding:13px 18px;border-bottom:1px solid var(--c-border);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:rgba(77,14,19,.025)}
-.tbl tr.clickable-row:hover td{background:rgba(77,14,19,.03);transition:background .1s}
+.tbl tr.clickable-row:hover td{background:rgba(77,14,19,.035);transition:background .1s}
+.tbl tr.clickable-row td{transition:background .1s}
 .tbl tr.late td{background:var(--c-burg-lt)}
 .tbl tr.late:hover td{background:#eee0df}
 
@@ -417,6 +418,25 @@ img{display:block;max-width:100%}
 .recipe-unit:focus{border-color:var(--c-burg)}
 .recipe-del{width:26px;height:26px;border-radius:var(--r);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-muted);cursor:pointer;flex-shrink:0;}
 .recipe-del:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
+
+/* ── follow-up detail panel ──────────────────────────────────── */
+.fu-dp{
+  position:fixed;top:0;right:0;bottom:0;width:min(460px,100vw);
+  background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);transition:transform .24s ease;
+}
+.fu-dp.on{transform:translateX(0)}
+.fu-dp-hdr{
+  background:var(--c-burg);
+  padding:18px 22px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
+}
+.fu-dp-body{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:20px}
+.fu-sec-ttl{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--c-dpink);margin-bottom:8px}
+.fu-row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--c-border)}
+.fu-row:last-child{border-bottom:none}
+.fu-row-lbl{font-size:12px;color:var(--c-muted)}
+.fu-row-val{font-size:12px;font-weight:500;text-align:right;max-width:60%}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
@@ -466,50 +486,54 @@ img{display:block;max-width:100%}
 
   <!-- ── Dashboard ──────────────────────────────────────────── -->
   <div id="pg-home" class="page on">
-    <div class="page-hdr">
-      <div>
-        <div class="page-title" id="dash-date">—</div>
-        <div class="page-sub">Today's overview</div>
+    <div class="pc" style="padding-bottom:0;gap:20px">
+      <div class="page-hdr">
+        <div>
+          <div class="page-title" id="dash-date">—</div>
+          <div class="page-sub">Today's overview</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all orders →</button>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all orders →</button>
     </div>
-    <div class="stats">
+    <div class="stats" style="margin:0 44px">
       <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l">Total Pending</div></div>
       <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l">Due Today</div></div>
       <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Self Collect</div></div>
       <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Delivery</div></div>
     </div>
-    <div class="card">
-      <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
-      <div class="scroll-x">
-        <table class="tbl">
-          <thead><tr>
-            <th>Order</th>
-            <th>Product · Customer</th>
-            <th class="hide-m">Time</th>
-            <th>Type</th>
-            <th></th>
-          </tr></thead>
-          <tbody id="home-tbody"></tbody>
-        </table>
+    <div class="pc" style="padding-top:24px">
+      <div class="card">
+        <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
+        <div class="scroll-x">
+          <table class="tbl">
+            <thead><tr>
+              <th>Order</th>
+              <th>Product · Customer</th>
+              <th class="hide-m">Time</th>
+              <th>Type</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="home-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- ── Daily Orders ────────────────────────────────────────── -->
   <div id="pg-orders" class="page">
-    <div class="page-hdr">
-      <div>
-        <div class="page-title">Daily Orders</div>
-        <div class="page-sub">Shopify + manual orders</div>
+    <div class="pc" style="padding-bottom:0;gap:20px">
+      <div class="page-hdr">
+        <div>
+          <div class="page-title">Daily Orders</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
+        </div>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
-      </div>
-    </div>
 
-    <!-- Calendar toggle button -->
-    <div style="position:relative">
+      <!-- Calendar toggle button -->
+      <div style="position:relative">
       <button id="cal-toggle-btn" onclick="toggleCalendar()"
         style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s">
         <span style="font-size:15px">📅</span>
@@ -552,18 +576,21 @@ img{display:block;max-width:100%}
       </div>
     </div>
 
-    <div class="card">
-      <div class="scroll-x">
-        <table class="tbl">
-          <thead><tr>
-            <th>Order</th>
-            <th>Product · Customer</th>
-            <th class="hide-m">Date · Time</th>
-            <th>Pickup / Delivery</th>
-            <th></th>
-          </tr></thead>
-          <tbody id="orders-tbody"></tbody>
-        </table>
+    </div><!-- /pc -->
+    <div class="pc" style="padding-top:20px">
+      <div class="card">
+        <div class="scroll-x">
+          <table class="tbl">
+            <thead><tr>
+              <th>Order</th>
+              <th>Product · Customer</th>
+              <th class="hide-m">Date · Time</th>
+              <th>Pickup / Delivery</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="orders-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -825,17 +852,25 @@ img{display:block;max-width:100%}
       <input type="hidden" id="fu-edit-id">
       <div class="fg fg-2">
         <div class="ff"><label class="ff-l">Customer Name</label><input id="fu-name" type="text" placeholder="e.g. Sarah Lim"></div>
-        <div class="ff"><label class="ff-l">Contact Number</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
+        <div class="ff"><label class="ff-l">Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
+        <div class="ff"><label class="ff-l">Email</label><input id="fu-email" type="email" placeholder="sarah@email.com"></div>
         <div class="ff"><label class="ff-l">Order Channel</label>
           <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
         </div>
+        <div class="ff"><label class="ff-l">Fulfilment</label>
+          <select id="fu-fulfil"><option value="delivery">Delivery</option><option value="pickup">Self Collect</option></select>
+        </div>
+        <div class="ff"><label class="ff-l">Order Date</label><input id="fu-order-date" type="date"></div>
+        <div class="ff"><label class="ff-l">Delivery / Pickup Date</label><input id="fu-due-date" type="date"></div>
+        <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
         <div class="ff"><label class="ff-l">Payment</label>
           <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
         </div>
         <div class="ff"><label class="ff-l">Follow-up Status</label>
           <select id="fu-status"><option value="pending">Pending Follow-up</option><option value="completed">Completed</option></select>
         </div>
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="fu-notes" style="min-height:70px" placeholder="Order details, follow-up notes…"></textarea></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, City, Postcode"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Order / Product Details</label><textarea id="fu-notes" style="min-height:70px" placeholder="Product name, size, colour, special requests…"></textarea></div>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save</button>
@@ -843,6 +878,20 @@ img{display:block;max-width:100%}
       </div>
     </div>
   </div>
+</div>
+
+
+<!-- ══ FOLLOW-UP DETAIL PANEL ════════════════════════════════ -->
+<div class="ov" id="fu-dp-ov" onclick="closeFUDP()"></div>
+<div class="fu-dp" id="fu-dp">
+  <div class="fu-dp-hdr">
+    <div>
+      <div style="font-family:var(--f-head);font-size:18px;font-weight:600;color:var(--c-bg)" id="fu-dp-name">Customer</div>
+      <div style="font-size:11px;color:var(--c-dpink);margin-top:3px" id="fu-dp-sub"></div>
+    </div>
+    <button class="sp-x" onclick="closeFUDP()">✕</button>
+  </div>
+  <div class="fu-dp-body" id="fu-dp-body"></div>
 </div>
 
 <!-- ══ ZOOM OVERLAY ══════════════════════════════════════════ -->
@@ -1147,10 +1196,12 @@ function saveFollowups() { localStorage.setItem('flori-followup', JSON.stringify
 function openAddFollowup() {
   document.getElementById('fu-edit-id').value = '';
   document.getElementById('fu-modal-ttl').textContent = 'Add Customer';
-  ['fu-name','fu-contact','fu-notes'].forEach(id=>document.getElementById(id).value='');
+  ['fu-name','fu-contact','fu-email','fu-notes','fu-addr','fu-order-date','fu-due-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['fu-amount'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
+  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value='delivery';
   openModal('m-followup');
 }
 
@@ -1160,9 +1211,15 @@ function editFollowup(id) {
   document.getElementById('fu-modal-ttl').textContent = 'Edit Customer';
   document.getElementById('fu-name').value    = f.name    || '';
   document.getElementById('fu-contact').value = f.contact || '';
+  const emailEl = document.getElementById('fu-email'); if(emailEl) emailEl.value = f.email||'';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
+  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = f.fulfil || 'delivery';
+  const od = document.getElementById('fu-order-date'); if(od) od.value = f.orderDate||'';
+  const dd = document.getElementById('fu-due-date');   if(dd) dd.value = f.dueDate||'';
+  const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
+  const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
   document.getElementById('fu-notes').value   = f.notes   || '';
   openModal('m-followup');
 }
@@ -1172,7 +1229,21 @@ function saveFollowup() {
   if (!name) { toast('Customer name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
   const stEl = document.getElementById('fu-status');
-  const entry = { id:editId||('fu-'+Date.now()), name, contact:document.getElementById('fu-contact').value.trim(), channel:document.getElementById('fu-channel').value, payment:document.getElementById('fu-payment').value, status:stEl?stEl.value:'pending', notes:document.getElementById('fu-notes').value.trim(), ts:Date.now() };
+  const entry = {
+    id: editId||('fu-'+Date.now()), name,
+    contact: document.getElementById('fu-contact').value.trim(),
+    email:   document.getElementById('fu-email')?.value.trim()||'',
+    channel: document.getElementById('fu-channel').value,
+    fulfil:  document.getElementById('fu-fulfil')?.value||'delivery',
+    orderDate: document.getElementById('fu-order-date')?.value||'',
+    dueDate:   document.getElementById('fu-due-date')?.value||'',
+    amount:  parseFloat(document.getElementById('fu-amount')?.value)||0,
+    addr:    document.getElementById('fu-addr')?.value.trim()||'',
+    payment: document.getElementById('fu-payment').value,
+    status:  stEl?stEl.value:'pending',
+    notes:   document.getElementById('fu-notes').value.trim(),
+    ts: Date.now()
+  };
   if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
   saveFollowups(); closeModal('m-followup'); toast('✓ Saved'); renderFollowup();
 }
@@ -1199,8 +1270,86 @@ function renderFollowup() {
     const payLbl=f.payment==='paid'?(zh?'已付款':'Paid'):(zh?'待付款':'Pending'), payCl=f.payment==='paid'?'pay-paid':'pay-pend';
     const isDone=f.status==='completed', stLbl=isDone?(zh?'已完成':'Completed'):(zh?'跟进中':'Follow-up');
     const stStyle=isDone?'background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be':'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
-    return `<tr style="${isDone?'opacity:.55':''}"><td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td><td><div style="font-size:12px;color:var(--c-muted)">${waLink(f.contact)}</div></td><td><span class="ch-badge ${chCl}">${ch}</span></td><td><button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td><td><button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button></td><td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td><td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn" onclick="editFollowup('${f.id}')">✎</button><button class="act-btn x" onclick="delFollowup('${f.id}')">✕</button></div></td></tr>`;
+    const amt = f.amount && parseFloat(f.amount) > 0 ? `RM ${parseFloat(f.amount).toFixed(2)}` : '';
+    const dueLbl = f.dueDate ? fd(pd(f.dueDate)) : '';
+    return `<tr class="clickable-row" style="${isDone?'opacity:.55':''};cursor:pointer" onclick="openFUDP('${f.id}')">
+      <td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div>${dueLbl?`<div style="font-size:10px;color:var(--c-muted);margin-top:2px">${dueLbl}</div>`:''}</td>
+      <td><div style="font-size:12px;color:var(--c-muted)">${waLink(f.contact)}</div></td>
+      <td><span class="ch-badge ${chCl}">${ch}</span></td>
+      <td><button onclick="event.stopPropagation();togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td>
+      <td><button onclick="event.stopPropagation();toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button></td>
+      <td><div style="font-size:11px;color:var(--c-muted);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td>
+      <td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn" onclick="event.stopPropagation();editFollowup('${f.id}')">✎</button><button class="act-btn x" onclick="event.stopPropagation();delFollowup('${f.id}')">✕</button></div></td>
+    </tr>`;
   }).join('');
+}
+
+/* ─── Follow-up Detail Panel ─────────────────────────────────── */
+function openFUDP(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
+  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
+  const isDone = f.status === 'completed';
+  const payLbl = f.payment==='paid' ? 'Paid' : 'Pending';
+  const payCl  = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
+  const stLbl  = isDone ? 'Completed' : 'Follow-up Pending';
+  const stStyle = isDone ? 'background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be' : 'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
+  const fulfil = f.fulfil === 'pickup' ? 'Self Collect' : 'Delivery';
+  // Header
+  document.getElementById('fu-dp-name').textContent = f.name;
+  const subParts = [chLabel[f.channel]||f.channel, fulfil];
+  if(f.dueDate) subParts.push(fd(pd(f.dueDate)));
+  document.getElementById('fu-dp-sub').textContent = subParts.join(' · ');
+  // Body
+  let html = '';
+  // Status badges row
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+    <button onclick="togglePayment('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
+    <button onclick="toggleComplete('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button>
+  </div>`;
+  // Contact
+  html += `<div><div class="fu-sec-ttl">Contact</div>`;
+  if(f.contact) html += `<div style="margin-bottom:5px">${waLink(f.contact)}</div>`;
+  if(f.email)   html += `<div style="font-size:12px;color:var(--c-muted)">✉ ${esc(f.email)}</div>`;
+  html += `</div>`;
+  // Order details
+  html += `<div><div class="fu-sec-ttl">Order Details</div>`;
+  const rows = [
+    ['Channel',  chLabel[f.channel]||f.channel],
+    ['Fulfilment', fulfil],
+    ['Order Date',   f.orderDate ? fd(pd(f.orderDate)) : '–'],
+    ['${fulfil} Date', f.dueDate  ? fd(pd(f.dueDate))  : '–'],
+    ['Amount',     f.amount && parseFloat(f.amount)>0 ? `RM ${parseFloat(f.amount).toFixed(2)}` : '–'],
+    ['Payment',    payLbl],
+  ];
+  rows.forEach(([lbl,val]) => {
+    html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
+  });
+  html += `</div>`;
+  // Address
+  if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
+  // Notes
+  if(f.notes) html += `<div><div class="fu-sec-ttl">Notes</div><div style="font-size:12px;line-height:1.6;color:var(--c-muted);white-space:pre-wrap">${esc(f.notes)}</div></div>`;
+  // Shopify button + Edit/Delete
+  const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+  const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
+  html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
+    <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border-radius:var(--r);font-size:12px;font-weight:500;text-decoration:none;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
+      <span style="font-size:15px">🛍</span> Add Order in Shopify
+    </a>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeFUDP();editFollowup('${f.id}')" style="flex:1;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">✎ Edit</button>
+      <button onclick="closeFUDP();delFollowup('${f.id}')" style="padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">✕ Delete</button>
+    </div>
+  </div>`;
+  document.getElementById('fu-dp-body').innerHTML = html;
+  document.getElementById('fu-dp').classList.add('on');
+  document.getElementById('fu-dp-ov').classList.add('on');
+}
+
+function closeFUDP() {
+  document.getElementById('fu-dp').classList.remove('on');
+  document.getElementById('fu-dp-ov').classList.remove('on');
 }
 
 /* ─── Calendar ───────────────────────────────────────────────── */
@@ -1492,7 +1641,7 @@ function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders',
 document.addEventListener('keydown', e => {
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('inventory'); if(e.key==='4') goPage('purchase');
-  if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();}
+  if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();closeFUDP();}
 });
 
 /* ─── Init ───────────────────────────────────────────────────── */
