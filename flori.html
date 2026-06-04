@@ -846,34 +846,80 @@ img{display:block;max-width:100%}
 
 <!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
 <div id="m-followup" class="modal">
-  <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl" id="fu-modal-ttl">Add Customer</div><button class="mc-x" onclick="closeModal('m-followup')">✕</button></div>
+  <div class="mc" style="max-width:580px">
+    <div class="mc-hdr">
+      <div class="mc-ttl" id="fu-modal-ttl">Add Customer</div>
+      <button class="mc-x" onclick="closeModal('m-followup')">✕</button>
+    </div>
     <div class="mc-body">
       <input type="hidden" id="fu-edit-id">
-      <div class="fg fg-2">
-        <div class="ff"><label class="ff-l">Customer Name</label><input id="fu-name" type="text" placeholder="e.g. Sarah Lim"></div>
-        <div class="ff"><label class="ff-l">Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
-        <div class="ff"><label class="ff-l">Email</label><input id="fu-email" type="email" placeholder="sarah@email.com"></div>
-        <div class="ff"><label class="ff-l">Order Channel</label>
-          <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
-        </div>
-        <div class="ff"><label class="ff-l">Fulfilment</label>
-          <select id="fu-fulfil"><option value="delivery">Delivery</option><option value="pickup">Self Collect</option></select>
-        </div>
-        <div class="ff"><label class="ff-l">Order Date</label><input id="fu-order-date" type="date"></div>
-        <div class="ff"><label class="ff-l">Delivery / Pickup Date</label><input id="fu-due-date" type="date"></div>
-        <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
-        <div class="ff"><label class="ff-l">Payment</label>
-          <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
-        </div>
-        <div class="ff"><label class="ff-l">Follow-up Status</label>
-          <select id="fu-status"><option value="pending">Pending Follow-up</option><option value="completed">Completed</option></select>
-        </div>
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, City, Postcode"></div>
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Order / Product Details</label><textarea id="fu-notes" style="min-height:70px" placeholder="Product name, size, colour, special requests…"></textarea></div>
+
+      <!-- Tab switcher -->
+      <div id="fu-tabs" style="display:flex;gap:0;border:1.5px solid var(--c-border);border-radius:var(--r);overflow:hidden;flex-shrink:0">
+        <button id="fu-tab-paste" onclick="fuSwitchTab('paste')" style="flex:1;padding:8px;font-size:11px;font-weight:500;background:var(--c-burg);color:var(--c-bg);border:none;cursor:pointer;transition:all .12s;letter-spacing:.04em">
+          📋 Paste Order Form
+        </button>
+        <button id="fu-tab-manual" onclick="fuSwitchTab('manual')" style="flex:1;padding:8px;font-size:11px;font-weight:500;background:var(--c-surface);color:var(--c-muted);border:none;cursor:pointer;transition:all .12s;letter-spacing:.04em">
+          ✏ Manual Entry
+        </button>
       </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save</button>
+
+      <!-- PASTE TAB -->
+      <div id="fu-pane-paste">
+        <div class="ff">
+          <label class="ff-l">Paste order form text here</label>
+          <textarea id="fu-raw-paste" style="min-height:160px;font-size:12px;font-family:monospace;line-height:1.6" placeholder="Paste the full order form received via WhatsApp, email or Google Form…
+
+Example:
+Name: Sarah Lim
+Phone: +60 12-345 6789
+Date of Delivery: 5/6/2026
+Item: Bouquet · RM158
+Address: 12 Jalan Bunga, Penang"></textarea>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px" onclick="parseAndFill()">
+          <span style="font-size:15px">⚡</span> Auto-fill from form
+        </button>
+        <div id="fu-parse-result" style="display:none;font-size:11px;padding:8px 12px;border-radius:var(--r);background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;line-height:1.6"></div>
+      </div>
+
+      <!-- MANUAL TAB -->
+      <div id="fu-pane-manual" style="display:none">
+        <div class="fg fg-2">
+          <!-- Sender -->
+          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border)">Sender (Your Customer)</div>
+          <div class="ff"><label class="ff-l">Sender Name</label><input id="fu-name" type="text" placeholder="e.g. John"></div>
+          <div class="ff"><label class="ff-l">Sender Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Sender Email</label><input id="fu-email" type="email" placeholder="john@email.com"></div>
+
+          <!-- Recipient -->
+          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border);margin-top:4px">Recipient</div>
+          <div class="ff"><label class="ff-l">Recipient Name</label><input id="fu-recip-name" type="text" placeholder="e.g. Qian"></div>
+          <div class="ff"><label class="ff-l">Recipient Phone</label><input id="fu-recip-phone" type="text" placeholder="+60 16-550 5686"></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, Building, City, Postcode"></div>
+
+          <!-- Order -->
+          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border);margin-top:4px">Order</div>
+          <div class="ff"><label class="ff-l">Fulfilment</label>
+            <select id="fu-fulfil"><option value="delivery">Delivery</option><option value="pickup">Self Collect</option></select>
+          </div>
+          <div class="ff"><label class="ff-l">Delivery / Pickup Date</label><input id="fu-due-date" type="date"></div>
+          <div class="ff"><label class="ff-l">Order Channel</label>
+            <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
+          </div>
+          <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="ff"><label class="ff-l">Payment</label>
+            <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
+          </div>
+          <div class="ff"><label class="ff-l">Follow-up Status</label>
+            <select id="fu-status"><option value="pending">Pending Follow-up</option><option value="completed">Completed</option></select>
+          </div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item(s) / Card Message / Remarks</label><textarea id="fu-notes" style="min-height:80px" placeholder="Product name, size, card message, special requests…"></textarea></div>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save to Follow-up List</button>
         <button class="btn btn-ghost" onclick="closeModal('m-followup')">Cancel</button>
       </div>
     </div>
@@ -1193,25 +1239,188 @@ let FOLLOWUPS = [];
 function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
 function saveFollowups() { localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS)); }
 
-function openAddFollowup() {
-  document.getElementById('fu-edit-id').value = '';
-  document.getElementById('fu-modal-ttl').textContent = 'Add Customer';
-  ['fu-name','fu-contact','fu-email','fu-notes','fu-addr','fu-order-date','fu-due-date'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['fu-amount'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+function fuSwitchTab(tab) {
+  const isPaste = tab === 'paste';
+  document.getElementById('fu-pane-paste').style.display  = isPaste ? '' : 'none';
+  document.getElementById('fu-pane-manual').style.display = isPaste ? 'none' : '';
+  document.getElementById('fu-tab-paste').style.background  = isPaste ? 'var(--c-burg)' : 'var(--c-surface)';
+  document.getElementById('fu-tab-paste').style.color       = isPaste ? 'var(--c-bg)'   : 'var(--c-muted)';
+  document.getElementById('fu-tab-manual').style.background = isPaste ? 'var(--c-surface)' : 'var(--c-burg)';
+  document.getElementById('fu-tab-manual').style.color      = isPaste ? 'var(--c-muted)'   : 'var(--c-bg)';
+}
+
+function _fuClearFields() {
+  ['fu-name','fu-contact','fu-email','fu-recip-name','fu-recip-phone',
+   'fu-notes','fu-addr','fu-order-date','fu-due-date','fu-amount','fu-raw-paste'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
   const fu = document.getElementById('fu-fulfil'); if(fu) fu.value='delivery';
+  const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
+}
+
+function openAddFollowup() {
+  document.getElementById('fu-edit-id').value = '';
+  document.getElementById('fu-modal-ttl').textContent = 'Add Customer';
+  _fuClearFields();
+  fuSwitchTab('paste');
   openModal('m-followup');
+}
+
+/* ─── Parse order form text → fill fields ─────────────────────── */
+function parseOrderForm() {
+  const raw = document.getElementById('fu-raw-paste')?.value || '';
+  if (!raw.trim()) return null;
+  const lines = raw.split(/\n/).map(l => l.trim()).filter(Boolean);
+  const get = (patterns) => {
+    for (const pat of patterns) {
+      for (const line of lines) {
+        const m = line.match(pat);
+        if (m && m[1] && m[1].trim()) return m[1].trim();
+      }
+    }
+    return '';
+  };
+
+  const result = {};
+
+  // ── Sender ──
+  result.senderName  = get([/^(?:sender\s*)?name\s*[:\-]\s*(.+)/i, /^name\s*[:\-]\s*(.+)/i]);
+  result.senderPhone = get([/^(?:sender\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:sender\s*)?(?:mobile|tel|whatsapp)\s*[:\-]\s*(.+)/i]);
+  result.senderEmail = get([/^(?:sender\s*)?email\s*[:\-]\s*(.+)/i]);
+
+  // ── Recipient ──
+  // Look for recipient section first
+  const recipIdx = lines.findIndex(l => /recipient|recipient\s*details/i.test(l));
+  const recipLines = recipIdx >= 0 ? lines.slice(recipIdx) : lines;
+  const getRecip = (patterns) => {
+    for (const pat of patterns) {
+      for (const line of recipLines) {
+        const m = line.match(pat);
+        if (m && m[1] && m[1].trim()) return m[1].trim();
+      }
+    }
+    return '';
+  };
+  result.recipName  = getRecip([/^(?:recipient\s*)?name\s*[:\-]\s*(.+)/i]);
+  result.recipPhone = getRecip([/^(?:recipient\s*)?phone\s*[:\-]\s*(.+)/i,/^(?:recipient\s*)?(?:mobile|tel)\s*[:\-]\s*(.+)/i]);
+  result.addr       = getRecip([/^address\s*[:\-]\s*(.+)/i, /^(?:delivery\s*)?address\s*[:\-]\s*(.+)/i]);
+
+  // Address type hint → if Office/Commercial/Hospital ticked → not residential
+  result.addrType = get([/address\s*type\s*[:\-]\s*(.+)/i]);
+
+  // ── Dates ──
+  const rawDate = get([
+    /date\s*of\s*delivery\s*[:\-]\s*(.+)/i,
+    /delivery\s*date\s*[:\-]\s*(.+)/i,
+    /pickup\s*date\s*[:\-]\s*(.+)/i,
+    /due\s*date\s*[:\-]\s*(.+)/i,
+  ]);
+  if (rawDate) {
+    // parse DD/MM/YYYY or D/M/YYYY
+    const dm = rawDate.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dm) result.dueDate = `${dm[3]}-${dm[2].padStart(2,'0')}-${dm[1].padStart(2,'0')}`;
+    else result.dueDateRaw = rawDate;
+  }
+
+  // ── Item / notes ──
+  const itemPatterns = [/^items?\s*[:\-]\s*(.+)/i, /^product\s*[:\-]\s*(.+)/i, /^order\s*details?\s*[:\-]\s*(.+)/i];
+  const cardMsg    = get([/^card\s*message\s*[:\-]\s*([\s\S]+?)(?=
+(?:remarks|total|amount)|
+?$)/im]);
+  const remarks    = get([/^remarks?\s*[:\-]\s*(.+)/i]);
+  const itemText   = get(itemPatterns);
+  let notes = [];
+  if (itemText) notes.push('Item: ' + itemText);
+  // Collect multi-line card message
+  const cardIdx = lines.findIndex(l => /^card\s*message\s*[:\-]/i.test(l));
+  if (cardIdx >= 0) {
+    const cardLines = [];
+    const firstVal = lines[cardIdx].replace(/^card\s*message\s*[:\-]\s*/i,'').trim();
+    if (firstVal) cardLines.push(firstVal);
+    for (let i = cardIdx+1; i < lines.length; i++) {
+      if (/^(remarks|total|amount|item|name|phone|address|date)/i.test(lines[i])) break;
+      if (lines[i].match(/^─+$|^—+$/)) break;
+      cardLines.push(lines[i]);
+    }
+    if (cardLines.length) notes.push('Card: ' + cardLines.join(' / '));
+  }
+  if (remarks) notes.push('Remarks: ' + remarks);
+  result.notes = notes.join('\n');
+
+  // ── Amount ──
+  const amtLine = get([
+    /total\s*(?:order\s*)?amount\s*[:\-]\s*(.+)/i,
+    /amount\s*[:\-]\s*(.+)/i,
+    /total\s*[:\-]\s*(.+)/i,
+  ]);
+  if (amtLine) {
+    // Extract last RM figure e.g. "rm218 + rm30 = RM248" → 248
+    const amtMatches = [...amtLine.matchAll(/rm\s*(\d+(?:\.\d+)?)/gi)];
+    if (amtMatches.length) {
+      result.amount = parseFloat(amtMatches[amtMatches.length - 1][1]);
+    }
+  }
+
+  // ── Fulfil type ──
+  const rawFulfil = raw.toLowerCase();
+  result.fulfil = rawFulfil.includes('pickup') || rawFulfil.includes('self collect') || rawFulfil.includes('self-collect') ? 'pickup' : 'delivery';
+
+  return result;
+}
+
+function parseAndFill() {
+  const parsed = parseOrderForm();
+  if (!parsed) { toast('Paste an order form first'); return; }
+
+  // If sender name not found but recipient name found — some forms only have one name section
+  const senderName = parsed.senderName || '';
+  const recipName  = parsed.recipName  || '';
+
+  // Fill fields
+  const set = (id, val) => { const el = document.getElementById(id); if(el && val) el.value = val; };
+  set('fu-name',        senderName);
+  set('fu-contact',     parsed.senderPhone);
+  set('fu-email',       parsed.senderEmail);
+  set('fu-recip-name',  recipName);
+  set('fu-recip-phone', parsed.recipPhone);
+  set('fu-addr',        parsed.addr);
+  set('fu-notes',       parsed.notes);
+  if (parsed.dueDate) set('fu-due-date', parsed.dueDate);
+  if (parsed.amount)  set('fu-amount',   parsed.amount);
+  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = parsed.fulfil;
+
+  // Build summary for user
+  const found = [];
+  if (senderName)        found.push('Sender: ' + senderName);
+  if (parsed.senderPhone)found.push('Phone: ' + parsed.senderPhone);
+  if (parsed.senderEmail)found.push('Email: ' + parsed.senderEmail);
+  if (recipName)         found.push('Recipient: ' + recipName);
+  if (parsed.addr)       found.push('Address: ' + parsed.addr.slice(0,40)+'…');
+  if (parsed.dueDate)    found.push('Date: ' + parsed.dueDate);
+  if (parsed.amount)     found.push('Amount: RM ' + parsed.amount.toFixed(2));
+
+  const resultEl = document.getElementById('fu-parse-result');
+  resultEl.style.display = '';
+  resultEl.innerHTML = '<strong>✓ Filled ' + found.length + ' fields</strong><br>' + found.join(' · ');
+
+  // Switch to manual tab so user can review & correct
+  setTimeout(() => fuSwitchTab('manual'), 800);
+  toast('✓ Form parsed — check & save');
 }
 
 function editFollowup(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  _fuClearFields();
   document.getElementById('fu-edit-id').value = id;
   document.getElementById('fu-modal-ttl').textContent = 'Edit Customer';
   document.getElementById('fu-name').value    = f.name    || '';
   document.getElementById('fu-contact').value = f.contact || '';
   const emailEl = document.getElementById('fu-email'); if(emailEl) emailEl.value = f.email||'';
+  const rn = document.getElementById('fu-recip-name');  if(rn) rn.value = f.recipName||'';
+  const rp = document.getElementById('fu-recip-phone'); if(rp) rp.value = f.recipPhone||'';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
@@ -1220,28 +1429,31 @@ function editFollowup(id) {
   const dd = document.getElementById('fu-due-date');   if(dd) dd.value = f.dueDate||'';
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
-  document.getElementById('fu-notes').value   = f.notes   || '';
+  document.getElementById('fu-notes').value = f.notes || '';
+  fuSwitchTab('manual');
   openModal('m-followup');
 }
 
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
-  if (!name) { toast('Customer name required'); return; }
+  if (!name) { toast('Sender name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
   const stEl = document.getElementById('fu-status');
   const entry = {
     id: editId||('fu-'+Date.now()), name,
-    contact: document.getElementById('fu-contact').value.trim(),
-    email:   document.getElementById('fu-email')?.value.trim()||'',
-    channel: document.getElementById('fu-channel').value,
-    fulfil:  document.getElementById('fu-fulfil')?.value||'delivery',
-    orderDate: document.getElementById('fu-order-date')?.value||'',
-    dueDate:   document.getElementById('fu-due-date')?.value||'',
-    amount:  parseFloat(document.getElementById('fu-amount')?.value)||0,
-    addr:    document.getElementById('fu-addr')?.value.trim()||'',
-    payment: document.getElementById('fu-payment').value,
-    status:  stEl?stEl.value:'pending',
-    notes:   document.getElementById('fu-notes').value.trim(),
+    contact:    document.getElementById('fu-contact').value.trim(),
+    email:      document.getElementById('fu-email')?.value.trim()||'',
+    recipName:  document.getElementById('fu-recip-name')?.value.trim()||'',
+    recipPhone: document.getElementById('fu-recip-phone')?.value.trim()||'',
+    channel:    document.getElementById('fu-channel').value,
+    fulfil:     document.getElementById('fu-fulfil')?.value||'delivery',
+    orderDate:  document.getElementById('fu-order-date')?.value||'',
+    dueDate:    document.getElementById('fu-due-date')?.value||'',
+    amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
+    addr:       document.getElementById('fu-addr')?.value.trim()||'',
+    payment:    document.getElementById('fu-payment').value,
+    status:     stEl?stEl.value:'pending',
+    notes:      document.getElementById('fu-notes').value.trim(),
     ts: Date.now()
   };
   if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
@@ -1308,19 +1520,25 @@ function openFUDP(id) {
     <button onclick="toggleComplete('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button>
   </div>`;
   // Contact
-  html += `<div><div class="fu-sec-ttl">Contact</div>`;
-  if(f.contact) html += `<div style="margin-bottom:5px">${waLink(f.contact)}</div>`;
-  if(f.email)   html += `<div style="font-size:12px;color:var(--c-muted)">✉ ${esc(f.email)}</div>`;
+  html += `<div><div class="fu-sec-ttl">Sender</div>`;
+  if(f.contact) html += `<div style="margin-bottom:4px">${waLink(f.contact)}</div>`;
+  if(f.email)   html += `<div style="font-size:12px;color:var(--c-muted);margin-bottom:4px">✉ ${esc(f.email)}</div>`;
   html += `</div>`;
+  if(f.recipName || f.recipPhone) {
+    html += `<div><div class="fu-sec-ttl">Recipient</div>`;
+    if(f.recipName)  html += `<div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(f.recipName)}</div>`;
+    if(f.recipPhone) html += `<div style="margin-bottom:4px">${waLink(f.recipPhone)}</div>`;
+    html += `</div>`;
+  }
   // Order details
   html += `<div><div class="fu-sec-ttl">Order Details</div>`;
   const rows = [
-    ['Channel',  chLabel[f.channel]||f.channel],
-    ['Fulfilment', fulfil],
-    ['Order Date',   f.orderDate ? fd(pd(f.orderDate)) : '–'],
-    ['${fulfil} Date', f.dueDate  ? fd(pd(f.dueDate))  : '–'],
-    ['Amount',     f.amount && parseFloat(f.amount)>0 ? `RM ${parseFloat(f.amount).toFixed(2)}` : '–'],
-    ['Payment',    payLbl],
+    ['Channel',        chLabel[f.channel]||f.channel],
+    ['Fulfilment',     fulfil],
+    ['Order Date',     f.orderDate ? fd(pd(f.orderDate)) : '–'],
+    [fulfil+' Date',   f.dueDate   ? fd(pd(f.dueDate))  : '–'],
+    ['Amount',         f.amount && parseFloat(f.amount)>0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–'],
+    ['Payment',        payLbl],
   ];
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
