@@ -1067,6 +1067,14 @@ async function syncOrders() {
       return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
+    // Strip past dueDates from Shopify orders — these are likely creation dates not delivery dates
+    const t0sync = today0();
+    ORDERS.forEach(o => {
+      if (o.src === 'shopify' && o.dueDate) {
+        const d = new Date(o.dueDate);
+        if (!isNaN(d) && d < t0sync) { o.dueDate = null; }
+      }
+    });
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
@@ -1242,9 +1250,9 @@ function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrde
 
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
-  const todayO   = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  const futureO  = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated
-  document.getElementById('s-total').textContent = futureO.length;
+  const todayO  = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  const activeO = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated
+  document.getElementById('s-total').textContent = activeO.length;
   document.getElementById('s-today').textContent = todayO.length;
   document.getElementById('s-pu').textContent    = todayO.filter(o=>o.type==='pickup').length;
   document.getElementById('s-de').textContent    = todayO.filter(o=>o.type==='delivery').length;
