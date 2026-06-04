@@ -1106,7 +1106,10 @@ let fuFilter = 'all';
 
 function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
+  const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
+  // Default 'all' view: hide orders older than 2 days (keep today, future, and last 2 days overdue)
+  if (orderFilter === 'all')     list = list.filter(o => !o.dateObj || o.dateObj >= twoDaysAgo);
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
   if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
   if (calFilter) {
