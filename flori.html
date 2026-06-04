@@ -1026,7 +1026,7 @@ function isPast(d) { return d && d < today0(); }
 /* ─── Shopify API ────────────────────────────────────────────── */
 function gAttr(attrs, key) { const f = attrs.find(a => a.key === key || a.key.toLowerCase() === key.toLowerCase()); return f ? f.value : ''; }
 function getType(attrs) { const t = (gAttr(attrs,'Order Fulfillment Type') || gAttr(attrs,'Type Of Order') || '').toLowerCase(); return (t.includes('pick') || t.includes('collect')) ? 'pickup' : 'delivery'; }
-function getDueDate(attrs) { return gAttr(attrs,'Order Due Date') || gAttr(attrs,'Delivery Date') || gAttr(attrs,'Pickup Date'); }
+function getDueDate(attrs) { return gAttr(attrs,'Order Due Date') || gAttr(attrs,'Delivery Date') || gAttr(attrs,'Pickup Date') || gAttr(attrs,'Due Date') || gAttr(attrs,'Date') || gAttr(attrs,'Tarikh Penghantaran') || gAttr(attrs,'Delivery'); }
 function getDueTime(attrs) { return gAttr(attrs,'Order Due Time') || gAttr(attrs,'Delivery Time') || gAttr(attrs,'Pickup Time'); }
 
 async function shopifyGQL(query) {
@@ -1064,7 +1064,8 @@ async function syncOrders() {
       const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
-      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      const finalDate = ds || (n.createdAt ? n.createdAt.slice(0,10) : null);
+      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:finalDate, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -1121,7 +1122,7 @@ function filteredOrders() {
 function sortedOrders(list) {
   return [...list].sort((a,b) => {
     const la = isPast(a.dateObj), lb = isPast(b.dateObj);
-    if (la && !lb) return 1; if (!la && lb) return -1;
+    if (la && !lb) return -1; if (!la && lb) return 1;
     if (!a.dateObj && !b.dateObj) return 0; if (!a.dateObj) return 1; if (!b.dateObj) return -1;
     return a.dateObj - b.dateObj;
   });
