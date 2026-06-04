@@ -899,7 +899,7 @@ async function syncOrders() {
     const shopify = raw.map(n => {
       const attrs = n.customAttributes || [];
       const ds = getDueDate(attrs);
-      const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null }));
+      const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
       return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
@@ -971,25 +971,50 @@ function thumbCell(o) {
   return `<div class="o-thumb ph">🌸</div>`;
 }
 
+function _priceTag(item) {
+  if (!item.price || parseFloat(item.price) <= 0) return '';
+  const sym = item.currency === 'MYR' ? 'RM' : (item.currency || 'RM');
+  const total = parseFloat(item.price) * (item.quantity || 1);
+  return `<span style="font-size:10px;color:var(--c-forest);font-weight:500;font-family:var(--f-head);white-space:nowrap;flex-shrink:0;margin-left:8px">${sym} ${total.toFixed(2)}</span>`;
+}
+
 function itemsCell(o) {
   const items = o.lineItems && o.lineItems.length > 0 ? o.lineItems : [{ title: o.product || '–', quantity: null, image: o.image }];
   let html = '';
+
   if (items.length === 1) {
-    html = `<div class="o-prod">${esc(items[0].title)}</div>`;
+    const item = items[0];
+    const priceHtml = _priceTag(item);
+    html = `<div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap">
+      <div class="o-prod" style="flex:1;min-width:0">${esc(item.title)}</div>
+      ${priceHtml}
+    </div>`;
   } else {
     const lines = items.map(item => {
       const qty = item.quantity > 1 ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
-      if (item.image) { const s=item.image.replace(/'/g,"\\'"); const t=item.title.replace(/'/g,"\\'"); return `<div class="o-item-line"><img class="o-item-mini" src="${item.image}" loading="lazy" alt="" onclick="event.stopPropagation();openZoom('${s}','${t}')" onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'"><span class="o-item-title">${esc(item.title)}${qty}</span></div>`; }
-      return `<div class="o-item-line"><span class="o-item-dot">🌸</span><span class="o-item-title">${esc(item.title)}${qty}</span></div>`;
+      const priceHtml = _priceTag(item);
+      if (item.image) {
+        const s = item.image.replace(/'/g,"\\'"), t = item.title.replace(/'/g,"\\'");
+        return `<div class="o-item-line" style="justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
+            <img class="o-item-mini" src="${item.image}" loading="lazy" alt=""
+              onclick="event.stopPropagation();openZoom('${s}','${t}')"
+              onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
+            <span class="o-item-title">${esc(item.title)}${qty}</span>
+          </div>${priceHtml}
+        </div>`;
+      }
+      return `<div class="o-item-line" style="justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
+          <span class="o-item-dot">🌸</span>
+          <span class="o-item-title">${esc(item.title)}${qty}</span>
+        </div>${priceHtml}
+      </div>`;
     }).join('');
     html = `<div class="o-items">${lines}</div>`;
   }
+
   html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
-  // Show price if available
-  if (o.total && parseFloat(o.total) > 0) {
-    const symbol = o.currency === 'MYR' ? 'RM' : (o.currency||'RM');
-    html += `<div style="font-size:11px;color:var(--c-forest);font-weight:500;margin-top:3px;font-family:var(--f-head);letter-spacing:.01em">${symbol} ${parseFloat(o.total).toFixed(2)}</div>`;
-  }
   return html;
 }
 
