@@ -165,20 +165,14 @@ img{display:block;max-width:100%}
 /* ── stat cards ──────────────────────────────────────────────── */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;background:var(--c-surface)}
 @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
-.stat{
-  padding:22px 20px 18px;
-  position:relative;
-}
+.stat{padding:22px 20px 18px;position:relative;}
 .stat+.stat{border-left:1px solid var(--c-border)}
 @media(max-width:640px){
   .stat:nth-child(2){border-left:1px solid var(--c-border)}
   .stat:nth-child(3){border-left:none;border-top:1px solid var(--c-border)}
   .stat:nth-child(4){border-left:1px solid var(--c-border);border-top:1px solid var(--c-border)}
 }
-.stat::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:transparent;
-}
+.stat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:transparent;}
 .stat.f::before{background:var(--c-forest)}
 .stat.s::before{background:var(--c-sage)}
 .stat.a::before{background:var(--c-amber)}
@@ -188,19 +182,12 @@ img{display:block;max-width:100%}
 
 /* ── card ────────────────────────────────────────────────────── */
 .card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden}
-.card-hdr{
-  padding:16px 18px;border-bottom:1px solid var(--c-border);
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-}
+.card-hdr{padding:16px 18px;border-bottom:1px solid var(--c-border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .card-ttl{font-family:var(--f-head);font-size:16px;font-weight:500;letter-spacing:.01em}
 
 /* ── orders table ────────────────────────────────────────────── */
 .tbl{width:100%;border-collapse:collapse}
-.tbl th{
-  padding:9px 14px;text-align:left;
-  font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--c-muted);background:var(--c-bg);border-bottom:1px solid var(--c-border);
-}
+.tbl th{padding:9px 14px;text-align:left;font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);background:var(--c-bg);border-bottom:1px solid var(--c-border);}
 .tbl td{padding:12px 14px;border-bottom:1px solid var(--c-border);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:#f9f7f2}
@@ -208,12 +195,7 @@ img{display:block;max-width:100%}
 .tbl tr.late:hover td{background:#f8e2e0}
 
 .o-cell{display:flex;align-items:center;gap:10px}
-.o-thumb{
-  width:44px;height:44px;border-radius:var(--r);
-  background:var(--c-bg);border:1px solid var(--c-border);
-  display:flex;align-items:center;justify-content:center;
-  font-size:22px;flex-shrink:0;overflow:hidden;
-}
+.o-thumb{width:44px;height:44px;border-radius:var(--r);background:var(--c-bg);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;}
 .o-thumb img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;border-radius:var(--r)}
 .o-thumb.ph{cursor:default}
 .o-num{font-size:11px;font-weight:600;color:var(--c-muted)}
@@ -221,22 +203,14 @@ img{display:block;max-width:100%}
 @media(max-width:860px){.o-prod{max-width:160px}}
 .o-items{display:flex;flex-direction:column;gap:4px}
 .o-item-line{display:flex;align-items:center;gap:7px}
-.o-item-mini{
-  width:26px;height:26px;object-fit:cover;flex-shrink:0;
-  border-radius:3px;cursor:zoom-in;border:1px solid var(--c-border);
-  transition:opacity .12s;
-}
+.o-item-mini{width:26px;height:26px;object-fit:cover;flex-shrink:0;border-radius:3px;cursor:zoom-in;border:1px solid var(--c-border);transition:opacity .12s;}
 .o-item-mini:hover{opacity:.8}
 .o-item-dot{width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-border2)}
 .o-item-title{font-size:12px;font-weight:400;color:var(--c-ink);line-height:1.2}
 .o-item-qty{font-size:10px;color:var(--c-muted);margin-left:2px;font-weight:400}
 .o-item-customer{font-size:11px;color:var(--c-muted);margin-top:3px}
 
-.tag{
-  display:inline-flex;align-items:center;gap:3px;
-  padding:2px 8px;border-radius:3px;
-  font-size:9px;font-weight:400;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;
-}
+.tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:400;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;}
 .tag-pu{background:var(--c-blue-bg);color:var(--c-blue)}
 .tag-de{background:var(--c-amber-bg);color:#7A5030}
 .tag-late{background:var(--c-red-bg);color:var(--c-red)}
@@ -246,30 +220,19 @@ img{display:block;max-width:100%}
 .o-time{font-size:13px;font-weight:500;white-space:nowrap}
 .o-date{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-top:2px}
 
-.act-btn{
-  width:28px;height:28px;border-radius:var(--r);
-  border:1px solid var(--c-border);background:var(--c-surface);
-  display:inline-flex;align-items:center;justify-content:center;
-  font-size:13px;color:var(--c-muted);transition:all .12s;
-}
+.act-btn{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--c-muted);transition:all .12s;}
 .act-btn:hover{border-color:var(--c-forest);color:var(--c-forest);background:var(--c-sage-bg)}
 .act-btn.on{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
 .act-btn.x:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
 
 .grp-row td{padding:6px 14px}
-.grp-label{
-  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--c-muted);display:flex;align-items:center;gap:8px;
-}
+.grp-label{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);display:flex;align-items:center;gap:8px;}
 .grp-label::after{content:'';flex:1;height:1px;background:var(--c-border)}
 
 /* ── inventory ───────────────────────────────────────────────── */
 .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:12px}
 @media(max-width:480px){.inv-grid{grid-template-columns:repeat(2,1fr)}}
-.inv-card{
-  background:var(--c-surface);border:1px solid var(--c-border);
-  border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:10px;
-}
+.inv-card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:10px;}
 .inv-cat{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-border2)}
 .inv-name{font-size:13px;font-weight:500;color:var(--c-ink)}
 .inv-q{display:flex;align-items:baseline;gap:4px}
@@ -277,60 +240,34 @@ img{display:block;max-width:100%}
 .inv-u{font-size:11px;color:var(--c-muted)}
 .inv-note{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.4}
 .inv-acts{display:flex;gap:5px}
-.inv-act{
-  flex:1;padding:6px;border:1px solid var(--c-border);
-  background:var(--c-surface);border-radius:var(--r);
-  font-size:14px;font-weight:600;color:var(--c-muted);transition:all .12s;
-  display:flex;align-items:center;justify-content:center;
-}
+.inv-act{flex:1;padding:6px;border:1px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);font-size:14px;font-weight:600;color:var(--c-muted);transition:all .12s;display:flex;align-items:center;justify-content:center;}
 .inv-act:hover{border-color:var(--c-forest);color:var(--c-forest);background:var(--c-sage-bg)}
 .inv-act.x:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
 
 /* ── purchase list ───────────────────────────────────────────── */
 .pur-item{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-bottom:1px solid var(--c-border)}
 .pur-item:last-child{border-bottom:none}
-.pur-chk{
-  width:18px;height:18px;border:1.5px solid var(--c-border2);border-radius:3px;
-  flex-shrink:0;margin-top:2px;cursor:pointer;background:var(--c-surface);
-  display:flex;align-items:center;justify-content:center;font-size:11px;
-  transition:all .12s;
-}
+.pur-chk{width:18px;height:18px;border:1.5px solid var(--c-border2);border-radius:3px;flex-shrink:0;margin-top:2px;cursor:pointer;background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .12s;}
 .pur-chk.done{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
 .pur-info{flex:1}
 .pur-name{font-size:13px;font-weight:500}
 .pur-sub{font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-top:3px}
 .pur-tags{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
 .pur-qty{font-size:11px;font-weight:600;color:var(--c-amber)}
-.pur-del{
-  width:26px;height:26px;border-radius:var(--r);border:1px solid var(--c-border);
-  background:var(--c-surface);display:flex;align-items:center;justify-content:center;
-  font-size:12px;color:var(--c-muted);cursor:pointer;transition:all .12s;flex-shrink:0;
-}
+.pur-del{width:26px;height:26px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--c-muted);cursor:pointer;transition:all .12s;flex-shrink:0;}
 .pur-del:hover{border-color:var(--c-red);color:var(--c-red);background:var(--c-red-bg)}
 
 /* ── forms ───────────────────────────────────────────────────── */
 .ff{display:flex;flex-direction:column;gap:5px}
 .ff-l{font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted)}
-.ff input,.ff select,.ff textarea{
-  padding:9px 11px;border:1px solid var(--c-border);border-radius:var(--r);
-  background:var(--c-surface);color:var(--c-ink);outline:none;
-  transition:border-color .12s;
-}
-.ff input:focus,.ff select:focus,.ff textarea:focus{
-  border-color:var(--c-sage);
-}
+.ff input,.ff select,.ff textarea{padding:9px 11px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-ink);outline:none;transition:border-color .12s;}
+.ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--c-sage);}
 .ff textarea{resize:vertical;min-height:80px;line-height:1.5}
 .fg{display:grid;gap:14px}
 .fg-2{grid-template-columns:1fr 1fr}
 @media(max-width:480px){.fg-2{grid-template-columns:1fr}}
 
-/* photo upload zone */
-.photo-zone{
-  border:2px dashed var(--c-border2);border-radius:var(--r);
-  background:var(--c-bg);padding:20px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
-  cursor:pointer;transition:all .15s;position:relative;min-height:100px;
-}
+.photo-zone{border:2px dashed var(--c-border2);border-radius:var(--r);background:var(--c-bg);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:all .15s;position:relative;min-height:100px;}
 .photo-zone:hover{border-color:var(--c-sage);background:var(--c-sage-bg)}
 .photo-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
 .photo-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)}
@@ -338,13 +275,7 @@ img{display:block;max-width:100%}
 .photo-zone-lbl{font-size:11px;color:var(--c-muted);text-align:center;line-height:1.4}
 
 /* ── buttons ─────────────────────────────────────────────────── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:6px;
-  padding:8px 16px;border-radius:var(--r);
-  font-size:12px;font-weight:400;letter-spacing:.03em;
-  transition:all .12s;cursor:pointer;border:none;font-family:var(--f-body);
-  white-space:nowrap;
-}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;border-radius:var(--r);font-size:12px;font-weight:400;letter-spacing:.03em;transition:all .12s;cursor:pointer;border:none;font-family:var(--f-body);white-space:nowrap;}
 .btn-primary{background:var(--c-forest);color:#fff}
 .btn-primary:hover{background:#152B14}
 .btn-amber{background:var(--c-amber);color:#fff}
@@ -356,11 +287,7 @@ img{display:block;max-width:100%}
 
 /* ── filter tabs ─────────────────────────────────────────────── */
 .filters{display:flex;gap:6px;flex-wrap:wrap}
-.f-btn{
-  padding:5px 12px;border-radius:var(--r);border:1px solid var(--c-border);
-  background:transparent;font-size:11px;font-weight:400;color:var(--c-muted);
-  letter-spacing:.04em;transition:all .12s;
-}
+.f-btn{padding:5px 12px;border-radius:var(--r);border:1px solid var(--c-border);background:transparent;font-size:11px;font-weight:400;color:var(--c-muted);letter-spacing:.04em;transition:all .12s;}
 .f-btn:hover{color:var(--c-ink);border-color:var(--c-border2)}
 .f-btn.on{background:var(--c-forest);border-color:var(--c-forest);color:#fff}
 
@@ -370,125 +297,53 @@ img{display:block;max-width:100%}
 .empty-txt{font-family:var(--f-head);font-size:16px;font-style:italic}
 
 /* ── settings panel ──────────────────────────────────────────── */
-.ov{
-  position:fixed;inset:0;background:rgba(30,28,24,.42);z-index:900;
-  display:none;opacity:0;transition:opacity .2s;
-}
+.ov{position:fixed;inset:0;background:rgba(30,28,24,.42);z-index:900;display:none;opacity:0;transition:opacity .2s;}
 .ov.on{display:block;opacity:1}
-.sp{
-  position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);
-  background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;
-  display:flex;flex-direction:column;
-  transform:translateX(100%);transition:transform .24s ease;
-}
+.sp{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .24s ease;}
 .sp.on{transform:translateX(0)}
-.sp-hdr{
-  background:var(--c-surface);border-bottom:1px solid var(--c-border);
-  padding:16px 20px;
-  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
-}
+.sp-hdr{background:var(--c-surface);border-bottom:1px solid var(--c-border);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .sp-ttl{font-family:var(--f-head);font-size:20px;font-style:italic;color:var(--c-ink);font-weight:400}
-.sp-x{
-  width:28px;height:28px;border-radius:var(--r);
-  border:1px solid var(--c-border);background:transparent;
-  color:var(--c-muted);font-size:16px;
-  display:flex;align-items:center;justify-content:center;cursor:pointer;
-  transition:all .12s;
-}
+.sp-x{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--c-border);background:transparent;color:var(--c-muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;}
 .sp-x:hover{border-color:var(--c-border2);color:var(--c-ink)}
 .sp-body{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:24px}
-.sp-section-ttl{
-  font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--c-border2);padding-bottom:8px;border-bottom:1px solid var(--c-border);margin-bottom:10px;
-}
+.sp-section-ttl{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--c-border2);padding-bottom:8px;border-bottom:1px solid var(--c-border);margin-bottom:10px;}
 .sp-status{font-family:var(--f-head);font-style:italic;font-size:12px;text-align:center;padding:5px;color:var(--c-muted)}
 .sp-status.ok{color:var(--c-sage)}
 .sp-status.err{color:var(--c-red)}
 
 /* ── modals ──────────────────────────────────────────────────── */
-.modal{
-  position:fixed;inset:0;background:rgba(30,28,24,.5);z-index:950;
-  display:none;align-items:center;justify-content:center;padding:16px;
-}
+.modal{position:fixed;inset:0;background:rgba(30,28,24,.5);z-index:950;display:none;align-items:center;justify-content:center;padding:16px;}
 .modal.on{display:flex}
-.mc{
-  background:var(--c-surface);border-radius:var(--r-lg);
-  box-shadow:var(--sh-lg);width:100%;max-width:520px;max-height:92vh;
-  overflow-y:auto;display:flex;flex-direction:column;
-}
-.mc-hdr{
-  padding:18px 20px;border-bottom:1px solid var(--c-border);
-  display:flex;align-items:center;justify-content:space-between;flex-shrink:0;
-}
+.mc{background:var(--c-surface);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:100%;max-width:520px;max-height:92vh;overflow-y:auto;display:flex;flex-direction:column;}
+.mc-hdr{padding:18px 20px;border-bottom:1px solid var(--c-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .mc-ttl{font-family:var(--f-head);font-size:20px;font-weight:400;font-style:italic}
-.mc-x{
-  width:28px;height:28px;border-radius:var(--r);border:1px solid var(--c-border);
-  background:var(--c-bg);display:flex;align-items:center;justify-content:center;
-  font-size:15px;color:var(--c-muted);cursor:pointer;transition:all .12s;
-}
+.mc-x{width:28px;height:28px;border-radius:var(--r);border:1px solid var(--c-border);background:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--c-muted);cursor:pointer;transition:all .12s;}
 .mc-x:hover{background:var(--c-red-bg);color:var(--c-red);border-color:var(--c-red)}
 .mc-body{padding:20px;display:flex;flex-direction:column;gap:14px;flex:1}
 
 /* ── zoom overlay ────────────────────────────────────────────── */
-.zoom{
-  position:fixed;inset:0;background:rgba(10,10,10,.92);z-index:9999;
-  display:none;align-items:center;justify-content:center;padding:24px;
-  cursor:zoom-out;opacity:0;transition:opacity .18s;
-}
+.zoom{position:fixed;inset:0;background:rgba(10,10,10,.92);z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;cursor:zoom-out;opacity:0;transition:opacity .18s;}
 .zoom.on{display:flex;animation:zfade .18s forwards}
 @keyframes zfade{to{opacity:1}}
-.zoom img{
-  max-width:min(600px,88vw);max-height:85vh;object-fit:contain;
-  border-radius:var(--r);cursor:default;
-  animation:zscale .2s cubic-bezier(.2,.8,.3,1) forwards;
-}
+.zoom img{max-width:min(600px,88vw);max-height:85vh;object-fit:contain;border-radius:var(--r);cursor:default;animation:zscale .2s cubic-bezier(.2,.8,.3,1) forwards;}
 @keyframes zscale{from{transform:scale(.92);opacity:.5}to{transform:scale(1);opacity:1}}
-.zoom-cap{
-  position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,.7);color:#fff;border-radius:20px;
-  padding:7px 18px;font-size:13px;font-style:italic;font-family:var(--f-head);
-  white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;
-  pointer-events:none;
-}
-.zoom-close{
-  position:absolute;top:18px;right:20px;
-  width:36px;height:36px;border-radius:50%;
-  background:rgba(255,255,255,.12);color:#fff;font-size:18px;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;border:none;transition:background .15s;
-}
+.zoom-cap{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;border-radius:20px;padding:7px 18px;font-size:13px;font-style:italic;font-family:var(--f-head);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
+.zoom-close{position:absolute;top:18px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:background .15s;}
 .zoom-close:hover{background:rgba(255,255,255,.25)}
-.zoom-esc{
-  position:absolute;top:22px;left:50%;transform:translateX(-50%);
-  font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;
-  pointer-events:none;
-}
+.zoom-esc{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;pointer-events:none;}
 
 /* ── toast ───────────────────────────────────────────────────── */
-.toast{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);
-  background:var(--c-ink);color:#fff;padding:10px 18px;border-radius:var(--r);
-  font-size:12px;font-weight:500;z-index:9998;transition:transform .22s ease;
-  box-shadow:var(--sh-lg);white-space:nowrap;
-}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:var(--c-ink);color:#fff;padding:10px 18px;border-radius:var(--r);font-size:12px;font-weight:500;z-index:9998;transition:transform .22s ease;box-shadow:var(--sh-lg);white-space:nowrap;}
 .toast.on{transform:translateX(-50%) translateY(0)}
 
 /* ── scroll wrap ─────────────────────────────────────────────── */
 .scroll-x{overflow-x:auto}
 .hide-m{display:table-cell}
 @media(max-width:860px){.hide-m{display:none}}
+
 /* ── calendar ────────────────────────────────────────────────── */
-.cal-dow{
-  text-align:center;padding:8px 2px;
-  font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--c-muted);border-bottom:1px solid var(--c-border);
-}
-.cal-day{
-  aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:2px;cursor:pointer;font-size:13px;font-weight:400;color:var(--c-muted);
-  border-bottom:1px solid var(--c-border);border-right:1px solid var(--c-border);
-  transition:all .12s;min-height:44px;position:relative;
-}
+.cal-dow{text-align:center;padding:8px 2px;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);border-bottom:1px solid var(--c-border);}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:13px;font-weight:400;color:var(--c-muted);border-bottom:1px solid var(--c-border);border-right:1px solid var(--c-border);transition:all .12s;min-height:44px;position:relative;}
 .cal-day:hover{background:var(--c-bg)}
 .cal-day.has-orders{color:var(--c-ink);}
 .cal-day.today-cell{color:var(--c-forest);font-weight:500;}
@@ -508,11 +363,7 @@ img{display:block;max-width:100%}
 .ch-ot{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
 .pay-paid{background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be}
 .pay-pend{background:var(--c-amber-bg);color:var(--c-amber);border:1px solid #e8c8a0}
-.ch-badge,.pay-badge{
-  font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;
-  padding:2px 7px;border-radius:3px;white-space:nowrap;display:inline-block;
-}
-
+.ch-badge,.pay-badge{font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;white-space:nowrap;display:inline-block;}
 </style>
 </head>
 <body>
@@ -521,14 +372,14 @@ img{display:block;max-width:100%}
 <!-- ══ HEADER ═════════════════════════════════════════════════ -->
 <header class="hdr">
   <div class="hdr-brand">
-    <span class="hdr-logo" data-en="Flori" data-zh="Flori">Flori</span>
-    <span class="hdr-tagline hide-m" data-en="Florist Studio" data-zh="花店管理">Florist Studio</span>
+    <span class="hdr-logo">Flori</span>
+    <span class="hdr-tagline hide-m">Florist Studio</span>
   </div>
   <div id="hdr-pill" class="hdr-pill"></div>
   <div class="hdr-actions">
     <button class="sync-btn" id="sync-btn" onclick="syncOrders()">
       <span id="sync-ico" style="display:inline-block">⟳</span>
-      <span class="hide-m" data-en="Sync Orders" data-zh="同步订单">Sync Orders</span>
+      <span class="hide-m">Sync Orders</span>
     </button>
     <button class="hdr-btn" onclick="openSP()" title="Settings">⚙</button>
   </div>
@@ -537,31 +388,14 @@ img{display:block;max-width:100%}
 <!-- ══ SIDEBAR ════════════════════════════════════════════════ -->
 <aside class="sidebar">
   <div>
-    <div class="nav-sep" data-en="Operations" data-zh="运营">Operations</div>
-    <button class="nav-btn on" data-pg="home">
-      <span class="nav-icon">◈</span>
-      <span data-en="Dashboard" data-zh="主页">Dashboard</span>
-    </button>
-    <button class="nav-btn" data-pg="orders">
-      <span class="nav-icon">◫</span>
-      <span data-en="Daily Orders" data-zh="每日订单">Daily Orders</span>
-      <span class="nav-badge" id="nb-orders">0</span>
-    </button>
-    <div class="nav-sep" style="margin-top:6px" data-en="Admin" data-zh="管理">Admin</div>
-    <button class="nav-btn" data-pg="followup">
-      <span class="nav-icon">☎</span>
-      <span data-en="Follow-up List" data-zh="跟进列表">Follow-up List</span>
-      <span class="nav-badge" id="nb-followup" style="display:none">0</span>
-    </button>
-    <div class="nav-sep" style="margin-top:6px" data-en="Stock" data-zh="库存管理">Stock</div>
-    <button class="nav-btn" data-pg="inventory">
-      <span class="nav-icon">◉</span>
-      <span data-en="Flower Inventory" data-zh="鲜花库存">Flower Inventory</span>
-    </button>
-    <button class="nav-btn" data-pg="purchase">
-      <span class="nav-icon">✦</span>
-      <span data-en="Purchase List" data-zh="采购清单">Purchase List</span>
-    </button>
+    <div class="nav-sep">Operations</div>
+    <button class="nav-btn on" data-pg="home"><span class="nav-icon">◈</span><span>Dashboard</span></button>
+    <button class="nav-btn" data-pg="orders"><span class="nav-icon">◫</span><span>Daily Orders</span><span class="nav-badge" id="nb-orders">0</span></button>
+    <div class="nav-sep" style="margin-top:6px">Admin</div>
+    <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
+    <div class="nav-sep" style="margin-top:6px">Stock</div>
+    <button class="nav-btn" data-pg="inventory"><span class="nav-icon">◉</span><span>Flower Inventory</span></button>
+    <button class="nav-btn" data-pg="purchase"><span class="nav-icon">✦</span><span>Purchase List</span></button>
   </div>
   <div class="sidebar-foot" id="sb-foot">Not yet synced</div>
 </aside>
@@ -574,30 +408,26 @@ img{display:block;max-width:100%}
     <div class="page-hdr">
       <div>
         <div class="page-title" id="dash-date">—</div>
-        <div class="page-sub" data-en="Today's overview" data-zh="今日概览">Today's overview</div>
+        <div class="page-sub">Today's overview</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="goPage('orders')" data-en="View all orders →" data-zh="查看全部订单 →">View all orders →</button>
+      <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all orders →</button>
     </div>
-
     <div class="stats">
-      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l" data-en="Total Pending" data-zh="待完成">Total Pending</div></div>
-      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l" data-en="Due Today" data-zh="今日到期">Due Today</div></div>
-      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l" data-en="Self Collect" data-zh="自取">Self Collect</div></div>
-      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l" data-en="Delivery" data-zh="送货">Delivery</div></div>
+      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l">Total Pending</div></div>
+      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l">Due Today</div></div>
+      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Self Collect</div></div>
+      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Delivery</div></div>
     </div>
-
     <div class="card">
-      <div class="card-hdr">
-        <div class="card-ttl" data-en="Today's Schedule" data-zh="今日安排">Today's Schedule</div>
-      </div>
+      <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
       <div class="scroll-x">
         <table class="tbl">
           <thead><tr>
-            <th data-en="Order" data-zh="订单">Order</th>
-            <th data-en="Product · Customer" data-zh="产品 · 客户">Product · Customer</th>
-            <th class="hide-m" data-en="Time" data-zh="时间">Time</th>
-            <th data-en="Pickup / Delivery" data-zh="类型">Type</th>
-            <th data-en="Actions" data-zh="操作"></th>
+            <th>Order</th>
+            <th>Product · Customer</th>
+            <th class="hide-m">Time</th>
+            <th>Type</th>
+            <th></th>
           </tr></thead>
           <tbody id="home-tbody"></tbody>
         </table>
@@ -609,26 +439,23 @@ img{display:block;max-width:100%}
   <div id="pg-orders" class="page">
     <div class="page-hdr">
       <div>
-        <div class="page-title" data-en="Daily Orders" data-zh="每日订单">Daily Orders</div>
-        <div class="page-sub" data-en="Shopify + manual orders" data-zh="Shopify + 手动订单">Shopify + manual orders</div>
+        <div class="page-title">Daily Orders</div>
+        <div class="page-sub">Shopify + manual orders</div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="openAddOrder()" data-en="+ Add Order" data-zh="+ 手动添加">+ Add Order</button>
+        <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
       </div>
     </div>
 
-    <!-- Calendar — collapsed by default, opens on click -->
+    <!-- Calendar toggle button -->
     <div style="position:relative">
       <button id="cal-toggle-btn" onclick="toggleCalendar()"
-        style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s"
-        onmouseover="this.style.borderColor='var(--c-border2)';this.style.color='var(--c-ink)'"
-        onmouseout="this.style.borderColor='var(--c-border)';this.style.color=document.getElementById('cal-selected-lbl').textContent?'var(--c-forest)':'var(--c-muted)'">
+        style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s">
         <span style="font-size:15px">📅</span>
         <span id="cal-selected-lbl" style="font-style:italic;font-family:var(--f-head)"></span>
         <span id="cal-btn-label">Select date</span>
         <span id="cal-chevron" style="font-size:10px;opacity:.5">▾</span>
       </button>
-      <!-- Calendar panel — hidden by default -->
       <div id="cal-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:min(320px,90vw);overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--c-border)">
           <button class="hdr-btn" onclick="calPrev()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
@@ -643,25 +470,24 @@ img{display:block;max-width:100%}
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <div class="filters" id="filters">
-          <button class="f-btn on" data-f="all"   data-en="All" data-zh="全部">All</button>
-          <button class="f-btn" data-f="today"     data-en="Today" data-zh="今日">Today</button>
-          <button class="f-btn" data-f="overdue"   data-en="Overdue" data-zh="逾期">Overdue</button>
+          <button class="f-btn on" data-f="all">All</button>
+          <button class="f-btn" data-f="today">Today</button>
+          <button class="f-btn" data-f="overdue">Overdue</button>
         </div>
-        <!-- Pickup / Delivery sub-column for All & Today -->
         <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
-          <button class="f-btn on" data-ft="all"      style="display:flex;align-items:center;gap:4px" data-en="All" data-zh="全部" id="ft-all">All</button>
-          <button class="f-btn"    data-ft="pickup"    style="display:flex;align-items:center;gap:4px" data-en="Pickup" data-zh="自取" id="ft-pickup">
-            <span style="font-size:8px;background:var(--c-blue-bg);color:var(--c-blue);padding:1px 4px;border-radius:2px;letter-spacing:.04em">P</span>
+          <button class="f-btn on" data-ft="all" id="ft-all">All</button>
+          <button class="f-btn" data-ft="pickup" id="ft-pickup">
+            <span style="font-size:8px;background:var(--c-blue-bg);color:var(--c-blue);padding:1px 4px;border-radius:2px">P</span>
             Pickup <span id="count-pickup" style="font-size:9px;opacity:.6"></span>
           </button>
-          <button class="f-btn"    data-ft="delivery"  style="display:flex;align-items:center;gap:4px" data-en="Delivery" data-zh="送货" id="ft-delivery">
-            <span style="font-size:8px;background:var(--c-amber-bg);color:var(--c-amber);padding:1px 4px;border-radius:2px;letter-spacing:.04em">D</span>
+          <button class="f-btn" data-ft="delivery" id="ft-delivery">
+            <span style="font-size:8px;background:var(--c-amber-bg);color:var(--c-amber);padding:1px 4px;border-radius:2px">D</span>
             Delivery <span id="count-delivery" style="font-size:9px;opacity:.6"></span>
           </button>
         </div>
       </div>
       <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
-        <button onclick="clearCalFilter()" style="font-size:11px;color:var(--c-muted);text-decoration:underline;cursor:pointer;background:none;border:none" data-en="× Clear date filter" data-zh="× 清除日期筛选">× Clear date filter</button>
+        <button onclick="clearCalFilter()" style="font-size:11px;color:var(--c-muted);text-decoration:underline;cursor:pointer;background:none;border:none">× Clear date filter</button>
       </div>
     </div>
 
@@ -669,11 +495,11 @@ img{display:block;max-width:100%}
       <div class="scroll-x">
         <table class="tbl">
           <thead><tr>
-            <th data-en="Order" data-zh="订单">Order</th>
-            <th data-en="Product · Customer" data-zh="产品 · 客户">Product · Customer</th>
-            <th class="hide-m" data-en="Date · Time" data-zh="日期 · 时间">Date · Time</th>
-            <th data-en="Pickup / Delivery" data-zh="类型">Pickup / Delivery</th>
-            <th data-en="Actions" data-zh="操作"></th>
+            <th>Order</th>
+            <th>Product · Customer</th>
+            <th class="hide-m">Date · Time</th>
+            <th>Pickup / Delivery</th>
+            <th></th>
           </tr></thead>
           <tbody id="orders-tbody"></tbody>
         </table>
@@ -685,10 +511,10 @@ img{display:block;max-width:100%}
   <div id="pg-inventory" class="page">
     <div class="page-hdr">
       <div>
-        <div class="page-title" data-en="Flower Inventory" data-zh="鲜花库存">Flower Inventory</div>
-        <div class="page-sub" data-en="Track stems, materials & supplies" data-zh="追踪花材及材料">Track stems, materials & supplies</div>
+        <div class="page-title">Flower Inventory</div>
+        <div class="page-sub">Track stems, materials & supplies</div>
       </div>
-      <button class="btn btn-primary" onclick="openAddInv()" data-en="+ Add Item" data-zh="+ 新增">+ Add Item</button>
+      <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
     </div>
     <div id="inv-body"></div>
   </div>
@@ -697,24 +523,22 @@ img{display:block;max-width:100%}
   <div id="pg-purchase" class="page">
     <div class="page-hdr">
       <div>
-        <div class="page-title" data-en="Purchase List" data-zh="采购清单">Purchase List</div>
-        <div class="page-sub" data-en="What to order this week" data-zh="本周需订购的花材">What to order this week</div>
+        <div class="page-title">Purchase List</div>
+        <div class="page-sub">What to order this week</div>
       </div>
-      <button class="btn btn-primary" onclick="openAddPur()" data-en="+ Add Item" data-zh="+ 新增">+ Add Item</button>
+      <button class="btn btn-primary" onclick="openAddPur()">+ Add Item</button>
     </div>
-
     <div class="card">
       <div class="card-hdr">
-        <div class="card-ttl" data-en="Items to Order" data-zh="待订购项目">Items to Order</div>
-        <button class="btn btn-ghost btn-sm" onclick="clearDone()" data-en="Clear done" data-zh="清除已完成">Clear done</button>
+        <div class="card-ttl">Items to Order</div>
+        <button class="btn btn-ghost btn-sm" onclick="clearDone()">Clear done</button>
       </div>
       <div style="padding:0 18px" id="pur-body"></div>
     </div>
-
     <div class="card">
-      <div class="card-hdr"><div class="card-ttl" data-en="Supplier Notes" data-zh="供应商备注">Supplier Notes</div></div>
+      <div class="card-hdr"><div class="card-ttl">Supplier Notes</div></div>
       <div style="padding:16px">
-        <textarea class="ff" id="pur-notes" style="width:100%;padding:10px 11px;border:1px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:110px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
+        <textarea id="pur-notes" style="width:100%;padding:10px 11px;border:1px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:110px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
       </div>
     </div>
   </div>
@@ -723,51 +547,28 @@ img{display:block;max-width:100%}
   <div id="pg-followup" class="page">
     <div class="page-hdr">
       <div>
-        <div class="page-title" data-en="Follow-up List" data-zh="跟进列表">Follow-up List</div>
-        <div class="page-sub" data-en="Track customers, payments & order channels" data-zh="跟踪客户、付款及订单来源">Track customers, payments & channels</div>
+        <div class="page-title">Follow-up List</div>
+        <div class="page-sub">Track customers, payments & channels</div>
       </div>
-      <button class="btn btn-primary" onclick="openAddFollowup()" data-en="+ Add Customer" data-zh="+ 添加客户">+ Add Customer</button>
+      <button class="btn btn-primary" onclick="openAddFollowup()">+ Add Customer</button>
     </div>
-
-    <!-- Summary stats -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;background:var(--c-surface)">
-      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
-        <div id="fu-total" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-ink)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Total</div>
-      </div>
-      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
-        <div id="fu-followup-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-blush)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Follow-up</div>
-      </div>
-      <div style="padding:16px 18px;border-right:1px solid var(--c-border)">
-        <div id="fu-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-amber)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Unpaid</div>
-      </div>
-      <div style="padding:16px 18px">
-        <div id="fu-paid" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-forest)">0</div>
-        <div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Completed</div>
-      </div>
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)"><div id="fu-total" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-ink)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Total</div></div>
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)"><div id="fu-followup-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-blush)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Follow-up</div></div>
+      <div style="padding:16px 18px;border-right:1px solid var(--c-border)"><div id="fu-pending" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-amber)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Unpaid</div></div>
+      <div style="padding:16px 18px"><div id="fu-paid" style="font-family:var(--f-head);font-size:32px;font-weight:400;color:var(--c-forest)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:4px">Completed</div></div>
     </div>
-
-    <!-- Status filter tabs -->
     <div class="filters" id="fu-filters">
-      <button class="f-btn on" data-fu="all"              data-en="All" data-zh="全部">All</button>
-      <button class="f-btn" data-fu="followup-pending"    data-en="Pending Follow-up" data-zh="待跟进">Pending Follow-up</button>
-      <button class="f-btn" data-fu="payment-pending"     data-en="Pending Payment" data-zh="待付款">Pending Payment</button>
-      <button class="f-btn" data-fu="completed"           data-en="Completed" data-zh="已完成">Completed</button>
+      <button class="f-btn on" data-fu="all">All</button>
+      <button class="f-btn" data-fu="followup-pending">Pending Follow-up</button>
+      <button class="f-btn" data-fu="payment-pending">Pending Payment</button>
+      <button class="f-btn" data-fu="completed">Completed</button>
     </div>
-
     <div class="card">
       <div class="scroll-x">
         <table class="tbl">
           <thead><tr>
-            <th data-en="Customer" data-zh="客户">Customer</th>
-            <th data-en="Contact" data-zh="联系方式">Contact</th>
-            <th data-en="Channel" data-zh="渠道">Channel</th>
-            <th data-en="Payment" data-zh="付款">Payment</th>
-            <th data-en="Status" data-zh="状态">Status</th>
-            <th data-en="Notes" data-zh="备注">Notes</th>
-            <th></th>
+            <th>Customer</th><th>Contact</th><th>Channel</th><th>Payment</th><th>Status</th><th>Notes</th><th></th>
           </tr></thead>
           <tbody id="followup-tbody"></tbody>
         </table>
@@ -779,11 +580,11 @@ img{display:block;max-width:100%}
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
 <nav class="mob-nav">
-  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span data-en="Home" data-zh="主页">Home</span></button>
-  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span data-en="Orders" data-zh="订单">Orders</span></button>
-  <button class="mob-tab" data-pg="inventory"><span class="mob-icon">◉</span><span data-en="Stock" data-zh="库存">Stock</span></button>
-  <button class="mob-tab" data-pg="purchase"><span class="mob-icon">✦</span><span data-en="Buy" data-zh="采购">Buy</span></button>
-  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span data-en="Follow" data-zh="跟进">Follow</span></button>
+  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
+  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
+  <button class="mob-tab" data-pg="inventory"><span class="mob-icon">◉</span><span>Stock</span></button>
+  <button class="mob-tab" data-pg="purchase"><span class="mob-icon">✦</span><span>Buy</span></button>
+  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -792,85 +593,70 @@ img{display:block;max-width:100%}
 <div class="ov" id="sp-ov" onclick="closeSP()"></div>
 <div class="sp" id="sp">
   <div class="sp-hdr">
-    <div class="sp-ttl" data-en="Settings" data-zh="设置">Settings</div>
+    <div class="sp-ttl">Settings</div>
     <button class="sp-x" onclick="closeSP()">✕</button>
   </div>
   <div class="sp-body">
     <div>
-      <div class="sp-section-ttl" data-en="Shopify Connection" data-zh="Shopify 连接">Shopify Connection</div>
-
-      <!-- Connected state -->
+      <div class="sp-section-ttl">Shopify Connection</div>
       <div id="cfg-connected" style="display:none;flex-direction:column;gap:10px">
         <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">✓</span>
-          <div>
-            <div style="font-weight:600" data-en="Connected" data-zh="已连接">Connected</div>
-            <div id="cfg-shop-label" style="font-size:11px;opacity:.8"></div>
-          </div>
+          <div><div style="font-weight:600">Connected</div><div id="cfg-shop-label" style="font-size:11px;opacity:.8"></div></div>
         </div>
-        <button class="btn btn-ghost" onclick="disconnectShopify()" data-en="Disconnect store" data-zh="断开连接">Disconnect store</button>
+        <button class="btn btn-ghost" onclick="disconnectShopify()">Disconnect store</button>
       </div>
-
-      <!-- Not connected: OAuth (primary) -->
       <div id="cfg-oauth" style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head)">
-          <span data-en="Enter your store URL and click Connect. You'll approve permissions on Shopify in one click — no tokens, no setup." data-zh="输入商店网址，点击连接。在 Shopify 上一键授权，无需令牌和复杂设置。">Enter your store URL and click Connect. Approve on Shopify in one click.</span>
-        </div>
+        <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head)">Enter your store URL and click Connect. Approve on Shopify in one click.</div>
         <div class="ff">
-          <label class="ff-l" data-en="Store URL" data-zh="商店网址">Store URL</label>
+          <label class="ff-l">Store URL</label>
           <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
         </div>
         <button class="btn btn-primary" onclick="connectShopify()" style="gap:10px">
-          <span style="font-size:18px">🛍</span>
-          <span data-en="Connect with Shopify" data-zh="连接 Shopify">Connect with Shopify</span>
+          <span style="font-size:18px">🛍</span><span>Connect with Shopify</span>
         </button>
         <div class="sp-status" id="cfg-st"></div>
-
-        <!-- Divider -->
         <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
           <div style="flex:1;height:1px;background:var(--c-border)"></div>
-          <span style="font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em" data-en="or use a token" data-zh="或使用令牌">or use a token</span>
+          <span style="font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em">or use a token</span>
           <div style="flex:1;height:1px;background:var(--c-border)"></div>
         </div>
-
-        <!-- Legacy token (fallback) -->
         <div class="ff">
-          <label class="ff-l" data-en="Admin API Token (shpat_…)" data-zh="管理员 Token">Admin API Token</label>
+          <label class="ff-l">Admin API Token (shpat_…)</label>
           <input id="cfg-tok" type="password" placeholder="shpat_…">
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="saveToken()" data-en="Save token" data-zh="保存令牌">Save token</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveToken()">Save token</button>
       </div>
     </div>
     <div>
-      <div class="sp-section-ttl" data-en="Language" data-zh="语言">Language</div>
+      <div class="sp-section-ttl">Language</div>
       <div class="btn-row">
         <button class="btn btn-ghost" onclick="setLang('en')">English</button>
         <button class="btn btn-ghost" onclick="setLang('zh')">简体中文</button>
       </div>
     </div>
     <div>
-      <div class="sp-section-ttl" data-en="Keyboard Shortcuts" data-zh="键盘快捷键">Keyboard Shortcuts</div>
+      <div class="sp-section-ttl">Keyboard Shortcuts</div>
       <table style="font-size:12px;color:var(--c-muted);width:100%;border-collapse:collapse">
-        <tr><td style="padding:4px 0" data-en="Dashboard" data-zh="主页">Dashboard</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">1</code></td></tr>
-        <tr><td style="padding:4px 0" data-en="Orders" data-zh="订单">Orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">2</code></td></tr>
-        <tr><td style="padding:4px 0" data-en="Inventory" data-zh="库存">Inventory</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">3</code></td></tr>
-        <tr><td style="padding:4px 0" data-en="Purchase List" data-zh="采购清单">Purchase List</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">4</code></td></tr>
-        <tr><td style="padding:4px 0" data-en="Sync orders" data-zh="同步订单">Sync orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">R</code></td></tr>
-        <tr><td style="padding:4px 0" data-en="Settings" data-zh="设置">Settings</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">S</code></td></tr>
+        <tr><td style="padding:4px 0">Dashboard</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">1</code></td></tr>
+        <tr><td style="padding:4px 0">Orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">2</code></td></tr>
+        <tr><td style="padding:4px 0">Inventory</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">3</code></td></tr>
+        <tr><td style="padding:4px 0">Purchase List</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">4</code></td></tr>
+        <tr><td style="padding:4px 0">Sync orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">R</code></td></tr>
+        <tr><td style="padding:4px 0">Settings</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">S</code></td></tr>
       </table>
     </div>
     <div>
-      <div class="sp-section-ttl" data-en="Data" data-zh="数据">Data</div>
+      <div class="sp-section-ttl">Data</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-ghost" onclick="exportData()" data-en="↓  Export all data" data-zh="↓ 导出所有数据">↓  Export all data</button>
-        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()" data-en="✕  Clear all local data" data-zh="✕ 清除所有本地数据">✕  Clear all local data</button>
+        <button class="btn btn-ghost" onclick="exportData()">↓  Export all data</button>
+        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()">✕  Clear all local data</button>
       </div>
     </div>
     <div>
-      <div class="sp-section-ttl" data-en="About" data-zh="关于">About</div>
+      <div class="sp-section-ttl">About</div>
       <div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.7">
-        Flori v2.0 · Florist Studio<br>
-        Built for Bamboo Green Florist, Penang
+        Flori v2.0 · Florist Studio<br>Built for Bamboo Green Florist, Penang
       </div>
     </div>
   </div>
@@ -880,52 +666,40 @@ img{display:block;max-width:100%}
 <div id="m-order" class="modal">
   <div class="mc">
     <div class="mc-hdr">
-      <div class="mc-ttl" id="o-modal-ttl" data-en="Add Order" data-zh="添加订单">Add Order</div>
+      <div class="mc-ttl" id="o-modal-ttl">Add Order</div>
       <button class="mc-x" onclick="closeModal('m-order')">✕</button>
     </div>
     <div class="mc-body">
-      <div class="ff" style="grid-column:1/-1">
-        <label class="ff-l" data-en="Photo (Optional)" data-zh="照片（可选）">Photo</label>
+      <div class="ff">
+        <label class="ff-l">Photo (Optional)</label>
         <div class="photo-zone" id="order-photo-zone">
           <div class="photo-zone-icon">📷</div>
-          <div class="photo-zone-lbl" data-en="Click or tap to upload photo" data-zh="点击上传照片">Click or tap to upload photo</div>
+          <div class="photo-zone-lbl">Click or tap to upload photo</div>
           <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">
         </div>
         <input type="hidden" id="order-photo-b64">
       </div>
       <div class="fg fg-2">
         <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Product / Bouquet Name" data-zh="产品 / 花束名称">Product / Bouquet Name</label>
+          <label class="ff-l">Product / Bouquet Name</label>
           <input id="o-prod" type="text" placeholder="e.g. Dear Heroine · 玫瑰花束">
         </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Customer Name" data-zh="客户姓名">Customer Name</label>
-          <input id="o-cust" type="text" placeholder="Name">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Order #" data-zh="订单号">Order #</label>
-          <input id="o-num" type="text" placeholder="#manual-001">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Due Date" data-zh="到期日期">Due Date</label>
-          <input id="o-date" type="date">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Due Time" data-zh="到期时间">Due Time</label>
-          <input id="o-time" type="text" placeholder="e.g. 2pm – 4pm">
-        </div>
+        <div class="ff"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
+        <div class="ff"><label class="ff-l">Order #</label><input id="o-num" type="text" placeholder="#manual-001"></div>
+        <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
+        <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
         <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Type" data-zh="类型">Type</label>
+          <label class="ff-l">Type</label>
           <select id="o-type">
-            <option value="delivery" data-en="Delivery" data-zh="送货">Delivery</option>
-            <option value="pickup" data-en="Self Collect / Pickup" data-zh="自取">Self Collect / Pickup</option>
+            <option value="delivery">Delivery</option>
+            <option value="pickup">Self Collect / Pickup</option>
           </select>
         </div>
       </div>
       <div class="btn-row">
         <input type="hidden" id="o-edit-id">
-        <button class="btn btn-primary" style="flex:1" onclick="saveOrder()" id="o-save-btn" data-en="Save Order" data-zh="保存订单">Save Order</button>
-        <button class="btn btn-ghost" onclick="closeModal('m-order')" data-en="Cancel" data-zh="取消">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveOrder()">Save Order</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-order')">Cancel</button>
       </div>
     </div>
   </div>
@@ -934,44 +708,24 @@ img{display:block;max-width:100%}
 <!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
 <div id="m-inv" class="modal">
   <div class="mc">
-    <div class="mc-hdr">
-      <div class="mc-ttl" data-en="Add Stock Item" data-zh="新增库存">Add Stock Item</div>
-      <button class="mc-x" onclick="closeModal('m-inv')">✕</button>
-    </div>
+    <div class="mc-hdr"><div class="mc-ttl">Add Stock Item</div><button class="mc-x" onclick="closeModal('m-inv')">✕</button></div>
     <div class="mc-body">
       <div class="fg fg-2">
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Item Name" data-zh="名称">Item Name</label>
-          <input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Category" data-zh="分类">Category</label>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
+        <div class="ff"><label class="ff-l">Category</label>
           <select id="i-cat">
-            <option value="cut">Cut Flowers · 鲜切花</option>
-            <option value="green">Greenery · 绿叶</option>
-            <option value="dried">Dried · 干花</option>
-            <option value="ribbon">Ribbons · 丝带</option>
-            <option value="vase">Vases · 花瓶</option>
-            <option value="foam">Foam · 花泥</option>
-            <option value="other">Other · 其他</option>
+            <option value="cut">Cut Flowers</option><option value="green">Greenery</option>
+            <option value="dried">Dried</option><option value="ribbon">Ribbons</option>
+            <option value="vase">Vases</option><option value="foam">Foam</option><option value="other">Other</option>
           </select>
         </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Quantity" data-zh="数量">Quantity</label>
-          <input id="i-qty" type="number" value="0" min="0">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Unit" data-zh="单位">Unit</label>
-          <input id="i-unit" type="text" placeholder="stems / pcs / rolls">
-        </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Notes (Supplier, Price…)" data-zh="备注（供应商、价格）">Notes</label>
-          <textarea id="i-notes" placeholder="Supplier, price per stem, order day…"></textarea>
-        </div>
+        <div class="ff"><label class="ff-l">Quantity</label><input id="i-qty" type="number" value="0" min="0"></div>
+        <div class="ff"><label class="ff-l">Unit</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier, price per stem…"></textarea></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="saveInv()" data-en="Save Item" data-zh="保存">Save Item</button>
-        <button class="btn btn-ghost" onclick="closeModal('m-inv')" data-en="Cancel" data-zh="取消">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveInv()">Save Item</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-inv')">Cancel</button>
       </div>
     </div>
   </div>
@@ -980,36 +734,47 @@ img{display:block;max-width:100%}
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
-    <div class="mc-hdr">
-      <div class="mc-ttl" data-en="Add to Purchase List" data-zh="新增采购项目">Add to Purchase List</div>
-      <button class="mc-x" onclick="closeModal('m-pur')">✕</button>
-    </div>
+    <div class="mc-hdr"><div class="mc-ttl">Add to Purchase List</div><button class="mc-x" onclick="closeModal('m-pur')">✕</button></div>
     <div class="mc-body">
       <div class="fg fg-2">
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Item Name" data-zh="花材名称">Item Name</label>
-          <input id="p-name" type="text" placeholder="e.g. White Tulips · 白郁金香">
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="p-name" type="text" placeholder="e.g. White Tulips"></div>
+        <div class="ff"><label class="ff-l">Qty Needed</label><input id="p-qty" type="text" placeholder="50 stems"></div>
+        <div class="ff"><label class="ff-l">Urgency</label>
+          <select id="p-urg"><option value="today">Today</option><option value="week">This Week</option><option value="stock">Stock Up</option></select>
         </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Qty Needed" data-zh="需要数量">Qty Needed</label>
-          <input id="p-qty" type="text" placeholder="50 stems">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Urgency" data-zh="紧急程度">Urgency</label>
-          <select id="p-urg">
-            <option value="today" data-en="Today" data-zh="今日">Today</option>
-            <option value="week" data-en="This Week" data-zh="本周">This Week</option>
-            <option value="stock" data-en="Stock Up" data-zh="补货">Stock Up</option>
-          </select>
-        </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Notes" data-zh="备注">Notes</label>
-          <input id="p-notes" type="text" placeholder="Supplier / price / delivery day">
-        </div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><input id="p-notes" type="text" placeholder="Supplier / price / delivery day"></div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="savePur()" data-en="Add Item" data-zh="添加">Add Item</button>
-        <button class="btn btn-ghost" onclick="closeModal('m-pur')" data-en="Cancel" data-zh="取消">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="savePur()">Add Item</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-pur')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
+<div id="m-followup" class="modal">
+  <div class="mc">
+    <div class="mc-hdr"><div class="mc-ttl" id="fu-modal-ttl">Add Customer</div><button class="mc-x" onclick="closeModal('m-followup')">✕</button></div>
+    <div class="mc-body">
+      <input type="hidden" id="fu-edit-id">
+      <div class="fg fg-2">
+        <div class="ff"><label class="ff-l">Customer Name</label><input id="fu-name" type="text" placeholder="e.g. Sarah Lim"></div>
+        <div class="ff"><label class="ff-l">Contact Number</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
+        <div class="ff"><label class="ff-l">Order Channel</label>
+          <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
+        </div>
+        <div class="ff"><label class="ff-l">Payment</label>
+          <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
+        </div>
+        <div class="ff"><label class="ff-l">Follow-up Status</label>
+          <select id="fu-status"><option value="pending">Pending Follow-up</option><option value="completed">Completed</option></select>
+        </div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="fu-notes" style="min-height:70px" placeholder="Order details, follow-up notes…"></textarea></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-followup')">Cancel</button>
       </div>
     </div>
   </div>
@@ -1020,7 +785,7 @@ img{display:block;max-width:100%}
   <div class="zoom-esc">Press Esc to close</div>
   <img id="zoom-img" src="" alt="" onclick="event.stopPropagation()">
   <div id="zoom-cap" class="zoom-cap"></div>
-  <button class="zoom-close" onclick="closeZoom()" title="Close">✕</button>
+  <button class="zoom-close" onclick="closeZoom()">✕</button>
 </div>
 
 <!-- ══ TOAST ════════════════════════════════════════════════ -->
@@ -1029,31 +794,22 @@ img{display:block;max-width:100%}
 <script>
 /* ─── Language ──────────────────────────────────────────────── */
 let LANG = localStorage.getItem('flori-lang') || 'en';
-
 function setLang(l) {
-  LANG = l;
-  localStorage.setItem('flori-lang', l);
+  LANG = l; localStorage.setItem('flori-lang', l);
   document.querySelectorAll('[data-en]').forEach(el => {
     const v = el.getAttribute('data-' + l) || el.getAttribute('data-en');
     if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') {
       if (!el.children.length) el.textContent = v;
     }
   });
-  // Update hdr lang toggle button
-  const langBtn = document.querySelector('.hdr-btn[onclick="toggleLang()"]');
-  if (langBtn) langBtn.textContent = l === 'en' ? '中文' : 'EN';
   renderAll();
 }
-
 function toggleLang() { setLang(LANG === 'en' ? 'zh' : 'en'); }
 
 /* ─── Date helpers ──────────────────────────────────────────── */
 const MN = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-
 function pd(s) {
-  if (!s) return null;
-  s = String(s).trim();
-  let m;
+  if (!s) return null; s = String(s).trim(); let m;
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); if (m) return new Date(+m[3],+m[2]-1,+m[1]);
   m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);   if (m) return new Date(+m[3],+m[2]-1,+m[1]);
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);         if (m) return new Date(+m[1],+m[2]-1,+m[3]);
@@ -1061,145 +817,67 @@ function pd(s) {
   if (m) return new Date(+m[3], MN[m[2].toLowerCase().slice(0,3)] ?? 0, +m[1]);
   return null;
 }
-
-function fd(d) {
-  if (!d) return '–';
-  return d.toLocaleDateString('en-MY', {weekday:'short', day:'numeric', month:'short'});
-}
-
-function tdi(d) {
-  if (!d) return '';
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
-
+function fd(d) { if (!d) return '–'; return d.toLocaleDateString('en-MY', {weekday:'short', day:'numeric', month:'short'}); }
+function tdi(d) { if (!d) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function today0() { const t = new Date(); t.setHours(0,0,0,0); return t; }
-
-function isToday(d) {
-  if (!d) return false;
-  const t = today0();
-  return d >= t && d < new Date(t.getTime() + 86400000);
-}
-
+function isToday(d) { if (!d) return false; const t = today0(); return d >= t && d < new Date(t.getTime() + 86400000); }
 function isPast(d) { return d && d < today0(); }
 
 /* ─── Shopify API ────────────────────────────────────────────── */
-function gAttr(attrs, key) {
-  const f = attrs.find(a => a.key === key || a.key.toLowerCase() === key.toLowerCase());
-  return f ? f.value : '';
-}
-
-function getType(attrs) {
-  const t = (gAttr(attrs,'Order Fulfillment Type') || gAttr(attrs,'Type Of Order') || '').toLowerCase();
-  return (t.includes('pick') || t.includes('collect')) ? 'pickup' : 'delivery';
-}
-
+function gAttr(attrs, key) { const f = attrs.find(a => a.key === key || a.key.toLowerCase() === key.toLowerCase()); return f ? f.value : ''; }
+function getType(attrs) { const t = (gAttr(attrs,'Order Fulfillment Type') || gAttr(attrs,'Type Of Order') || '').toLowerCase(); return (t.includes('pick') || t.includes('collect')) ? 'pickup' : 'delivery'; }
 function getDueDate(attrs) { return gAttr(attrs,'Order Due Date') || gAttr(attrs,'Delivery Date') || gAttr(attrs,'Pickup Date'); }
 function getDueTime(attrs) { return gAttr(attrs,'Order Due Time') || gAttr(attrs,'Delivery Time') || gAttr(attrs,'Pickup Time'); }
 
-async function getAccessToken() {
-  const t = localStorage.getItem('flori-token') || '';
-  if (!t) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
-  return t;
-}
-
 async function shopifyGQL(query) {
   const url   = localStorage.getItem('flori-url') || '';
-  if (!url) throw new Error('Store URL not set — open ⚙ Settings');
-  const token = await getAccessToken();
-
-  // Always use server-side proxy — avoids all CORS issues
+  const token = localStorage.getItem('flori-token') || '';
+  if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
+  if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
   let r;
   try {
-    r = await fetch('/api/query', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shop: url, token, query })
-    });
-  } catch (netErr) {
-    throw new Error('Network error — is Vercel deployed? ' + netErr.message);
-  }
-
-  let text = '';
-  try { text = await r.text(); } catch(_) {}
-
-  if (r.status === 401) throw new Error('Token invalid (401) — get a new token from Dev Dashboard');
-  if (r.status === 403) throw new Error('Token lacks permission (403) — check read_orders scope in Dev Dashboard');
-  if (!r.ok) throw new Error('Server error ' + r.status + ': ' + text.slice(0, 150));
-
-  let j;
-  try { j = JSON.parse(text); } catch(_) {
-    throw new Error('Bad response from proxy: ' + text.slice(0, 150));
-  }
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, token, query }) });
+  } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
+  let text = ''; try { text = await r.text(); } catch(_) {}
+  if (r.status === 401) throw new Error('Token invalid (401)');
+  if (r.status === 403) throw new Error('Token lacks permission (403)');
+  if (!r.ok) throw new Error('Server error ' + r.status + ': ' + text.slice(0,150));
+  let j; try { j = JSON.parse(text); } catch(_) { throw new Error('Bad response: ' + text.slice(0,150)); }
   if (j.error) throw new Error('Proxy error: ' + j.error);
   if (j.errors) throw new Error('Shopify: ' + (j.errors[0]?.message || JSON.stringify(j.errors[0])));
-  if (!j.data)  throw new Error('No data returned — ' + JSON.stringify(j).slice(0, 150));
+  if (!j.data) throw new Error('No data returned');
   return j.data;
 }
 
 async function syncOrders() {
-  const btn = document.getElementById('sync-btn');
   const ico = document.getElementById('sync-ico');
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{
-      orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){
-        edges{node{
-          id name createdAt
-          customer{firstName lastName}
-          lineItems(first:5){edges{node{title quantity image{url}}}}
-          customAttributes{key value}
-        }}
-      }
-    }`;
+    const q = `{ orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt customer{firstName lastName} lineItems(first:5){edges{node{title quantity image{url}}}} customAttributes{key value} }} } }`;
     const data = await shopifyGQL(q);
     const raw  = data.orders.edges.map(e => e.node);
-
-    // Merge: keep manual orders, replace Shopify orders
     const manuals = ORDERS.filter(o => o.src === 'manual');
     const shopify = raw.map(n => {
-      const attrs     = n.customAttributes || [];
-      const ds        = getDueDate(attrs);
-      const lineItems = n.lineItems.edges.map(e => ({
-        title:    e.node.title,
-        quantity: e.node.quantity || 1,
-        image:    e.node.image?.url || null
-      }));
+      const attrs = n.customAttributes || [];
+      const ds = getDueDate(attrs);
+      const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
-      return {
-        id: n.id, name: n.name, src: 'shopify',
-        customer: [(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ') || 'Guest',
-        product:   lineItems.map(i => i.title).join(', '),
-        lineItems,
-        image:     imgUrl,
-        dueDate: ds, dueTime: getDueTime(attrs),
-        dateObj: null, // rehydrated on load
-        type: getType(attrs), ready: false
-      };
+      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, dueDate:ds, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
-
     ORDERS = [...shopify, ...manuals];
-    saveOrders();
-    rehydrateOrders();
-
+    saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
     setSBFoot(`Last sync: ${now}`);
-    toast(LANG==='zh' ? `✓ 同步 ${shopify.length} 个订单` : `✓ Synced ${shopify.length} orders`);
+    toast(`✓ Synced ${shopify.length} orders`);
     renderAll();
-  } catch(e) {
-    setPill('Sync failed');
-    toast('⚠ ' + (e.message || 'Sync failed'));
-    console.error('Sync error:', e);
-  }
+  } catch(e) { setPill('Sync failed'); toast('⚠ ' + (e.message || 'Sync failed')); }
   ico.classList.remove('spin');
 }
 
 /* ─── Data stores ────────────────────────────────────────────── */
-let ORDERS    = [];
-let INVENTORY = [];
-let PURCHASES = [];
-
+let ORDERS=[], INVENTORY=[], PURCHASES=[];
 function saveOrders()    { localStorage.setItem('flori-orders',    JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
 function saveInventory() { localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY)); }
 function savePurchases() { localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES)); }
@@ -1208,40 +886,31 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
-  loadFollowups();
-  rehydrateOrders();
+  loadFollowups(); rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
-  const ta = document.getElementById('pur-notes');
-  if (ta) ta.value = notes;
+  const ta = document.getElementById('pur-notes'); if (ta) ta.value = notes;
   const url = localStorage.getItem('flori-url') || '';
   const tok = localStorage.getItem('flori-token') || '';
   if (url) { const el = document.getElementById('cfg-url'); if(el) el.value = url; }
   if (tok) { const el = document.getElementById('cfg-tok'); if(el) el.value = tok; }
   if (url) setPill(url);
 }
+function rehydrateOrders() { ORDERS.forEach(o => { o.dateObj = o.dueDate ? pd(o.dueDate) : null; }); }
 
-function rehydrateOrders() {
-  ORDERS.forEach(o => { o.dateObj = o.dueDate ? pd(o.dueDate) : null; });
-}
-
-/* ─── Order rendering helpers ────────────────────────────────── */
-let orderFilter = 'all';
+/* ─── Rendering ──────────────────────────────────────────────── */
+let orderFilter = 'all', typeFilter = 'all';
+let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+let fuFilter = 'all';
 
 function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   let list = ORDERS;
-  // Primary date filter
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
   if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
-  // Calendar date filter (overrides primary if set)
   if (calFilter) {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
-    list = list.filter(o => {
-      if (!o.dateObj) return false;
-      return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd;
-    });
+    list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
   }
-  // Type sub-filter
   if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
   if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
   return list;
@@ -1249,982 +918,382 @@ function filteredOrders() {
 
 function sortedOrders(list) {
   return [...list].sort((a,b) => {
-    // Overdue at bottom
     const la = isPast(a.dateObj), lb = isPast(b.dateObj);
-    if (la && !lb) return 1;
-    if (!la && lb) return -1;
-    if (!a.dateObj && !b.dateObj) return 0;
-    if (!a.dateObj) return 1;
-    if (!b.dateObj) return -1;
+    if (la && !lb) return 1; if (!la && lb) return -1;
+    if (!a.dateObj && !b.dateObj) return 0; if (!a.dateObj) return 1; if (!b.dateObj) return -1;
     return a.dateObj - b.dateObj;
   });
 }
 
 function thumbCell(o) {
-  // First item with an image wins for the main thumbnail
   const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
-  const src   = (items ? items.find(i => i.image)?.image : null) || o.image || null;
-  if (src) {
-    const safe = src.replace(/'/g,"\\'");
-    const cap  = (o.product||'').replace(/'/g,"\\'");
-    return `<div class="o-thumb"><img src="${src}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`;
-  }
-  return `<div class="o-thumb ph" title="No product image">🌸</div>`;
+  const src = (items ? items.find(i => i.image)?.image : null) || o.image || null;
+  if (src) { const safe=src.replace(/'/g,"\\'"); const cap=(o.product||'').replace(/'/g,"\\'"); return `<div class="o-thumb"><img src="${src}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`; }
+  return `<div class="o-thumb ph">🌸</div>`;
 }
 
 function itemsCell(o) {
-  const items = o.lineItems && o.lineItems.length > 0
-    ? o.lineItems
-    : [{ title: o.product || '–', quantity: null, image: o.image }];
-
+  const items = o.lineItems && o.lineItems.length > 0 ? o.lineItems : [{ title: o.product || '–', quantity: null, image: o.image }];
   let html = '';
-
   if (items.length === 1) {
-    // Single item — simple one-liner
     html = `<div class="o-prod">${esc(items[0].title)}</div>`;
   } else {
-    // Multiple items — stacked list with mini thumbnails
     const lines = items.map(item => {
-      const qty = item.quantity > 1
-        ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
-      if (item.image) {
-        const s = item.image.replace(/'/g,"\\'");
-        const t = item.title.replace(/'/g,"\\'");
-        return `<div class="o-item-line">
-          <img class="o-item-mini" src="${item.image}" loading="lazy" alt=""
-            onclick="event.stopPropagation();openZoom('${s}','${t}')"
-            onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
-          <span class="o-item-title">${esc(item.title)}${qty}</span>
-        </div>`;
-      }
-      return `<div class="o-item-line">
-        <span class="o-item-dot">🌸</span>
-        <span class="o-item-title">${esc(item.title)}${qty}</span>
-      </div>`;
+      const qty = item.quantity > 1 ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
+      if (item.image) { const s=item.image.replace(/'/g,"\\'"); const t=item.title.replace(/'/g,"\\'"); return `<div class="o-item-line"><img class="o-item-mini" src="${item.image}" loading="lazy" alt="" onclick="event.stopPropagation();openZoom('${s}','${t}')" onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'"><span class="o-item-title">${esc(item.title)}${qty}</span></div>`; }
+      return `<div class="o-item-line"><span class="o-item-dot">🌸</span><span class="o-item-title">${esc(item.title)}${qty}</span></div>`;
     }).join('');
     html = `<div class="o-items">${lines}</div>`;
   }
-
   html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
   return html;
 }
 
 function tagRow(o) {
-  const zh = LANG === 'zh';
-  let h = o.type === 'pickup'
-    ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>`
-    : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
-  if (isPast(o.dateObj))  h += ` <span class="tag tag-late">${zh?'逾期':'Overdue'}</span>`;
-  if (o.ready)            h += ` <span class="tag tag-ready">${zh?'已准备':'Ready'}</span>`;
-  if (o.src === 'manual') h += ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>`;
+  const zh = LANG==='zh';
+  let h = o.type==='pickup' ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>` : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
+  if (isPast(o.dateObj)) h += ` <span class="tag tag-late">${zh?'逾期':'Overdue'}</span>`;
+  if (o.ready)           h += ` <span class="tag tag-ready">${zh?'已准备':'Ready'}</span>`;
+  if (o.src==='manual')  h += ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>`;
   return h;
 }
 
 function actionBtns(id) {
-  const o = ORDERS.find(x=>x.id===id);
-  if (!o) return '';
-  return `<div style="display:flex;gap:4px;justify-content:flex-end">
-    <button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button>
-    <button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button>
-    <button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button>
-  </div>`;
+  const o = ORDERS.find(x=>x.id===id); if (!o) return '';
+  return `<div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button><button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button><button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button></div>`;
 }
 
-function orderRow(o, showDate = true) {
+function orderRow(o, showDate=true) {
   const cls = isPast(o.dateObj) ? ' class="late"' : '';
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  return `<tr${cls}>
-    <td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td>
-    <td>${itemsCell(o)}</td>
-    ${dtCell}
-    <td>${tagRow(o)}</td>
-    <td>${actionBtns(o.id)}</td>
-  </tr>`;
+  return `<tr${cls}><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
-/* ─── Render ─────────────────────────────────────────────────── */
-function renderAll() {
-  updateBadge();
-  renderHome();
-  renderCalendar();
-  renderOrders();
-  renderInventory();
-  renderPurchase();
-  renderFollowup();
-}
+function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
 
 function renderHome() {
-  const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
+  const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayO = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-
   document.getElementById('s-total').textContent = ORDERS.length;
   document.getElementById('s-today').textContent = todayO.length;
   document.getElementById('s-pu').textContent    = ORDERS.filter(o=>o.type==='pickup').length;
   document.getElementById('s-de').textContent    = ORDERS.filter(o=>o.type==='delivery').length;
-
-  document.getElementById('dash-date').textContent =
-    new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
-
+  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
   const tb = document.getElementById('home-tbody');
-  tb.innerHTML = sorted.length
-    ? sorted.map(o => orderRow(o, false)).join('')
-    : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">${LANG==='zh'?'今日暂无订单':'No orders today'}</div></div></td></tr>`;
+  tb.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></td></tr>`;
 }
 
 function renderOrders() {
   const list = sortedOrders(filteredOrders());
   const tb = document.getElementById('orders-tbody');
-  // Update pickup/delivery sub-column counts
-  const allFiltered = filteredOrders();
-  const puCount = allFiltered.filter(o=>o.type==='pickup').length;
-  const deCount = allFiltered.filter(o=>o.type==='delivery').length;
+  const allF = filteredOrders();
   const cntPu = document.getElementById('count-pickup');
   const cntDe = document.getElementById('count-delivery');
-  if (cntPu) cntPu.textContent = puCount > 0 ? puCount : '';
-  if (cntDe) cntDe.textContent = deCount > 0 ? deCount : '';
-  if (!list.length) {
-    tb.innerHTML = `<tr><td colspan="4" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${LANG==='zh'?'暂无订单 — 请同步或手动添加':'No orders — sync or add manually'}</div></div></td></tr>`;
-    return;
-  }
-
-  // Group by date
+  if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
+  if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
+  if (!list.length) { tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">No orders — sync or add manually</div></div></td></tr>`; return; }
   const groups = [];
-  list.forEach(o => {
-    const k = o.dateObj ? o.dateObj.toDateString() : '__';
-    let g = groups.find(x => x.k === k);
-    if (!g) { g = {k, d: o.dateObj, items:[]}; groups.push(g); }
-    g.items.push(o);
-  });
-
+  list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
   let html = '';
   groups.forEach(g => {
-    let lbl = '–';
-    if (g.d) {
-      if (isPast(g.d))   lbl = (LANG==='zh'?'⚠ 逾期 · ':'⚠ Overdue · ') + fd(g.d);
-      else if (isToday(g.d)) lbl = (LANG==='zh'?'● 今日 · ':'● Today · ') + fd(g.d);
-      else lbl = fd(g.d);
-    }
-    html += `<tr class="grp-row"><td colspan="4"><div class="grp-label">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
-    html += g.items.map(o => orderRow(o, true)).join('');
+    let lbl='–';
+    if (g.d) { if(isPast(g.d)) lbl='⚠ Overdue · '+fd(g.d); else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
+    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
+    html += g.items.map(o=>orderRow(o,true)).join('');
   });
   tb.innerHTML = html;
 }
 
 function renderInventory() {
-  const CAT = {
-    cut:    {en:'Cut Flowers', zh:'鲜切花'},
-    green:  {en:'Greenery',   zh:'绿叶'},
-    dried:  {en:'Dried Flowers', zh:'干花'},
-    ribbon: {en:'Ribbons & Wrapping', zh:'丝带包装'},
-    vase:   {en:'Vases & Containers', zh:'花瓶容器'},
-    foam:   {en:'Floral Foam', zh:'花泥'},
-    other:  {en:'Other',      zh:'其他'},
-  };
+  const CAT = {cut:'Cut Flowers',green:'Greenery',dried:'Dried Flowers',ribbon:'Ribbons & Wrapping',vase:'Vases & Containers',foam:'Floral Foam',other:'Other'};
   const cont = document.getElementById('inv-body');
-  if (!INVENTORY.length) {
-    cont.innerHTML = `<div class="empty"><div class="empty-ico">◉</div><div class="empty-txt">${LANG==='zh'?'暂无库存 — 点 + 新增':'No items — tap + Add Item'}</div></div>`;
-    return;
-  }
+  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">◉</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   const byCat = {};
-  INVENTORY.forEach(i => { (byCat[i.cat] = byCat[i.cat]||[]).push(i); });
+  INVENTORY.forEach(i => { (byCat[i.cat]=byCat[i.cat]||[]).push(i); });
   let html = '';
   Object.entries(byCat).forEach(([cat, items]) => {
-    const label = CAT[cat] ? CAT[cat][LANG]||CAT[cat].en : cat;
-    const cards = items.map(i => `
-      <div class="inv-card">
-        <div class="inv-cat">${label}</div>
-        <div class="inv-name">${esc(i.name)}</div>
-        <div class="inv-q"><div class="inv-n">${i.qty}</div><div class="inv-u">${esc(i.unit)}</div></div>
-        ${i.notes ? `<div class="inv-note">${esc(i.notes)}</div>` : ''}
-        <div class="inv-acts">
-          <button class="inv-act" onclick="invAdj('${i.id}',1)" title="${LANG==='zh'?'加货':'+'}">+</button>
-          <button class="inv-act" onclick="invAdj('${i.id}',-1)" title="${LANG==='zh'?'用掉':'−'}">−</button>
-          <button class="inv-act x" onclick="invDel('${i.id}')" title="${LANG==='zh'?'删除':'Delete'}">✕</button>
-        </div>
-      </div>`).join('');
-    html += `<div style="margin-bottom:20px">
-      <div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--c-border)">${label}</div>
-      <div class="inv-grid">${cards}</div>
-    </div>`;
+    const label = CAT[cat] || cat;
+    const cards = items.map(i => `<div class="inv-card"><div class="inv-cat">${label}</div><div class="inv-name">${esc(i.name)}</div><div class="inv-q"><div class="inv-n">${i.qty}</div><div class="inv-u">${esc(i.unit)}</div></div>${i.notes?`<div class="inv-note">${esc(i.notes)}</div>`:''}<div class="inv-acts"><button class="inv-act" onclick="invAdj('${i.id}',1)">+</button><button class="inv-act" onclick="invAdj('${i.id}',-1)">−</button><button class="inv-act x" onclick="invDel('${i.id}')">✕</button></div></div>`).join('');
+    html += `<div style="margin-bottom:20px"><div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--c-border)">${label}</div><div class="inv-grid">${cards}</div></div>`;
   });
   cont.innerHTML = html;
 }
 
 function renderPurchase() {
-  const URG = {
-    today: {en:'Today',     zh:'今日',   c:'var(--c-red)'},
-    week:  {en:'This Week', zh:'本周',   c:'var(--c-amber)'},
-    stock: {en:'Stock Up',  zh:'补货',   c:'var(--c-muted)'},
-  };
+  const URG = {today:{en:'Today',c:'var(--c-red)'},week:{en:'This Week',c:'var(--c-amber)'},stock:{en:'Stock Up',c:'var(--c-muted)'}};
   const cont = document.getElementById('pur-body');
-  if (!PURCHASES.length) {
-    cont.innerHTML = `<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">${LANG==='zh'?'暂无项目':'No items'}</div></div>`;
-    return;
-  }
-  const ord = {today:0,week:1,stock:2};
-  const sorted = [...PURCHASES].sort((a,b) => (ord[a.urg]||2) - (ord[b.urg]||2));
-  cont.innerHTML = sorted.map(p => {
-    const u = URG[p.urg] || URG.stock;
-    return `<div class="pur-item">
-      <div class="pur-chk ${p.done?'done':''}" onclick="togglePur('${p.id}')">${p.done?'✓':''}</div>
-      <div class="pur-info" style="${p.done?'opacity:.4;text-decoration:line-through':''}">
-        <div class="pur-name">${esc(p.name)}</div>
-        ${p.notes ? `<div class="pur-sub">${esc(p.notes)}</div>` : ''}
-        <div class="pur-tags">
-          ${p.qty ? `<span class="pur-qty">${esc(p.qty)}</span>` : ''}
-          <span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:${u.c}">${u[LANG]||u.en}</span>
-        </div>
-      </div>
-      <button class="pur-del" onclick="delPur('${p.id}')">✕</button>
-    </div>`;
-  }).join('');
+  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">No items</div></div>`; return; }
+  const ord={today:0,week:1,stock:2};
+  const sorted = [...PURCHASES].sort((a,b)=>(ord[a.urg]||2)-(ord[b.urg]||2));
+  cont.innerHTML = sorted.map(p => { const u=URG[p.urg]||URG.stock; return `<div class="pur-item"><div class="pur-chk ${p.done?'done':''}" onclick="togglePur('${p.id}')">${p.done?'✓':''}</div><div class="pur-info" style="${p.done?'opacity:.4;text-decoration:line-through':''}"><div class="pur-name">${esc(p.name)}</div>${p.notes?`<div class="pur-sub">${esc(p.notes)}</div>`:''}<div class="pur-tags">${p.qty?`<span class="pur-qty">${esc(p.qty)}</span>`:''}<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:${u.c}">${u.en}</span></div></div><button class="pur-del" onclick="delPur('${p.id}')">✕</button></div>`; }).join('');
 }
 
-/* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','inventory','purchase','followup'];
-
-function goPage(pg) {
-  if (pg === 'followup') renderFollowup();
-  PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
-  document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
-  if (pg === 'inventory') renderInventory();
-  if (pg === 'purchase')  renderPurchase();
-}
-
-document.querySelectorAll('[data-pg]').forEach(btn => {
-  btn.addEventListener('click', () => goPage(btn.dataset.pg));
-});
-
-// Filter buttons
-document.querySelectorAll('[data-f]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    orderFilter = btn.dataset.f;
-    calFilter = null;
-    const lbl = document.getElementById('cal-active-lbl');
-    if (lbl) lbl.style.display = 'none';
-    const btnLbl = document.getElementById('cal-btn-label');
-    const selLbl = document.getElementById('cal-selected-lbl');
-    if (btnLbl) btnLbl.textContent = 'Select date';
-    if (selLbl) selLbl.textContent = '';
-    const tb = document.getElementById('cal-toggle-btn');
-    if (tb) tb.style.color = 'var(--c-muted)';
-    document.querySelectorAll('[data-f]').forEach(b => b.classList.toggle('on', b.dataset.f === orderFilter));
-    renderCalendar();
-    renderOrders();
-  });
-});
-
-// Pickup / Delivery sub-filter
-document.querySelectorAll('[data-ft]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-ft]').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    typeFilter = btn.dataset.ft;
-    renderOrders();
-  });
-});
-
-// Follow-up status filter
-document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#fu-filters [data-fu]').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    fuFilter = btn.dataset.fu;
-    renderFollowup();
-  });
-});
-
-/* ─── Settings Panel ─────────────────────────────────────────── */
-function openSP() {
-  updateConnectedUI();
-  document.getElementById('sp').classList.add('on');
-  document.getElementById('sp-ov').classList.add('on');
-}
-function closeSP() {
-  document.getElementById('sp').classList.remove('on');
-  document.getElementById('sp-ov').classList.remove('on');
-}
-
-function updateConnectedUI() {
-  const tok  = localStorage.getItem('flori-token') || '';
-  const url  = localStorage.getItem('flori-url')   || '';
-  const conn = document.getElementById('cfg-connected');
-  const oauth= document.getElementById('cfg-oauth');
-  if (tok && url) {
-    conn.style.display  = 'flex';
-    oauth.style.display = 'none';
-    document.getElementById('cfg-shop-label').textContent = url;
-  } else {
-    conn.style.display  = 'none';
-    oauth.style.display = 'flex';
-  }
-  if (url) document.getElementById('cfg-url').value = url;
-  if (tok) document.getElementById('cfg-tok').value = tok;
-}
-
-function connectShopify() {
-  const raw = document.getElementById('cfg-url').value.trim()
-    .replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
-  if (!raw || !raw.includes('.myshopify.com')) {
-    setSpStatus('err', LANG==='zh' ? '请输入正确的商店网址' : 'Enter a valid .myshopify.com URL');
-    return;
-  }
-  // OAuth redirect — Shopify approves, callback returns token automatically
-  window.location.href = '/api/auth?shop=' + encodeURIComponent(raw);
-}
-
-function saveToken() {
-  const url = document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
-  const tok = document.getElementById('cfg-tok').value.trim();
-  if (!url) { setSpStatus('err', LANG==='zh'?'请填写商店网址':'Store URL required'); return; }
-  if (!tok) { setSpStatus('err', LANG==='zh'?'请填写 Token':'Token required'); return; }
-  localStorage.setItem('flori-url', url);
-  localStorage.setItem('flori-token', tok);
-  updateConnectedUI();
-  setSpStatus('ok', LANG==='zh'?'✓ 已保存':'✓ Saved');
-  setTimeout(() => syncOrders(), 500);
-}
-
-function disconnectShopify() {
-  if (!confirm(LANG==='zh'?'断开 Shopify 连接？':'Disconnect Shopify?')) return;
-  ['flori-url','flori-token','flori-cc-cache'].forEach(k => localStorage.removeItem(k));
-  updateConnectedUI();
-  setPill('');
-}
-
-function setSpStatus(cls, msg) {
-  const el = document.getElementById('cfg-st');
-  el.className = 'sp-status ' + cls;
-  el.textContent = msg;
-  setTimeout(() => el.textContent='', 5000);
-}
-
-/* ─── OAuth callback handler ─────────────────────────────────── */
-function handleOAuthCallback() {
-  // After OAuth, backend redirects to /#connected?shop=xxx&token=xxx
-  const hash = window.location.hash;
-  if (!hash.startsWith('#connected?')) return false;
-  const params = new URLSearchParams(hash.slice('#connected?'.length));
-  const shop  = params.get('shop');
-  const token = params.get('token');
-  if (shop && token) {
-    localStorage.setItem('flori-url',   shop);
-    localStorage.setItem('flori-token', token);
-    // Clean URL
-    history.replaceState(null, '', window.location.pathname);
-    toast(LANG==='zh' ? `✓ 已连接 ${shop}` : `✓ Connected to ${shop}`);
-    setPill(shop);
-    setTimeout(() => syncOrders(), 600);
-    return true;
-  }
-  return false;
-}
-
-/* ─── Modals ─────────────────────────────────────────────────── */
-function openModal(id)  { document.getElementById(id).classList.add('on'); }
-function closeModal(id) {
-  document.getElementById(id).classList.remove('on');
-  // Reset photo zone
-  const zone = document.getElementById('order-photo-zone');
-  if (zone) zone.innerHTML = `<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl" data-en="Click or tap to upload photo" data-zh="点击上传照片">${LANG==='zh'?'点击上传照片':'Click or tap to upload photo'}</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
-  const b64 = document.getElementById('order-photo-b64');
-  if (b64) b64.value = '';
-}
-
-function openAddOrder()   { openModal('m-order'); }
-function openAddInv()     { openModal('m-inv'); }
-function openAddPur()     { openModal('m-pur'); }
-
-/* ─── Photo upload ───────────────────────────────────────────── */
-function handlePhotoUpload(input, zoneId, hiddenId) {
-  const file = input.files[0];
-  if (!file) return;
-  // Check file size (max 3MB to keep localStorage manageable)
-  if (file.size > 3 * 1024 * 1024) { toast(LANG==='zh'?'照片太大，请选择 3MB 以内的照片':'Photo too large — max 3MB'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    const b64 = e.target.result;
-    const zone = document.getElementById(zoneId);
-    if (zone) {
-      zone.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
-    }
-    const hidden = document.getElementById(hiddenId);
-    if (hidden) hidden.value = b64;
-  };
-  reader.readAsDataURL(file);
-}
-
-/* ─── Save actions ───────────────────────────────────────────── */
-function saveOrder() {
-  const prod = document.getElementById('o-prod').value.trim();
-  const cust = document.getElementById('o-cust').value.trim();
-  if (!prod) { toast(LANG==='zh'?'请填写产品名称':'Product name required'); return; }
-  const dateVal = document.getElementById('o-date').value;
-  const editId  = document.getElementById('o-edit-id').value;
-  const entry = {
-    id:       editId || ('manual-' + Date.now()),
-    src:      'manual',
-    name:     document.getElementById('o-num').value.trim() || ('#M-' + Date.now().toString().slice(-4)),
-    product:  prod,
-    customer: cust || 'Guest',
-    image:    document.getElementById('order-photo-b64').value || null,
-    dueDate:  dateVal,
-    dueTime:  document.getElementById('o-time').value.trim(),
-    dateObj:  dateVal ? pd(dateVal) : null,
-    type:     document.getElementById('o-type').value,
-    ready:    editId ? (ORDERS.find(x=>x.id===editId)?.ready || false) : false
-  };
-  if (editId) {
-    const idx = ORDERS.findIndex(x=>x.id===editId);
-    if (idx !== -1) ORDERS[idx] = entry; else ORDERS.push(entry);
-  } else {
-    ORDERS.push(entry);
-  }
-  saveOrders();
-  closeModal('m-order');
-  // Reset form
-  ['o-prod','o-cust','o-num','o-time'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('o-date').value='';
-  document.getElementById('o-edit-id').value='';
-  const ttl = document.getElementById('o-modal-ttl');
-  if (ttl) ttl.textContent = LANG==='zh'?'添加订单':'Add Order';
-  toast(LANG==='zh'?'✓ 订单已保存':'✓ Order saved');
-  renderAll();
-}
-
-function saveInv() {
-  const name = document.getElementById('i-name').value.trim();
-  if (!name) { toast(LANG==='zh'?'请填写名称':'Name required'); return; }
-  INVENTORY.push({
-    id: 'inv-' + Date.now(),
-    name,
-    cat:   document.getElementById('i-cat').value,
-    qty:   parseInt(document.getElementById('i-qty').value) || 0,
-    unit:  document.getElementById('i-unit').value.trim() || 'pcs',
-    notes: document.getElementById('i-notes').value.trim()
-  });
-  saveInventory();
-  closeModal('m-inv');
-  ['i-name','i-unit','i-notes'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
-  document.getElementById('i-qty').value = '0';
-  toast(LANG==='zh'?'✓ 已新增':'✓ Item added');
-  renderInventory();
-}
-
-function savePur() {
-  const name = document.getElementById('p-name').value.trim();
-  if (!name) { toast(LANG==='zh'?'请填写名称':'Name required'); return; }
-  PURCHASES.push({
-    id: 'pur-' + Date.now(),
-    name,
-    qty:   document.getElementById('p-qty').value.trim(),
-    urg:   document.getElementById('p-urg').value,
-    notes: document.getElementById('p-notes').value.trim(),
-    done: false
-  });
-  savePurchases();
-  closeModal('m-pur');
-  ['p-name','p-qty','p-notes'].forEach(id => document.getElementById(id) && (document.getElementById(id).value=''));
-  toast(LANG==='zh'?'✓ 已添加到采购清单':'✓ Added to purchase list');
-  renderPurchase();
-}
-
-function savePurNotes() {
-  localStorage.setItem('flori-pur-notes', document.getElementById('pur-notes').value);
-}
-
-/* ─── CRUD ───────────────────────────────────────────────────── */
-function toggleReady(id) {
-  const o = ORDERS.find(x=>x.id===id);
-  if (o) o.ready = !o.ready;
-  saveOrders();
-  renderHome(); renderOrders();
-}
-
-function delOrder(id) {
-  if (!confirm(LANG==='zh'?'删除此订单？':'Remove this order?')) return;
-  ORDERS = ORDERS.filter(x=>x.id!==id);
-  saveOrders(); renderAll();
-  toast(LANG==='zh'?'已删除':'Removed');
-}
-
-function invAdj(id, delta) {
-  const i = INVENTORY.find(x=>x.id===id);
-  if (i) i.qty = Math.max(0, (i.qty||0) + delta);
-  saveInventory(); renderInventory();
-}
-
-function invDel(id) {
-  if (!confirm(LANG==='zh'?'删除此项目？':'Remove item?')) return;
-  INVENTORY = INVENTORY.filter(x=>x.id!==id);
-  saveInventory(); renderInventory();
-  toast(LANG==='zh'?'已删除':'Removed');
-}
-
-function togglePur(id) {
-  const p = PURCHASES.find(x=>x.id===id);
-  if (p) p.done = !p.done;
-  savePurchases(); renderPurchase();
-}
-
-function delPur(id) {
-  PURCHASES = PURCHASES.filter(x=>x.id!==id);
-  savePurchases(); renderPurchase();
-}
-
-function clearDone() {
-  PURCHASES = PURCHASES.filter(x=>!x.done);
-  savePurchases(); renderPurchase();
-  toast(LANG==='zh'?'已清除完成项目':'Cleared done items');
-}
-
-/* ─── Zoom ───────────────────────────────────────────────────── */
-function openZoom(src, cap) {
-  document.getElementById('zoom-img').src = src;
-  document.getElementById('zoom-cap').textContent = cap || '';
-  document.getElementById('zoom').classList.add('on');
-}
-function closeZoom() { document.getElementById('zoom').classList.remove('on'); }
-
-/* ─── Toast ──────────────────────────────────────────────────── */
-let _toastT;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('on');
-  clearTimeout(_toastT);
-  _toastT = setTimeout(() => el.classList.remove('on'), 2400);
-}
-
-/* ─── UI helpers ─────────────────────────────────────────────── */
-function setPill(msg) { const el=document.getElementById('hdr-pill'); if(el) el.textContent=msg; }
-function setSBFoot(msg) { const el=document.getElementById('sb-foot'); if(el) el.textContent=msg; }
-function updateBadge() { const el=document.getElementById('nb-orders'); if(el) el.textContent=ORDERS.length; }
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-/* ─── Data management ────────────────────────────────────────── */
-function exportData() {
-  const d = { orders: ORDERS.map(o=>({...o,dateObj:undefined})), inventory: INVENTORY, purchases: PURCHASES, notes: localStorage.getItem('flori-pur-notes')||'', at: new Date().toISOString() };
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));
-  a.download = 'flori-' + tdi(new Date()) + '.json';
-  a.click();
-  toast(LANG==='zh'?'✓ 数据已导出':'✓ Data exported');
-}
-
-function clearAll() {
-  if (!confirm(LANG==='zh'?'清除所有本地数据？（Shopify 订单不受影响）':'Clear all local data? (Shopify is unaffected)')) return;
-  ['flori-orders','flori-inventory','flori-purchases','flori-pur-notes'].forEach(k => localStorage.removeItem(k));
-  ORDERS=[]; INVENTORY=[]; PURCHASES=[];
-  renderAll(); closeSP();
-  toast(LANG==='zh'?'已清除所有本地数据':'All local data cleared');
-}
-
-/* ─── Keyboard shortcuts ─────────────────────────────────────── */
-document.addEventListener('keydown', e => {
-  if (['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-  if (e.key==='1') goPage('home');
-  if (e.key==='2') goPage('orders');
-  if (e.key==='3') goPage('inventory');
-  if (e.key==='4') goPage('purchase');
-  if (e.key==='r'||e.key==='R') syncOrders();
-  if (e.key==='s'||e.key==='S') openSP();
-  if (e.key==='l'||e.key==='L') toggleLang();
-  if (e.key==='Escape') { closeSP(); closeZoom(); }
-});
-
-/* ─── Init ───────────────────────────────────────────────────── */
-/* ─── Follow-up data ─────────────────────────────────────────── */
+/* ─── Follow-up ──────────────────────────────────────────────── */
 let FOLLOWUPS = [];
-function loadFollowups() {
-  try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];}
-}
-function saveFollowups() {
-  localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
-}
+function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
+function saveFollowups() { localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS)); }
 
 function openAddFollowup() {
   document.getElementById('fu-edit-id').value = '';
-  document.getElementById('fu-modal-ttl').textContent = LANG==='zh'?'添加客户':'Add Customer';
+  document.getElementById('fu-modal-ttl').textContent = 'Add Customer';
   ['fu-name','fu-contact','fu-notes'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
-  const stEl2 = document.getElementById('fu-status'); if(stEl2) stEl2.value = 'pending';
+  const st = document.getElementById('fu-status'); if(st) st.value='pending';
   openModal('m-followup');
 }
 
 function editFollowup(id) {
-  const f = FOLLOWUPS.find(x=>x.id===id);
-  if (!f) return;
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   document.getElementById('fu-edit-id').value = id;
-  document.getElementById('fu-modal-ttl').textContent = LANG==='zh'?'编辑客户':'Edit Customer';
+  document.getElementById('fu-modal-ttl').textContent = 'Edit Customer';
   document.getElementById('fu-name').value    = f.name    || '';
   document.getElementById('fu-contact').value = f.contact || '';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
-  const stEl = document.getElementById('fu-status'); if(stEl) stEl.value = f.status || 'pending';
+  const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
   document.getElementById('fu-notes').value   = f.notes   || '';
   openModal('m-followup');
 }
 
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
-  if (!name) { toast(LANG==='zh'?'请填写客户姓名':'Customer name required'); return; }
+  if (!name) { toast('Customer name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
-  const statusEl = document.getElementById('fu-status');
-  const entry = {
-    id:      editId || ('fu-' + Date.now()),
-    name,
-    contact: document.getElementById('fu-contact').value.trim(),
-    channel: document.getElementById('fu-channel').value,
-    payment: document.getElementById('fu-payment').value,
-    status:  statusEl ? statusEl.value : 'pending',
-    notes:   document.getElementById('fu-notes').value.trim(),
-    ts:      Date.now()
-  };
-  if (editId) {
-    const idx = FOLLOWUPS.findIndex(x=>x.id===editId);
-    if (idx !== -1) FOLLOWUPS[idx] = entry;
-  } else {
-    FOLLOWUPS.push(entry);
-  }
-  saveFollowups();
-  closeModal('m-followup');
-  toast(LANG==='zh'?'✓ 已保存':'✓ Saved');
-  renderFollowup();
+  const stEl = document.getElementById('fu-status');
+  const entry = { id:editId||('fu-'+Date.now()), name, contact:document.getElementById('fu-contact').value.trim(), channel:document.getElementById('fu-channel').value, payment:document.getElementById('fu-payment').value, status:stEl?stEl.value:'pending', notes:document.getElementById('fu-notes').value.trim(), ts:Date.now() };
+  if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
+  saveFollowups(); closeModal('m-followup'); toast('✓ Saved'); renderFollowup();
 }
 
-function delFollowup(id) {
-  if (!confirm(LANG==='zh'?'删除此记录？':'Remove this entry?')) return;
-  FOLLOWUPS = FOLLOWUPS.filter(x=>x.id!==id);
-  saveFollowups();
-  renderFollowup();
-}
-
-function togglePayment(id) {
-  const f = FOLLOWUPS.find(x=>x.id===id);
-  if (f) { f.payment = f.payment === 'paid' ? 'pending' : 'paid'; }
-  saveFollowups();
-  renderFollowup();
-}
-
-let fuFilter = 'all';
-
-function toggleComplete(id) {
-  const f = FOLLOWUPS.find(x=>x.id===id);
-  if (f) f.status = f.status === 'completed' ? 'pending' : 'completed';
-  saveFollowups();
-  renderFollowup();
-}
+function delFollowup(id) { if(!confirm('Remove this entry?')) return; FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); saveFollowups(); renderFollowup(); }
+function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
+function toggleComplete(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.status=f.status==='completed'?'pending':'completed'; saveFollowups(); renderFollowup(); }
 
 function renderFollowup() {
-  const zh = LANG === 'zh';
-  const tb = document.getElementById('followup-tbody');
-  if (!tb) return;
-
-  const totalAll    = FOLLOWUPS.length;
-  const fuPending   = FOLLOWUPS.filter(x=>x.status !== 'completed').length;
-  const payPending  = FOLLOWUPS.filter(x=>x.payment === 'pending' && x.status !== 'completed').length;
-  const completed   = FOLLOWUPS.filter(x=>x.status === 'completed').length;
-
-  const fuTotal = document.getElementById('fu-total');
-  const fuPaid  = document.getElementById('fu-paid');
-  const fuPend  = document.getElementById('fu-pending');
-  const fuFuP   = document.getElementById('fu-followup-pending');
-  if (fuTotal) fuTotal.textContent = totalAll;
-  if (fuFuP)   fuFuP.textContent   = fuPending;
-  if (fuPend)  fuPend.textContent  = payPending;
-  if (fuPaid)  fuPaid.textContent  = completed;
-
-  const nb = document.getElementById('nb-followup');
-  if (nb) {
-    if (fuPending > 0) { nb.textContent = fuPending; nb.style.display=''; }
-    else nb.style.display='none';
-  }
-
-  // Apply status filter
+  const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
+  const totalAll=FOLLOWUPS.length, fuPending=FOLLOWUPS.filter(x=>x.status!=='completed').length, payPending=FOLLOWUPS.filter(x=>x.payment==='pending'&&x.status!=='completed').length, completed=FOLLOWUPS.filter(x=>x.status==='completed').length;
+  const fuTotal=document.getElementById('fu-total'), fuPaid=document.getElementById('fu-paid'), fuPend=document.getElementById('fu-pending'), fuFuP=document.getElementById('fu-followup-pending');
+  if(fuTotal) fuTotal.textContent=totalAll; if(fuFuP) fuFuP.textContent=fuPending; if(fuPend) fuPend.textContent=payPending; if(fuPaid) fuPaid.textContent=completed;
+  const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
-  if (fuFilter === 'followup-pending')  list = list.filter(x => x.status !== 'completed');
-  if (fuFilter === 'payment-pending')   list = list.filter(x => x.payment === 'pending' && x.status !== 'completed');
-  if (fuFilter === 'completed')         list = list.filter(x => x.status === 'completed');
-
-  if (!list.length) {
-    tb.innerHTML = `<tr><td colspan="7" style="padding:56px;text-align:center">
-      <div class="empty"><div class="empty-ico">☎</div>
-      <div class="empty-txt">${zh?'暂无记录':'No entries'}</div>
-      </div></td></tr>`;
-    return;
-  }
-
-  const chLabel = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
-  const chCls   = {whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
-
+  if(fuFilter==='followup-pending') list=list.filter(x=>x.status!=='completed');
+  if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
+  if(fuFilter==='completed')        list=list.filter(x=>x.status==='completed');
+  if(!list.length){tb.innerHTML=`<tr><td colspan="7" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div></td></tr>`;return;}
+  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
+  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
   tb.innerHTML = list.map(f => {
-    const ch      = chLabel[f.channel] || f.channel;
-    const chCl    = chCls[f.channel]  || 'ch-ot';
-    const payLbl  = f.payment==='paid' ? (zh?'已付款':'Paid') : (zh?'待付款':'Pending');
-    const payCl   = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
-    const isDone  = f.status === 'completed';
-    const stLbl   = isDone ? (zh?'已完成':'Completed') : (zh?'跟进中':'Follow-up');
-    const stStyle = isDone
-      ? 'background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be'
-      : 'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
-    const rowStyle = isDone ? 'opacity:.55' : '';
-    return `<tr style="${rowStyle}">
-      <td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td>
-      <td><div style="font-size:12px;color:var(--c-muted);font-family:monospace">${esc(f.contact||'–')}</div></td>
-      <td><span class="ch-badge ${chCl}">${ch}</span></td>
-      <td>
-        <button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0" title="Toggle payment">
-          <span class="pay-badge ${payCl}">${payLbl}</span>
-        </button>
-      </td>
-      <td>
-        <button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0" title="Toggle status">
-          <span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span>
-        </button>
-      </td>
-      <td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td>
-      <td>
-        <div style="display:flex;gap:4px;justify-content:flex-end">
-          <button class="act-btn" onclick="editFollowup('${f.id}')" title="Edit">✎</button>
-          <button class="act-btn x" onclick="delFollowup('${f.id}')" title="Delete">✕</button>
-        </div>
-      </td>
-    </tr>`;
+    const ch=chLabel[f.channel]||f.channel, chCl=chCls[f.channel]||'ch-ot';
+    const payLbl=f.payment==='paid'?(zh?'已付款':'Paid'):(zh?'待付款':'Pending'), payCl=f.payment==='paid'?'pay-paid':'pay-pend';
+    const isDone=f.status==='completed', stLbl=isDone?(zh?'已完成':'Completed'):(zh?'跟进中':'Follow-up');
+    const stStyle=isDone?'background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be':'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
+    return `<tr style="${isDone?'opacity:.55':''}"><td><div style="font-size:13px;font-weight:500">${esc(f.name)}</div></td><td><div style="font-size:12px;color:var(--c-muted);font-family:monospace">${esc(f.contact||'–')}</div></td><td><span class="ch-badge ${chCl}">${ch}</span></td><td><button onclick="togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td><td><button onclick="toggleComplete('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl}</span></button></td><td><div style="font-size:11px;color:var(--c-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.notes||'–')}</div></td><td><div style="display:flex;gap:4px;justify-content:flex-end"><button class="act-btn" onclick="editFollowup('${f.id}')">✎</button><button class="act-btn x" onclick="delFollowup('${f.id}')">✕</button></div></td></tr>`;
   }).join('');
 }
 
 /* ─── Calendar ───────────────────────────────────────────────── */
-let calYear  = new Date().getFullYear();
-let calMonth = new Date().getMonth(); // 0-indexed
-let calFilter = null; // selected date string YYYY-MM-DD or null
-
 function toggleCalendar() {
-  const panel = document.getElementById('cal-panel');
-  const chevron = document.getElementById('cal-chevron');
-  const isOpen = panel.style.display !== 'none';
-  panel.style.display = isOpen ? 'none' : 'block';
-  if (chevron) chevron.textContent = isOpen ? '▾' : '▴';
-  if (!isOpen) renderCalendar();
-  // Close on outside click
-  if (!isOpen) {
-    setTimeout(() => {
-      const handler = e => {
-        const panel2 = document.getElementById('cal-panel');
-        const btn = document.getElementById('cal-toggle-btn');
-        if (panel2 && btn && !panel2.contains(e.target) && !btn.contains(e.target)) {
-          panel2.style.display = 'none';
-          document.getElementById('cal-chevron').textContent = '▾';
-          document.removeEventListener('click', handler);
-        }
-      };
-      document.addEventListener('click', handler);
-    }, 10);
-  }
+  const panel=document.getElementById('cal-panel'), chevron=document.getElementById('cal-chevron');
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block'; if(chevron) chevron.textContent=isOpen?'▾':'▴';
+  if(!isOpen){renderCalendar();setTimeout(()=>{const h=e=>{const p2=document.getElementById('cal-panel'),b=document.getElementById('cal-toggle-btn');if(p2&&b&&!p2.contains(e.target)&&!b.contains(e.target)){p2.style.display='none';document.getElementById('cal-chevron').textContent='▾';document.removeEventListener('click',h);}};document.addEventListener('click',h);},10);}
 }
-
-function calPrev() { if(calMonth===0){calMonth=11;calYear--;}else calMonth--; renderCalendar(); }
-function calNext() { if(calMonth===11){calMonth=0;calYear++;}else calMonth++; renderCalendar(); }
+function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();}
+function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();}
 
 function clearCalFilter() {
-  calFilter = null;
-  const lbl = document.getElementById('cal-active-lbl');
-  if (lbl) lbl.style.display = 'none';
-  const btnLbl = document.getElementById('cal-btn-label');
-  const selLbl = document.getElementById('cal-selected-lbl');
-  if (btnLbl) btnLbl.textContent = 'Select date';
-  if (selLbl) selLbl.textContent = '';
-  const toggleBtn = document.getElementById('cal-toggle-btn');
-  if (toggleBtn) toggleBtn.style.color = 'var(--c-muted)';
-  renderCalendar();
-  renderOrders();
+  calFilter=null;
+  const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
+  const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
+  if(btnLbl) btnLbl.textContent='Select date'; if(selLbl) selLbl.textContent='';
+  const tb=document.getElementById('cal-toggle-btn'); if(tb) tb.style.color='var(--c-muted)';
+  renderCalendar(); renderOrders();
 }
 
 function renderCalendar() {
-  const grid = document.getElementById('cal-grid');
-  const ttl  = document.getElementById('cal-title');
-  if (!grid) return;
-
-  const monthNames = ['January','February','March','April','May','June',
-                      'July','August','September','October','November','December'];
-  ttl.textContent = monthNames[calMonth] + ' ' + calYear;
-
-  // Count orders per date
-  const counts = {};
-  ORDERS.forEach(o => {
-    if (!o.dateObj) return;
-    const key = o.dateObj.getFullYear() + '-' +
-      String(o.dateObj.getMonth()+1).padStart(2,'0') + '-' +
-      String(o.dateObj.getDate()).padStart(2,'0');
-    counts[key] = (counts[key]||0) + 1;
-  });
-
-  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  let html = days.map(d => `<div class="cal-dow">${d}</div>`).join('');
-
-  const firstDay = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-  const daysInPrev  = new Date(calYear, calMonth, 0).getDate();
-  const today = new Date(); 
-  const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-
-  // Prev month padding
-  for (let i = firstDay - 1; i >= 0; i--) {
-    html += `<div class="cal-day other-month">${daysInPrev - i}</div>`;
+  const grid=document.getElementById('cal-grid'),ttl=document.getElementById('cal-title'); if(!grid) return;
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  ttl.textContent=months[calMonth]+' '+calYear;
+  const counts={};
+  ORDERS.forEach(o=>{if(!o.dateObj)return;const k=o.dateObj.getFullYear()+'-'+String(o.dateObj.getMonth()+1).padStart(2,'0')+'-'+String(o.dateObj.getDate()).padStart(2,'0');counts[k]=(counts[k]||0)+1;});
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html=days.map(d=>`<div class="cal-dow">${d}</div>`).join('');
+  const firstDay=new Date(calYear,calMonth,1).getDay(),daysInMonth=new Date(calYear,calMonth+1,0).getDate(),daysInPrev=new Date(calYear,calMonth,0).getDate();
+  const todayStr=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0')+'-'+String(new Date().getDate()).padStart(2,'0');
+  for(let i=firstDay-1;i>=0;i--) html+=`<div class="cal-day other-month">${daysInPrev-i}</div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const k=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const cnt=counts[k]||0,isT=k===todayStr,isSel=k===calFilter;
+    let cls='cal-day';if(cnt>0)cls+=' has-orders';if(isT)cls+=' today-cell';if(isSel)cls+=' selected';
+    html+=`<div class="${cls}" onclick="selectCalDay('${k}')">${d}${cnt>0?`<div class="cal-dot">${cnt}</div>`:''}</div>`;
   }
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const key = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-    const cnt = counts[key] || 0;
-    const isToday_ = key === todayStr;
-    const isSel   = key === calFilter;
-    let cls = 'cal-day';
-    if (cnt > 0)   cls += ' has-orders';
-    if (isToday_)  cls += ' today-cell';
-    if (isSel)     cls += ' selected';
-    const dot = cnt > 0 ? `<div class="cal-dot">${cnt}</div>` : '';
-    html += `<div class="${cls}" onclick="selectCalDay('${key}')">${d}${dot}</div>`;
-  }
-
-  // Fill remaining cells
-  const total = firstDay + daysInMonth;
-  const rem = total % 7 === 0 ? 0 : 7 - (total % 7);
-  for (let i = 1; i <= rem; i++) {
-    html += `<div class="cal-day other-month">${i}</div>`;
-  }
-
-  grid.innerHTML = html;
+  const rem=(firstDay+daysInMonth)%7===0?0:7-(firstDay+daysInMonth)%7;
+  for(let i=1;i<=rem;i++) html+=`<div class="cal-day other-month">${i}</div>`;
+  grid.innerHTML=html;
 }
 
 function selectCalDay(key) {
-  calFilter = calFilter === key ? null : key;
-  const lbl = document.getElementById('cal-active-lbl');
-  if (lbl) lbl.style.display = calFilter ? '' : 'none';
-  // Update button label
-  const btnLbl  = document.getElementById('cal-btn-label');
-  const selLbl  = document.getElementById('cal-selected-lbl');
-  const chevron = document.getElementById('cal-chevron');
-  if (calFilter) {
-    const [cy,cm,cd] = calFilter.split('-').map(Number);
-    const d = new Date(cy, cm-1, cd);
-    const formatted = d.toLocaleDateString('en-MY', {day:'numeric',month:'short'});
-    if (btnLbl) btnLbl.textContent = '';
-    if (selLbl) selLbl.textContent = formatted;
-    const toggleBtn = document.getElementById('cal-toggle-btn');
-    if (toggleBtn) toggleBtn.style.color = 'var(--c-forest)';
-  } else {
-    if (btnLbl) btnLbl.textContent = 'Select date';
-    if (selLbl) selLbl.textContent = '';
-    const toggleBtn = document.getElementById('cal-toggle-btn');
-    if (toggleBtn) toggleBtn.style.color = 'var(--c-muted)';
-  }
-  // Close panel after selecting
-  const panel = document.getElementById('cal-panel');
-  if (panel && calFilter) { panel.style.display = 'none'; if(chevron) chevron.textContent='▾'; }
-  renderCalendar();
-  renderOrders();
+  calFilter=calFilter===key?null:key;
+  const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display=calFilter?'':'none';
+  const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl'),chevron=document.getElementById('cal-chevron');
+  if(calFilter){const[cy,cm,cd]=calFilter.split('-').map(Number);const formatted=new Date(cy,cm-1,cd).toLocaleDateString('en-MY',{day:'numeric',month:'short'});if(btnLbl)btnLbl.textContent='';if(selLbl)selLbl.textContent=formatted;const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-forest)';}
+  else{if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-muted)';}
+  const panel=document.getElementById('cal-panel');if(panel&&calFilter){panel.style.display='none';if(chevron)chevron.textContent='▾';}
+  renderCalendar(); renderOrders();
 }
 
-/* ─── Edit order ─────────────────────────────────────────────── */
+/* ─── Navigation ─────────────────────────────────────────────── */
+const PAGES = ['home','orders','inventory','purchase','followup'];
+function goPage(pg) {
+  if(pg==='followup') renderFollowup();
+  PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
+  document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
+  if(pg==='inventory') renderInventory();
+  if(pg==='purchase')  renderPurchase();
+}
+document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
+document.querySelectorAll('[data-f]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    orderFilter=btn.dataset.f; calFilter=null;
+    const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
+    const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
+    if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';
+    const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-muted)';
+    document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===orderFilter));
+    renderCalendar(); renderOrders();
+  });
+});
+document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; renderOrders(); }); });
+document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
+
+/* ─── Settings ───────────────────────────────────────────────── */
+function openSP() { updateConnectedUI(); document.getElementById('sp').classList.add('on'); document.getElementById('sp-ov').classList.add('on'); }
+function closeSP() { document.getElementById('sp').classList.remove('on'); document.getElementById('sp-ov').classList.remove('on'); }
+function updateConnectedUI() {
+  const tok=localStorage.getItem('flori-token')||'',url=localStorage.getItem('flori-url')||'';
+  const conn=document.getElementById('cfg-connected'),oauth=document.getElementById('cfg-oauth');
+  if(tok&&url){conn.style.display='flex';oauth.style.display='none';document.getElementById('cfg-shop-label').textContent=url;}
+  else{conn.style.display='none';oauth.style.display='flex';}
+  if(url) document.getElementById('cfg-url').value=url;
+  if(tok) document.getElementById('cfg-tok').value=tok;
+}
+function connectShopify() {
+  const raw=document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'').toLowerCase();
+  if(!raw||!raw.includes('.myshopify.com')){setSpStatus('err','Enter a valid .myshopify.com URL');return;}
+  window.location.href='/api/auth?shop='+encodeURIComponent(raw);
+}
+function saveToken() {
+  const url=document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
+  const tok=document.getElementById('cfg-tok').value.trim();
+  if(!url){setSpStatus('err','Store URL required');return;} if(!tok){setSpStatus('err','Token required');return;}
+  localStorage.setItem('flori-url',url); localStorage.setItem('flori-token',tok);
+  updateConnectedUI(); setSpStatus('ok','✓ Saved'); setTimeout(()=>syncOrders(),500);
+}
+function disconnectShopify() {
+  if(!confirm('Disconnect Shopify?')) return;
+  ['flori-url','flori-token'].forEach(k=>localStorage.removeItem(k));
+  updateConnectedUI(); setPill('');
+}
+function setSpStatus(cls,msg){const el=document.getElementById('cfg-st');el.className='sp-status '+cls;el.textContent=msg;setTimeout(()=>el.textContent='',5000);}
+
+/* ─── OAuth callback ─────────────────────────────────────────── */
+function handleOAuthCallback() {
+  const hash=window.location.hash;
+  if(!hash.startsWith('#connected?')) return false;
+  const params=new URLSearchParams(hash.slice('#connected?'.length));
+  const shop=params.get('shop'),token=params.get('token');
+  if(shop&&token){localStorage.setItem('flori-url',shop);localStorage.setItem('flori-token',token);history.replaceState(null,'',window.location.pathname);toast(`✓ Connected to ${shop}`);setPill(shop);setTimeout(()=>syncOrders(),600);return true;}
+  return false;
+}
+
+/* ─── Modals ─────────────────────────────────────────────────── */
+function openModal(id) { document.getElementById(id).classList.add('on'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('on');
+  const zone=document.getElementById('order-photo-zone');
+  if(zone) zone.innerHTML=`<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">Click or tap to upload photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
+  const b64=document.getElementById('order-photo-b64'); if(b64) b64.value='';
+}
+function openAddOrder(){openModal('m-order');}
+function openAddInv()  {openModal('m-inv');}
+function openAddPur()  {openModal('m-pur');}
+
+function handlePhotoUpload(input,zoneId,hiddenId){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>3*1024*1024){toast('Photo too large — max 3MB');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{const b64=e.target.result;const zone=document.getElementById(zoneId);if(zone)zone.innerHTML=`<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;const hidden=document.getElementById(hiddenId);if(hidden)hidden.value=b64;};
+  reader.readAsDataURL(file);
+}
+
+/* ─── Save / CRUD ────────────────────────────────────────────── */
+function saveOrder() {
+  const prod=document.getElementById('o-prod').value.trim(),cust=document.getElementById('o-cust').value.trim();
+  if(!prod){toast('Product name required');return;}
+  const dateVal=document.getElementById('o-date').value,editId=document.getElementById('o-edit-id').value;
+  const entry={id:editId||('manual-'+Date.now()),src:'manual',name:document.getElementById('o-num').value.trim()||('#M-'+Date.now().toString().slice(-4)),product:prod,customer:cust||'Guest',image:document.getElementById('order-photo-b64').value||null,dueDate:dateVal,dueTime:document.getElementById('o-time').value.trim(),dateObj:dateVal?pd(dateVal):null,type:document.getElementById('o-type').value,ready:editId?(ORDERS.find(x=>x.id===editId)?.ready||false):false};
+  if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
+  saveOrders();closeModal('m-order');
+  ['o-prod','o-cust','o-num','o-time'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('o-date').value='';document.getElementById('o-edit-id').value='';
+  document.getElementById('o-modal-ttl').textContent='Add Order';
+  toast('✓ Order saved');renderAll();
+}
+
+function saveInv(){const name=document.getElementById('i-name').value.trim();if(!name){toast('Name required');return;}INVENTORY.push({id:'inv-'+Date.now(),name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()});saveInventory();closeModal('m-inv');['i-name','i-unit','i-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));document.getElementById('i-qty').value='0';toast('✓ Item added');renderInventory();}
+function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));toast('✓ Added');renderPurchase();}
+function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
+
+function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
+function delOrder(id){if(!confirm('Remove this order?'))return;ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();renderAll();toast('Removed');}
+function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
+function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();renderInventory();toast('Removed');}
+function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
+function delPur(id){PURCHASES=PURCHASES.filter(x=>x.id!==id);savePurchases();renderPurchase();}
+function clearDone(){PURCHASES=PURCHASES.filter(x=>!x.done);savePurchases();renderPurchase();toast('Cleared done items');}
+
 function editOrder(id) {
-  const o = ORDERS.find(x=>x.id===id);
-  if (!o) return;
-  const ttl = document.getElementById('o-modal-ttl');
-  if (ttl) ttl.textContent = LANG==='zh'?'编辑订单':'Edit Order';
-  document.getElementById('o-edit-id').value   = id;
-  document.getElementById('o-prod').value       = o.product  || '';
-  document.getElementById('o-cust').value       = o.customer || '';
-  document.getElementById('o-num').value        = o.name     || '';
-  document.getElementById('o-date').value       = o.dueDate  || '';
-  document.getElementById('o-time').value       = o.dueTime  || '';
-  document.getElementById('o-type').value       = o.type     || 'delivery';
-  // Show existing photo
-  const zone = document.getElementById('order-photo-zone');
-  const b64  = document.getElementById('order-photo-b64');
-  if (o.image) {
-    zone.innerHTML = `<img src="${o.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
-    b64.value = o.image;
-  } else {
-    zone.innerHTML = `<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">${LANG==='zh'?'点击上传照片':'Click or tap to upload photo'}</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
-    b64.value = '';
-  }
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  document.getElementById('o-modal-ttl').textContent='Edit Order';
+  document.getElementById('o-edit-id').value=id;
+  document.getElementById('o-prod').value=o.product||'';
+  document.getElementById('o-cust').value=o.customer||'';
+  document.getElementById('o-num').value=o.name||'';
+  document.getElementById('o-date').value=o.dueDate||'';
+  document.getElementById('o-time').value=o.dueTime||'';
+  document.getElementById('o-type').value=o.type||'delivery';
+  const zone=document.getElementById('order-photo-zone'),b64=document.getElementById('order-photo-b64');
+  if(o.image){zone.innerHTML=`<img src="${o.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;b64.value=o.image;}
+  else{zone.innerHTML=`<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">Click or tap to upload photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;b64.value='';}
   openModal('m-order');
 }
 
-/* ─── Type filter ────────────────────────────────────────────── */
-let typeFilter = 'all';
+/* ─── Zoom / Toast / Utils ───────────────────────────────────── */
+function openZoom(src,cap){document.getElementById('zoom-img').src=src;document.getElementById('zoom-cap').textContent=cap||'';document.getElementById('zoom').classList.add('on');}
+function closeZoom(){document.getElementById('zoom').classList.remove('on');}
+let _toastT;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('on'),2400);}
+function setPill(msg){const el=document.getElementById('hdr-pill');if(el)el.textContent=msg;}
+function setSBFoot(msg){const el=document.getElementById('sb-foot');if(el)el.textContent=msg;}
+function updateBadge(){const el=document.getElementById('nb-orders');if(el)el.textContent=ORDERS.length;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function init() {
-  // Check for OAuth callback first (#connected?shop=...&token=...)
-  const wasCallback = handleOAuthCallback();
-  loadData();
-  setLang(LANG);
-  renderAll();
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  }
-}
+function exportData(){const d={orders:ORDERS.map(o=>({...o,dateObj:undefined})),inventory:INVENTORY,purchases:PURCHASES,notes:localStorage.getItem('flori-pur-notes')||'',at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='flori-'+tdi(new Date())+'.json';a.click();toast('✓ Data exported');}
+function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders','flori-inventory','flori-purchases','flori-pur-notes'].forEach(k=>localStorage.removeItem(k));ORDERS=[];INVENTORY=[];PURCHASES=[];renderAll();closeSP();toast('All local data cleared');}
 
+document.addEventListener('keydown', e => {
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('inventory'); if(e.key==='4') goPage('purchase');
+  if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();}
+});
+
+/* ─── Init ───────────────────────────────────────────────────── */
+function init() { handleOAuthCallback(); loadData(); setLang(LANG); renderAll(); if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 init();
 </script>
-<!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
-<div id="m-followup" class="modal">
-  <div class="mc">
-    <div class="mc-hdr">
-      <div class="mc-ttl" id="fu-modal-ttl" data-en="Add Customer" data-zh="添加客户">Add Customer</div>
-      <button class="mc-x" onclick="closeModal('m-followup')">✕</button>
-    </div>
-    <div class="mc-body">
-      <input type="hidden" id="fu-edit-id">
-      <div class="fg fg-2">
-        <div class="ff">
-          <label class="ff-l" data-en="Customer Name" data-zh="客户姓名">Customer Name</label>
-          <input id="fu-name" type="text" placeholder="e.g. Sarah Lim">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Contact Number" data-zh="联系电话">Contact</label>
-          <input id="fu-contact" type="text" placeholder="+60 12-345 6789">
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Order Channel" data-zh="订单来源">Channel</label>
-          <select id="fu-channel">
-            <option value="whatsapp">WhatsApp</option>
-            <option value="facebook">Facebook</option>
-            <option value="instagram">Instagram</option>
-            <option value="walkin">Walk-in</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Payment" data-zh="付款状态">Payment</label>
-          <select id="fu-payment">
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-          </select>
-        </div>
-        <div class="ff">
-          <label class="ff-l" data-en="Follow-up Status" data-zh="跟进状态">Follow-up Status</label>
-          <select id="fu-status">
-            <option value="pending">Pending Follow-up</option>
-            <option value="completed">Completed</option>
-          </select>
-        </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l" data-en="Notes (order details, remarks…)" data-zh="备注">Notes</label>
-          <textarea id="fu-notes" style="min-height:70px" placeholder="Order details, follow-up notes…"></textarea>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()" data-en="Save" data-zh="保存">Save</button>
-        <button class="btn btn-ghost" onclick="closeModal('m-followup')" data-en="Cancel" data-zh="取消">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
