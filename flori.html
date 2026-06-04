@@ -1088,14 +1088,15 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
-  // One-time cleanup: Shopify orders that had dueDate set from createdAt (a past bug)
-  // will have dueDate as a plain YYYY-MM-DD that's months old. Strip them so they
-  // show as undated instead of flooding the Overdue list.
-  const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - 1); // older than 1 month = likely stale
+  // Cleanup: Shopify orders with a past dueDate that was set from createdAt (old bug).
+  // We cannot tell which are real delivery dates vs creation-date artefacts for past orders,
+  // so we clear ALL past dueDates on Shopify orders. Staff can re-sync to get real ones.
+  // This only affects display — the orders themselves are not deleted.
+  const t0now = today0();
   ORDERS.forEach(o => {
     if (o.src === 'shopify' && o.dueDate) {
       const d = new Date(o.dueDate);
-      if (!isNaN(d) && d < cutoff) { o.dueDate = null; o.dateObj = null; }
+      if (!isNaN(d) && d < t0now) { o.dueDate = null; o.dateObj = null; }
     }
   });
   loadFollowups(); rehydrateOrders();
@@ -1129,7 +1130,7 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
-  // Default 'all' view: show today, future, and undated only — overdue lives in Overdue tab
+  // All view: today, future, undated only. Overdue tab handles past.
   if (orderFilter === 'all')     list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
   if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
@@ -1241,11 +1242,12 @@ function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrde
 
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
-  const todayO = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  document.getElementById('s-total').textContent = ORDERS.length;
+  const todayO   = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  const futureO  = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated
+  document.getElementById('s-total').textContent = futureO.length;
   document.getElementById('s-today').textContent = todayO.length;
-  document.getElementById('s-pu').textContent    = ORDERS.filter(o=>o.type==='pickup').length;
-  document.getElementById('s-de').textContent    = ORDERS.filter(o=>o.type==='delivery').length;
+  document.getElementById('s-pu').textContent    = todayO.filter(o=>o.type==='pickup').length;
+  document.getElementById('s-de').textContent    = todayO.filter(o=>o.type==='delivery').length;
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
