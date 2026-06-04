@@ -191,6 +191,7 @@ img{display:block;max-width:100%}
 .tbl td{padding:12px 14px;border-bottom:1px solid var(--c-border);vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:#f9f7f2}
+.tbl tr.clickable-row:hover td{background:#f2f5f2;transition:background .1s}
 .tbl tr.late td{background:var(--c-red-bg)}
 .tbl tr.late:hover td{background:#f8e2e0}
 
@@ -900,7 +901,8 @@ async function syncOrders() {
       const ds = getDueDate(attrs);
       const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
-      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, dueDate:ds, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      const priceData = n.currentTotalPriceSet?.shopMoney;
+      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -983,6 +985,11 @@ function itemsCell(o) {
     html = `<div class="o-items">${lines}</div>`;
   }
   html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
+  // Show price if available
+  if (o.total && parseFloat(o.total) > 0) {
+    const symbol = o.currency === 'MYR' ? 'RM' : (o.currency||'RM');
+    html += `<div style="font-size:11px;color:var(--c-forest);font-weight:500;margin-top:3px;font-family:var(--f-head);letter-spacing:.01em">${symbol} ${parseFloat(o.total).toFixed(2)}</div>`;
+  }
   return html;
 }
 
@@ -998,21 +1005,21 @@ function tagRow(o) {
 function actionBtns(id) {
   const o = ORDERS.find(x=>x.id===id); if (!o) return '';
   const hasRecipe = o.recipe && o.recipe.length > 0;
-  return `<div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap">
-    <button class="act-btn ${o.ready?'on':''}" onclick="toggleReady('${id}')" title="Mark ready">✓</button>
-    <button class="act-btn" onclick="openDP('${id}')" title="View details" style="font-size:12px">⊙</button>
-    <button class="act-btn${hasRecipe?' on':''}" onclick="openRecipe('${id}')" title="Flower recipe" style="font-size:12px">🌿</button>
-    <button class="act-btn" onclick="editOrder('${id}')" title="Edit">✎</button>
-    <button class="act-btn x" onclick="delOrder('${id}')" title="Delete">✕</button>
+  return `<div style="display:flex;gap:4px;justify-content:flex-end;align-items:center">
+    <button class="act-btn ${o.ready?'on':''}" onclick="event.stopPropagation();toggleReady('${id}')" title="Mark ready">✓</button>
+    <button class="act-btn" onclick="event.stopPropagation();editOrder('${id}')" title="Edit">✎</button>
+    <button class="act-btn x" onclick="event.stopPropagation();delOrder('${id}')" title="Delete">✕</button>
+    ${hasRecipe?'<span style="width:5px;height:5px;border-radius:50%;background:var(--c-sage);flex-shrink:0;margin-left:2px" title="Has recipe"></span>':''}
   </div>`;
 }
 
 function orderRow(o, showDate=true) {
-  const cls = isPast(o.dateObj) ? ' class="late"' : '';
+  const isLate = isPast(o.dateObj);
+  const cls = isLate ? ' class="late clickable-row"' : ' class="clickable-row"';
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  return `<tr${cls}><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1490,6 +1497,13 @@ function _renderDP(order, localOrder) {
 
   let html = '';
 
+  // ── Total price pill in header ──
+  const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
+  if (totalAmt && parseFloat(totalAmt) > 0) {
+    const sym = (order.currentTotalPriceSet?.shopMoney?.currencyCode||localOrder.currency||'MYR')==='MYR'?'RM':localOrder.currency||'RM';
+    document.getElementById('dp-sub').innerHTML += ` · <span style="color:var(--c-forest);font-weight:500;font-family:var(--f-head)">${sym} ${parseFloat(totalAmt).toFixed(2)}</span>`;
+  }
+
   // ── Customer ──
   html += `<div>
     <div class="dp-section-ttl">Customer</div>
@@ -1521,7 +1535,7 @@ function _renderDP(order, localOrder) {
     const currency = items[0]?.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR';
     const subtotal = order.currentSubtotalPriceSet?.shopMoney?.amount;
     const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
-    const total    = order.currentTotalPriceSet?.shopMoney?.amount;
+    const total    = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
 
     const itemRows = items.map(i => {
       const price = i.originalUnitPriceSet?.shopMoney?.amount;
@@ -1545,7 +1559,7 @@ function _renderDP(order, localOrder) {
   html += `<div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="dp-section-ttl" style="margin-bottom:0">Flower Recipe</div>
-      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'Edit recipe':'+ Add recipe'}</button>
+      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'✎ Edit recipe':'🌿 Add recipe'}</button>
     </div>
     ${recipe.length
       ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted)">🌿</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
