@@ -725,31 +725,19 @@ img{display:block;max-width:100%}
 
 <!-- ══ MODAL — Add Order ══════════════════════════════════════ -->
 <div id="m-order" class="modal">
-  <div class="mc">
+  <div class="mc" style="max-width:580px">
     <div class="mc-hdr">
       <div class="mc-ttl" id="o-modal-ttl">Add Order</div>
       <button class="mc-x" onclick="closeModal('m-order')">✕</button>
     </div>
     <div class="mc-body">
-      <div class="ff">
-        <label class="ff-l">Photo (Optional)</label>
-        <div class="photo-zone" id="order-photo-zone">
-          <div class="photo-zone-icon">📷</div>
-          <div class="photo-zone-lbl">Click or tap to upload photo</div>
-          <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">
-        </div>
-        <input type="hidden" id="order-photo-b64">
-      </div>
+
+      <!-- Order info -->
       <div class="fg fg-2">
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l">Product / Bouquet Name</label>
-          <input id="o-prod" type="text" placeholder="e.g. Dear Heroine · 玫瑰花束">
-        </div>
         <div class="ff"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
         <div class="ff"><label class="ff-l">Order #</label><input id="o-num" type="text" placeholder="#manual-001"></div>
         <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
         <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
-        <div class="ff"><label class="ff-l">Price (RM)</label><input id="o-price" type="number" min="0" step="0.01" placeholder="0.00"></div>
         <div class="ff">
           <label class="ff-l">Type</label>
           <select id="o-type">
@@ -759,11 +747,22 @@ img{display:block;max-width:100%}
         </div>
         <div class="ff" style="grid-column:1/-1">
           <label class="ff-l">Delivery Address</label>
-          <textarea id="o-addr" style="min-height:60px" placeholder="Street, City, Postcode…"></textarea>
+          <textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea>
         </div>
       </div>
+
+      <!-- Products -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span class="ff-l" style="font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted)">Products</span>
+          <button onclick="addProductRow()" style="font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:500">+ Add product</button>
+        </div>
+        <div id="o-products-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
       <div class="btn-row">
         <input type="hidden" id="o-edit-id">
+        <input type="hidden" id="o-prod">
         <button class="btn btn-primary" style="flex:1" onclick="saveOrder()">Save Order</button>
         <button class="btn btn-ghost" onclick="closeModal('m-order')">Cancel</button>
       </div>
@@ -1323,11 +1322,24 @@ function handleOAuthCallback() {
 function openModal(id) { document.getElementById(id).classList.add('on'); }
 function closeModal(id) {
   document.getElementById(id).classList.remove('on');
-  const zone=document.getElementById('order-photo-zone');
-  if(zone) zone.innerHTML=`<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">Click or tap to upload photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;
-  const b64=document.getElementById('order-photo-b64'); if(b64) b64.value='';
+  if (id === 'm-order') {
+    document.getElementById('o-products-list').innerHTML='';
+    _productRowCount=0;
+  }
 }
-function openAddOrder(){openModal('m-order');}
+function openAddOrder(){
+  document.getElementById('o-cust').value='';
+  document.getElementById('o-num').value='';
+  document.getElementById('o-date').value='';
+  document.getElementById('o-time').value='';
+  document.getElementById('o-addr').value='';
+  document.getElementById('o-edit-id').value='';
+  document.getElementById('o-modal-ttl').textContent='Add Order';
+  _productRowCount=0;
+  document.getElementById('o-products-list').innerHTML='';
+  addProductRow();
+  openModal('m-order');
+}
 function openAddInv()  {openModal('m-inv');}
 function openAddPur()  {openModal('m-pur');}
 
@@ -1339,18 +1351,99 @@ function handlePhotoUpload(input,zoneId,hiddenId){
   reader.readAsDataURL(file);
 }
 
+/* ─── Multi-product row system ────────────────────────────────── */
+let _productRowCount = 0;
+
+function _productRowHTML(idx, item) {
+  const imgSrc = item.image || '';
+  return `<div class="o-prod-row" id="oprow-${idx}" style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--c-surface)">
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <div id="opthumb-${idx}" style="position:relative;width:52px;height:52px;border-radius:var(--r);background:var(--c-bg);border:1.5px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('opimg-${idx}').click()" title="Upload photo">
+        ${imgSrc ? `<img src="${imgSrc}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : '🌸'}
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>
+      </div>
+      <input type="file" id="opimg-${idx}" accept="image/*" style="display:none" onchange="handleProductPhoto(this,${idx})">
+      <input type="hidden" id="opimg-b64-${idx}" value="${imgSrc}">
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+        <input id="opname-${idx}" type="text" placeholder="Product / Bouquet name" value="${esc(item.title||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:var(--c-surface);color:var(--c-ink)">
+        <div style="display:flex;gap:6px">
+          <input id="opprice-${idx}" type="number" min="0" step="0.01" placeholder="Price (RM)" value="${item.price && parseFloat(item.price) > 0 ? parseFloat(item.price).toFixed(2) : ''}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;flex:1;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <input id="opqty-${idx}" type="number" min="1" placeholder="Qty" value="${item.quantity||1}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:60px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+        </div>
+      </div>
+      <button onclick="removeProductRow(${idx})" style="width:24px;height:24px;border:1.5px solid var(--c-border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);cursor:pointer;flex-shrink:0;background:transparent;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">✕</button>
+    </div>
+  </div>`;
+}
+
+function addProductRow(item) {
+  const container = document.getElementById('o-products-list');
+  const idx = _productRowCount++;
+  const div = document.createElement('div');
+  div.innerHTML = _productRowHTML(idx, item || {title:'',price:null,quantity:1,image:null});
+  container.appendChild(div.firstChild);
+}
+
+function removeProductRow(idx) {
+  const row = document.getElementById('oprow-'+idx);
+  if (row) row.remove();
+}
+
+function handleProductPhoto(input, idx) {
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 3*1024*1024){toast('Photo too large — max 3MB');return;}
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    document.getElementById('opimg-b64-'+idx).value = b64;
+    const thumb = document.getElementById('opthumb-'+idx);
+    if (thumb) thumb.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function _collectProductRows() {
+  const rows = document.querySelectorAll('#o-products-list .o-prod-row');
+  const items = [];
+  rows.forEach(row => {
+    const idx = row.id.replace('oprow-','');
+    const title = document.getElementById('opname-'+idx)?.value.trim() || '';
+    const price = parseFloat(document.getElementById('opprice-'+idx)?.value) || 0;
+    const qty   = parseInt(document.getElementById('opqty-'+idx)?.value)   || 1;
+    const image = document.getElementById('opimg-b64-'+idx)?.value || null;
+    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, image: image||null, currency:'MYR' });
+  });
+  return items;
+}
+
 /* ─── Save / CRUD ────────────────────────────────────────────── */
 function saveOrder() {
-  const prod=document.getElementById('o-prod').value.trim(),cust=document.getElementById('o-cust').value.trim();
-  if(!prod){toast('Product name required');return;}
-  const dateVal=document.getElementById('o-date').value,editId=document.getElementById('o-edit-id').value;
-  const priceVal=parseFloat(document.getElementById('o-price')?.value)||0;const addrVal=document.getElementById('o-addr')?.value.trim()||'';const entry={id:editId||('manual-'+Date.now()),src:'manual',name:document.getElementById('o-num').value.trim()||('#M-'+Date.now().toString().slice(-4)),product:prod,customer:cust||'Guest',image:document.getElementById('order-photo-b64').value||null,dueDate:dateVal,dueTime:document.getElementById('o-time').value.trim(),dateObj:dateVal?pd(dateVal):null,type:document.getElementById('o-type').value,ready:editId?(ORDERS.find(x=>x.id===editId)?.ready||false):false,manualPrice:priceVal>0?priceVal:null,manualAddr:addrVal||null,lineItems:editId?(ORDERS.find(x=>x.id===editId)?.lineItems||[]):[]};
+  const cust = document.getElementById('o-cust').value.trim();
+  const lineItems = _collectProductRows();
+  if (!lineItems.length) { toast('Add at least one product'); return; }
+  document.getElementById('o-prod').value = lineItems.map(i=>i.title).join(', ');
+  const dateVal = document.getElementById('o-date').value;
+  const editId  = document.getElementById('o-edit-id').value;
+  const addrVal = document.getElementById('o-addr')?.value.trim() || '';
+  const firstImg = lineItems.find(i=>i.image)?.image || null;
+  const entry = {
+    id: editId || ('manual-'+Date.now()), src:'manual',
+    name: document.getElementById('o-num').value.trim() || ('#M-'+Date.now().toString().slice(-4)),
+    product: lineItems.map(i=>i.title).join(', '),
+    customer: cust || 'Guest',
+    image: firstImg,
+    lineItems,
+    dueDate: dateVal, dueTime: document.getElementById('o-time').value.trim(),
+    dateObj: dateVal ? pd(dateVal) : null,
+    type: document.getElementById('o-type').value,
+    ready: editId ? (ORDERS.find(x=>x.id===editId)?.ready || false) : false,
+    manualAddr: addrVal || null,
+    manualPrice: null
+  };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
-  saveOrders();closeModal('m-order');
-  ['o-prod','o-cust','o-num','o-time'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  document.getElementById('o-date').value='';document.getElementById('o-edit-id').value='';
-  document.getElementById('o-modal-ttl').textContent='Add Order';
-  toast('✓ Order saved');renderAll();
+  saveOrders(); closeModal('m-order');
+  document.getElementById('o-modal-ttl').textContent = 'Add Order';
+  toast('✓ Order saved'); renderAll();
 }
 
 function saveInv(){const name=document.getElementById('i-name').value.trim();if(!name){toast('Name required');return;}INVENTORY.push({id:'inv-'+Date.now(),name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()});saveInventory();closeModal('m-inv');['i-name','i-unit','i-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));document.getElementById('i-qty').value='0';toast('✓ Item added');renderInventory();}
@@ -1369,17 +1462,17 @@ function editOrder(id) {
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   document.getElementById('o-modal-ttl').textContent='Edit Order';
   document.getElementById('o-edit-id').value=id;
-  document.getElementById('o-prod').value=o.product||'';
   document.getElementById('o-cust').value=o.customer||'';
   document.getElementById('o-num').value=o.name||'';
   document.getElementById('o-date').value=o.dueDate||'';
   document.getElementById('o-time').value=o.dueTime||'';
   document.getElementById('o-type').value=o.type||'delivery';
-  const priceEl=document.getElementById('o-price');if(priceEl)priceEl.value=o.manualPrice||'';
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
-  const zone=document.getElementById('order-photo-zone'),b64=document.getElementById('order-photo-b64');
-  if(o.image){zone.innerHTML=`<img src="${o.image}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;b64.value=o.image;}
-  else{zone.innerHTML=`<div class="photo-zone-icon">📷</div><div class="photo-zone-lbl">Click or tap to upload photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'order-photo-zone','order-photo-b64')">`;b64.value='';}
+  // Build product rows from lineItems (or legacy product string)
+  _productRowCount=0;
+  document.getElementById('o-products-list').innerHTML='';
+  const items = o.lineItems && o.lineItems.length ? o.lineItems : [{title:o.product||'',price:o.manualPrice?String(o.manualPrice):null,quantity:1,image:o.image||null}];
+  items.forEach(item => addProductRow(item));
   openModal('m-order');
 }
 
@@ -1561,7 +1654,7 @@ function _renderDP(order, localOrder) {
   const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
   if (totalAmt && parseFloat(totalAmt) > 0) {
     const sym = (order.currentTotalPriceSet?.shopMoney?.currencyCode||localOrder.currency||'MYR')==='MYR'?'RM':localOrder.currency||'RM';
-    document.getElementById('dp-sub').innerHTML += ` · <span style="color:var(--c-forest);font-weight:500;font-family:var(--f-head)">${sym} ${parseFloat(totalAmt).toFixed(2)}</span>`;
+    document.getElementById('dp-sub').innerHTML += ` · <span style="color:#FFD96A;font-weight:700;font-family:var(--f-head);font-size:15px">${sym} ${parseFloat(totalAmt).toFixed(2)}</span>`;
   }
 
   // ── Customer ──
@@ -1664,10 +1757,20 @@ function _renderDPManual(o) {
       <div class="dp-addr">${esc(o.manualAddr).replace(/\n/g,'<br>')}</div>
     </div>`;
   }
-  if (o.manualPrice && o.manualPrice > 0) {
+  // Per-item prices
+  if (o.lineItems && o.lineItems.length > 0) {
+    const itemRows = o.lineItems.map(i => {
+      const lineTotal = i.price && parseFloat(i.price) > 0 ? parseFloat(i.price) * (i.quantity||1) : null;
+      return `<div class="dp-row">
+        <div class="dp-row-lbl">${esc(i.title)}${i.quantity>1?` <span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
+        <div class="dp-row-val">${lineTotal ? 'RM '+lineTotal.toFixed(2) : '–'}</div>
+      </div>`;
+    }).join('');
+    const grandTotal = o.lineItems.reduce((s,i) => s + (parseFloat(i.price)||0)*(i.quantity||1), 0);
     html += `<div>
-      <div class="dp-section-ttl">Price</div>
-      <div style="font-size:15px;font-weight:600;color:var(--c-burg)">RM ${parseFloat(o.manualPrice).toFixed(2)}</div>
+      <div class="dp-section-ttl">Items & Price</div>
+      ${itemRows}
+      ${grandTotal > 0 ? `<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">RM ${grandTotal.toFixed(2)}</div></div>` : ''}
     </div>`;
   }
 
