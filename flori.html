@@ -1088,17 +1088,17 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
-  // Cleanup: Shopify orders with a past dueDate that was set from createdAt (old bug).
-  // We cannot tell which are real delivery dates vs creation-date artefacts for past orders,
-  // so we clear ALL past dueDates on Shopify orders. Staff can re-sync to get real ones.
-  // This only affects display — the orders themselves are not deleted.
+  // Cleanup: clear ALL past dueDates on Shopify orders (artefact from old createdAt bug).
+  // Save back to localStorage so it sticks across reloads.
   const t0now = today0();
+  let cleaned = false;
   ORDERS.forEach(o => {
     if (o.src === 'shopify' && o.dueDate) {
       const d = new Date(o.dueDate);
-      if (!isNaN(d) && d < t0now) { o.dueDate = null; o.dateObj = null; }
+      if (!isNaN(d) && d < t0now) { o.dueDate = null; o.dateObj = null; cleaned = true; }
     }
   });
+  if (cleaned) saveOrders(); // persist so cleanup doesn't repeat every load
   loadFollowups(); rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
   const ta = document.getElementById('pur-notes'); if (ta) ta.value = notes;
