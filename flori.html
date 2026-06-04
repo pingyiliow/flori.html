@@ -1064,8 +1064,7 @@ async function syncOrders() {
       const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
-      const finalDate = ds || (n.createdAt ? n.createdAt.slice(0,10) : null);
-      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:finalDate, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -1244,8 +1243,10 @@ function renderOrders() {
   let html = '';
   groups.forEach(g => {
     let lbl='–';
-    if (g.d) { if(isPast(g.d)) lbl='⚠ Overdue · '+fd(g.d); else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
-    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
+    if (g.d) { if(isPast(g.d)) lbl='⚠ '+fd(g.d)+' · Overdue'; else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
+    else lbl='📋 No date set';
+    const isGrpLate = g.d && isPast(g.d);
+    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label" style="${isGrpLate?'color:var(--c-red)':''}">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
     html += g.items.map(o=>orderRow(o,true)).join('');
   });
   tb.innerHTML = html;
