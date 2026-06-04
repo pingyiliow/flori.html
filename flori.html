@@ -1025,7 +1025,7 @@ async function syncOrders() {
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{ orders(first:50,query:"fulfillment_status:unfulfilled OR fulfillment_status:partial",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:5){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const data = await shopifyGQL(q);
     const raw  = data.orders.edges.map(e => e.node);
     const manuals = ORDERS.filter(o => o.src === 'manual');
@@ -1302,7 +1302,17 @@ function parseOrderForm() {
   };
 
   // Phone regex — Malaysian & international
-  const PHONE_RE = /(\+?6?0[\s\-]?\d[\d\s\-]{7,14}|\+\d[\d\s\-]{7,14})/;
+  // Phone regex — handles brackets, spaces, dashes, Malaysian & international
+  const PHONE_RE = /(\(?\+?6?0[\s\-]?\d[\d\s\-\)]{7,14}|\(?\+\d[\d\s\-\)]{7,14}|\b0\d[\d\s\-]{7,11})/;
+
+  // Clean name: strip phone match + label prefixes like "HP:" "no:" etc.
+  function extractName(line, phoneStr) {
+    return line
+      .replace(phoneStr, '')
+      .replace(/^\s*(hp|tel|phone|mobile|no\.?|num|number|ph|contact)\s*[:\-]?\s*/i, '')
+      .replace(/^[\s,\-\(\)\.]+|[\s,\-\(\)\.]+$/g, '')
+      .trim();
+  }
 
   // ── parseDate: handles every casual format ──
   const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
@@ -1425,9 +1435,8 @@ function parseOrderForm() {
     for (let i = 0; i < lines.length; i++) {
       const m = lines[i].match(PHONE_RE);
       if (m) {
-        result.senderPhone = m[1].replace(/\s/g,'');
-        // Name is whatever is on the same line after stripping the phone
-        const namePart = lines[i].replace(m[1],'').replace(/^[\s,\-]+|[\s,\-]+$/g,'').trim();
+        result.senderPhone = m[1].trim();
+        const namePart = extractName(lines[i], m[1]);
         if (namePart && namePart.length > 1) result.senderName = namePart;
         usedLines.add(i);
         break;
@@ -1438,10 +1447,10 @@ function parseOrderForm() {
     for (let i = 0; i < lines.length; i++) {
       if (usedLines.has(i)) continue;
       const l = lines[i].toLowerCase();
-      if (/whatsapp|whasapp|wapp/.test(l)) { result.channel = 'whatsapp'; usedLines.add(i); break; }
-      if (/facebook|fb/.test(l))            { result.channel = 'facebook'; usedLines.add(i); break; }
-      if (/instagram|ig/.test(l))           { result.channel = 'instagram'; usedLines.add(i); break; }
-      if (/walk.?in/.test(l))               { result.channel = 'walkin'; usedLines.add(i); break; }
+      if (/whatsapp|whatsap|whasapp|wapp|wa\b|w\.a\b/.test(l))          { result.channel = 'whatsapp'; usedLines.add(i); break; }
+      if (/\bfb\b|facebook|fb\.com/.test(l))                              { result.channel = 'facebook'; usedLines.add(i); break; }
+      if (/instagram|insta\b|ins\b|\big\b|ig\.com/.test(l))              { result.channel = 'instagram'; usedLines.add(i); break; }
+      if (/walk.?in|walkin/.test(l))                                      { result.channel = 'walkin'; usedLines.add(i); break; }
     }
 
     // Payment
