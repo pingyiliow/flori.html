@@ -1067,14 +1067,6 @@ async function syncOrders() {
       return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
-    // Strip past dueDates from Shopify orders — these are likely creation dates not delivery dates
-    const t0sync = today0();
-    ORDERS.forEach(o => {
-      if (o.src === 'shopify' && o.dueDate) {
-        const d = new Date(o.dueDate);
-        if (!isNaN(d) && d < t0sync) { o.dueDate = null; }
-      }
-    });
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
@@ -1096,17 +1088,6 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
-  // Cleanup: clear ALL past dueDates on Shopify orders (artefact from old createdAt bug).
-  // Save back to localStorage so it sticks across reloads.
-  const t0now = today0();
-  let cleaned = false;
-  ORDERS.forEach(o => {
-    if (o.src === 'shopify' && o.dueDate) {
-      const d = new Date(o.dueDate);
-      if (!isNaN(d) && d < t0now) { o.dueDate = null; o.dateObj = null; cleaned = true; }
-    }
-  });
-  if (cleaned) saveOrders(); // persist so cleanup doesn't repeat every load
   loadFollowups(); rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
   const ta = document.getElementById('pur-notes'); if (ta) ta.value = notes;
@@ -1276,6 +1257,8 @@ function renderOrders() {
   list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
   let html = '';
   groups.forEach(g => {
+    // In 'all' view, skip any past-date groups entirely
+    if (orderFilter === 'all' && g.d && isPast(g.d)) return;
     let lbl='–';
     if (g.d) { if(isPast(g.d)) lbl='⚠ '+fd(g.d)+' · Overdue'; else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
     else lbl='📋 No date set';
