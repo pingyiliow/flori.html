@@ -1088,6 +1088,16 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
+  // One-time cleanup: Shopify orders that had dueDate set from createdAt (a past bug)
+  // will have dueDate as a plain YYYY-MM-DD that's months old. Strip them so they
+  // show as undated instead of flooding the Overdue list.
+  const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - 1); // older than 1 month = likely stale
+  ORDERS.forEach(o => {
+    if (o.src === 'shopify' && o.dueDate) {
+      const d = new Date(o.dueDate);
+      if (!isNaN(d) && d < cutoff) { o.dueDate = null; o.dateObj = null; }
+    }
+  });
   loadFollowups(); rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
   const ta = document.getElementById('pur-notes'); if (ta) ta.value = notes;
@@ -1097,7 +1107,18 @@ function loadData() {
   if (tok) { const el = document.getElementById('cfg-tok'); if(el) el.value = tok; }
   if (url) setPill(url);
 }
-function rehydrateOrders() { ORDERS.forEach(o => { o.dateObj = o.dueDate ? pd(o.dueDate) : null; }); }
+function rehydrateOrders() {
+  const now = today0();
+  ORDERS.forEach(o => {
+    if (!o.dueDate) { o.dateObj = null; return; }
+    const d = pd(o.dueDate);
+    // For Shopify orders: if dateObj is in the past and there's no way to tell if it's
+    // a real delivery date vs a creation-date artefact, we trust it as-is.
+    // But if it parses to null, clear dueDate too.
+    o.dateObj = d;
+    if (!d) o.dueDate = null;
+  });
+}
 
 /* ─── Rendering ──────────────────────────────────────────────── */
 let orderFilter = 'all', typeFilter = 'all';
@@ -1108,8 +1129,8 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
-  // Default 'all' view: hide orders older than 2 days (keep today, future, and last 2 days overdue)
-  if (orderFilter === 'all')     list = list.filter(o => !o.dateObj || o.dateObj >= twoDaysAgo);
+  // Default 'all' view: show today, future, and undated only — overdue lives in Overdue tab
+  if (orderFilter === 'all')     list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
   if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
   if (calFilter) {
