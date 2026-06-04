@@ -1064,7 +1064,8 @@ async function syncOrders() {
       const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
-      return { id:n.id, name:n.name, src:'shopify', customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      const isFulfilled = n.fulfillmentStatus === 'fulfilled';
+      return { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -1119,8 +1120,13 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
+  // All view: exclude fulfilled Shopify orders, exclude past dates
+  if (orderFilter === 'all') {
+    list = list.filter(o => !o.fulfilled);           // hide fulfilled
+    list = list.filter(o => !o.dateObj || o.dateObj >= t0); // hide past
+  }
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  if (orderFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.ready);
+  if (orderFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
   if (calFilter) {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
@@ -1234,7 +1240,7 @@ function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrde
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayO  = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  const activeO = ORDERS.filter(o => !o.dateObj || o.dateObj >= t0); // today + future + undated only
+  const activeO = ORDERS.filter(o => !o.fulfilled && (!o.dateObj || o.dateObj >= t0)); // unfulfilled, today+future+undated
   document.getElementById('s-total').textContent = activeO.length;
   document.getElementById('s-today').textContent = todayO.length;
   document.getElementById('s-pu').textContent    = todayO.filter(o=>o.type==='pickup').length;
