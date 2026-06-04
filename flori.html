@@ -560,7 +560,7 @@ img{display:block;max-width:100%}
         <div class="filters" id="filters">
           <button class="f-btn on" data-f="all">All</button>
           <button class="f-btn" data-f="today">Today</button>
-          <button class="f-btn" data-f="overdue">Overdue</button>
+          
         </div>
         <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
           <button class="f-btn on" data-ft="all" id="ft-all">All</button>
@@ -1119,10 +1119,9 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
-  // All view: today, future, undated only. Overdue tab handles past.
-  if (orderFilter === 'all')     list = list.filter(o => !o.dateObj || o.dateObj >= t0);
+  // Never show past orders in Daily Orders list
+  list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  if (orderFilter === 'overdue') list = list.filter(o => isPast(o.dateObj));
   if (calFilter) {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
@@ -1203,7 +1202,7 @@ function itemsCell(o) {
 function tagRow(o) {
   const zh = LANG==='zh';
   let h = o.type==='pickup' ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>` : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
-  if (isPast(o.dateObj)) h += ` <span class="tag tag-late">${zh?'逾期':'Overdue'}</span>`;
+  
   if (o.ready)           h += ` <span class="tag tag-ready">${zh?'已准备':'Ready'}</span>`;
   if (o.src==='manual')  h += ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>`;
   return h;
