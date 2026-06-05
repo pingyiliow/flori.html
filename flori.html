@@ -922,6 +922,15 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <div class="ff"><label class="ff-l">Follow-up Status</label>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
+          <div class="ff" style="grid-column:1/-1">
+            <label class="ff-l">Photo (Optional)</label>
+            <div class="photo-zone" id="fu-photo-zone" style="height:80px">
+              <div class="photo-zone-icon" style="font-size:18px">📷</div>
+              <div class="photo-zone-lbl">Tap to upload order photo</div>
+              <input type="file" accept="image/*" onchange="handleFUPhoto(this)">
+            </div>
+            <input type="hidden" id="fu-photo-b64">
+          </div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Products / Order Items</label><textarea id="fu-items" style="min-height:60px" placeholder="e.g. Sweet Bow Cake 6inch · RM218&#10;Delivery Fee · RM30"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Card Message</label><textarea id="fu-card-msg" style="min-height:60px" placeholder="Card message to be written…"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Remarks</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Special requests, allergies, delivery instructions…"></textarea></div>
@@ -1067,6 +1076,9 @@ async function syncOrders() {
       const isFulfilled = n.fulfillmentStatus === 'fulfilled';
       return { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
     });
+    // Preserve ready state from previous sync
+    const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>o.id));
+    shopify.forEach(o => { if(prevReady.has(o.id)) o.ready = true; });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
@@ -1120,10 +1132,9 @@ function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
   let list = ORDERS;
-  // All view: exclude fulfilled Shopify orders, exclude past dates
+  // All view: show all today+future+undated regardless of fulfillment; hide past
   if (orderFilter === 'all') {
-    list = list.filter(o => !o.fulfilled);           // hide fulfilled
-    list = list.filter(o => !o.dateObj || o.dateObj >= t0); // hide past
+    list = list.filter(o => !o.dateObj || o.dateObj >= t0); // hide past only
   }
   if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
   if (orderFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
@@ -1138,13 +1149,20 @@ function filteredOrders() {
 
 function sortedOrders(list) {
   return [...list].sort((a,b) => {
+    // Fulfilled goes to bottom
+    if (a.fulfilled && !b.fulfilled) return 1;
+    if (!a.fulfilled && b.fulfilled) return -1;
+    // Past goes to bottom (within unfulfilled)
     const la = isPast(a.dateObj), lb = isPast(b.dateObj);
-    // Past (overdue) goes to bottom
     if (la && !lb) return 1; if (!la && lb) return -1;
-    // Undated goes after dated future
+    // Undated after dated
     if (!a.dateObj && !b.dateObj) return 0;
     if (!a.dateObj) return 1; if (!b.dateObj) return -1;
-    return a.dateObj - b.dateObj;
+    // Same date — sort by time
+    const ta = a.dueTime||'', tb = b.dueTime||'';
+    if (ta && !tb) return -1; if (!ta && tb) return 1;
+    if (ta && tb) return ta.localeCompare(tb);
+    return 0;
   });
 }
 
@@ -1231,8 +1249,8 @@ function orderRow(o, showDate=true) {
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  const readyCls = o.ready ? 'opacity:.4;' : '';
-  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer;${readyCls}"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  const rowStyle = o.fulfilled ? 'opacity:.45;background:#f5f0ee;' : o.ready ? 'opacity:.4;' : '';
+  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer;${rowStyle}"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1316,7 +1334,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-items','fu-card-msg','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-amount','fu-raw-paste'].forEach(id=>{
+   'fu-notes','fu-items','fu-card-msg','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-amount','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -1324,6 +1342,19 @@ function _fuClearFields() {
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
   const fu = document.getElementById('fu-fulfil'); if(fu) fu.value='delivery';
   const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
+  const fz = document.getElementById('fu-photo-zone'); if(fz) fz.innerHTML='<div class="photo-zone-icon" style="font-size:18px">📷</div><div class="photo-zone-lbl">Tap to upload order photo</div><input type="file" accept="image/*" onchange="handleFUPhoto(this)">';
+}
+
+function handleFUPhoto(input) {
+  const file = input.files[0]; if(!file) return;
+  if(file.size > 3*1024*1024){toast('Photo too large — max 3MB');return;}
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('fu-photo-b64').value = e.target.result;
+    const zone = document.getElementById('fu-photo-zone');
+    if(zone) zone.innerHTML = `<img src="${e.target.result}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handleFUPhoto(this)">`;
+  };
+  reader.readAsDataURL(file);
 }
 
 function openAddFollowup() {
@@ -1657,6 +1688,8 @@ function editFollowup(id) {
   const fcEl = document.getElementById('fu-card-msg'); if(fcEl) fcEl.value = f.cardMsg||'';
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   document.getElementById('fu-notes').value = f.notes || '';
+  const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
+  const fz = document.getElementById('fu-photo-zone'); if(fz && f.photo) fz.innerHTML = `<img src="${f.photo}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handleFUPhoto(this)">`;
   fuSwitchTab('manual');
   openModal('m-followup');
 }
@@ -1668,6 +1701,7 @@ function saveFollowup() {
   const stEl = document.getElementById('fu-status');
   const entry = {
     id: editId||('fu-'+Date.now()), name,
+    photo: document.getElementById('fu-photo-b64')?.value||'',
     contact:    document.getElementById('fu-contact').value.trim(),
     email:      document.getElementById('fu-email')?.value.trim()||'',
     recipName:  document.getElementById('fu-recip-name')?.value.trim()||'',
@@ -1846,6 +1880,7 @@ function openFUDP(id) {
   // Card message
   if(f.cardMsg) html += `<div><div class="fu-sec-ttl">Card Message</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;font-style:italic;background:var(--c-burg-lt);padding:10px 12px;border-radius:var(--r);border-left:3px solid var(--c-burg)">${esc(f.cardMsg)}</div></div>`;
   // Remarks
+  if(f.photo) html += `<div><div class="fu-sec-ttl">Photo</div><img src="${f.photo}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
   if(f.remarks) html += `<div><div class="fu-sec-ttl">Remarks</div><div style="font-size:12px;line-height:1.6;color:var(--c-muted);white-space:pre-wrap">${esc(f.remarks)}</div></div>`;
   // Shopify button + Edit/Delete
   const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
@@ -2092,9 +2127,12 @@ function saveOrder() {
   const editId  = document.getElementById('o-edit-id').value;
   const addrVal = document.getElementById('o-addr')?.value.trim() || '';
   const firstImg = lineItems.find(i=>i.image)?.image || null;
+  const prevOrder = editId ? ORDERS.find(x=>x.id===editId) : null;
   const entry = {
-    id: editId || ('manual-'+Date.now()), src:'manual',
-    name: document.getElementById('o-num').value.trim() || ('#M-'+Date.now().toString().slice(-4)),
+    id: editId || ('manual-'+Date.now()),
+    src: prevOrder?.src || 'manual',
+    fulfilled: prevOrder?.fulfilled || false,
+    name: document.getElementById('o-num').value.trim() || prevOrder?.name || ('#M-'+Date.now().toString().slice(-4)),
     product: lineItems.map(i=>i.title).join(', '),
     customer: cust || 'Guest',
     image: firstImg,
@@ -2102,7 +2140,7 @@ function saveOrder() {
     dueDate: dateVal, dueTime: document.getElementById('o-time').value.trim(),
     dateObj: dateVal ? pd(dateVal) : null,
     type: document.getElementById('o-type').value,
-    ready: editId ? (ORDERS.find(x=>x.id===editId)?.ready || false) : false,
+    ready: prevOrder?.ready || false,
     manualAddr: addrVal || null,
     manualPrice: null
   };
