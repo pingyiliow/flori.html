@@ -1184,7 +1184,7 @@ async function syncOrders() {
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q = `{ orders(first:250,query:"status:open",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt fulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const data = await shopifyGQL(q);
     const raw  = data.orders.edges.map(e => e.node);
     const manuals = ORDERS.filter(o => o.src === 'manual');
@@ -2516,11 +2516,6 @@ function _renderDP(order, localOrder) {
   const addr   = order.shippingAddress;
   const items  = order.lineItems?.edges?.map(e=>e.node) || [];
   const attrs  = order.customAttributes || [];
-  // Show raw custom attributes in detail panel for debugging missing dates
-  if (attrs.length) {
-    const attrRows = attrs.map(a => `<div class="dp-row"><div class="dp-row-lbl" style="font-family:monospace;font-size:10px">${esc(a.key)}</div><div class="dp-row-val" style="font-size:11px">${esc(a.value||'–')}</div></div>`).join('');
-    html += `<div><div class="dp-section-ttl" style="color:var(--c-amber)">⚙ Shopify Custom Attributes</div>${attrRows}</div>`;
-  }
   const getAttr = k => attrs.find(a=>a.key===k)?.value || '';
 
   // Customer phone — from shippingAddress (most reliable for Malaysian shops)
@@ -2533,6 +2528,12 @@ function _renderDP(order, localOrder) {
   const recipe = localOrder.recipe || [];
 
   let html = '';
+
+  // ── Custom attributes (debug — shows what Shopify sent) ──
+  if (attrs.length) {
+    const attrRows = attrs.map(a => `<div class="dp-row"><div class="dp-row-lbl" style="font-family:monospace;font-size:10px">${esc(a.key)}</div><div class="dp-row-val" style="font-size:11px">${esc(a.value||'–')}</div></div>`).join('');
+    html += `<div><div class="dp-section-ttl" style="color:var(--c-amber)">⚙ Custom Attributes</div>${attrRows}</div>`;
+  }
 
   // ── Total price pill in header ──
   const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
