@@ -1284,15 +1284,16 @@ function filteredOrders() {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
   }
-  if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
-  if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
-  // Search filter — order name or customer
+  // Search — bypass ALL filters, search everything
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
-  if (srch) list = list.filter(o =>
+  if (srch) return ORDERS.filter(o =>
     (o.name||'').toLowerCase().includes(srch) ||
     (o.customer||'').toLowerCase().includes(srch) ||
     (o.product||'').toLowerCase().includes(srch)
   );
+
+  if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
+  if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
   return list;
 }
 
@@ -1422,14 +1423,18 @@ function renderHome() {
 }
 
 function renderOrders() {
+  const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   const list = sortedOrders(filteredOrders());
   const tb = document.getElementById('orders-tbody');
-  const allF = filteredOrders();
+  const allF = srch ? ORDERS : filteredOrders();
   const cntPu = document.getElementById('count-pickup');
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
-  if (!list.length) { tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">No orders — sync or add manually</div></div></td></tr>`; return; }
+  if (!list.length) {
+    tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></td></tr>`;
+    return;
+  }
   const groups = [];
   list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
   let html = '';
