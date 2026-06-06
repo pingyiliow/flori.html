@@ -1184,7 +1184,7 @@ async function syncOrders() {
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{ orders(first:250,query:"status:open",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt fulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q = `{ orders(first:250,query:"status:open",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const data = await shopifyGQL(q);
     const raw  = data.orders.edges.map(e => e.node);
     const manuals = ORDERS.filter(o => o.src === 'manual');
@@ -1194,8 +1194,12 @@ async function syncOrders() {
       const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
-      const isFulfilled = n.fulfillmentStatus === 'fulfilled';
-      return { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
+      const mapped = { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      // Debug: log orders with no date found
+      if (!ds) console.log(`[BloomFlow] No date found for ${n.name}`, attrs.map(a=>a.key+':'+a.value).join(' | '));
+      if (n.name === '#122592') console.log(`[BloomFlow] #122592 attrs:`, JSON.stringify(attrs), 'ds:', ds);
+      return mapped;
     });
     // Preserve ready state from previous sync
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>o.id));
