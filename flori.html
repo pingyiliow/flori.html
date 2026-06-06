@@ -440,6 +440,22 @@ img{display:block;max-width:100%}
 .fu-row:last-child{border-bottom:none}
 .fu-row-lbl{font-size:12px;color:var(--c-muted)}
 .fu-row-val{font-size:12px;font-weight:500;text-align:right;max-width:60%}
+
+/* ── Order state badges ──────────────────────────────────────── */
+.state-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:3px;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.state-pending{background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0}
+.state-ready{background:#EDF7ED;color:#2E7D32;border:1px solid #A5D6A7}
+.state-fulfilled{background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be}
+/* ── Row colouring by state ──────────────────────────────────── */
+tr.row-ready td{background:#F5FBF5}
+tr.row-fulfilled td{background:#F7F7F5;opacity:.6}
+tr.row-ready:hover td{background:#EEF8EE !important}
+tr.row-fulfilled:hover td{background:#F2F2F0 !important}
+/* ── Tick button states ──────────────────────────────────────── */
+.tick-btn{width:30px;height:30px;border-radius:var(--r);border:1.5px solid var(--c-border);background:var(--c-surface);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--c-muted);transition:all .15s;flex-shrink:0}
+.tick-btn:hover{border-color:var(--c-burg);color:var(--c-burg)}
+.tick-btn.is-ready{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
+.tick-btn.is-fulfilled{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
@@ -499,10 +515,10 @@ img{display:block;max-width:100%}
       </div>
     </div>
     <div class="stats" style="margin:0 44px">
-      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l">Total Pending</div></div>
-      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l">Due Today</div></div>
-      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Self Collect</div></div>
-      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Delivery</div></div>
+      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l">Total Today</div></div>
+      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l">Pending</div></div>
+      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Ready</div></div>
+      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Fulfilled</div></div>
     </div>
     <div class="pc" style="padding-top:24px">
       <div class="card">
@@ -558,9 +574,12 @@ img{display:block;max-width:100%}
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
         <div class="filters" id="filters">
-          <button class="f-btn on" data-f="all">All</button>
-          <button class="f-btn" data-f="today">Today</button>
+          <button class="f-btn on" data-f="today">Today</button>
+          <button class="f-btn" data-f="pending">Pending</button>
+          <button class="f-btn" data-f="ready">Ready</button>
+          <button class="f-btn" data-f="fulfilled">Fulfilled</button>
           <button class="f-btn" data-f="overdue">Overdue</button>
+          <button class="f-btn" data-f="all">All</button>
         </div>
         <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
           <button class="f-btn on" data-ft="all" id="ft-all">All</button>
@@ -1124,20 +1143,41 @@ function rehydrateOrders() {
 }
 
 /* ─── Rendering ──────────────────────────────────────────────── */
-let orderFilter = 'all', typeFilter = 'all';
+let orderFilter = 'today', typeFilter = 'all';
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 let fuFilter = 'all';
 
+function orderState(o) {
+  if (o.fulfilled) return 'fulfilled';
+  if (o.ready)     return 'ready';
+  return 'pending';
+}
+
 function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
-  const twoDaysAgo = new Date(t0.getTime() - 2*86400000);
+  const thirtyDaysAgo = new Date(t0.getTime() - 30*86400000);
   let list = ORDERS;
-  // All view: show all today+future+undated regardless of fulfillment; hide past
-  if (orderFilter === 'all') {
-    list = list.filter(o => !o.dateObj || o.dateObj >= t0); // hide past only
+
+  if (orderFilter === 'today') {
+    // Today: all three states for today's date + fulfilled today stays
+    list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  } else if (orderFilter === 'pending') {
+    // Pending: today+future unfulfilled not-ready
+    list = list.filter(o => (!o.dateObj || o.dateObj >= t0) && !o.fulfilled && !o.ready);
+  } else if (orderFilter === 'ready') {
+    // Ready: marked ready, not yet fulfilled
+    list = list.filter(o => o.ready && !o.fulfilled);
+  } else if (orderFilter === 'fulfilled') {
+    // Fulfilled: past fulfilled only (last 30 days), not today
+    list = list.filter(o => o.fulfilled && o.dateObj && o.dateObj < t0 && o.dateObj >= thirtyDaysAgo);
+  } else if (orderFilter === 'overdue') {
+    // Overdue: past unfulfilled orders
+    list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
+  } else {
+    // All: everything today+future (no past clutter)
+    list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   }
-  if (orderFilter === 'today')   list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  if (orderFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
+
   if (calFilter) {
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
@@ -1148,21 +1188,17 @@ function filteredOrders() {
 }
 
 function sortedOrders(list) {
+  const stateRank = o => o.fulfilled ? 2 : o.ready ? 1 : 0; // pending=0, ready=1, fulfilled=2
   return [...list].sort((a,b) => {
-    // Fulfilled goes to bottom
-    if (a.fulfilled && !b.fulfilled) return 1;
-    if (!a.fulfilled && b.fulfilled) return -1;
-    // Past goes to bottom (within unfulfilled)
-    const la = isPast(a.dateObj), lb = isPast(b.dateObj);
-    if (la && !lb) return 1; if (!la && lb) return -1;
-    // Undated after dated
+    const ra = stateRank(a), rb = stateRank(b);
+    if (ra !== rb) return ra - rb; // pending → ready → fulfilled
+    // Within same state: sort by time
     if (!a.dateObj && !b.dateObj) return 0;
     if (!a.dateObj) return 1; if (!b.dateObj) return -1;
-    // Same date — sort by time
+    if (a.dateObj - b.dateObj !== 0) return a.dateObj - b.dateObj;
     const ta = a.dueTime||'', tb = b.dueTime||'';
     if (ta && !tb) return -1; if (!ta && tb) return 1;
-    if (ta && tb) return ta.localeCompare(tb);
-    return 0;
+    return ta.localeCompare(tb);
   });
 }
 
@@ -1227,42 +1263,48 @@ function itemsCell(o) {
 
 function tagRow(o) {
   const zh = LANG==='zh';
-  let h = o.type==='pickup' ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>` : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
-  
-  if (o.ready)           h += ` <span class="tag tag-ready">${zh?'已准备':'Ready'}</span>`;
-  if (o.src==='manual')  h += ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>`;
-  return h;
+  const typeTag = o.type==='pickup'
+    ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>`
+    : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
+  let stateTag = '';
+  if (o.fulfilled)      stateTag = `<span class="state-badge state-fulfilled">✓ ${zh?'已完成':'Fulfilled'}</span>`;
+  else if (o.ready)     stateTag = `<span class="state-badge state-ready">● ${zh?'已准备':'Ready'}</span>`;
+  else                  stateTag = `<span class="state-badge state-pending">${zh?'待准备':'Pending'}</span>`;
+  const manualTag = o.src==='manual' ? ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>` : '';
+  return `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">${stateTag}${typeTag}${manualTag}</div>`;
 }
 
 function actionBtns(id) {
   const o = ORDERS.find(x=>x.id===id); if (!o) return '';
-  const hasRecipe = o.recipe && o.recipe.length > 0;
-  return `<div style="display:flex;gap:4px;justify-content:flex-end;align-items:center">
-    <button class="act-btn ${o.ready?'on':''}" onclick="event.stopPropagation();toggleReady('${id}')" title="Mark ready">✓</button>
-    ${hasRecipe?'<span style="width:6px;height:6px;border-radius:50%;background:var(--c-sage);flex-shrink:0;margin-left:3px" title="Has recipe"></span>':''}
-  </div>`;
+  if (o.fulfilled) {
+    return `<button class="tick-btn is-fulfilled" title="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</button>`;
+  }
+  const isReady = o.ready;
+  const title = isReady ? 'Mark as Pending' : 'Mark as Ready';
+  return `<button class="tick-btn ${isReady?'is-ready':''}" onclick="event.stopPropagation();toggleReady('${id}')" title="${title}">✓</button>`;
 }
 
 function orderRow(o, showDate=true) {
-  const isLate = isPast(o.dateObj);
-  const cls = isLate ? ' class="late clickable-row"' : ' class="clickable-row"';
+  const state = orderState(o);
+  const rowCls = `clickable-row row-${state}`;
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  const rowStyle = o.fulfilled ? 'opacity:.45;background:#f5f0ee;' : o.ready ? 'opacity:.4;' : '';
-  return `<tr${cls} onclick="openDP('${o.id}')" style="cursor:pointer;${rowStyle}"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  return `<tr class="${rowCls}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
 
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
-  const todayO  = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
-  const activeO = ORDERS.filter(o => !o.fulfilled && (!o.dateObj || o.dateObj >= t0)); // unfulfilled, today+future+undated
-  document.getElementById('s-total').textContent = activeO.length;
-  document.getElementById('s-today').textContent = todayO.length;
-  document.getElementById('s-pu').textContent    = todayO.filter(o=>o.type==='pickup').length;
-  document.getElementById('s-de').textContent    = todayO.filter(o=>o.type==='delivery').length;
+  const todayO    = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  const pendingT  = todayO.filter(o => !o.fulfilled && !o.ready);
+  const readyT    = todayO.filter(o => !o.fulfilled && o.ready);
+  const fulfilledT= todayO.filter(o => o.fulfilled);
+  document.getElementById('s-total').textContent = todayO.length;
+  document.getElementById('s-today').textContent = pendingT.length;
+  document.getElementById('s-pu').textContent    = readyT.length;
+  document.getElementById('s-de').textContent    = fulfilledT.length;
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
@@ -1284,10 +1326,22 @@ function renderOrders() {
   let html = '';
   groups.forEach(g => {
     let lbl='–';
-    if (g.d) { if(isPast(g.d)) lbl='⚠ '+fd(g.d)+' · Overdue'; else if(isToday(g.d)) lbl='● Today · '+fd(g.d); else lbl=fd(g.d); }
-    else lbl='📋 No date set';
+    if (g.d) {
+      if (isPast(g.d)) lbl = '⚠ ' + fd(g.d) + ' · Overdue';
+      else if (isToday(g.d)) lbl = '● Today · ' + fd(g.d);
+      else lbl = fd(g.d);
+    } else { lbl = '📋 No date set'; }
     const isGrpLate = g.d && isPast(g.d);
-    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label" style="${isGrpLate?'color:var(--c-red)':''}">${lbl} <span style="color:var(--c-border2);font-style:italic;font-family:var(--f-head)">${g.items.length}</span></div></td></tr>`;
+    // Group separator with pending/ready/fulfilled counts
+    const gPending   = g.items.filter(o=>!o.fulfilled&&!o.ready).length;
+    const gReady     = g.items.filter(o=>!o.fulfilled&&o.ready).length;
+    const gFulfilled = g.items.filter(o=>o.fulfilled).length;
+    const statsSummary = [
+      gPending   ? `<span style="color:var(--c-blush)">${gPending} pending</span>` : '',
+      gReady     ? `<span style="color:#2E7D32">${gReady} ready</span>` : '',
+      gFulfilled ? `<span style="color:var(--c-sage)">${gFulfilled} fulfilled</span>` : '',
+    ].filter(Boolean).join(' · ');
+    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label" style="${isGrpLate?'color:var(--c-red)':''}">${lbl}&ensp;<span style="font-size:10px;font-weight:400;font-family:var(--f-body)">${statsSummary}</span></div></td></tr>`;
     html += g.items.map(o=>orderRow(o,true)).join('');
   });
   tb.innerHTML = html;
@@ -2187,7 +2241,14 @@ let _toastT;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('on'),2400);}
 function setPill(msg){const el=document.getElementById('hdr-pill');if(el)el.textContent=msg;}
 function setSBFoot(msg){const el=document.getElementById('sb-foot-txt');if(el)el.textContent=msg;}
-function updateBadge(){const el=document.getElementById('nb-orders');if(el)el.textContent=ORDERS.length;}
+function updateBadge(){
+  const el=document.getElementById('nb-orders');
+  if(el){
+    const t0=today0(),t1=new Date(t0.getTime()+86400000);
+    const todayPending=ORDERS.filter(o=>o.dateObj&&o.dateObj>=t0&&o.dateObj<t1&&!o.fulfilled).length;
+    el.textContent=todayPending||ORDERS.filter(o=>!o.fulfilled&&(!o.dateObj||o.dateObj>=t0)).length;
+  }
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function exportData(){const d={orders:ORDERS.map(o=>({...o,dateObj:undefined})),inventory:INVENTORY,purchases:PURCHASES,notes:localStorage.getItem('flori-pur-notes')||'',at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='bloomflow-'+tdi(new Date())+'.json';a.click();toast('✓ Data exported');}
