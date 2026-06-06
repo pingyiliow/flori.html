@@ -1535,17 +1535,7 @@ function _fuClearFields() {
   const fz = document.getElementById('fu-photo-zone'); if(fz) fz.innerHTML='<div class="photo-zone-icon" style="font-size:18px">📷</div><div class="photo-zone-lbl">Tap to upload order photo</div><input type="file" accept="image/*" onchange="handleFUPhoto(this)">';
 }
 
-function handleFUPhoto(input) {
-  const file = input.files[0]; if(!file) return;
-  if(file.size > 3*1024*1024){toast('Photo too large — max 3MB');return;}
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('fu-photo-b64').value = e.target.result;
-    const zone = document.getElementById('fu-photo-zone');
-    if(zone) zone.innerHTML = `<img src="${e.target.result}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handleFUPhoto(this)">`;
-  };
-  reader.readAsDataURL(file);
-}
+
 
 function openAddFollowup() {
   document.getElementById('fu-edit-id').value = '';
@@ -2234,12 +2224,57 @@ function openAddOrder(){
 function openAddInv()  {openModal('m-inv');}
 function openAddPur()  {openModal('m-pur');}
 
-function handlePhotoUpload(input,zoneId,hiddenId){
-  const file=input.files[0]; if(!file) return;
-  if(file.size>3*1024*1024){toast('Photo too large — max 3MB');return;}
-  const reader=new FileReader();
-  reader.onload=e=>{const b64=e.target.result;const zone=document.getElementById(zoneId);if(zone)zone.innerHTML=`<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;const hidden=document.getElementById(hiddenId);if(hidden)hidden.value=b64;};
+/* ─── Photo compression ──────────────────────────────────────── */
+function compressPhoto(file, maxPx, quality, callback) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width  * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = e.target.result;
+  };
   reader.readAsDataURL(file);
+}
+
+function handlePhotoUpload(input, zoneId, hiddenId) {
+  const file = input.files[0]; if (!file) return;
+  toast('Compressing…');
+  compressPhoto(file, 1200, 0.82, b64 => {
+    const zone = document.getElementById(zoneId);
+    if (zone) zone.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
+    const hidden = document.getElementById(hiddenId);
+    if (hidden) hidden.value = b64;
+    toast('✓ Photo added');
+  });
+}
+
+function handleFUPhoto(input) {
+  const file = input.files[0]; if (!file) return;
+  toast('Compressing…');
+  compressPhoto(file, 1200, 0.82, b64 => {
+    document.getElementById('fu-photo-b64').value = b64;
+    const zone = document.getElementById('fu-photo-zone');
+    if (zone) zone.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handleFUPhoto(this)">`;
+    toast('✓ Photo added');
+  });
+}
+
+function handleProductPhoto(input, idx) {
+  const file = input.files[0]; if (!file) return;
+  toast('Compressing…');
+  compressPhoto(file, 1200, 0.82, b64 => {
+    document.getElementById('opimg-b64-'+idx).value = b64;
+    const thumb = document.getElementById('opthumb-'+idx);
+    if (thumb) thumb.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>`;
+    toast('✓ Photo added');
+  });
 }
 
 /* ─── Multi-product row system ────────────────────────────────── */
@@ -2280,18 +2315,7 @@ function removeProductRow(idx) {
   if (row) row.remove();
 }
 
-function handleProductPhoto(input, idx) {
-  const file = input.files[0]; if(!file) return;
-  if(file.size > 3*1024*1024){toast('Photo too large — max 3MB');return;}
-  const reader = new FileReader();
-  reader.onload = e => {
-    const b64 = e.target.result;
-    document.getElementById('opimg-b64-'+idx).value = b64;
-    const thumb = document.getElementById('opthumb-'+idx);
-    if (thumb) thumb.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>`;
-  };
-  reader.readAsDataURL(file);
-}
+
 
 function _collectProductRows() {
   const rows = document.querySelectorAll('#o-products-list .o-prod-row');
