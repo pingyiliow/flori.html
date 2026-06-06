@@ -547,6 +547,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
           <div class="page-title">Daily Orders</div>
         </div>
         <div class="btn-row">
+          <input id="order-search" type="text" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
           <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
         </div>
       </div>
@@ -1006,43 +1007,62 @@ function setLang(l) {
 function toggleLang() { setLang(LANG === 'en' ? 'zh' : 'en'); }
 
 /* ─── Date helpers ──────────────────────────────────────────── */
-const MN = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+const MN = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11,
+  january:0,february:1,march:2,april:3,june:5,july:6,august:7,september:8,october:9,november:10,december:11,
+  mei:4,mac:2,ogos:7,dis:11,okt:9,julai:6,januari:0,februari:1};
+
 function pd(s) {
   if (!s) return null;
   s = String(s).trim();
-  let m;
-  // ISO 8601 with time: 2026-06-03T00:00:00Z or 2026-06-03T14:00:00+08:00
-  // Strip time part and parse date only (avoid timezone shift making it wrong day)
+  let m, d, mo, y;
+  const yr = new Date().getFullYear();
+
+  // ISO with time: 2026-06-06T... → strip time, treat as local date
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s]/);
   if (m) return new Date(+m[1], +m[2]-1, +m[3]);
-  // YYYY-MM-DD (no time)
+
+  // YYYY-MM-DD
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return new Date(+m[1], +m[2]-1, +m[3]);
-  // DD/MM/YYYY or D/M/YYYY
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  // D/M/YYYY or DD/MM/YYYY or D-M-YYYY or DD-MM-YYYY or D.M.YYYY
+  m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
   if (m) return new Date(+m[3], +m[2]-1, +m[1]);
-  // DD-MM-YYYY
-  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-  if (m) return new Date(+m[3], +m[2]-1, +m[1]);
-  // DD/MM/YY (2-digit year)
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+
+  // D/M/YY
+  m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2})$/);
   if (m) return new Date(2000 + +m[3], +m[2]-1, +m[1]);
-  // DD/MM or D/M (no year — current year)
-  m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if (m) { const t = new Date(); return new Date(t.getFullYear(), +m[2]-1, +m[1]); }
-  // "5 Jun 2026" or "Mon, 5 Jun 2026"
-  m = s.match(/(?:\w+,?\s*)?(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})/);
-  if (m) return new Date(+m[3], MN[m[2].toLowerCase().slice(0,3)] ?? 0, +m[1]);
-  // "5 Jun" no year
-  m = s.match(/^(\d{1,2})\s+([A-Za-z]{3,})$/);
-  if (m && MN[m[2].toLowerCase().slice(0,3)] !== undefined) {
-    const t = new Date(); return new Date(t.getFullYear(), MN[m[2].toLowerCase().slice(0,3)], +m[1]);
+
+  // D/M (no year)
+  m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})$/);
+  if (m) return new Date(yr, +m[2]-1, +m[1]);
+
+  // "Sat, 6 Jun 2026" or "Mon 6 Jun 2026" or "6 Jun 2026" or "06 Jun 2026"
+  m = s.match(/(?:[A-Za-z]+,?\s+)?(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (m) {
+    const mn = MN[m[2].toLowerCase()] ?? MN[m[2].toLowerCase().slice(0,3)];
+    if (mn !== undefined) return new Date(+m[3], mn, +m[1]);
   }
-  // "June 5, 2026" or "5 June, 2026"
+
+  // "Jun 6, 2026" or "June 6 2026"
   m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
-  if (m && MN[m[1].toLowerCase().slice(0,3)] !== undefined) return new Date(+m[3], MN[m[1].toLowerCase().slice(0,3)], +m[2]);
-  m = s.match(/^(\d{1,2})\s+([A-Za-z]+),?\s+(\d{4})$/);
-  if (m && MN[m[2].toLowerCase().slice(0,3)] !== undefined) return new Date(+m[3], MN[m[2].toLowerCase().slice(0,3)], +m[1]);
+  if (m) {
+    const mn = MN[m[1].toLowerCase()] ?? MN[m[1].toLowerCase().slice(0,3)];
+    if (mn !== undefined) return new Date(+m[3], mn, +m[2]);
+  }
+
+  // "6 Jun" (no year)
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)$/);
+  if (m) {
+    const mn = MN[m[2].toLowerCase()] ?? MN[m[2].toLowerCase().slice(0,3)];
+    if (mn !== undefined) return new Date(yr, mn, +m[1]);
+  }
+
+  // "6-6-2026" → already caught above by D-M-YYYY
+  // "2026/06/06" → YYYY/MM/DD
+  m = s.match(/^(\d{4})\/(\d{2})\/(\d{2})$/);
+  if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+
   return null;
 }
 function fd(d) { if (!d) return '–'; return d.toLocaleDateString('en-MY', {weekday:'short', day:'numeric', month:'short'}); }
@@ -1052,10 +1072,92 @@ function isToday(d) { if (!d) return false; const t = today0(); return d >= t &&
 function isPast(d) { return d && d < today0(); }
 
 /* ─── Shopify API ────────────────────────────────────────────── */
-function gAttr(attrs, key) { const f = attrs.find(a => a.key === key || a.key.toLowerCase() === key.toLowerCase()); return f ? f.value : ''; }
-function getType(attrs) { const t = (gAttr(attrs,'Order Fulfillment Type') || gAttr(attrs,'Type Of Order') || '').toLowerCase(); return (t.includes('pick') || t.includes('collect')) ? 'pickup' : 'delivery'; }
-function getDueDate(attrs) { return gAttr(attrs,'Order Due Date') || gAttr(attrs,'Delivery Date') || gAttr(attrs,'Pickup Date') || gAttr(attrs,'Due Date') || gAttr(attrs,'Date') || gAttr(attrs,'Tarikh Penghantaran') || gAttr(attrs,'Delivery'); }
-function getDueTime(attrs) { return gAttr(attrs,'Order Due Time') || gAttr(attrs,'Delivery Time') || gAttr(attrs,'Pickup Time'); }
+// ── gAttr: exact key match (case-insensitive) ──
+function gAttr(attrs, key) {
+  const f = attrs.find(a => a.key.toLowerCase() === key.toLowerCase());
+  return f ? (f.value||'').trim() : '';
+}
+
+// ── gAttrFuzzy: scan all attributes whose KEY contains any of the given keywords ──
+function gAttrFuzzy(attrs, ...keywords) {
+  for (const kw of keywords) {
+    const f = attrs.find(a => a.key.toLowerCase().includes(kw.toLowerCase()) && (a.value||'').trim());
+    if (f) return (f.value||'').trim();
+  }
+  return '';
+}
+
+// ── getDueDate: try known keys first, then scan all attrs for anything date-like ──
+function getDueDate(attrs) {
+  // 1. Known exact/partial key names
+  const byKey = gAttr(attrs,'Order Due Date')        ||
+                gAttr(attrs,'Translated Order Due Date') ||
+                gAttr(attrs,'Delivery Date')          ||
+                gAttr(attrs,'Pickup Date')            ||
+                gAttr(attrs,'Due Date')               ||
+                gAttr(attrs,'Tarikh Penghantaran')    ||
+                gAttrFuzzy(attrs,'due date','delivery date','pickup date','tarikh');
+  if (byKey) return byKey;
+  // 2. Scan ALL attribute values for anything that looks like a date
+  const DATE_RE = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})|(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})|(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4})|(?:(?:mon|tue|wed|thu|fri|sat|sun),?\s*)?\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}/i;
+  for (const a of attrs) {
+    const v = (a.value||'').trim();
+    if (v && DATE_RE.test(v) && !a.key.toLowerCase().includes('time') && !a.key.toLowerCase().includes('timestamp')) {
+      return v;
+    }
+  }
+  return '';
+}
+
+// ── getDueTime: try known keys, then scan for time-like values ──
+function getDueTime(attrs) {
+  const byKey = gAttr(attrs,'Order Due Time')        ||
+                gAttr(attrs,'Translated Order Due Time') ||
+                gAttr(attrs,'Delivery Time')          ||
+                gAttr(attrs,'Pickup Time')            ||
+                gAttr(attrs,'Time Slot')              ||
+                gAttrFuzzy(attrs,'due time','delivery time','pickup time','time slot');
+  if (byKey) return byKey;
+  // Scan values for time patterns: "2pm", "14:00", "2:30pm", "9am-12pm"
+  const TIME_RE = /\d{1,2}(?::\d{2})?\s*(?:am|pm)/i;
+  for (const a of attrs) {
+    const v = (a.value||'').trim();
+    if (v && TIME_RE.test(v) && !a.key.toLowerCase().includes('date') && !a.key.toLowerCase().includes('timestamp')) {
+      return v;
+    }
+  }
+  return '';
+}
+
+// ── getType: known keys + scan all values for pickup/delivery keywords ──
+function getType(attrs) {
+  const PICKUP_RE = /\b(pick\s*up|pickup|self\s*collect|self\s*pick|collect)\b/i;
+  const DELIVERY_RE = /\b(delivery|deliver|local\s*delivery|send|courier)\b/i;
+  // Try known keys first
+  const knownKeys = ['Order Fulfillment Type','Type Of Order','Fulfillment Type','Fulfillment','Jenis Pesanan'];
+  for (const key of knownKeys) {
+    const v = gAttr(attrs, key);
+    if (v) {
+      if (PICKUP_RE.test(v)) return 'pickup';
+      if (DELIVERY_RE.test(v)) return 'delivery';
+    }
+  }
+  // Scan all attr keys that hint at type
+  for (const a of attrs) {
+    const k = a.key.toLowerCase();
+    const v = (a.value||'').trim();
+    if ((k.includes('fulfil') || k.includes('type') || k.includes('jenis')) && v) {
+      if (PICKUP_RE.test(v)) return 'pickup';
+      if (DELIVERY_RE.test(v)) return 'delivery';
+    }
+  }
+  // Last resort: scan ALL values
+  for (const a of attrs) {
+    const v = (a.value||'').trim();
+    if (PICKUP_RE.test(v)) return 'pickup';
+  }
+  return 'delivery'; // default
+}
 
 async function shopifyGQL(query) {
   const url   = localStorage.getItem('flori-url') || '';
@@ -1184,6 +1286,13 @@ function filteredOrders() {
   }
   if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
   if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
+  // Search filter — order name or customer
+  const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
+  if (srch) list = list.filter(o =>
+    (o.name||'').toLowerCase().includes(srch) ||
+    (o.customer||'').toLowerCase().includes(srch) ||
+    (o.product||'').toLowerCase().includes(srch)
+  );
   return list;
 }
 
@@ -2402,6 +2511,11 @@ function _renderDP(order, localOrder) {
   const addr   = order.shippingAddress;
   const items  = order.lineItems?.edges?.map(e=>e.node) || [];
   const attrs  = order.customAttributes || [];
+  // Show raw custom attributes in detail panel for debugging missing dates
+  if (attrs.length) {
+    const attrRows = attrs.map(a => `<div class="dp-row"><div class="dp-row-lbl" style="font-family:monospace;font-size:10px">${esc(a.key)}</div><div class="dp-row-val" style="font-size:11px">${esc(a.value||'–')}</div></div>`).join('');
+    html += `<div><div class="dp-section-ttl" style="color:var(--c-amber)">⚙ Shopify Custom Attributes</div>${attrRows}</div>`;
+  }
   const getAttr = k => attrs.find(a=>a.key===k)?.value || '';
 
   // Customer phone — from shippingAddress (most reliable for Malaysian shops)
