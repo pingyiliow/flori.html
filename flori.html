@@ -463,6 +463,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .tick-btn.is-fulfilled{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -749,6 +750,26 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       </div>
     </div>
     <div>
+      <div class="sp-section-ttl">Cloud Sync (Supabase)</div>
+      <div id="sb-connected-ui" style="display:none;flex-direction:column;gap:8px">
+        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">☁</span>
+          <div><div style="font-weight:600">Cloud sync active</div><div id="sb-url-label" style="font-size:10px;opacity:.7"></div></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="loadFromSupabase();toast('Syncing…')" style="flex:1">↓ Pull from cloud</button>
+          <button class="btn btn-ghost btn-sm" onclick="disconnectSB()" style="color:var(--c-red)">Disconnect</button>
+        </div>
+      </div>
+      <div id="sb-setup-ui" style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:11px;color:var(--c-muted);line-height:1.5">Connect Supabase so Ready/Pending state syncs across all devices.</div>
+        <div class="ff"><label class="ff-l">Supabase Project URL</label><input id="cfg-sb-url" type="text" placeholder="https://xxxx.supabase.co" style="font-size:12px;font-family:monospace"></div>
+        <div class="ff"><label class="ff-l">Anon Public Key</label><input id="cfg-sb-anon" type="password" placeholder="eyJ…"></div>
+        <button class="btn btn-primary btn-sm" onclick="saveSBConfig()">Connect Supabase</button>
+        <div id="sb-status" class="sp-status"></div>
+      </div>
+    </div>
+    <div>
       <div class="sp-section-ttl">Language</div>
       <div class="btn-row">
         <button class="btn btn-ghost" onclick="setLang('en')">English</button>
@@ -997,6 +1018,38 @@ Address: 12 Jalan Bunga, Penang"></textarea>
 <div id="toast" class="toast"></div>
 
 <script>
+/* ─── Supabase config ────────────────────────────────────────── */
+let sb = null;
+
+function initSupabase() {
+  const url  = localStorage.getItem('bf-sb-url')  || '';
+  const anon = localStorage.getItem('bf-sb-anon') || '';
+  if (!url || !anon) return false;
+  try { sb = supabase.createClient(url, anon); return true; }
+  catch(e) { console.error('Supabase init failed:', e); return false; }
+}
+
+function hasSB() { return !!sb; }
+
+async function sbGet(table) {
+  if (!hasSB()) return null;
+  const { data, error } = await sb.from(table).select('*');
+  if (error) { console.error('sbGet', table, error.message); return null; }
+  return data;
+}
+
+async function sbUpsert(table, rows) {
+  if (!hasSB() || !rows.length) return;
+  const { error } = await sb.from(table).upsert(rows, { onConflict: 'id' });
+  if (error) console.error('sbUpsert', table, error.message);
+}
+
+async function sbDelete(table, id) {
+  if (!hasSB()) return;
+  const { error } = await sb.from(table).delete().eq('id', id);
+  if (error) console.error('sbDelete', table, error.message);
+}
+
 /* ─── Language ──────────────────────────────────────────────── */
 let LANG = localStorage.getItem('flori-lang') || 'en';
 function setLang(l) {
@@ -1231,11 +1284,45 @@ async function syncOrders() {
 
 /* ─── Data stores ────────────────────────────────────────────── */
 let ORDERS=[], INVENTORY=[], PURCHASES=[];
-function saveOrders()    { localStorage.setItem('flori-orders',    JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
-function saveInventory() { localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY)); }
-function savePurchases() { localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES)); }
+function saveOrders() {
+  const clean = ORDERS.map(o => ({...o, dateObj:undefined}));
+  localStorage.setItem('flori-orders', JSON.stringify(clean));
+  if (hasSB()) {
+    const rows = clean.map(o => ({
+      id: o.id, name: o.name, src: o.src||'shopify',
+      customer: o.customer, product: o.product,
+      line_items: o.lineItems||[], image: o.image||null,
+      total: o.total||null, currency: o.currency||'MYR',
+      due_date: o.dueDate||null, due_time: o.dueTime||null,
+      type: o.type||'delivery', fulfilled: o.fulfilled||false,
+      ready: o.ready||false, created_at: o.createdAt||null,
+      manual_addr: o.manualAddr||null, recipe: o.recipe||[],
+      manual_price: o.manualPrice||null
+    }));
+    sbUpsert('orders', rows).catch(console.error);
+  }
+}
+function saveInventory() {
+  localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY));
+  if (hasSB()) {
+    sbUpsert('inventory', INVENTORY.map(i => ({
+      id: i.id, name: i.name, cat: i.cat||'other',
+      qty: i.qty||0, unit: i.unit||'pcs', notes: i.notes||null
+    }))).catch(console.error);
+  }
+}
+function savePurchases() {
+  localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
+  if (hasSB()) {
+    sbUpsert('purchases', PURCHASES.map(p => ({
+      id: p.id, name: p.name, qty: p.qty||null,
+      urg: p.urg||'week', notes: p.notes||null, done: p.done||false
+    }))).catch(console.error);
+  }
+}
 
 function loadData() {
+  // Load from localStorage immediately (fast, works offline)
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
@@ -1247,6 +1334,58 @@ function loadData() {
   if (url) { const el = document.getElementById('cfg-url'); if(el) el.value = url; }
   if (tok) { const el = document.getElementById('cfg-tok'); if(el) el.value = tok; }
   if (url) setPill(url);
+  // Then sync from Supabase in background (gets latest from other devices)
+  if (hasSB()) loadFromSupabase();
+}
+
+async function loadFromSupabase() {
+  try {
+    const [orders, followups, inventory, purchases] = await Promise.all([
+      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases')
+    ]);
+    let changed = false;
+    if (orders && orders.length) {
+      ORDERS = orders.map(o => ({
+        id: o.id, name: o.name, src: o.src||'shopify',
+        customer: o.customer, product: o.product,
+        lineItems: o.line_items||[], image: o.image||null,
+        total: o.total||null, currency: o.currency||'MYR',
+        dueDate: o.due_date||null, dueTime: o.due_time||null,
+        type: o.type||'delivery', fulfilled: o.fulfilled||false,
+        ready: o.ready||false, createdAt: o.created_at||null,
+        manualAddr: o.manual_addr||null, recipe: o.recipe||[],
+        manualPrice: o.manual_price||null, dateObj: null
+      }));
+      localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined}))));
+      rehydrateOrders(); changed = true;
+    }
+    if (followups && followups.length) {
+      FOLLOWUPS = followups.map(f => ({
+        id: f.id, name: f.name, contact: f.contact||'',
+        email: f.email||'', recipName: f.recip_name||'',
+        recipPhone: f.recip_phone||'', channel: f.channel||'whatsapp',
+        fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
+        dueDate: f.due_date||'', amount: f.amount||0,
+        addr: f.addr||'', payment: f.payment||'pending',
+        status: f.status||'pending', items: f.items||'',
+        cardMsg: f.card_msg||'', remarks: f.remarks||'',
+        photo: f.photo||'', ts: f.ts||Date.now()
+      }));
+      localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
+      changed = true;
+    }
+    if (inventory && inventory.length) {
+      INVENTORY = inventory;
+      localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY));
+      changed = true;
+    }
+    if (purchases && purchases.length) {
+      PURCHASES = purchases;
+      localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
+      changed = true;
+    }
+    if (changed) { renderAll(); toast('✓ Synced from cloud'); }
+  } catch(e) { console.error('loadFromSupabase error:', e); }
 }
 function rehydrateOrders() {
   const now = today0();
@@ -1515,7 +1654,23 @@ function renderPurchase() {
 /* ─── Follow-up ──────────────────────────────────────────────── */
 let FOLLOWUPS = [];
 function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
-function saveFollowups() { localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS)); }
+function saveFollowups() {
+  localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
+  if (hasSB()) {
+    const rows = FOLLOWUPS.map(f => ({
+      id: f.id, name: f.name, contact: f.contact||null,
+      email: f.email||null, recip_name: f.recipName||null,
+      recip_phone: f.recipPhone||null, channel: f.channel||'whatsapp',
+      fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
+      due_date: f.dueDate||null, amount: f.amount||null,
+      addr: f.addr||null, payment: f.payment||'pending',
+      status: f.status||'pending', items: f.items||null,
+      card_msg: f.cardMsg||null, remarks: f.remarks||null,
+      photo: f.photo||null, ts: f.ts||Date.now()
+    }));
+    sbUpsert('followups', rows).catch(console.error);
+  }
+}
 
 function fuSwitchTab(tab) {
   const isPaste = tab === 'paste';
@@ -1909,7 +2064,7 @@ function saveFollowup() {
   saveFollowups(); closeModal('m-followup'); toast('✓ Saved'); renderFollowup();
 }
 
-function delFollowup(id) { FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); saveFollowups(); renderFollowup(); toast('Entry removed'); }
+function delFollowup(id) { FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); saveFollowups(); if(hasSB())sbDelete('followups',id); renderFollowup(); toast('Entry removed'); }
 function toggleFUStatus(id) {
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   const cycle = {pending:'ready', ready:'completed', completed:'pending'};
@@ -2165,7 +2320,7 @@ document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('cl
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
 
 /* ─── Settings ───────────────────────────────────────────────── */
-function openSP() { updateConnectedUI(); document.getElementById('sp').classList.add('on'); document.getElementById('sp-ov').classList.add('on'); }
+function openSP() { updateConnectedUI(); updateSBUI(); document.getElementById('sp').classList.add('on'); document.getElementById('sp-ov').classList.add('on'); }
 function closeSP() { document.getElementById('sp').classList.remove('on'); document.getElementById('sp-ov').classList.remove('on'); }
 function updateConnectedUI() {
   const tok=localStorage.getItem('flori-token')||'',url=localStorage.getItem('flori-url')||'';
@@ -2192,6 +2347,43 @@ function disconnectShopify() {
   ['flori-url','flori-token'].forEach(k=>localStorage.removeItem(k));
   updateConnectedUI(); setPill('');
 }
+function updateSBUI() {
+  const url = localStorage.getItem('bf-sb-url') || '';
+  const con = document.getElementById('sb-connected-ui');
+  const setup = document.getElementById('sb-setup-ui');
+  const lbl = document.getElementById('sb-url-label');
+  if (url && hasSB()) {
+    if(con) con.style.display='flex';
+    if(setup) setup.style.display='none';
+    if(lbl) lbl.textContent = url.replace('https://','').split('.')[0]+'.supabase.co';
+  } else {
+    if(con) con.style.display='none';
+    if(setup) setup.style.display='flex';
+  }
+}
+
+function saveSBConfig() {
+  const url  = document.getElementById('cfg-sb-url')?.value.trim();
+  const anon = document.getElementById('cfg-sb-anon')?.value.trim();
+  const st   = document.getElementById('sb-status');
+  if (!url || !url.includes('supabase.co')) { if(st){st.className='sp-status err';st.textContent='Enter valid Supabase URL';} return; }
+  if (!anon || !anon.startsWith('eyJ'))     { if(st){st.className='sp-status err';st.textContent='Enter valid anon key';} return; }
+  localStorage.setItem('bf-sb-url',  url);
+  localStorage.setItem('bf-sb-anon', anon);
+  sb = supabase.createClient(url, anon);
+  updateSBUI();
+  if(st){st.className='sp-status ok';st.textContent='✓ Connected — syncing…';}
+  loadFromSupabase();
+}
+
+function disconnectSB() {
+  if (!confirm('Disconnect cloud sync? Data stays on this device.')) return;
+  localStorage.removeItem('bf-sb-url');
+  localStorage.removeItem('bf-sb-anon');
+  sb = null;
+  updateSBUI();
+}
+
 function setSpStatus(cls,msg){const el=document.getElementById('cfg-st');el.className='sp-status '+cls;el.textContent=msg;setTimeout(()=>el.textContent='',5000);}
 
 /* ─── OAuth callback ─────────────────────────────────────────── */
@@ -2374,7 +2566,7 @@ function savePur(){const name=document.getElementById('p-name').value.trim();if(
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
 function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
-function delOrder(id){if(!confirm('Remove this order?'))return;ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();renderAll();toast('Removed');}
+function delOrder(id){ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();if(hasSB())sbDelete('orders',id);renderAll();toast('Removed');}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
 function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();renderInventory();toast('Removed');}
 function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
@@ -2740,6 +2932,7 @@ function init() {
     return;
   }
   localStorage.setItem('bf-version', currentVer);
+  initSupabase(); // init Supabase before loadData
   handleOAuthCallback(); loadData(); setLang(LANG); renderAll();
   if('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => {
