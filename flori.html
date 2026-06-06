@@ -144,8 +144,12 @@ img{display:block;max-width:100%}
   display:none;background:var(--c-surface);
   border-top:1.5px solid var(--c-border);
   padding-bottom:max(0px,env(safe-area-inset-bottom));
+  position:fixed;bottom:0;left:0;right:0;z-index:300;
 }
-@media(max-width:860px){.mob-nav{display:flex;grid-column:1/-1}}
+@media(max-width:860px){
+  .mob-nav{display:flex}
+  .main{padding-bottom:calc(56px + max(0px,env(safe-area-inset-bottom)))}
+}
 .mob-tab{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:9px 4px;
