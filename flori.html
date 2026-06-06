@@ -1093,10 +1093,12 @@ function getDueDate(attrs) {
   const byKey = gAttr(attrs,'Order Due Date')        ||
                 gAttr(attrs,'Translated Order Due Date') ||
                 gAttr(attrs,'Delivery Date')          ||
+                gAttr(attrs,'Delivery Day')           ||
                 gAttr(attrs,'Pickup Date')            ||
+                gAttr(attrs,'Pickup Day')             ||
                 gAttr(attrs,'Due Date')               ||
                 gAttr(attrs,'Tarikh Penghantaran')    ||
-                gAttrFuzzy(attrs,'due date','delivery date','pickup date','tarikh');
+                gAttrFuzzy(attrs,'due date','delivery date','delivery day','pickup date','pickup day','tarikh');
   if (byKey) return byKey;
   // 2. Scan ALL attribute values for anything that looks like a date
   const DATE_RE = /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})|(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})|(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*\d{4})|(?:(?:mon|tue|wed|thu|fri|sat|sun),?\s*)?\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}/i;
@@ -1131,7 +1133,7 @@ function getDueTime(attrs) {
 
 // ── getType: known keys + scan all values for pickup/delivery keywords ──
 function getType(attrs) {
-  const PICKUP_RE = /\b(pick\s*up|pickup|self\s*collect|self\s*pick|collect)\b/i;
+  const PICKUP_RE = /\b(pick\s*up|pickup|self\s*collect|self\s*pick|collect|store\s*pick|walk\s*in)\b/i;
   const DELIVERY_RE = /\b(delivery|deliver|local\s*delivery|send|courier)\b/i;
   // Try known keys first
   const knownKeys = ['Order Fulfillment Type','Type Of Order','Fulfillment Type','Fulfillment','Jenis Pesanan'];
@@ -1184,9 +1186,18 @@ async function syncOrders() {
   ico.classList.add('spin');
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
-    const q = `{ orders(first:250,query:"status:open",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
-    const data = await shopifyGQL(q);
-    const raw  = data.orders.edges.map(e => e.node);
+    // Query 1: 250 most recent open orders
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    // Query 2: orders created in last 7 days (catches today's orders even if >250 total open)
+    const since = new Date(); since.setDate(since.getDate()-7);
+    const sinceISO = since.toISOString().slice(0,10);
+    const q2 = `{ orders(first:250,query:"created_at:>=${sinceISO}",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
+    // Merge, deduplicate by id
+    const seen = new Set();
+    const raw = [...data1.orders.edges, ...data2.orders.edges]
+      .map(e => e.node)
+      .filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
     const manuals = ORDERS.filter(o => o.src === 'manual');
     const shopify = raw.map(n => {
       const attrs = n.customAttributes || [];
@@ -1195,10 +1206,7 @@ async function syncOrders() {
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
       const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-      const mapped = { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
-      // Debug: log orders with no date found
-      if (!ds) console.log(`[BloomFlow] No date found for ${n.name}`, attrs.map(a=>a.key+':'+a.value).join(' | '));
-      if (n.name === '#122592') console.log(`[BloomFlow] #122592 attrs:`, JSON.stringify(attrs), 'ds:', ds);
+      const mapped = { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
       return mapped;
     });
     // Preserve ready state from previous sync
@@ -1265,8 +1273,13 @@ function filteredOrders() {
   let list = ORDERS;
 
   if (orderFilter === 'today') {
-    // Today: all three states for today's date + fulfilled today stays
-    list = list.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+    // Today: show orders dated today (by dueDate) OR created today (for fulfilled with no dueDate)
+    const todayStr = tdi(t0);
+    list = list.filter(o => {
+      if (o.dateObj && o.dateObj >= t0 && o.dateObj < t1) return true; // has delivery date = today
+      if (o.fulfilled && o.createdAt && o.createdAt.slice(0,10) === todayStr) return true; // fulfilled today
+      return false;
+    });
   } else if (orderFilter === 'pending') {
     // Pending: today+future unfulfilled not-ready
     list = list.filter(o => (!o.dateObj || o.dateObj >= t0) && !o.fulfilled && !o.ready);
@@ -1411,7 +1424,12 @@ function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrde
 
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
-  const todayO    = ORDERS.filter(o => o.dateObj && o.dateObj >= t0 && o.dateObj < t1);
+  const todayStr = tdi(t0);
+  const todayO    = ORDERS.filter(o => {
+    if (o.dateObj && o.dateObj >= t0 && o.dateObj < t1) return true;
+    if (o.fulfilled && o.createdAt && o.createdAt.slice(0,10) === todayStr) return true;
+    return false;
+  });
   const pendingT  = todayO.filter(o => !o.fulfilled && !o.ready);
   const readyT    = todayO.filter(o => !o.fulfilled && o.ready);
   const fulfilledT= todayO.filter(o => o.fulfilled);
