@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="version" content="20260606095010">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -501,7 +502,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     <button class="nav-btn" data-pg="inventory"><span class="nav-icon">◉</span><span>Flower Inventory</span></button>
     <button class="nav-btn" data-pg="purchase"><span class="nav-icon">✦</span><span>Purchase List</span></button>
   </div>
-  <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span></div>
+  <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span><span style="font-size:8px;color:var(--c-dpink);margin-left:auto;opacity:.6">v20260606</span></div>
 </aside>
 
 <!-- ══ MAIN ═══════════════════════════════════════════════════ -->
@@ -2722,7 +2723,33 @@ function _renderDPManual(o) {
   document.getElementById('dp-body').innerHTML = html;
 }
 
-function init() { handleOAuthCallback(); loadData(); setLang(LANG); renderAll(); if('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister())); } }
+function init() {
+  // Version check — force reload if new version deployed
+  const currentVer = document.querySelector('meta[name="version"]')?.content || '';
+  const storedVer  = localStorage.getItem('bf-version') || '';
+  if (storedVer && storedVer !== currentVer) {
+    localStorage.setItem('bf-version', currentVer);
+    // Clear caches then hard reload
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        Promise.all(keys.map(k => caches.delete(k))).then(() => location.reload(true));
+      });
+    } else {
+      location.reload(true);
+    }
+    return;
+  }
+  localStorage.setItem('bf-version', currentVer);
+  handleOAuthCallback(); loadData(); setLang(LANG); renderAll();
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    });
+    if('caches' in window) {
+      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+    }
+  }
+}
 init();
 </script>
 
