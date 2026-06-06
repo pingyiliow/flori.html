@@ -2538,55 +2538,51 @@ function _renderDP(order, localOrder) {
   const addr   = order.shippingAddress;
   const items  = order.lineItems?.edges?.map(e=>e.node) || [];
   const attrs  = order.customAttributes || [];
-  const getAttr = k => attrs.find(a=>a.key===k)?.value || '';
+  const getAttr = k => attrs.find(a=>a.key.toLowerCase()===k.toLowerCase())?.value || '';
 
-  // Customer phone — from shippingAddress (most reliable for Malaysian shops)
   const phone = addr?.phone || cust.phone || '';
   const email = cust.email || '';
-  const size  = getAttr('Bouquet Size') || getAttr('Size') || getAttr('bouquet_size') || '';
   const note  = order.note || '';
-
-  // Recipe
   const recipe = localOrder.recipe || [];
+
+  // Delivery info from attrs
+  const dueDate  = getDueDate(attrs) || localOrder.dueDate || '';
+  const dueTime  = getDueTime(attrs) || localOrder.dueTime || '';
+  const fulfType = localOrder.type === 'pickup' ? 'Self Collect / Pickup' : 'Local Delivery';
 
   let html = '';
 
-  // ── Custom attributes (debug — shows what Shopify sent) ──
-  if (attrs.length) {
-    const attrRows = attrs.map(a => `<div class="dp-row"><div class="dp-row-lbl" style="font-family:monospace;font-size:10px">${esc(a.key)}</div><div class="dp-row-val" style="font-size:11px">${esc(a.value||'–')}</div></div>`).join('');
-    html += `<div><div class="dp-section-ttl" style="color:var(--c-amber)">⚙ Custom Attributes</div>${attrRows}</div>`;
-  }
-
-  // ── Total price pill in header ──
+  // ── Total price in header ──
   const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
   if (totalAmt && parseFloat(totalAmt) > 0) {
-    const sym = (order.currentTotalPriceSet?.shopMoney?.currencyCode||localOrder.currency||'MYR')==='MYR'?'RM':localOrder.currency||'RM';
+    const sym = (order.currentTotalPriceSet?.shopMoney?.currencyCode||localOrder.currency||'MYR')==='MYR'?'RM':'RM';
     document.getElementById('dp-sub').innerHTML += ` · <span style="color:#FFD96A;font-weight:700;font-family:var(--f-head);font-size:15px">${sym} ${parseFloat(totalAmt).toFixed(2)}</span>`;
   }
 
   // ── Customer ──
   html += `<div>
     <div class="dp-section-ttl">Customer</div>
-    <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc((cust.firstName||'')+' '+(cust.lastName||'')).trim()||'Guest'}</div>
-    ${email?`<div style="font-size:11px;color:var(--c-muted);margin-bottom:3px">✉ ${esc(email)}</div>`:''}
-    ${phone?`<div style="margin-top:2px">${waLink(phone)}</div>`:''}
+    <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(((cust.firstName||'')+' '+(cust.lastName||'')).trim())||'Guest'}</div>
+    ${phone ? `<div style="margin-bottom:3px">${waLink(phone)}</div>` : ''}
+    ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
   </div>`;
 
-  // ── Address ──
-  if (addr) {
-    const lines = [addr.address1, addr.address2, [addr.city, addr.province].filter(Boolean).join(', '), [addr.zip, addr.country].filter(Boolean).join(' ')].filter(Boolean);
-    html += `<div>
-      <div class="dp-section-ttl">${localOrder.type==='pickup'?'Pickup Info':'Delivery Address'}</div>
-      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
-    </div>`;
-  }
+  // ── Delivery / Pickup ──
+  html += `<div>
+    <div class="dp-section-ttl">Fulfilment</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="dp-row"><div class="dp-row-lbl">Type</div><div class="dp-row-val">${fulfType}</div></div>
+      ${dueDate ? `<div class="dp-row"><div class="dp-row-lbl">Date</div><div class="dp-row-val" style="font-weight:500;color:var(--c-burg)">${esc(dueDate)}</div></div>` : ''}
+      ${dueTime ? `<div class="dp-row"><div class="dp-row-lbl">Time</div><div class="dp-row-val" style="font-weight:500">${esc(dueTime)}</div></div>` : ''}
+    </div>
+  </div>`;
 
-  // ── Time + Size ──
-  const dueTime = getAttr('Order Due Time') || localOrder.dueTime || '';
-  if (dueTime || size) {
-    html += `<div style="display:flex;gap:16px;flex-wrap:wrap">
-      ${dueTime?`<div><div class="dp-section-ttl">Time</div><div style="font-size:13px;font-weight:500">${esc(dueTime)}</div></div>`:''}
-      ${size?`<div><div class="dp-section-ttl">Bouquet Size</div><div style="font-size:13px;font-weight:500">${esc(size)}</div></div>`:''}
+  // ── Delivery Address (only for delivery) ──
+  if (addr && localOrder.type !== 'pickup') {
+    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
+    if (lines.length) html += `<div>
+      <div class="dp-section-ttl">Delivery Address</div>
+      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
     </div>`;
   }
 
