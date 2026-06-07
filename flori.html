@@ -844,8 +844,11 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
           <label class="ff-l">Designer</label>
           <select id="o-designer">
             <option value="">— Unassigned —</option>
+            <option value="Madeleine">👩 Madeleine</option>
             <option value="Audrey">👩 Audrey</option>
-            <option value="Bryan">👨 Bryan</option>
+            <option value="Amanda">👩 Amanda</option>
+            <option value="Apple">👩 Apple</option>
+            <option value="Fang Ler">👩 Fang Ler</option>
           </select>
         </div>
         <div class="ff">
@@ -2643,6 +2646,10 @@ function saveOrder() {
   const dateVal = document.getElementById('o-date').value;
   const editId  = document.getElementById('o-edit-id').value;
   const addrVal = document.getElementById('o-addr')?.value.trim() || '';
+  const prevOrder2 = editId ? ORDERS.find(x=>x.id===editId) : null;
+  // Use existing date if form field is blank (preserves Shopify date formats)
+  const finalDateVal = dateVal || prevOrder2?.dueDate || null;
+  const finalDateObj = dateVal ? pd(dateVal) : (prevOrder2?.dateObj || null);
   const firstImg = lineItems.find(i=>i.image)?.image || null;
   const prevOrder = editId ? ORDERS.find(x=>x.id===editId) : null;
   const entry = {
@@ -2654,8 +2661,8 @@ function saveOrder() {
     customer: cust || 'Guest',
     image: firstImg,
     lineItems,
-    dueDate: dateVal, dueTime: document.getElementById('o-time').value.trim(),
-    dateObj: dateVal ? pd(dateVal) : null,
+    dueDate: finalDateVal, dueTime: document.getElementById('o-time').value.trim(),
+    dateObj: finalDateObj,
     type: document.getElementById('o-type').value,
     ready: prevOrder?.ready || false,
     manualAddr: addrVal || null,
@@ -2674,6 +2681,15 @@ function saveOrder() {
 function saveInv(){const name=document.getElementById('i-name').value.trim();if(!name){toast('Name required');return;}INVENTORY.push({id:'inv-'+Date.now(),name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()});saveInventory();closeModal('m-inv');['i-name','i-unit','i-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));document.getElementById('i-qty').value='0';toast('✓ Item added');renderInventory();}
 function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));toast('✓ Added');renderPurchase();}
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
+
+function quickAssign(id, field, value) {
+  const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  if (field === 'designer') o.designer = value || null;
+  if (field === 'priority') o.priority = value || 'normal';
+  if (field === 'internalNote') o.internalNote = value || null;
+  saveOrders(); renderOrders(); renderHome();
+  toast('✓ Updated');
+}
 
 function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
 /* ─── Swipe to deliver (mobile) ────────────────────────────── */
@@ -2757,7 +2773,10 @@ function editOrder(id) {
   document.getElementById('o-edit-id').value=id;
   document.getElementById('o-cust').value=o.customer||'';
   document.getElementById('o-num').value=o.name||'';
-  document.getElementById('o-date').value=o.dueDate||'';
+  // Convert any date format to YYYY-MM-DD for the date input
+  const dueParsed = o.dueDate ? pd(o.dueDate) : null;
+  const dueISO = dueParsed ? `${dueParsed.getFullYear()}-${String(dueParsed.getMonth()+1).padStart(2,'0')}-${String(dueParsed.getDate()).padStart(2,'0')}` : '';
+  document.getElementById('o-date').value = dueISO;
   document.getElementById('o-time').value=o.dueTime||'';
   document.getElementById('o-type').value=o.type||'delivery';
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
@@ -2968,6 +2987,21 @@ function _renderDP(order, localOrder) {
   if (priHtml || desHtml) {
     html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${priHtml}${desHtml}</div>`;
   }
+
+  // ── Quick assign — designer + priority inline ──
+  const designers = ['','Madeleine','Audrey','Amanda','Apple','Fang Ler'];
+  const designerOpts = designers.map(d => `<option value="${d}" ${localOrder.designer===d?'selected':''}>${d||'— Unassigned —'}</option>`).join('');
+  const priorityOpts = [
+    ['normal','🟢 Normal'],['high','🟠 High'],['urgent','🔴 Urgent']
+  ].map(([v,l])=>`<option value="${v}" ${(localOrder.priority||'normal')===v?'selected':''}>${l}</option>`).join('');
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap">
+    <select onchange="quickAssign('${localOrder.id}','designer',this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;background:var(--c-burg-lt);color:var(--c-burg);font-weight:500;outline:none;cursor:pointer">
+      ${designerOpts}
+    </select>
+    <select onchange="quickAssign('${localOrder.id}','priority',this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;background:var(--c-surface);outline:none;cursor:pointer">
+      ${priorityOpts}
+    </select>
+  </div>`;
 
   // ── Total price in header ──
   const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
