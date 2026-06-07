@@ -1232,13 +1232,20 @@ async function showApp() {
     try {
       const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
       if (sbUrl) {
+        // Supabase has URL — use it
         localStorage.setItem('flori-url', sbUrl);
-        const cu = document.getElementById('cfg-url'); if(cu) cu.value = sbUrl;
+        localStorage.setItem('flori-token', sbTok || '');
         setPill(sbUrl);
-      }
-      if (sbTok) {
-        localStorage.setItem('flori-token', sbTok);
-        const ct = document.getElementById('cfg-tok'); if(ct) ct.value = sbTok;
+      } else {
+        // Supabase has no URL — check localStorage and push it up
+        const localUrl = localStorage.getItem('flori-url') || '';
+        const localTok = localStorage.getItem('flori-token') || '';
+        if (localUrl && localTok) {
+          // Push local credentials to Supabase so all devices get it
+          await Promise.all([sbSet('shopify_url', localUrl), sbSet('shopify_token', localTok)]);
+          setPill(localUrl);
+          console.log('[BloomFlow] Store URL pushed to Supabase:', localUrl);
+        }
       }
       updateConnectedUI();
     } catch(e) { console.warn('Could not load store config:', e); }
