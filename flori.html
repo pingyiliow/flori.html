@@ -1014,7 +1014,16 @@ let currentUser = null;
 
 function initSupabase() {
   if (!_SB_URL || _SB_URL === 'YOUR_SUPABASE_URL') return false;
-  try { sb = supabase.createClient(_SB_URL, _SB_ANON); return true; }
+  try {
+    sb = supabase.createClient(_SB_URL, _SB_ANON, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: 'bf-auth-session',
+      }
+    });
+    return true;
+  }
   catch(e) { console.error('Supabase init failed:', e); return false; }
 }
 
@@ -2933,12 +2942,14 @@ function _renderDPManual(o) {
 }
 
 function init() {
+  // Init Supabase first — so session is available even during version reload
+  initSupabase();
+
   // Version check — force reload if new version deployed
   const currentVer = document.querySelector('meta[name="version"]')?.content || '';
   const storedVer  = localStorage.getItem('bf-version') || '';
   if (storedVer && storedVer !== currentVer) {
     localStorage.setItem('bf-version', currentVer);
-    // Clear caches then hard reload
     if ('caches' in window) {
       caches.keys().then(keys => {
         Promise.all(keys.map(k => caches.delete(k))).then(() => location.reload(true));
@@ -2949,16 +2960,11 @@ function init() {
     return;
   }
   localStorage.setItem('bf-version', currentVer);
-  initSupabase();
   handleOAuthCallback();
-  checkSession(); // show login or app based on session
+  checkSession(); // restore session — no login needed if already signed in
   if('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(r => r.unregister());
-    });
-    if('caches' in window) {
-      caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-    }
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+    if('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
 }
 init();
