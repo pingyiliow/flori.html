@@ -461,6 +461,25 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .tick-btn:hover{border-color:var(--c-burg);color:var(--c-burg)}
 .tick-btn.is-ready{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
 .tick-btn.is-fulfilled{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
+
+/* ── Priority badges ─────────────────────────────────────────── */
+.pri-urgent{background:#FDECEA;color:#C62828;border:1.5px solid #EF9A9A;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:4px}
+.pri-high   {background:#FFF3E0;color:#E65100;border:1.5px solid #FFCC80;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:4px}
+.pri-normal {background:var(--c-sage-bg);color:var(--c-sage);border:1.5px solid #A5D6A7;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;display:inline-flex;align-items:center;gap:4px}
+/* ── Designer tag ────────────────────────────────────────────── */
+.designer-tag{display:inline-flex;align-items:center;gap:4px;background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:500}
+/* ── Internal notes block ────────────────────────────────────── */
+.internal-note-block{background:#FFF8E1;border:2px solid #FFD54F;border-radius:var(--r-lg);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.internal-note-block .note-hdr{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#F57F17;display:flex;align-items:center;gap:6px}
+.internal-note-block .note-body{font-size:13px;color:#3E2723;line-height:1.6;white-space:pre-wrap;font-weight:500}
+/* ── Quick actions bar ───────────────────────────────────────── */
+.qa-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 0;border-bottom:1.5px solid var(--c-border)}
+.qa-btn{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-surface);cursor:pointer;transition:all .12s;text-decoration:none;color:var(--c-ink)}
+.qa-btn:hover{border-color:var(--c-burg);background:var(--c-burg-lt)}
+.qa-btn .qa-ico{font-size:20px;line-height:1}
+.qa-btn .qa-lbl{font-size:9px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted)}
+.qa-btn.qa-primary{border-color:var(--c-burg);background:var(--c-burg-lt)}
+.qa-btn.qa-primary .qa-lbl{color:var(--c-burg)}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -814,6 +833,26 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         <div class="ff" style="grid-column:1/-1">
           <label class="ff-l">Delivery Address</label>
           <textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea>
+        </div>
+        <div class="ff">
+          <label class="ff-l">Designer</label>
+          <select id="o-designer">
+            <option value="">— Unassigned —</option>
+            <option value="Audrey">👩 Audrey</option>
+            <option value="Bryan">👨 Bryan</option>
+          </select>
+        </div>
+        <div class="ff">
+          <label class="ff-l">Priority</label>
+          <select id="o-priority">
+            <option value="normal">🟢 Normal</option>
+            <option value="high">🟠 High</option>
+            <option value="urgent">🔴 Urgent</option>
+          </select>
+        </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l">📝 Special Instructions (internal)</label>
+          <textarea id="o-internal-note" style="min-height:70px;border:2px solid #FFD54F;background:#FFF8E1" placeholder="e.g. Customer wants pink theme, use white Korean paper, no lilies…"></textarea>
         </div>
       </div>
 
@@ -1336,7 +1375,11 @@ async function syncOrders() {
     });
     // Preserve ready state from previous sync
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>o.id));
-    shopify.forEach(o => { if(prevReady.has(o.id)) o.ready = true; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[o.id]={designer:o.designer,priority:o.priority,internalNote:o.internalNote}; });
+    shopify.forEach(o => {
+      if(prevReady.has(o.id)) o.ready = true;
+      if(prevMeta[o.id]) { o.designer=prevMeta[o.id].designer; o.priority=prevMeta[o.id].priority||'normal'; o.internalNote=prevMeta[o.id].internalNote; }
+    });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
@@ -1364,6 +1407,8 @@ function saveOrders() {
       type: o.type||'delivery', fulfilled: o.fulfilled||false,
       ready: o.ready||false, created_at: o.createdAt||null,
       manual_addr: o.manualAddr||null, recipe: o.recipe||[],
+      designer: o.designer||null, priority: o.priority||'normal',
+      internal_note: o.internalNote||null,
       manual_price: o.manualPrice||null
     }));
     sbUpsert('orders', rows).catch(console.error);
@@ -1421,6 +1466,8 @@ async function loadFromSupabase() {
         type: o.type||'delivery', fulfilled: o.fulfilled||false,
         ready: o.ready||false, createdAt: o.created_at||null,
         manualAddr: o.manual_addr||null, recipe: o.recipe||[],
+        designer: o.designer||null, priority: o.priority||'normal',
+        internalNote: o.internal_note||null,
         manualPrice: o.manual_price||null, dateObj: null
       }));
       localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined}))));
@@ -1471,6 +1518,18 @@ function rehydrateOrders() {
 let orderFilter = 'today', typeFilter = 'all';
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 let fuFilter = 'all';
+
+function priorityBadge(o) {
+  const p = o.priority || 'normal';
+  if (p === 'urgent') return '<span class="pri-urgent">🔴 Urgent</span>';
+  if (p === 'high')   return '<span class="pri-high">🟠 High</span>';
+  return '';  // normal — no badge (clean)
+}
+
+function designerTag(o) {
+  if (!o.designer) return '';
+  return `<span class="designer-tag">👤 ${esc(o.designer)}</span>`;
+}
 
 function orderState(o) {
   if (o.fulfilled) return 'fulfilled';
@@ -1609,7 +1668,9 @@ function tagRow(o) {
   else if (o.ready)     stateTag = `<span class="state-badge state-ready">● ${zh?'已准备':'Ready'}</span>`;
   else                  stateTag = `<span class="state-badge state-pending">${zh?'待准备':'Pending'}</span>`;
   const manualTag = o.src==='manual' ? ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>` : '';
-  return `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">${stateTag}${typeTag}${manualTag}</div>`;
+  const priTag = priorityBadge(o);
+  const desTag = designerTag(o);
+  return `<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start">${priTag}${stateTag}${typeTag}${desTag}${manualTag}</div>`;
 }
 
 function actionBtns(id) {
@@ -2591,10 +2652,14 @@ function saveOrder() {
     type: document.getElementById('o-type').value,
     ready: prevOrder?.ready || false,
     manualAddr: addrVal || null,
-    manualPrice: null
+    manualPrice: null,
+    designer: document.getElementById('o-designer')?.value||null,
+    priority: document.getElementById('o-priority')?.value||'normal',
+    internalNote: document.getElementById('o-internal-note')?.value.trim()||null
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(); closeModal('m-order');
+  ['o-designer','o-priority','o-internal-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
 }
@@ -2604,6 +2669,12 @@ function savePur(){const name=document.getElementById('p-name').value.trim();if(
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
 function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
+function markDelivered(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  o.ready=true; o.fulfilled=true;
+  saveOrders(); renderHome(); renderOrders(); closeDP();
+  toast('✓ Marked as Delivered');
+}
 function delOrder(id){ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();if(hasSB())sbDelete('orders',id);renderAll();toast('Removed');}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
 function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();renderInventory();toast('Removed');}
@@ -2621,6 +2692,9 @@ function editOrder(id) {
   document.getElementById('o-time').value=o.dueTime||'';
   document.getElementById('o-type').value=o.type||'delivery';
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
+  const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
+  const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
+  const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
   // Build product rows from lineItems (or legacy product string)
   _productRowCount=0;
   document.getElementById('o-products-list').innerHTML='';
@@ -2811,6 +2885,21 @@ function _renderDP(order, localOrder) {
 
   let html = '';
 
+  // ── 1. INTERNAL NOTE — most prominent, appears first ──
+  if (localOrder.internalNote) {
+    html += `<div class="internal-note-block">
+      <div class="note-hdr">📝 Special Instructions</div>
+      <div class="note-body">${esc(localOrder.internalNote)}</div>
+    </div>`;
+  }
+
+  // ── 2. PRIORITY + DESIGNER ──
+  const priHtml = priorityBadge(localOrder);
+  const desHtml = localOrder.designer ? `<span class="designer-tag">👤 ${esc(localOrder.designer)}</span>` : '';
+  if (priHtml || desHtml) {
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${priHtml}${desHtml}</div>`;
+  }
+
   // ── Total price in header ──
   const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
   if (totalAmt && parseFloat(totalAmt) > 0) {
@@ -2824,6 +2913,20 @@ function _renderDP(order, localOrder) {
     <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(((cust.firstName||'')+' '+(cust.lastName||'')).trim())||'Guest'}</div>
     ${phone ? `<div style="margin-bottom:3px">${waLink(phone)}</div>` : ''}
     ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
+  </div>`;
+
+  // ── 3. QUICK ACTIONS BAR ──
+  const phoneClean = phone.replace(/[^0-9+]/g,'');
+  const waNum = phoneClean.startsWith('+') ? phoneClean.slice(1) : phoneClean.startsWith('0') ? '6'+phoneClean.slice(1) : phoneClean;
+  const addrForMaps = addr ? encodeURIComponent([addr.address1,addr.city,addr.province,addr.zip].filter(Boolean).join(', ')) : '';
+  const shopifyOrderUrl = `https://admin.shopify.com/store/${(localStorage.getItem('flori-url')||'').replace('.myshopify.com','')}/orders/${(localOrder.id||'').replace('gid://shopify/Order/','').replace('manual-','').replace(/[^0-9]/g,'')}`;
+  html += `<div class="qa-bar">
+    ${phone ? `<a class="qa-btn" href="tel:${phoneClean}"><span class="qa-ico">📞</span><span class="qa-lbl">Call</span></a>` : '<div></div>'}
+    ${phone ? `<a class="qa-btn" href="https://wa.me/${waNum}" target="_blank"><span class="qa-ico">💬</span><span class="qa-lbl">WhatsApp</span></a>` : '<div></div>'}
+    <button class="qa-btn" onclick="openRecipe('${localOrder.id}');closeDP()"><span class="qa-ico">📸</span><span class="qa-lbl">Recipe</span></button>
+    ${addrForMaps ? `<a class="qa-btn" href="https://maps.google.com/?q=${addrForMaps}" target="_blank"><span class="qa-ico">📍</span><span class="qa-lbl">Maps</span></a>` : '<div></div>'}
+    <button class="qa-btn" onclick="window.open('${shopifyOrderUrl}','_blank')"><span class="qa-ico">🖨</span><span class="qa-lbl">Shopify</span></button>
+    <button class="qa-btn qa-primary" onclick="markDelivered('${localOrder.id}')"><span class="qa-ico">🚚</span><span class="qa-lbl">Delivered</span></button>
   </div>`;
 
   // ── Delivery / Pickup ──
