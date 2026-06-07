@@ -8,23 +8,26 @@ import { createClient } from '@supabase/supabase-js';
 // ── Config — set these in Vercel environment variables ──
 const SB_URL       = process.env.SUPABASE_URL;
 const SB_KEY       = process.env.SUPABASE_SERVICE_KEY; // use service key server-side
-const WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET; // from Shopify webhook settings
+const WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || 'not_set';
 
 export default async function handler(req, res) {
   // Only accept POST
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
-  // ── Verify Shopify webhook signature ──
-  if (WEBHOOK_SECRET) {
-    const hmac   = req.headers['x-shopify-hmac-sha256'];
-    const body   = JSON.stringify(req.body);
-    const digest = crypto
-      .createHmac('sha256', WEBHOOK_SECRET)
-      .update(body, 'utf8')
-      .digest('base64');
-    if (digest !== hmac) {
-      console.error('Webhook signature mismatch');
-      return res.status(401).json({ error: 'Unauthorized' });
+  // ── Verify Shopify webhook signature (only if secret is configured) ──
+  if (WEBHOOK_SECRET && WEBHOOK_SECRET !== 'not_set') {
+    const hmac = req.headers['x-shopify-hmac-sha256'];
+    if (hmac) {
+      // Shopify sends raw body for HMAC — use raw buffer
+      const rawBody = JSON.stringify(req.body);
+      const digest  = crypto
+        .createHmac('sha256', WEBHOOK_SECRET)
+        .update(rawBody, 'utf8')
+        .digest('base64');
+      if (digest !== hmac) {
+        console.error('Webhook signature mismatch');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
     }
   }
 
