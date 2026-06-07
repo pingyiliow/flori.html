@@ -89,9 +89,9 @@ img{display:block;max-width:100%}
 }
 .hdr-actions{display:flex;align-items:center;gap:8px;padding-right:22px}
 .hdr-btn{
-  width:30px;height:30px;border-radius:var(--r);
+  width:34px;height:34px;border-radius:var(--r);
   display:flex;align-items:center;justify-content:center;
-  color:rgba(238,228,218,.7);font-size:16px;
+  color:rgba(238,228,218,.8);font-size:18px;
   transition:background .15s,color .15s;
 }
 .hdr-btn:hover{background:rgba(238,228,218,.12);color:var(--c-bg)}
@@ -226,7 +226,56 @@ img{display:block;max-width:100%}
 .o-thumb.ph{cursor:default}
 .o-num{font-size:11px;font-weight:600;color:var(--c-muted)}
 .o-prod{font-size:13px;font-weight:500;color:var(--c-ink);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-@media(max-width:860px){.o-prod{max-width:160px}}
+@media(max-width:860px){.o-prod{max-width:180px}}
+
+/* ── Mobile order cards (≤860px) ────────────────────────────── */
+@media(max-width:860px){
+  /* Hide table header on mobile */
+  .orders-tbl-wrap .tbl thead { display:none; }
+  /* Each tr becomes a card */
+  .orders-tbl-wrap .tbl { border-collapse:separate; border-spacing:0 6px; }
+  .orders-tbl-wrap .tbl tbody tr {
+    display:block; background:var(--c-surface);
+    border-radius:12px; border:1.5px solid var(--c-border);
+    margin:0 10px; overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.04);
+  }
+  .orders-tbl-wrap .tbl tbody tr.row-ready { border-color:#A5D6A7; background:#F5FBF5; }
+  .orders-tbl-wrap .tbl tbody tr.row-fulfilled { opacity:.5; }
+  .orders-tbl-wrap .tbl tbody tr.grp-row {
+    background:transparent; border:none; box-shadow:none;
+    margin:8px 10px 2px; border-radius:0;
+  }
+  .orders-tbl-wrap .tbl tbody td {
+    display:block; padding:0; border:none;
+  }
+  /* Hide columns we don't need on mobile */
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(3) { display:none; } /* date/time col */
+  /* Main content td: thumb + name + price */
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(1) {
+    padding:11px 12px 0;
+  }
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(2) {
+    padding:0 12px 0;
+  }
+  /* Tag + action row */
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(4),
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(5) {
+    display:inline-flex; vertical-align:middle;
+    padding:7px 6px 9px;
+  }
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(4) {
+    padding-left:12px; flex:1;
+  }
+  .orders-tbl-wrap .tbl tbody tr:not(.grp-row) td:nth-child(5) {
+    padding-right:12px;
+  }
+  /* Price inside itemsCell — show on mobile */
+  .o-item-price { display:inline-flex !important; }
+  /* o-prod max width on mobile */
+  .o-prod { max-width:180px; }
+}
+
 .o-items{display:flex;flex-direction:column;gap:4px}
 .o-item-line{display:flex;align-items:center;gap:7px;width:100%}
 .o-item-mini{width:26px;height:26px;object-fit:cover;flex-shrink:0;border-radius:3px;cursor:zoom-in;border:1px solid var(--c-border);transition:opacity .12s;}
@@ -235,6 +284,8 @@ img{display:block;max-width:100%}
 .o-item-title{font-size:12px;font-weight:400;color:var(--c-ink);line-height:1.2}
 .o-item-qty{font-size:10px;color:var(--c-muted);margin-left:2px;font-weight:400}
 .o-item-customer{font-size:11px;color:var(--c-muted);margin-top:3px}
+.mob-time{display:none;font-weight:500;color:var(--c-ink)}
+@media(max-width:860px){.mob-time{display:inline}}
 .o-item-price{font-size:11px;font-weight:500;color:var(--c-burg);white-space:nowrap;margin-left:auto;padding-left:12px;flex-shrink:0}
 
 .tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:3px;font-size:9px;font-weight:400;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;}
@@ -632,7 +683,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 
     </div><!-- /pc -->
     <div class="pc" style="padding-top:20px">
-      <div class="card">
+      <div class="card orders-tbl-wrap">
         <div class="scroll-x">
           <table class="tbl">
             <thead><tr>
@@ -733,7 +784,6 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
   <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
   <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
-  <button class="mob-tab" data-pg="stock"><span class="mob-icon">✦</span><span>Buy</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
 </nav>
 
@@ -1685,7 +1735,7 @@ function itemsCell(o) {
     html = `<div class="o-items">${lines}</div>`;
   }
 
-  html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
+  html += `<div class="o-item-customer">${esc(o.customer)}${o.dueTime?`<span class="mob-time"> · ${esc(o.dueTime)}</span>`:''}</div>`;
   // Special instructions — show inline as warning
   if (o.internalNote) {
     const preview = o.internalNote.length > 60 ? o.internalNote.slice(0,60)+'…' : o.internalNote;
@@ -1792,7 +1842,7 @@ function renderOrders() {
     html += g.items.map(o=>orderRow(o,true)).join('');
   });
   tb.innerHTML = html;
-  setTimeout(initSwipeRows, 50);
+  // swipe disabled — deliver via detail panel
 }
 
 function switchStockTab(tab) {
