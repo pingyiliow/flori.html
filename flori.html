@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="20260606095010">
+<meta name="version" content="20260607073213">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BloomFlow">
 <meta name="theme-color" content="#4D0E13">
 <title>BloomFlow · Florist Studio</title>
@@ -525,8 +526,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     <div class="nav-sep" style="margin-top:6px">Admin</div>
     <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
-    <button class="nav-btn" data-pg="inventory"><span class="nav-icon">◉</span><span>Flower Inventory</span></button>
-    <button class="nav-btn" data-pg="purchase"><span class="nav-icon">✦</span><span>Purchase List</span></button>
+    <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
   </div>
   <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span><span style="font-size:8px;color:var(--c-dpink);margin-left:auto;opacity:.6">v20260606</span></div>
 </aside>
@@ -649,39 +649,43 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     </div>
   </div>
 
-  <!-- ── Inventory ───────────────────────────────────────────── -->
-  <div id="pg-inventory" class="page">
-    <div class="pc">
-      <div class="page-hdr">
-        <div>
-          <div class="page-title">Flower Inventory</div>
-        </div>
-        <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
-      </div>
-      <div id="inv-body"></div>
-    </div>
-  </div>
 
-  <!-- ── Purchase List ───────────────────────────────────────── -->
-  <div id="pg-purchase" class="page">
+
+  <!-- ── Stock (Inventory + Purchase) ────────────────────────── -->
+  <div id="pg-stock" class="page">
     <div class="pc">
-      <div class="page-hdr">
-        <div>
-          <div class="page-title">Purchase List</div>
-        </div>
-        <button class="btn btn-primary" onclick="openAddPur()">+ Add Item</button>
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;border:1.5px solid var(--c-border);border-radius:var(--r);overflow:hidden;align-self:flex-start">
+        <button id="stock-tab-inv" onclick="switchStockTab('inv')" style="padding:8px 20px;font-size:12px;font-weight:500;background:var(--c-burg);color:var(--c-bg);border:none;cursor:pointer;transition:all .12s">🌸 Inventory</button>
+        <button id="stock-tab-pur" onclick="switchStockTab('pur')" style="padding:8px 20px;font-size:12px;font-weight:500;background:var(--c-surface);color:var(--c-muted);border:none;cursor:pointer;transition:all .12s">🛒 To Buy</button>
       </div>
-      <div class="card">
-        <div class="card-hdr">
-          <div class="card-ttl">Items to Order</div>
-          <button class="btn btn-ghost btn-sm" onclick="clearDone()">Clear done</button>
+
+      <!-- Inventory pane -->
+      <div id="stock-pane-inv">
+        <div class="page-hdr" style="margin-bottom:0">
+          <div style="font-size:11px;color:var(--c-muted)">Track stems, materials & supplies</div>
+          <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
         </div>
-        <div style="padding:0 18px" id="pur-body"></div>
+        <div id="inv-body"></div>
       </div>
-      <div class="card">
-        <div class="card-hdr"><div class="card-ttl">Supplier Notes</div></div>
-        <div style="padding:16px">
-          <textarea id="pur-notes" style="width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:110px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
+
+      <!-- Purchase pane -->
+      <div id="stock-pane-pur" style="display:none">
+        <div class="page-hdr" style="margin-bottom:0">
+          <div style="font-size:11px;color:var(--c-muted)">What to order this week</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="clearDone()">Clear done</button>
+            <button class="btn btn-primary" onclick="openAddPur()">+ Add Item</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="padding:0 18px" id="pur-body"></div>
+        </div>
+        <div class="card">
+          <div class="card-hdr"><div class="card-ttl">Supplier Notes</div></div>
+          <div style="padding:16px">
+            <textarea id="pur-notes" style="width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:100px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
+          </div>
         </div>
       </div>
     </div>
@@ -728,8 +732,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 <nav class="mob-nav">
   <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
   <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
-  <button class="mob-tab" data-pg="inventory"><span class="mob-icon">◉</span><span>Stock</span></button>
-  <button class="mob-tab" data-pg="purchase"><span class="mob-icon">✦</span><span>Buy</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon">✦</span><span>Buy</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
 </nav>
 
@@ -1123,12 +1127,19 @@ function showLoginErr(msg) {
   el.textContent = msg; el.style.display = 'block';
 }
 
-function showApp() {
+async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-loading').style.display = 'none';
   document.querySelector('.shell').style.display = 'grid';
+  // Load store config from Supabase (so staff don't need to connect manually)
+  if (hasSB()) {
+    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+    if (sbUrl && !localStorage.getItem('flori-url')) {
+      localStorage.setItem('flori-url', sbUrl);
+      if (sbTok) localStorage.setItem('flori-token', sbTok);
+    }
+  }
   loadData(); setLang(LANG); renderAll();
-  // Show user email in sidebar
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
 }
@@ -1771,6 +1782,16 @@ function renderOrders() {
   });
   tb.innerHTML = html;
   setTimeout(initSwipeRows, 50);
+}
+
+function switchStockTab(tab) {
+  const isInv = tab === 'inv';
+  document.getElementById('stock-pane-inv').style.display = isInv ? '' : 'none';
+  document.getElementById('stock-pane-pur').style.display = isInv ? 'none' : '';
+  document.getElementById('stock-tab-inv').style.background = isInv ? 'var(--c-burg)' : 'var(--c-surface)';
+  document.getElementById('stock-tab-inv').style.color = isInv ? 'var(--c-bg)' : 'var(--c-muted)';
+  document.getElementById('stock-tab-pur').style.background = isInv ? 'var(--c-surface)' : 'var(--c-burg)';
+  document.getElementById('stock-tab-pur').style.color = isInv ? 'var(--c-muted)' : 'var(--c-bg)';
 }
 
 function renderInventory() {
@@ -2702,58 +2723,37 @@ function quickAssign(id, field, value) {
 function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
 /* ─── Swipe to deliver (mobile) ────────────────────────────── */
 function initSwipeRows() {
-  // Only on touch devices
   if (!('ontouchstart' in window)) return;
   document.querySelectorAll('tr.clickable-row[id^="row-"]').forEach(row => {
     if (row._swipeInit) return;
     row._swipeInit = true;
-    let startX = 0, startY = 0, dx = 0;
-    let swiping = false;
-    const reveal = document.createElement('div');
-    reveal.className = 'swipe-reveal';
-    reveal.innerHTML = '<span class="sr-ico">🚚</span><span class="sr-lbl">Delivered</span>';
-    const orderId = row.id.replace('row_','').replace(/_/g, (m, i, s) => {
-      // Reconstruct original id - use data attribute instead
-      return m;
-    });
-    // Get order id from the onclick attribute
     const onclickStr = row.getAttribute('onclick') || '';
     const idMatch = onclickStr.match(/openDP\('([^']+)'\)/);
     if (!idMatch) return;
     const oid = idMatch[1];
-    reveal.onclick = (e) => { e.stopPropagation(); markDelivered(oid); resetSwipe(row, reveal); };
-    row.style.position = 'relative';
-    row.style.overflow = 'hidden';
-    row.appendChild(reveal);
-
-    row.addEventListener('touchstart', e => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      dx = 0; swiping = false;
-    }, {passive:true});
-
+    // Build reveal inside first td (not the tr, avoids table layout issues)
+    const firstTd = row.querySelector('td');
+    if (!firstTd) return;
+    firstTd.style.position = 'relative';
+    firstTd.style.overflow = 'hidden';
+    const reveal = document.createElement('div');
+    reveal.className = 'swipe-reveal';
+    reveal.innerHTML = '<span class="sr-ico">🚚</span><span class="sr-lbl">Delivered</span>';
+    reveal.onclick = e => { e.stopPropagation(); markDelivered(oid); reveal.style.transform='translateX(100%)'; };
+    firstTd.appendChild(reveal);
+    let sx=0, sy=0, dx=0, moved=false;
+    row.addEventListener('touchstart', e => { sx=e.touches[0].clientX; sy=e.touches[0].clientY; dx=0; moved=false; }, {passive:true});
     row.addEventListener('touchmove', e => {
-      dx = e.touches[0].clientX - startX;
-      const dy = Math.abs(e.touches[0].clientY - startY);
-      if (Math.abs(dx) < 10 && dy < 10) return;
-      if (dy > Math.abs(dx)) return; // vertical scroll — ignore
-      swiping = true;
-      if (dx < 0) {
-        const pct = Math.min(-dx, 100);
-        reveal.style.transform = `translateX(${100 - pct}%)`;
-        e.preventDefault();
-      } else if (dx > 0) {
-        reveal.style.transform = 'translateX(100%)';
-      }
+      dx = e.touches[0].clientX - sx;
+      const dy = Math.abs(e.touches[0].clientY - sy);
+      if (dy > Math.abs(dx) + 5) return; // vertical scroll
+      moved = true;
+      if (dx < 0) { reveal.style.transition='none'; reveal.style.transform=`translateX(${Math.max(0,100+dx)}%)`; e.preventDefault(); }
+      else { reveal.style.transform='translateX(100%)'; }
     }, {passive:false});
-
     row.addEventListener('touchend', () => {
-      if (!swiping) return;
-      if (dx < -60) {
-        reveal.style.transform = 'translateX(0%)'; // fully revealed
-      } else {
-        resetSwipe(row, reveal);
-      }
+      reveal.style.transition='transform .2s ease';
+      reveal.style.transform = moved && dx < -60 ? 'translateX(0%)' : 'translateX(100%)';
     });
   });
 }
@@ -2821,7 +2821,7 @@ function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders',
 
 document.addEventListener('keydown', e => {
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
-  if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('inventory'); if(e.key==='4') goPage('purchase');
+  if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('stock'); if(e.key==='4') goPage('stock');
   if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();closeFUDP();}
 });
 
