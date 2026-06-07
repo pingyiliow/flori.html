@@ -1451,14 +1451,7 @@ function getType(attrs) {
 async function shopifyGQL(query) {
   let url   = localStorage.getItem('flori-url') || '';
   let token = localStorage.getItem('flori-token') || '';
-  // If not in localStorage, try loading from Supabase first
-  if ((!url || !token) && hasSB()) {
-    try {
-      const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-      if (sbUrl) { url = sbUrl; localStorage.setItem('flori-url', sbUrl); }
-      if (sbTok) { token = sbTok; localStorage.setItem('flori-token', sbTok); }
-    } catch(e) { console.warn('Could not load store config from Supabase:', e.message); }
-  }
+
   if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
   if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
   let r;
@@ -3113,7 +3106,15 @@ function saveRecipe() {
 }
 
 /* ─── Order detail panel ─────────────────────────────────────── */
-function openDP(id) {
+async function openDP(id) {
+  // Load store credentials from Supabase if not in localStorage
+  if (!localStorage.getItem('flori-url') && hasSB()) {
+    try {
+      const [u, t] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+      if (u) { localStorage.setItem('flori-url', u); setPill(u); }
+      if (t) localStorage.setItem('flori-token', t);
+    } catch(e) {}
+  }
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
@@ -3376,19 +3377,15 @@ function init() {
   initSupabase();
   handleOAuthCallback();
   checkSession();
-  // Clear service workers silently
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-  }
-  // Safety fallback — if loading screen stuck after 6s, show login
+  // Fallback: if loading screen still showing after 4s, show login
   setTimeout(() => {
-    const loading = document.getElementById('app-loading');
-    if (loading && loading.style.display !== 'none') {
-      loading.style.display = 'none';
+    const el = document.getElementById('app-loading');
+    if (el && el.style.display !== 'none') {
+      el.style.display = 'none';
       const ls = document.getElementById('login-screen');
       if (ls) ls.style.display = 'flex';
     }
-  }, 6000);
+  }, 4000);
 }
 // Wait for everything to load before init
 if (document.readyState === 'loading') {
