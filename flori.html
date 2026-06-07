@@ -1132,16 +1132,21 @@ async function showApp() {
   document.getElementById('app-loading').style.display = 'none';
   document.querySelector('.shell').style.display = 'grid';
   // Load store config from Supabase (so staff don't need to connect manually)
-  if (hasSB()) {
-    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-    if (sbUrl && !localStorage.getItem('flori-url')) {
-      localStorage.setItem('flori-url', sbUrl);
-      if (sbTok) localStorage.setItem('flori-token', sbTok);
-    }
-  }
+  // Load from localStorage first (instant)
   loadData(); setLang(LANG); renderAll();
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
+  if (hasSB()) {
+    // Always pull store config from Supabase — all devices share the same connection
+    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+    if (sbUrl) {
+      localStorage.setItem('flori-url', sbUrl);
+      if (sbTok) localStorage.setItem('flori-token', sbTok);
+      setPill(sbUrl); updateConnectedUI();
+    }
+    // Pull latest data from Supabase
+    await loadFromSupabase();
+  }
 }
 
 async function signOut() {
