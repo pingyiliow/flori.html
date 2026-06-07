@@ -1197,6 +1197,10 @@ async function sbGetVal(key) {
   } catch(e) { return null; }
 }
 
+/* ─── Shopify store config (hardcoded — set once by admin) ──────── */
+const _SHOP_URL   = 'bamboo-florist.myshopify.com';
+const _SHOP_TOKEN = ''; // ← paste your shpat_ token here
+
 /* ─── Auth ───────────────────────────────────────────────────── */
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
@@ -1227,7 +1231,14 @@ async function showApp() {
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
 
-  // ── Step 1: Load store credentials FIRST (blocking) ──
+  // ── Step 1: If hardcoded token exists, use it immediately ──
+  if (_SHOP_TOKEN) {
+    localStorage.setItem('flori-url', _SHOP_URL);
+    localStorage.setItem('flori-token', _SHOP_TOKEN);
+    setPill(_SHOP_URL);
+  }
+
+  // ── Step 2: Load store credentials FIRST (blocking) ──
   if (hasSB()) {
     try {
       const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
@@ -1459,8 +1470,13 @@ function getType(attrs) {
 }
 
 async function shopifyGQL(query) {
-  let url   = localStorage.getItem('flori-url') || '';
-  let token = localStorage.getItem('flori-token') || '';
+  // Always use hardcoded values if token available
+  if (_SHOP_TOKEN) {
+    localStorage.setItem('flori-url', _SHOP_URL);
+    localStorage.setItem('flori-token', _SHOP_TOKEN);
+  }
+  let url   = localStorage.getItem('flori-url') || _SHOP_URL;
+  let token = localStorage.getItem('flori-token') || _SHOP_TOKEN;
 
   if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
   if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
