@@ -1227,25 +1227,32 @@ async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-loading').style.display = 'none';
   document.querySelector('.shell').style.display = 'grid';
-  // Load store config from Supabase (so staff don't need to connect manually)
-  // Load from localStorage first (instant)
-  loadData(); setLang(LANG); renderAll();
+
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
+
+  // ── Step 1: Load store credentials FIRST (blocking) ──
   if (hasSB()) {
-    // Load store credentials from Supabase — shared across all devices
-    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-    if (sbUrl) {
-      localStorage.setItem('flori-url', sbUrl);
-      if (sbTok) localStorage.setItem('flori-token', sbTok);
-      // Update cfg inputs too
-      const cu = document.getElementById('cfg-url'); if(cu) cu.value = sbUrl;
-      const ct = document.getElementById('cfg-tok'); if(ct && sbTok) ct.value = sbTok;
-      setPill(sbUrl); updateConnectedUI();
-    }
-    // Pull latest data from Supabase
-    await loadFromSupabase();
+    try {
+      const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+      if (sbUrl) {
+        localStorage.setItem('flori-url', sbUrl);
+        const cu = document.getElementById('cfg-url'); if(cu) cu.value = sbUrl;
+        setPill(sbUrl);
+      }
+      if (sbTok) {
+        localStorage.setItem('flori-token', sbTok);
+        const ct = document.getElementById('cfg-tok'); if(ct) ct.value = sbTok;
+      }
+      updateConnectedUI();
+    } catch(e) { console.warn('Could not load store config:', e); }
   }
+
+  // ── Step 2: Load data and render ──
+  loadData(); setLang(LANG); renderAll();
+
+  // ── Step 3: Pull latest from Supabase in background ──
+  if (hasSB()) loadFromSupabase();
 }
 
 async function signOut() {
