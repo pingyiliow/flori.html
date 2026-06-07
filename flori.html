@@ -1014,12 +1014,17 @@ let currentUser = null;
 
 function initSupabase() {
   if (!_SB_URL || _SB_URL === 'YOUR_SUPABASE_URL') return false;
+  if (typeof supabase === 'undefined') {
+    console.error('Supabase SDK not loaded yet');
+    return false;
+  }
   try {
     sb = supabase.createClient(_SB_URL, _SB_ANON, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         storageKey: 'bf-auth-session',
+        storage: window.localStorage,
       }
     });
     return true;
@@ -1072,6 +1077,7 @@ function showLoginErr(msg) {
 
 function showApp() {
   document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-loading').style.display = 'none';
   document.querySelector('.shell').style.display = 'grid';
   loadData(); setLang(LANG); renderAll();
   // Show user email in sidebar
@@ -1090,17 +1096,23 @@ async function signOut() {
 
 async function checkSession() {
   if (!hasSB()) {
-    // No Supabase — run in local mode without login
+    // No Supabase configured — show app in local mode
+    document.getElementById('app-loading').style.display = 'none';
     document.querySelector('.shell').style.display = 'grid';
     return;
   }
-  // Don't show login screen yet — wait for session check
-  const { data } = await sb.auth.getSession();
-  if (data?.session?.user) {
-    currentUser = data.session.user;
-    showApp();
-  } else {
-    // Only show login after confirming no session exists
+  try {
+    const { data, error } = await sb.auth.getSession();
+    if (data?.session?.user) {
+      currentUser = data.session.user;
+      showApp();
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+    }
+  } catch(e) {
+    console.error('Session check failed:', e);
+    // Fallback — show login
+    document.getElementById('app-loading').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   }
 }
@@ -2967,7 +2979,12 @@ function init() {
     if('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
 }
-init();
+// Wait for everything to load before init
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 </script>
 
 <!-- ══ ORDER DETAIL PANEL ════════════════════════════════════ -->
@@ -3009,6 +3026,10 @@ init();
 
 
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════ -->
+<div id="app-loading" style="position:fixed;inset:0;background:var(--c-burg-dk);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+  <div style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#EEE4DA;letter-spacing:.02em">Bloom<span style="color:#C8A49F">Flow</span></div>
+  <div style="font-size:12px;color:rgba(238,228,218,.5);letter-spacing:.1em;text-transform:uppercase">Loading…</div>
+</div>
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0">
   <div style="width:min(360px,90vw);display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
     <!-- Logo -->
