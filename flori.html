@@ -365,7 +365,7 @@ img{display:block;max-width:100%}
 
 /* ── filter tabs ─────────────────────────────────────────────── */
 .filters{display:flex;gap:6px;flex-wrap:wrap}
-.f-btn{padding:5px 12px;border-radius:var(--r);border:1px solid var(--c-border);background:transparent;font-size:11px;font-weight:400;color:var(--c-muted);letter-spacing:.04em;transition:all .12s;}
+.f-btn{padding:5px 14px;border-radius:20px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:11px;font-weight:500;color:var(--c-muted);letter-spacing:.04em;transition:all .12s;}
 .f-btn:hover{color:var(--c-ink);border-color:var(--c-border2)}
 .f-btn.on{background:var(--c-burg);border-color:var(--c-burg);color:var(--c-bg)}
 
@@ -539,6 +539,80 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .swipe-reveal .sr-ico{font-size:20px;color:#EEE4DA}
 .swipe-reveal .sr-lbl{font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(238,228,218,.8)}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+
+/* ── Order cards (Daily Orders + Dashboard schedule) ─────────── */
+.ord-cards{display:flex;flex-direction:column;gap:7px}
+.ord-grp{display:flex;align-items:center;gap:10px;margin:16px 0 4px}
+.ord-grp:first-child{margin-top:0}
+.ord-grp-dot{width:8px;height:8px;border-radius:50%;background:var(--c-burg);flex-shrink:0}
+.ord-grp-dot.late{background:var(--c-red)}
+.ord-grp-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-ink);white-space:nowrap}
+.ord-grp-lbl.late{color:var(--c-red)}
+.ord-grp-stats{display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap}
+.ord-gc{font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.ord-gc.p{background:#fdecea;color:#c62828}
+.ord-gc.r{background:#EDF7ED;color:#2E7D32}
+.ord-gc.f{background:var(--c-sage-bg);color:var(--c-sage)}
+.ord-gline{flex:1;height:1px;background:var(--c-border);min-width:12px}
+
+.oc{
+  background:var(--c-surface);border-radius:12px;border:1.5px solid var(--c-border);border-left:4px solid var(--c-dpink);
+  display:grid;grid-template-columns:72px 1fr 110px 140px 160px 50px;
+  align-items:stretch;overflow:hidden;cursor:pointer;
+  transition:box-shadow .12s,border-color .12s;
+}
+.oc:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-border2)}
+.oc.ready{border-color:#A5D6A7;border-left-color:#2E7D32;background:#F5FBF5}
+.oc.done{opacity:.5;border-left-color:var(--c-sage)}
+.oc.urg{border-color:#EF9A9A;border-left-color:#C62828}
+.oc .ph{background:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:30px;min-height:72px;overflow:hidden}
+.oc .ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.oc-main{padding:12px 16px;min-width:0;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
+.oc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.onum{font-size:10px;font-weight:700;color:var(--c-muted);flex-shrink:0}
+.oname{font-size:14px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.ocust{font-size:11px;color:var(--c-muted)}
+.onote{display:flex;align-items:center;gap:5px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 8px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc .price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:flex-start;justify-content:flex-end;white-space:nowrap}
+.ott{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px}
+.otime{font-size:13px;font-weight:600;color:var(--c-ink);white-space:nowrap}
+.oc .tb{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:3px;white-space:nowrap}
+.oc .tb.del{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.oc .tb.pu{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
+.otags{padding:12px 12px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px}
+.oc .sb{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px;white-space:nowrap;display:inline-flex;align-items:center;gap:3px}
+.oc .sb.pend{background:#fdecea;color:#c62828;border:1px solid #EF9A9A}
+.oc .sb.rdy{background:#EDF7ED;color:#2E7D32;border:1px solid #A5D6A7}
+.oc .sb.ful{background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be}
+.oc .sb.urg{background:#FDECEA;color:#C62828;border:1.5px solid #EF9A9A}
+.oc .sb.high{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.oc .des{font-size:10px;color:var(--c-burg);background:var(--c-burg-lt);border:1px solid var(--c-border2);border-radius:10px;padding:2px 9px;white-space:nowrap}
+.otick{display:flex;align-items:center;justify-content:center;padding:12px 10px}
+.oc .tick{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--c-muted);transition:all .12s;flex-shrink:0}
+.oc .tick:hover{border-color:var(--c-burg);color:var(--c-burg)}
+.oc .tick.r{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
+.oc .tick.f{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
+.oc-mob-price{display:none;margin-left:auto;font-size:13px;font-weight:700;color:var(--c-burg);white-space:nowrap;padding-left:8px}
+
+/* ── Order cards — mobile ────────────────────────────────────── */
+@media(max-width:860px){
+  .oc{
+    grid-template-columns:52px 1fr auto;
+    grid-template-areas:
+      "ph   main main"
+      "tags tags tick"
+      "time time tick";
+    align-items:center;
+  }
+  .oc .ph{grid-area:ph;align-self:start;width:52px;height:52px;min-height:0;border-radius:10px;margin:12px 0 0 12px;font-size:24px}
+  .oc-main{grid-area:main;padding:12px 12px 0 10px}
+  .oc .price{grid-area:price;display:none}            /* price shown inline in header on mobile */
+  .otags{grid-area:tags;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:flex-start;padding:9px 12px 0;gap:5px}
+  .ott{grid-area:time;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;padding:6px 12px 12px}
+  .otick{grid-area:tick;padding:0 14px}
+  .onote{white-space:normal}
+  .oc-mob-price{display:inline}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -602,22 +676,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Ready</div></div>
       <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Fulfilled</div></div>
     </div>
-    <div class="pc" style="padding-top:24px">
-      <div class="card">
-        <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
-        <div class="scroll-x">
-          <table class="tbl">
-            <thead><tr>
-              <th>Order</th>
-              <th>Product · Customer</th>
-              <th class="hide-m">Time</th>
-              <th>Type</th>
-              <th></th>
-            </tr></thead>
-            <tbody id="home-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+    <div class="pc" style="padding-top:24px;gap:12px">
+      <div class="card-ttl" style="font-family:var(--f-head);font-size:16px;font-weight:600;letter-spacing:.02em">Today's Schedule</div>
+      <div class="ord-cards" id="home-list"></div>
     </div>
   </div>
 
@@ -682,21 +743,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     </div>
 
     </div><!-- /pc -->
-    <div class="pc" style="padding-top:20px">
-      <div class="card orders-tbl-wrap">
-        <div class="scroll-x">
-          <table class="tbl">
-            <thead><tr>
-              <th>Order</th>
-              <th>Product · Customer</th>
-              <th class="hide-m">Date · Time</th>
-              <th>Pickup / Delivery</th>
-              <th></th>
-            </tr></thead>
-            <tbody id="orders-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+    <div class="pc" style="padding-top:18px">
+      <div class="ord-cards" id="orders-list"></div>
     </div>
   </div>
 
@@ -1781,6 +1829,85 @@ function orderRow(o, showDate=true) {
   return `<tr class="${rowCls}" id="row-${o.id.replace(/[^a-z0-9]/gi,'_')}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
+/* ─── Order card (Daily Orders + Dashboard) ──────────────────── */
+function orderTotal(o) {
+  if (o.manualPrice && parseFloat(o.manualPrice) > 0) return parseFloat(o.manualPrice);
+  if (o.total && parseFloat(o.total) > 0) return parseFloat(o.total);
+  if (o.lineItems && o.lineItems.length) {
+    let sum = 0, has = false;
+    o.lineItems.forEach(i => { const p = parseFloat(i.price) || 0; if (p > 0) { sum += p * (i.quantity || 1); has = true; } });
+    if (has) return sum;
+  }
+  return null;
+}
+
+function orderCard(o) {
+  const zh = LANG === 'zh';
+  const state = orderState(o);                       // pending | ready | fulfilled
+  const items = (o.lineItems && o.lineItems.length) ? o.lineItems : null;
+
+  const cls = ['oc'];
+  if (state === 'ready')     cls.push('ready');
+  if (state === 'fulfilled') cls.push('done');
+  if (o.priority === 'urgent' && !o.fulfilled) cls.push('urg');
+
+  // thumbnail
+  const imgSrc = (items ? (items.find(i => i.image) || {}).image : null) || o.image || null;
+  let ph;
+  if (imgSrc) {
+    const safe = imgSrc.replace(/'/g, "\\'"), cap = (o.product || '').replace(/'/g, "\\'");
+    ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();openZoom('${safe}','${cap}')" onerror="this.parentElement.textContent='🌸'"></div>`;
+  } else ph = `<div class="ph">🌸</div>`;
+
+  // product name (+N for multi-item orders)
+  let name = esc(o.product || (items ? items[0].title : '') || '–');
+  if (items && items.length > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">+${items.length - 1}</span>`;
+
+  // price
+  const tot = orderTotal(o);
+  const priceTxt = tot != null ? `RM ${tot.toFixed(2)}` : '';
+  const mobPrice = priceTxt ? `<span class="oc-mob-price">${priceTxt}</span>` : '';
+
+  // internal note
+  const note = o.internalNote
+    ? `<div class="onote">⚠️ ${esc(o.internalNote.length > 70 ? o.internalNote.slice(0, 70) + '…' : o.internalNote)}</div>`
+    : '';
+
+  // time + type
+  const timeTxt = o.dueTime || '–';
+  const typeTag = o.type === 'pickup'
+    ? `<span class="tb pu">${zh ? '自取' : 'Pickup'}</span>`
+    : `<span class="tb del">${zh ? '送货' : 'Delivery'}</span>`;
+
+  // status / priority / designer
+  let priBadge = '';
+  if (!o.fulfilled && o.priority === 'urgent')    priBadge = `<span class="sb urg">🔴 ${zh ? '紧急' : 'Urgent'}</span>`;
+  else if (!o.fulfilled && o.priority === 'high') priBadge = `<span class="sb high">🟠 ${zh ? '重要' : 'High'}</span>`;
+  let stateBadge;
+  if (state === 'fulfilled')  stateBadge = `<span class="sb ful">✓ ${zh ? '已完成' : 'Fulfilled'}</span>`;
+  else if (state === 'ready') stateBadge = `<span class="sb rdy">● ${zh ? '已准备' : 'Ready'}</span>`;
+  else                        stateBadge = `<span class="sb pend">${zh ? '待准备' : 'Pending'}</span>`;
+  const desTag = o.designer ? `<span class="des">👤 ${esc(o.designer)}</span>` : '';
+
+  // tick
+  const tick = o.fulfilled
+    ? `<div class="tick f" title="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</div>`
+    : `<div class="tick ${o.ready ? 'r' : ''}" title="${o.ready ? 'Mark as Pending' : 'Mark as Ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</div>`;
+
+  return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
+    ${ph}
+    <div class="oc-main">
+      <div class="oc-top"><span class="onum">${esc(o.name || '')}</span><span class="oname">${name}</span>${mobPrice}</div>
+      <div class="ocust">${esc(o.customer || '')}</div>
+      ${note}
+    </div>
+    <div class="price">${priceTxt}</div>
+    <div class="ott"><span class="otime">${esc(timeTxt)}</span>${typeTag}</div>
+    <div class="otags">${priBadge}${stateBadge}${desTag}</div>
+    <div class="otick">${tick}</div>
+  </div>`;
+}
+
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
 
 function renderHome() {
@@ -1801,48 +1928,47 @@ function renderHome() {
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
-  const tb = document.getElementById('home-tbody');
-  tb.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></td></tr>`;
+  const tb = document.getElementById('home-list');
+  tb.innerHTML = sorted.length ? sorted.map(o=>orderCard(o)).join('') : `<div class="empty" style="padding:48px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
 }
 
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   const list = sortedOrders(filteredOrders());
-  const tb = document.getElementById('orders-tbody');
+  const tb = document.getElementById('orders-list');
   const allF = srch ? ORDERS : filteredOrders();
   const cntPu = document.getElementById('count-pickup');
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
   if (!list.length) {
-    tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></td></tr>`;
+    tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
   }
   const groups = [];
   list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
   let html = '';
   groups.forEach(g => {
+    const isGrpLate = g.d && isPast(g.d);
     let lbl='–';
     if (g.d) {
-      if (isPast(g.d)) lbl = '⚠ ' + fd(g.d) + ' · Overdue';
-      else if (isToday(g.d)) lbl = '● Today · ' + fd(g.d);
+      if (isPast(g.d)) lbl = 'Overdue · ' + fd(g.d);
+      else if (isToday(g.d)) lbl = 'Today · ' + fd(g.d);
       else lbl = fd(g.d);
-    } else { lbl = '📋 No date set'; }
-    const isGrpLate = g.d && isPast(g.d);
+    } else { lbl = 'No date set'; }
     // Group separator with pending/ready/fulfilled counts
     const gPending   = g.items.filter(o=>!o.fulfilled&&!o.ready).length;
     const gReady     = g.items.filter(o=>!o.fulfilled&&o.ready).length;
     const gFulfilled = g.items.filter(o=>o.fulfilled).length;
-    const statsSummary = [
-      gPending   ? `<span style="color:var(--c-blush)">${gPending} pending</span>` : '',
-      gReady     ? `<span style="color:#2E7D32">${gReady} ready</span>` : '',
-      gFulfilled ? `<span style="color:var(--c-sage)">${gFulfilled} fulfilled</span>` : '',
-    ].filter(Boolean).join(' · ');
-    html += `<tr class="grp-row"><td colspan="5"><div class="grp-label" style="${isGrpLate?'color:var(--c-red)':''}">${lbl}&ensp;<span style="font-size:10px;font-weight:400;font-family:var(--f-body)">${statsSummary}</span></div></td></tr>`;
-    html += g.items.map(o=>orderRow(o,true)).join('');
+    const stats = [
+      gPending   ? `<span class="ord-gc p">${gPending} pending</span>` : '',
+      gReady     ? `<span class="ord-gc r">${gReady} ready</span>` : '',
+      gFulfilled ? `<span class="ord-gc f">${gFulfilled} fulfilled</span>` : '',
+    ].filter(Boolean).join('');
+    html += `<div class="ord-grp"><div class="ord-grp-dot${isGrpLate?' late':''}"></div><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
+    html += g.items.map(o=>orderCard(o)).join('');
   });
   tb.innerHTML = html;
-  // swipe disabled — deliver via detail panel
 }
 
 function switchStockTab(tab) {
