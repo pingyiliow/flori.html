@@ -58,7 +58,7 @@ img{display:block;max-width:100%}
 
 /* ── layout ──────────────────────────────────────────────────── */
 .shell{
-  display:grid;
+  display:none;
   grid-template-columns:var(--sidebar) 1fr;
   grid-template-rows:var(--hdr) 1fr;
   min-height:100vh;
@@ -750,25 +750,11 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       </div>
     </div>
     <div>
-      <div class="sp-section-ttl">Cloud Sync (Supabase)</div>
-      <div id="sb-connected-ui" style="display:none;flex-direction:column;gap:8px">
-        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">☁</span>
-          <div><div style="font-weight:600">Cloud sync active</div><div id="sb-url-label" style="font-size:10px;opacity:.7"></div></div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-ghost btn-sm" onclick="loadFromSupabase();toast('Syncing…')" style="flex:1">↓ Pull from cloud</button>
-          <button class="btn btn-ghost btn-sm" onclick="disconnectSB()" style="color:var(--c-red)">Disconnect</button>
-        </div>
-      </div>
-      <div id="sb-setup-ui" style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-size:11px;color:var(--c-muted);line-height:1.5">Connect Supabase so Ready/Pending state syncs across all devices.</div>
-        <div class="ff"><label class="ff-l">Supabase Project URL</label><input id="cfg-sb-url" type="text" placeholder="https://xxxx.supabase.co" style="font-size:12px;font-family:monospace"></div>
-        <div class="ff"><label class="ff-l">Anon Public Key</label><input id="cfg-sb-anon" type="password" placeholder="eyJ…"></div>
-        <button class="btn btn-primary btn-sm" onclick="saveSBConfig()">Connect Supabase</button>
-        <div id="sb-status" class="sp-status"></div>
-      </div>
+      <div class="sp-section-ttl">Account</div>
+      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px" id="sp-user-email"></div>
+      <button class="btn btn-ghost" onclick="signOut()" style="width:100%">Sign Out</button>
     </div>
+
     <div>
       <div class="sp-section-ttl">Language</div>
       <div class="btn-row">
@@ -1019,13 +1005,16 @@ Address: 12 Jalan Bunga, Penang"></textarea>
 
 <script>
 /* ─── Supabase config ────────────────────────────────────────── */
+// ⚠ Replace these two values with your Supabase project credentials
+const _SB_URL  = 'https://oyrngwazbqmxoeihyfoy.supabase.co';
+const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95cm5nd2F6YnFteG9laWh5Zm95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MzQ1MjksImV4cCI6MjA5NjMxMDUyOX0.SFySJvTDJCa2in9r_Rvvg5akPMEhGloCS6H08RtPOPE';
+
 let sb = null;
+let currentUser = null;
 
 function initSupabase() {
-  const url  = localStorage.getItem('bf-sb-url')  || '';
-  const anon = localStorage.getItem('bf-sb-anon') || '';
-  if (!url || !anon) return false;
-  try { sb = supabase.createClient(url, anon); return true; }
+  if (!_SB_URL || _SB_URL === 'YOUR_SUPABASE_URL') return false;
+  try { sb = supabase.createClient(_SB_URL, _SB_ANON); return true; }
   catch(e) { console.error('Supabase init failed:', e); return false; }
 }
 
@@ -1048,6 +1037,63 @@ async function sbDelete(table, id) {
   if (!hasSB()) return;
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) console.error('sbDelete', table, error.message);
+}
+
+/* ─── Auth ───────────────────────────────────────────────────── */
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+  if (!email || !pass) { showLoginErr('Enter email and password'); return; }
+  if (!hasSB()) { showLoginErr('App not configured — contact admin'); return; }
+  const btn = document.querySelector('#login-screen button');
+  btn.textContent = 'Signing in…'; btn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.textContent = 'Sign In'; btn.disabled = false;
+  if (error) { showLoginErr(error.message); return; }
+  currentUser = data.user;
+  showApp();
+}
+
+function showLoginErr(msg) {
+  const el = document.getElementById('login-err');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('.shell').style.display = 'grid';
+  loadData(); setLang(LANG); renderAll();
+  // Show user email in sidebar
+  const footTxt = document.getElementById('sb-foot-txt');
+  if (footTxt && currentUser) footTxt.textContent = currentUser.email;
+}
+
+async function signOut() {
+  if (hasSB()) await sb.auth.signOut();
+  currentUser = null;
+  document.querySelector('.shell').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+async function checkSession() {
+  if (!hasSB()) {
+    // No Supabase — run without auth (local mode)
+    document.getElementById('login-screen').style.display = 'none';
+    document.querySelector('.shell').style.display = 'grid';
+    return;
+  }
+  const { data } = await sb.auth.getSession();
+  if (data?.session?.user) {
+    currentUser = data.session.user;
+    showApp();
+  } else {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.querySelector('.shell').style.display = 'none';
+  }
 }
 
 /* ─── Language ──────────────────────────────────────────────── */
@@ -2320,7 +2366,13 @@ document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('cl
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
 
 /* ─── Settings ───────────────────────────────────────────────── */
-function openSP() { updateConnectedUI(); updateSBUI(); document.getElementById('sp').classList.add('on'); document.getElementById('sp-ov').classList.add('on'); }
+function openSP() {
+  updateConnectedUI();
+  const emailEl = document.getElementById('sp-user-email');
+  if (emailEl) emailEl.textContent = currentUser ? '✉ '+currentUser.email : 'Not signed in';
+  document.getElementById('sp').classList.add('on');
+  document.getElementById('sp-ov').classList.add('on');
+}
 function closeSP() { document.getElementById('sp').classList.remove('on'); document.getElementById('sp-ov').classList.remove('on'); }
 function updateConnectedUI() {
   const tok=localStorage.getItem('flori-token')||'',url=localStorage.getItem('flori-url')||'';
@@ -2347,42 +2399,7 @@ function disconnectShopify() {
   ['flori-url','flori-token'].forEach(k=>localStorage.removeItem(k));
   updateConnectedUI(); setPill('');
 }
-function updateSBUI() {
-  const url = localStorage.getItem('bf-sb-url') || '';
-  const con = document.getElementById('sb-connected-ui');
-  const setup = document.getElementById('sb-setup-ui');
-  const lbl = document.getElementById('sb-url-label');
-  if (url && hasSB()) {
-    if(con) con.style.display='flex';
-    if(setup) setup.style.display='none';
-    if(lbl) lbl.textContent = url.replace('https://','').split('.')[0]+'.supabase.co';
-  } else {
-    if(con) con.style.display='none';
-    if(setup) setup.style.display='flex';
-  }
-}
 
-function saveSBConfig() {
-  const url  = document.getElementById('cfg-sb-url')?.value.trim();
-  const anon = document.getElementById('cfg-sb-anon')?.value.trim();
-  const st   = document.getElementById('sb-status');
-  if (!url || !url.includes('supabase.co')) { if(st){st.className='sp-status err';st.textContent='Enter valid Supabase URL';} return; }
-  if (!anon || !anon.startsWith('eyJ'))     { if(st){st.className='sp-status err';st.textContent='Enter valid anon key';} return; }
-  localStorage.setItem('bf-sb-url',  url);
-  localStorage.setItem('bf-sb-anon', anon);
-  sb = supabase.createClient(url, anon);
-  updateSBUI();
-  if(st){st.className='sp-status ok';st.textContent='✓ Connected — syncing…';}
-  loadFromSupabase();
-}
-
-function disconnectSB() {
-  if (!confirm('Disconnect cloud sync? Data stays on this device.')) return;
-  localStorage.removeItem('bf-sb-url');
-  localStorage.removeItem('bf-sb-anon');
-  sb = null;
-  updateSBUI();
-}
 
 function setSpStatus(cls,msg){const el=document.getElementById('cfg-st');el.className='sp-status '+cls;el.textContent=msg;setTimeout(()=>el.textContent='',5000);}
 
@@ -2932,8 +2949,9 @@ function init() {
     return;
   }
   localStorage.setItem('bf-version', currentVer);
-  initSupabase(); // init Supabase before loadData
-  handleOAuthCallback(); loadData(); setLang(LANG); renderAll();
+  initSupabase();
+  handleOAuthCallback();
+  checkSession(); // show login or app based on session
   if('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => {
       regs.forEach(r => r.unregister());
@@ -2979,6 +2997,45 @@ init();
         <button class="btn btn-primary" style="flex:1" onclick="saveRecipe()">Save Recipe</button>
         <button class="btn btn-ghost" onclick="closeModal('m-recipe')">Cancel</button>
       </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ LOGIN SCREEN ══════════════════════════════════════════ -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0">
+  <div style="width:min(360px,90vw);display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
+    <!-- Logo -->
+    <div style="font-family:var(--f-head);font-size:28px;font-weight:700;color:var(--c-burg);letter-spacing:.02em">
+      Bloom<span style="color:var(--c-dpink)">Flow</span>
+    </div>
+    <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-muted);margin-top:-16px">Florist Studio</div>
+
+    <!-- Fields -->
+    <div style="width:100%;display:flex;flex-direction:column;gap:12px">
+      <div class="ff">
+        <label class="ff-l">Email</label>
+        <input id="login-email" type="email" placeholder="your@email.com"
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface)"
+          onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()">
+      </div>
+      <div class="ff">
+        <label class="ff-l">Password</label>
+        <input id="login-pass" type="password" placeholder="••••••••"
+          style="width:100%;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface)"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div id="login-err" style="display:none;font-size:11px;color:var(--c-red);text-align:center;padding:4px"></div>
+    </div>
+
+    <button onclick="doLogin()"
+      style="width:100%;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;transition:background .12s;letter-spacing:.04em"
+      onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
+      Sign In
+    </button>
+
+    <div style="font-size:10px;color:var(--c-muted);text-align:center">
+      Bamboo Green · BloomFlow
     </div>
   </div>
 </div>
