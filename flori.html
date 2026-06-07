@@ -3373,38 +3373,22 @@ function _renderDPManual(o) {
 }
 
 function init() {
-  // Safety: if Supabase helpers not loaded (stale cache), clear and reload once
-  if (typeof sbGetVal === 'undefined' || typeof initSupabase === 'undefined') {
-    const reloadKey = 'bf-reload-attempt';
-    if (!sessionStorage.getItem(reloadKey)) {
-      sessionStorage.setItem(reloadKey, '1');
-      if ('caches' in window) caches.keys().then(keys => Promise.all(keys.map(k=>caches.delete(k))));
-      if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r=>r.forEach(sw=>sw.unregister()));
-      location.href = location.href.split('?')[0] + '?v=' + Date.now();
-    }
-    return;
-  }
-
   initSupabase();
   handleOAuthCallback();
   checkSession();
-
-  // Clear any stale service workers and caches on every load
+  // Clear service workers silently
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
   }
-  if ('caches' in window) {
-    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-  }
-
-  // Safety fallback — if loading screen stuck after 5s, show login
+  // Safety fallback — if loading screen stuck after 6s, show login
   setTimeout(() => {
     const loading = document.getElementById('app-loading');
     if (loading && loading.style.display !== 'none') {
       loading.style.display = 'none';
-      document.getElementById('login-screen').style.display = 'flex';
+      const ls = document.getElementById('login-screen');
+      if (ls) ls.style.display = 'flex';
     }
-  }, 5000);
+  }, 6000);
 }
 // Wait for everything to load before init
 if (document.readyState === 'loading') {
