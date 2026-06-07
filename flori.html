@@ -509,7 +509,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   <div class="hdr-center hide-m" id="hdr-date-lbl"></div>
   <div id="hdr-pill" class="hdr-pill"></div>
   <div class="hdr-actions">
-    <button class="sync-btn" id="sync-btn" onclick="syncOrders()">
+    <button class="sync-btn" id="sync-btn" onclick="refreshAll()">
       <span id="sync-ico" style="display:inline-block">⟳</span>
       <span class="hide-m">Sync Orders</span>
     </button>
@@ -1365,6 +1365,12 @@ async function shopifyGQL(query) {
   return j.data;
 }
 
+async function refreshAll() {
+  // Pull latest from Supabase (get other devices' changes) then sync Shopify
+  if (hasSB()) await loadFromSupabase();
+  await syncOrders();
+}
+
 async function syncOrders() {
   const ico = document.getElementById('sync-ico');
   ico.classList.add('spin');
@@ -1518,7 +1524,7 @@ async function loadFromSupabase() {
       localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
       changed = true;
     }
-    if (changed) { renderAll(); toast('✓ Synced from cloud'); }
+    if (changed) { renderAll(); _lastRefresh = Date.now(); }
   } catch(e) { console.error('loadFromSupabase error:', e); }
 }
 function rehydrateOrders() {
@@ -3204,6 +3210,25 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+// Auto-pull from Supabase when user returns to the tab/app
+let _lastRefresh = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && hasSB() && currentUser) {
+    const now = Date.now();
+    if (now - _lastRefresh > 30000) { // max once per 30 seconds
+      _lastRefresh = now;
+      loadFromSupabase();
+    }
+  }
+});
+
+// Also refresh when PWA comes back to foreground (iOS)
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && hasSB() && currentUser) {
+    loadFromSupabase();
+  }
+});
 </script>
 
 <!-- ══ ORDER DETAIL PANEL ════════════════════════════════════ -->
