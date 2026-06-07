@@ -1664,6 +1664,14 @@ function itemsCell(o) {
   }
 
   html += `<div class="o-item-customer">${esc(o.customer)}</div>`;
+  // Special instructions — show inline as warning
+  if (o.internalNote) {
+    const preview = o.internalNote.length > 60 ? o.internalNote.slice(0,60)+'…' : o.internalNote;
+    html += `<div style="display:flex;align-items:baseline;gap:5px;margin-top:4px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:3px 7px;border-radius:0 4px 4px 0">
+      <span style="font-size:11px;flex-shrink:0">⚠️</span>
+      <span style="font-size:11px;color:#5D4037;font-weight:500;line-height:1.4">${esc(preview)}</span>
+    </div>`;
+  }
   return html;
 }
 
