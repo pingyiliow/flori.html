@@ -1090,18 +1090,18 @@ async function signOut() {
 
 async function checkSession() {
   if (!hasSB()) {
-    // No Supabase — run without auth (local mode)
-    document.getElementById('login-screen').style.display = 'none';
+    // No Supabase — run in local mode without login
     document.querySelector('.shell').style.display = 'grid';
     return;
   }
+  // Don't show login screen yet — wait for session check
   const { data } = await sb.auth.getSession();
   if (data?.session?.user) {
     currentUser = data.session.user;
     showApp();
   } else {
+    // Only show login after confirming no session exists
     document.getElementById('login-screen').style.display = 'flex';
-    document.querySelector('.shell').style.display = 'none';
   }
 }
 
@@ -3009,7 +3009,7 @@ init();
 
 
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════ -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0">
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0">
   <div style="width:min(360px,90vw);display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
     <!-- Logo -->
     <div style="font-family:var(--f-head);font-size:28px;font-weight:700;color:var(--c-burg);letter-spacing:.02em">
