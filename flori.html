@@ -844,34 +844,30 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
   </div>
   <div class="sp-body">
     <div>
-      <div class="sp-section-ttl">Shopify Connection</div>
+      <div class="sp-section-ttl">Shopify Store</div>
+      <!-- Connected state: shows store name, no editing for staff -->
       <div id="cfg-connected" style="display:none;flex-direction:column;gap:10px">
-        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">✓</span>
-          <div><div style="font-weight:600">Connected</div><div id="cfg-shop-label" style="font-size:11px;opacity:.8"></div></div>
+        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:12px;color:var(--c-forest);display:flex;align-items:center;gap:10px">
+          <span style="font-size:20px">✓</span>
+          <div>
+            <div style="font-weight:600">Connected to Shopify</div>
+            <div id="cfg-shop-label" style="font-size:11px;opacity:.8;margin-top:2px"></div>
+          </div>
         </div>
-        <button class="btn btn-ghost" onclick="disconnectShopify()">Disconnect store</button>
       </div>
+      <!-- Not connected: show full setup UI (admin only) -->
       <div id="cfg-oauth" style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head)">Enter your store URL and click Connect. Approve on Shopify in one click.</div>
+        <div style="font-size:12px;color:var(--c-muted);line-height:1.5">Connect your Shopify store once — all staff will sync automatically.</div>
         <div class="ff">
           <label class="ff-l">Store URL</label>
           <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
-        </div>
-        <button class="btn btn-primary" onclick="connectShopify()" style="gap:10px">
-          <span style="font-size:18px">🛍</span><span>Connect with Shopify</span>
-        </button>
-        <div class="sp-status" id="cfg-st"></div>
-        <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
-          <div style="flex:1;height:1px;background:var(--c-border)"></div>
-          <span style="font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em">or use a token</span>
-          <div style="flex:1;height:1px;background:var(--c-border)"></div>
         </div>
         <div class="ff">
           <label class="ff-l">Admin API Token (shpat_…)</label>
           <input id="cfg-tok" type="password" placeholder="shpat_…">
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="saveToken()">Save token</button>
+        <button class="btn btn-primary" onclick="saveToken()">Save & Connect</button>
+        <div class="sp-status" id="cfg-st"></div>
       </div>
     </div>
     <div>
@@ -2708,12 +2704,25 @@ function connectShopify() {
   if(!raw||!raw.includes('.myshopify.com')){setSpStatus('err','Enter a valid .myshopify.com URL');return;}
   window.location.href='/api/auth?shop='+encodeURIComponent(raw);
 }
-function saveToken() {
-  const url=document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
-  const tok=document.getElementById('cfg-tok').value.trim();
-  if(!url){setSpStatus('err','Store URL required');return;} if(!tok){setSpStatus('err','Token required');return;}
-  localStorage.setItem('flori-url',url); localStorage.setItem('flori-token',tok);
-  updateConnectedUI(); setSpStatus('ok','✓ Saved'); setTimeout(()=>syncOrders(),500);
+async function saveToken() {
+  const url = document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
+  const tok = document.getElementById('cfg-tok').value.trim();
+  if (!url) { setSpStatus('err','Store URL required'); return; }
+  if (!tok) { setSpStatus('err','Token required'); return; }
+  // Save to localStorage for this device
+  localStorage.setItem('flori-url', url);
+  localStorage.setItem('flori-token', tok);
+  // Save to Supabase so ALL devices get it automatically on login
+  if (hasSB()) {
+    try {
+      await Promise.all([sbSet('shopify_url', url), sbSet('shopify_token', tok)]);
+      setSpStatus('ok', '✓ Saved to cloud — all devices updated');
+    } catch(e) { setSpStatus('ok', '✓ Saved locally'); }
+  } else {
+    setSpStatus('ok', '✓ Saved locally');
+  }
+  updateConnectedUI(); setPill(url);
+  setTimeout(() => syncOrders(), 500);
 }
 function disconnectShopify() {
   if(!confirm('Disconnect Shopify?')) return;
