@@ -843,39 +843,24 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
     <button class="sp-x" onclick="closeSP()">✕</button>
   </div>
   <div class="sp-body">
-    <div>
-      <div class="sp-section-ttl">Shopify Store</div>
-      <!-- Connected state: shows store name, no editing for staff -->
-      <div id="cfg-connected" style="display:none;flex-direction:column;gap:10px">
-        <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:12px;color:var(--c-forest);display:flex;align-items:center;gap:10px">
-          <span style="font-size:20px">✓</span>
-          <div>
-            <div style="font-weight:600">Connected to Shopify</div>
-            <div id="cfg-shop-label" style="font-size:11px;opacity:.8;margin-top:2px"></div>
-          </div>
-        </div>
-      </div>
-      <!-- Not connected: show full setup UI (admin only) -->
-      <div id="cfg-oauth" style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-size:12px;color:var(--c-muted);line-height:1.5">Connect your Shopify store once — all staff will sync automatically.</div>
-        <div class="ff">
-          <label class="ff-l">Store URL</label>
-          <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
-        </div>
-        <div class="ff">
-          <label class="ff-l">Admin API Token (shpat_…)</label>
-          <input id="cfg-tok" type="password" placeholder="shpat_…">
-        </div>
-        <button class="btn btn-primary" onclick="saveToken()">Save & Connect</button>
-        <div class="sp-status" id="cfg-st"></div>
-      </div>
-    </div>
+
+    <!-- Account -->
     <div>
       <div class="sp-section-ttl">Account</div>
-      <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px" id="sp-user-email"></div>
+      <div style="font-size:13px;font-weight:500;color:var(--c-ink);margin-bottom:4px" id="sp-user-email"></div>
+      <div style="font-size:11px;color:var(--c-sage);margin-bottom:12px" id="sp-store-label"></div>
       <button class="btn btn-ghost" onclick="signOut()" style="width:100%">Sign Out</button>
     </div>
 
+    <!-- Shopify (hidden inputs — needed for JS, not visible) -->
+    <input type="hidden" id="cfg-url">
+    <input type="hidden" id="cfg-tok">
+    <div id="cfg-connected" style="display:none"></div>
+    <div id="cfg-shop-label" style="display:none"></div>
+    <div id="cfg-oauth" style="display:none"></div>
+    <div id="cfg-st" style="display:none"></div>
+
+    <!-- Language -->
     <div>
       <div class="sp-section-ttl">Language</div>
       <div class="btn-row">
@@ -883,28 +868,28 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
         <button class="btn btn-ghost" onclick="setLang('zh')">简体中文</button>
       </div>
     </div>
-    <div>
-      <div class="sp-section-ttl">Keyboard Shortcuts</div>
-      <table style="font-size:12px;color:var(--c-muted);width:100%;border-collapse:collapse">
-        <tr><td style="padding:4px 0">Dashboard</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">1</code></td></tr>
-        <tr><td style="padding:4px 0">Orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">2</code></td></tr>
-        <tr><td style="padding:4px 0">Inventory</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">3</code></td></tr>
-        <tr><td style="padding:4px 0">Purchase List</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">4</code></td></tr>
-        <tr><td style="padding:4px 0">Sync orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">R</code></td></tr>
-        <tr><td style="padding:4px 0">Settings</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">S</code></td></tr>
-      </table>
-    </div>
-    <div>
-      <div class="sp-section-ttl">Data</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-ghost" onclick="exportData()">↓  Export all data</button>
-        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()">✕  Clear all local data</button>
+
+    <!-- Admin section (only shown if store not connected) -->
+    <div id="sp-admin-section" style="display:none;flex-direction:column;gap:10px">
+      <div class="sp-section-ttl" style="color:var(--c-amber)">⚙ Admin — Shopify Setup</div>
+      <div style="font-size:11px;color:var(--c-muted)">Set once — all staff connect automatically.</div>
+      <div class="ff">
+        <label class="ff-l">Store URL</label>
+        <input id="cfg-url-admin" type="text" placeholder="bamboo-florist.myshopify.com" style="font-family:monospace;font-size:12px">
       </div>
+      <div class="ff">
+        <label class="ff-l">Admin API Token</label>
+        <input id="cfg-tok-admin" type="password" placeholder="shpat_…">
+      </div>
+      <button class="btn btn-primary" onclick="saveTokenAdmin()">Save & Connect for All Devices</button>
+      <div class="sp-status" id="cfg-st-admin"></div>
     </div>
+
+    <!-- About -->
     <div>
       <div class="sp-section-ttl">About</div>
       <div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.7">
-        BloomFlow v1.0 · Florist Studio<br>Built for Bamboo Green Florist, Penang
+        BloomFlow · Florist Studio<br>Bamboo Green Florist, Penang
       </div>
     </div>
   </div>
@@ -1195,6 +1180,21 @@ async function sbDelete(table, id) {
   if (!hasSB()) return;
   const { error } = await sb.from(table).delete().eq('id', id);
   if (error) console.error('sbDelete', table, error.message);
+}
+
+async function sbSet(key, value) {
+  if (!hasSB()) return;
+  const { error } = await sb.from('settings').upsert({ key, value }, { onConflict: 'key' });
+  if (error) console.error('sbSet', key, error.message);
+}
+
+async function sbGetVal(key) {
+  if (!hasSB()) return null;
+  try {
+    const { data, error } = await sb.from('settings').select('value').eq('key', key).single();
+    if (error) return null;
+    return data?.value || null;
+  } catch(e) { return null; }
 }
 
 /* ─── Auth ───────────────────────────────────────────────────── */
@@ -2684,9 +2684,14 @@ document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEvent
 
 /* ─── Settings ───────────────────────────────────────────────── */
 function openSP() {
-  updateConnectedUI();
   const emailEl = document.getElementById('sp-user-email');
-  if (emailEl) emailEl.textContent = currentUser ? '✉ '+currentUser.email : 'Not signed in';
+  if (emailEl) emailEl.textContent = currentUser ? currentUser.email : '';
+  const url = localStorage.getItem('flori-url') || '';
+  const storeLabel = document.getElementById('sp-store-label');
+  if (storeLabel) storeLabel.textContent = url ? '✓ Connected: ' + url : '';
+  // Show admin section only if store not connected
+  const adminSection = document.getElementById('sp-admin-section');
+  if (adminSection) adminSection.style.display = !url ? 'flex' : 'none';
   document.getElementById('sp').classList.add('on');
   document.getElementById('sp-ov').classList.add('on');
 }
@@ -2704,26 +2709,29 @@ function connectShopify() {
   if(!raw||!raw.includes('.myshopify.com')){setSpStatus('err','Enter a valid .myshopify.com URL');return;}
   window.location.href='/api/auth?shop='+encodeURIComponent(raw);
 }
-async function saveToken() {
-  const url = document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
-  const tok = document.getElementById('cfg-tok').value.trim();
-  if (!url) { setSpStatus('err','Store URL required'); return; }
-  if (!tok) { setSpStatus('err','Token required'); return; }
-  // Save to localStorage for this device
+async function saveTokenAdmin() {
+  const url = document.getElementById('cfg-url-admin')?.value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'');
+  const tok = document.getElementById('cfg-tok-admin')?.value.trim();
+  const st  = document.getElementById('cfg-st-admin');
+  if (!url) { if(st){st.className='sp-status err';st.textContent='Store URL required';} return; }
+  if (!tok) { if(st){st.className='sp-status err';st.textContent='Token required';} return; }
   localStorage.setItem('flori-url', url);
   localStorage.setItem('flori-token', tok);
-  // Save to Supabase so ALL devices get it automatically on login
   if (hasSB()) {
     try {
       await Promise.all([sbSet('shopify_url', url), sbSet('shopify_token', tok)]);
-      setSpStatus('ok', '✓ Saved to cloud — all devices updated');
-    } catch(e) { setSpStatus('ok', '✓ Saved locally'); }
-  } else {
-    setSpStatus('ok', '✓ Saved locally');
+      if(st){st.className='sp-status ok';st.textContent='✓ Saved — all staff will sync automatically';}
+    } catch(e) { if(st){st.className='sp-status err';st.textContent='Saved locally only';} }
   }
-  updateConnectedUI(); setPill(url);
+  setPill(url); updateConnectedUI();
+  // Hide admin section now that it's connected
+  const adminSection = document.getElementById('sp-admin-section');
+  if (adminSection) adminSection.style.display = 'none';
+  const storeLabel = document.getElementById('sp-store-label');
+  if (storeLabel) storeLabel.textContent = '✓ Connected: ' + url;
   setTimeout(() => syncOrders(), 500);
 }
+
 function disconnectShopify() {
   if(!confirm('Disconnect Shopify?')) return;
   ['flori-url','flori-token'].forEach(k=>localStorage.removeItem(k));
