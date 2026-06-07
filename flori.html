@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="20260607083001">
+<meta name="version" content="20260607073213">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -153,14 +153,14 @@ img{display:block;max-width:100%}
   .main{padding-bottom:calc(56px + max(0px,env(safe-area-inset-bottom)))}
 }
 .mob-tab{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
-  padding:10px 4px 8px;
-  color:var(--c-muted);font-size:10px;font-weight:500;letter-spacing:.02em;
-  border-top:2px solid transparent;transition:all .12s;background:none;border-left:none;border-right:none;border-bottom:none;cursor:pointer;
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:9px 4px;
+  color:var(--c-muted);font-size:9px;font-weight:400;letter-spacing:.06em;
+  border-top:1.5px solid transparent;transition:all .12s;
 }
 .mob-tab:hover{color:var(--c-ink)}
 .mob-tab.on{color:var(--c-burg);border-top-color:var(--c-burg)}
-.mob-icon{font-size:22px;line-height:1}
+.mob-icon{font-size:18px}
 
 /* ── main ────────────────────────────────────────────────────── */
 .main{
@@ -228,47 +228,6 @@ img{display:block;max-width:100%}
 .o-prod{font-size:13px;font-weight:500;color:var(--c-ink);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:860px){.o-prod{max-width:180px}}
 
-/* ── Desktop order cards ─────────────────────────────────────── */
-.oc{background:var(--c-surface);border-radius:12px;border:1.5px solid var(--c-border);display:grid;grid-template-columns:64px 1fr 120px 150px 160px 52px;align-items:stretch;overflow:hidden;margin-bottom:6px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
-.oc:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-dpink)}
-.oc.oc-ready{border-color:#A5D6A7;background:#F5FBF5}
-.oc.oc-done{opacity:.45}
-.oc.oc-urgent{border-color:#EF9A9A;border-width:2px}
-.oc-ph{background:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;min-height:64px}
-.oc-ph img{width:60px;height:100%;object-fit:cover}
-.oc-main{padding:12px 16px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
-.oc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
-.oc-num{font-size:10px;font-weight:700;color:var(--c-muted);flex-shrink:0}
-.oc-name{font-size:14px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.oc-cust{font-size:11px;color:var(--c-muted);margin-top:1px}
-.oc-note{display:flex;align-items:baseline;gap:5px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 8px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.oc-price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:center;justify-content:flex-end;white-space:nowrap;border-left:1px solid var(--c-border)}
-.oc-tt{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;border-left:1px solid var(--c-border)}
-.oc-time{font-size:13px;font-weight:600;color:var(--c-ink);white-space:nowrap}
-.oc-type{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:3px;white-space:nowrap}
-.oc-type.del{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
-.oc-type.pu{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
-.oc-tags{padding:12px 12px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;border-left:1px solid var(--c-border)}
-.oc-sb{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px;white-space:nowrap}
-.oc-sb.pend{background:#fdecea;color:#c62828;border:1px solid #EF9A9A}
-.oc-sb.rdy{background:#EDF7ED;color:#2E7D32;border:1px solid #A5D6A7}
-.oc-sb.ful{background:#EEF3ED;color:#476644;border:1px solid #c0d9be}
-.oc-sb.urg{background:#FDECEA;color:#C62828;border:1.5px solid #EF9A9A}
-.oc-des{font-size:10px;color:var(--c-burg);background:var(--c-burg-lt);border:1px solid var(--c-dpink);border-radius:10px;padding:2px 9px;white-space:nowrap}
-.oc-tick-col{display:flex;align-items:center;justify-content:center;padding:12px 10px;border-left:1px solid var(--c-border)}
-.oc-tick{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--c-muted);cursor:pointer;transition:all .12s}
-.oc-tick:hover{border-color:var(--c-burg);color:var(--c-burg)}
-.oc-tick.is-ready{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
-.oc-tick.is-fulfilled{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
-.oc-grp{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
-.oc-grp-dot{width:8px;height:8px;border-radius:50%;background:var(--c-burg);flex-shrink:0}
-.oc-grp-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-ink);white-space:nowrap}
-.oc-grp-stats{display:flex;gap:5px;flex-shrink:0}
-.oc-grp-line{flex:1;height:1px;background:var(--c-border)}
-.oc-grp-stat{font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px}
-.oc-grp-stat.p{background:#fdecea;color:#c62828}
-.oc-grp-stat.r{background:#EDF7ED;color:#2E7D32}
-.oc-grp-stat.f{background:#EEF3ED;color:#476644}
 /* ── Mobile order cards (≤860px) ────────────────────────────── */
 @media(max-width:860px){
   /* Hide table header on mobile */
@@ -579,36 +538,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .swipe-reveal{position:absolute;right:0;top:0;bottom:0;width:100px;background:var(--c-burg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;transform:translateX(100%);transition:transform .2s ease;cursor:pointer}
 .swipe-reveal .sr-ico{font-size:20px;color:#EEE4DA}
 .swipe-reveal .sr-lbl{font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(238,228,218,.8)}
-/* ── Mobile order cards ──────────────────────────────────────── */
-.ocard-row td { padding:0 10px 5px; }
-.ocard { background:var(--c-surface); border-radius:12px; border:1.5px solid var(--c-border); overflow:hidden; cursor:pointer; }
-.ocard.ready { border-color:#A5D6A7; background:#F5FBF5; }
-.ocard.done { opacity:.5; }
-.cm { display:flex; align-items:flex-start; gap:10px; padding:11px 12px 8px; }
-.cthumb { width:46px; height:46px; border-radius:8px; flex-shrink:0; overflow:hidden; }
-.cthumb .o-thumb { width:46px; height:46px; border-radius:8px; }
-.cthumb .ph { width:46px; height:46px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; background:var(--c-bg); }
-.cb { flex:1; min-width:0; }
-.ct { display:flex; align-items:flex-start; justify-content:space-between; gap:6px; }
-.cn { font-size:13px; font-weight:600; color:var(--c-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:190px; }
-.cp { font-size:12px; font-weight:600; color:var(--c-burg); flex-shrink:0; }
-.cnum { font-size:10px; color:var(--c-muted); font-weight:600; margin-top:1px; }
-.ccust { font-size:11px; color:var(--c-muted); margin-top:2px; }
-.cnote { margin:0 12px 8px; background:#FFF8E1; border-left:3px solid #FFD54F; padding:5px 8px; border-radius:0 6px 6px 0; font-size:11px; color:#5D4037; font-weight:500; display:flex; gap:5px; }
-.cf { display:flex; align-items:center; gap:5px; padding:7px 12px 9px; flex-wrap:wrap; border-top:1px solid rgba(0,0,0,.05); }
-.b { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 7px; border-radius:3px; }
-.b.pend { background:#fdecea; color:#c62828; border:1px solid #EF9A9A; }
-.b.rdy  { background:#EDF7ED; color:#2E7D32; border:1px solid #A5D6A7; }
-.b.ful  { background:#EEF3ED; color:#476644; border:1px solid #c0d9be; }
-.b.del  { background:#FFF3E0; color:#E65100; border:1px solid #FFCC80; }
-.b.pu   { background:#E3F2FD; color:#1565C0; border:1px solid #90CAF9; }
-.ctime { font-size:11px; color:var(--c-ink); font-weight:600; margin-left:auto; }
-.des { font-size:10px; color:var(--c-burg); background:var(--c-burg-lt); border:1px solid var(--c-dpink); border-radius:10px; padding:1px 7px; }
-.tick { width:28px; height:28px; border-radius:7px; border:1.5px solid var(--c-border); background:var(--c-surface); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--c-muted); flex-shrink:0; cursor:pointer; }
-.tick.r { border-color:#2E7D32; background:#EDF7ED; color:#2E7D32; font-weight:700; }
-.tick.f { border-color:#476644; background:#EEF3ED; color:#476644; cursor:default; }
-
-align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+.recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -675,7 +605,18 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
     <div class="pc" style="padding-top:24px">
       <div class="card">
         <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
-        <div id="home-container" style="padding:0 4px 4px"></div>
+        <div class="scroll-x">
+          <table class="tbl">
+            <thead><tr>
+              <th>Order</th>
+              <th>Product · Customer</th>
+              <th class="hide-m">Time</th>
+              <th>Type</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="home-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -742,7 +683,20 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
 
     </div><!-- /pc -->
     <div class="pc" style="padding-top:20px">
-      <div id="orders-container" style="padding-top:4px"></div>
+      <div class="card orders-tbl-wrap">
+        <div class="scroll-x">
+          <table class="tbl">
+            <thead><tr>
+              <th>Order</th>
+              <th>Product · Customer</th>
+              <th class="hide-m">Date · Time</th>
+              <th>Pickup / Delivery</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="orders-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -827,10 +781,10 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
 <nav class="mob-nav">
-  <button class="mob-tab on" data-pg="home"><span class="mob-icon">🏠</span><span>Home</span></button>
-  <button class="mob-tab" data-pg="orders"><span class="mob-icon">📋</span><span>Orders</span></button>
-  <button class="mob-tab" data-pg="stock"><span class="mob-icon">🌸</span><span>Stock</span></button>
-  <button class="mob-tab" data-pg="followup"><span class="mob-icon">📞</span><span>Follow-up</span></button>
+  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
+  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
+  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -1233,14 +1187,11 @@ async function showApp() {
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
-    // Load store credentials from Supabase — shared across all devices
+    // Always pull store config from Supabase — all devices share the same connection
     const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
     if (sbUrl) {
       localStorage.setItem('flori-url', sbUrl);
       if (sbTok) localStorage.setItem('flori-token', sbTok);
-      // Update cfg inputs too
-      const cu = document.getElementById('cfg-url'); if(cu) cu.value = sbUrl;
-      const ct = document.getElementById('cfg-tok'); if(ct && sbTok) ct.value = sbTok;
       setPill(sbUrl); updateConnectedUI();
     }
     // Pull latest data from Supabase
@@ -1259,21 +1210,22 @@ async function signOut() {
 
 async function checkSession() {
   if (!hasSB()) {
+    // No Supabase configured — show app in local mode
     document.getElementById('app-loading').style.display = 'none';
     document.querySelector('.shell').style.display = 'grid';
     return;
   }
   try {
-    const { data } = await sb.auth.getSession();
+    const { data, error } = await sb.auth.getSession();
     if (data?.session?.user) {
       currentUser = data.session.user;
       showApp();
     } else {
-      document.getElementById('app-loading').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
     }
   } catch(e) {
     console.error('Session check failed:', e);
+    // Fallback — show login
     document.getElementById('app-loading').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   }
@@ -1449,16 +1401,8 @@ function getType(attrs) {
 }
 
 async function shopifyGQL(query) {
-  let url   = localStorage.getItem('flori-url') || '';
-  let token = localStorage.getItem('flori-token') || '';
-  // If not in localStorage, try loading from Supabase first
-  if ((!url || !token) && hasSB()) {
-    try {
-      const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-      if (sbUrl) { url = sbUrl; localStorage.setItem('flori-url', sbUrl); }
-      if (sbTok) { token = sbTok; localStorage.setItem('flori-token', sbTok); }
-    } catch(e) { console.warn('Could not load store config from Supabase:', e.message); }
-  }
+  const url   = localStorage.getItem('flori-url') || '';
+  const token = localStorage.getItem('flori-token') || '';
   if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
   if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
   let r;
@@ -1830,93 +1774,11 @@ function actionBtns(id) {
 
 function orderRow(o, showDate=true) {
   const state = orderState(o);
-  const isMobile = window.innerWidth <= 860;
-
-  if (isMobile) {
-    // ── Mobile card ──
-    const pri   = priorityBadge(o);
-    const price = o.total ? `RM ${parseFloat(o.total).toFixed(2)}` :
-                  (o.lineItems?.reduce((s,i)=>(s+(parseFloat(i.price)||0)*(i.quantity||1)),0)||0) > 0
-                  ? `RM ${o.lineItems.reduce((s,i)=>(s+(parseFloat(i.price)||0)*(i.quantity||1)),0).toFixed(2)}` : '';
-    const typeB = o.type==='pickup'
-      ? `<span class="b pu">Pickup</span>`
-      : `<span class="b del">Delivery</span>`;
-    const stateB = o.fulfilled
-      ? `<span class="b ful">✓ Fulfilled</span>`
-      : o.ready
-        ? `<span class="b rdy">● Ready</span>`
-        : `<span class="b pend">Pending</span>`;
-    const desB = o.designer ? `<span class="des">👤 ${esc(o.designer)}</span>` : '';
-    const timeB = (o.dueTime) ? `<span class="ctime">${esc(o.dueTime)}</span>` : '';
-    const tickCls = o.fulfilled ? 'f' : o.ready ? 'r' : '';
-    const cardCls = o.fulfilled ? 'ocard done' : o.ready ? 'ocard ready' : 'ocard';
-    const noteHtml = o.internalNote
-      ? `<div class="cnote"><span>⚠️</span> ${esc(o.internalNote.slice(0,70)+(o.internalNote.length>70?'…':''))}</div>` : '';
-    return `<tr class="ocard-row"><td colspan="5" style="padding:0 10px 5px">
-      <div class="${cardCls}" onclick="openDP('${o.id}')">
-        <div class="cm">
-          <div class="cthumb">${thumbCell(o)}</div>
-          <div class="cb">
-            <div class="ct">
-              <div>
-                <div class="cn">${esc(o.product||'–')}</div>
-                <div class="cnum">${esc(o.name)}</div>
-              </div>
-              ${price ? `<div class="cp">${price}</div>` : ''}
-            </div>
-            <div class="ccust">${esc(o.customer)}</div>
-          </div>
-        </div>
-        ${noteHtml}
-        <div class="cf">
-          ${pri}${stateB}${typeB}${desB}
-          ${timeB}
-          <button class="tick ${tickCls}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>
-        </div>
-      </div>
-    </td></tr>`;
-  }
-
-  // ── Desktop card ──
-  const price = o.total ? `RM ${parseFloat(o.total).toFixed(2)}` :
-    (o.lineItems?.reduce((s,i)=>s+(parseFloat(i.price)||0)*(i.quantity||1),0)||0) > 0
-    ? `RM ${o.lineItems.reduce((s,i)=>s+(parseFloat(i.price)||0)*(i.quantity||1),0).toFixed(2)}` : '';
-  const cardCls = ['oc',
-    o.fulfilled ? 'oc-done' : o.ready ? 'oc-ready' : '',
-    (o.priority==='urgent') ? 'oc-urgent' : ''
-  ].filter(Boolean).join(' ');
-  const thumb = (() => {
-    const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
-    const imgSrc = (items ? items.find(i=>i.image)?.image : null) || o.image || null;
-    return imgSrc ? `<img src="${imgSrc}" alt="" onerror="this.parentElement.innerHTML='🌸'" loading="lazy">` : '🌸';
-  })();
-  const typeTag = o.type==='pickup'
-    ? `<span class="oc-type pu">Pickup</span>`
-    : `<span class="oc-type del">Delivery</span>`;
-  const statTag = o.fulfilled
-    ? `<span class="oc-sb ful">✓ Fulfilled</span>`
-    : o.ready
-      ? `<span class="oc-sb rdy">● Ready</span>`
-      : `<span class="oc-sb pend">Pending</span>`;
-  const urgTag = (o.priority==='urgent') ? `<span class="oc-sb urg">🔴 Urgent</span>` :
-                 (o.priority==='high')   ? `<span class="oc-sb" style="background:#FFF3E0;color:#E65100;border:1px solid #FFCC80">🟠 High</span>` : '';
-  const desTag = o.designer ? `<span class="oc-des">👤 ${esc(o.designer)}</span>` : '';
-  const noteHtml = o.internalNote
-    ? `<div class="oc-note">⚠️ ${esc(o.internalNote.slice(0,80)+(o.internalNote.length>80?'…':''))}</div>` : '';
-  const tickCls = o.fulfilled ? 'is-fulfilled' : o.ready ? 'is-ready' : '';
-  const tickClick = o.fulfilled ? '' : `onclick="event.stopPropagation();toggleReady('${o.id}')"`;
-  return `<div class="${cardCls}" onclick="openDP('${o.id}')">
-    <div class="oc-ph">${thumb}</div>
-    <div class="oc-main">
-      <div class="oc-top"><span class="oc-num">${esc(o.name)}</span><span class="oc-name">${esc((o.lineItems&&o.lineItems[0]?.title)||o.product||'–')}</span></div>
-      <div class="oc-cust">${esc(o.customer)}</div>
-      ${noteHtml}
-    </div>
-    <div class="oc-price">${price}</div>
-    <div class="oc-tt"><span class="oc-time">${o.dueTime||'–'}</span>${typeTag}</div>
-    <div class="oc-tags">${urgTag}${statTag}${desTag}</div>
-    <div class="oc-tick-col"><div class="oc-tick ${tickCls}" ${tickClick}>✓</div></div>
-  </div>`;
+  const rowCls = `clickable-row row-${state}`;
+  const dtCell = showDate
+    ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
+    : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
+  return `<tr class="${rowCls}" id="row-${o.id.replace(/[^a-z0-9]/gi,'_')}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1939,22 +1801,21 @@ function renderHome() {
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
-  const hc = document.getElementById('home-container');
-  if (!hc) return;
-  hc.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<div style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></div>`;
+  const tb = document.getElementById('home-tbody');
+  tb.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></td></tr>`;
 }
 
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   const list = sortedOrders(filteredOrders());
-  const container = document.getElementById('orders-container');
+  const tb = document.getElementById('orders-tbody');
   const allF = srch ? ORDERS : filteredOrders();
   const cntPu = document.getElementById('count-pickup');
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
   if (!list.length) {
-    container.innerHTML = `<div style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></div>`;
+    tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></td></tr>`;
     return;
   }
   const groups = [];
@@ -3373,38 +3234,30 @@ function _renderDPManual(o) {
 }
 
 function init() {
-  // Safety: if Supabase helpers not loaded (stale cache), clear and reload once
-  if (typeof sbGetVal === 'undefined' || typeof initSupabase === 'undefined') {
-    const reloadKey = 'bf-reload-attempt';
-    if (!sessionStorage.getItem(reloadKey)) {
-      sessionStorage.setItem(reloadKey, '1');
-      if ('caches' in window) caches.keys().then(keys => Promise.all(keys.map(k=>caches.delete(k))));
-      if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r=>r.forEach(sw=>sw.unregister()));
-      location.href = location.href.split('?')[0] + '?v=' + Date.now();
+  // Init Supabase first — so session is available even during version reload
+  initSupabase();
+
+  // Version check — force reload if new version deployed
+  const currentVer = document.querySelector('meta[name="version"]')?.content || '';
+  const storedVer  = localStorage.getItem('bf-version') || '';
+  if (storedVer && storedVer !== currentVer) {
+    localStorage.setItem('bf-version', currentVer);
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        Promise.all(keys.map(k => caches.delete(k))).then(() => location.reload(true));
+      });
+    } else {
+      location.reload(true);
     }
     return;
   }
-
-  initSupabase();
+  localStorage.setItem('bf-version', currentVer);
   handleOAuthCallback();
-  checkSession();
-
-  // Clear any stale service workers and caches on every load
-  if ('serviceWorker' in navigator) {
+  checkSession(); // restore session — no login needed if already signed in
+  if('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+    if('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
-  if ('caches' in window) {
-    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-  }
-
-  // Safety fallback — if loading screen stuck after 5s, show login
-  setTimeout(() => {
-    const loading = document.getElementById('app-loading');
-    if (loading && loading.style.display !== 'none') {
-      loading.style.display = 'none';
-      document.getElementById('login-screen').style.display = 'flex';
-    }
-  }, 5000);
 }
 // Wait for everything to load before init
 if (document.readyState === 'loading') {
