@@ -228,6 +228,47 @@ img{display:block;max-width:100%}
 .o-prod{font-size:13px;font-weight:500;color:var(--c-ink);margin-top:2px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:860px){.o-prod{max-width:180px}}
 
+/* ── Desktop order cards ─────────────────────────────────────── */
+.oc{background:var(--c-surface);border-radius:12px;border:1.5px solid var(--c-border);display:grid;grid-template-columns:60px 1fr 110px 140px 150px 50px;align-items:stretch;overflow:hidden;margin-bottom:6px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.oc:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-dpink)}
+.oc.oc-ready{border-color:#A5D6A7;background:#F5FBF5}
+.oc.oc-done{opacity:.45}
+.oc.oc-urgent{border-color:#EF9A9A;border-width:2px}
+.oc-ph{background:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;min-height:64px}
+.oc-ph img{width:60px;height:100%;object-fit:cover}
+.oc-main{padding:12px 16px;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.oc-top{display:flex;align-items:baseline;gap:8px;min-width:0}
+.oc-num{font-size:10px;font-weight:700;color:var(--c-muted);flex-shrink:0}
+.oc-name{font-size:14px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-cust{font-size:11px;color:var(--c-muted);margin-top:1px}
+.oc-note{display:flex;align-items:baseline;gap:5px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 8px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:center;justify-content:flex-end;white-space:nowrap;border-left:1px solid var(--c-border)}
+.oc-tt{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;border-left:1px solid var(--c-border)}
+.oc-time{font-size:13px;font-weight:600;color:var(--c-ink);white-space:nowrap}
+.oc-type{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:3px;white-space:nowrap}
+.oc-type.del{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.oc-type.pu{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
+.oc-tags{padding:12px 12px;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:5px;border-left:1px solid var(--c-border)}
+.oc-sb{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.oc-sb.pend{background:#fdecea;color:#c62828;border:1px solid #EF9A9A}
+.oc-sb.rdy{background:#EDF7ED;color:#2E7D32;border:1px solid #A5D6A7}
+.oc-sb.ful{background:#EEF3ED;color:#476644;border:1px solid #c0d9be}
+.oc-sb.urg{background:#FDECEA;color:#C62828;border:1.5px solid #EF9A9A}
+.oc-des{font-size:10px;color:var(--c-burg);background:var(--c-burg-lt);border:1px solid var(--c-dpink);border-radius:10px;padding:2px 9px;white-space:nowrap}
+.oc-tick-col{display:flex;align-items:center;justify-content:center;padding:12px 10px;border-left:1px solid var(--c-border)}
+.oc-tick{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--c-muted);cursor:pointer;transition:all .12s}
+.oc-tick:hover{border-color:var(--c-burg);color:var(--c-burg)}
+.oc-tick.is-ready{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
+.oc-tick.is-fulfilled{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage);cursor:default}
+.oc-grp{display:flex;align-items:center;gap:10px;margin:20px 0 10px}
+.oc-grp-dot{width:8px;height:8px;border-radius:50%;background:var(--c-burg);flex-shrink:0}
+.oc-grp-lbl{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-ink);white-space:nowrap}
+.oc-grp-stats{display:flex;gap:5px;flex-shrink:0}
+.oc-grp-line{flex:1;height:1px;background:var(--c-border)}
+.oc-grp-stat{font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px}
+.oc-grp-stat.p{background:#fdecea;color:#c62828}
+.oc-grp-stat.r{background:#EDF7ED;color:#2E7D32}
+.oc-grp-stat.f{background:#EEF3ED;color:#476644}
 /* ── Mobile order cards (≤860px) ────────────────────────────── */
 @media(max-width:860px){
   /* Hide table header on mobile */
@@ -712,20 +753,7 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
 
     </div><!-- /pc -->
     <div class="pc" style="padding-top:20px">
-      <div class="card orders-tbl-wrap">
-        <div class="scroll-x">
-          <table class="tbl">
-            <thead><tr>
-              <th>Order</th>
-              <th>Product · Customer</th>
-              <th class="hide-m">Date · Time</th>
-              <th>Pickup / Delivery</th>
-              <th></th>
-            </tr></thead>
-            <tbody id="orders-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+      <div id="orders-container"></div>
     </div>
   </div>
 
@@ -1849,12 +1877,46 @@ function orderRow(o, showDate=true) {
     </td></tr>`;
   }
 
-  // ── Desktop table row ──
-  const rowCls = `clickable-row row-${state}`;
-  const dtCell = showDate
-    ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
-    : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  return `<tr class="${rowCls}" id="row-${o.id.replace(/[^a-z0-9]/gi,'_')}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  // ── Desktop card ──
+  const price = o.total ? `RM ${parseFloat(o.total).toFixed(2)}` :
+    (o.lineItems?.reduce((s,i)=>s+(parseFloat(i.price)||0)*(i.quantity||1),0)||0) > 0
+    ? `RM ${o.lineItems.reduce((s,i)=>s+(parseFloat(i.price)||0)*(i.quantity||1),0).toFixed(2)}` : '';
+  const cardCls = ['oc',
+    o.fulfilled ? 'oc-done' : o.ready ? 'oc-ready' : '',
+    (o.priority==='urgent') ? 'oc-urgent' : ''
+  ].filter(Boolean).join(' ');
+  const thumb = (() => {
+    const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
+    const imgSrc = (items ? items.find(i=>i.image)?.image : null) || o.image || null;
+    return imgSrc ? `<img src="${imgSrc}" alt="" onerror="this.parentElement.innerHTML='🌸'" loading="lazy">` : '🌸';
+  })();
+  const typeTag = o.type==='pickup'
+    ? `<span class="oc-type pu">Pickup</span>`
+    : `<span class="oc-type del">Delivery</span>`;
+  const statTag = o.fulfilled
+    ? `<span class="oc-sb ful">✓ Fulfilled</span>`
+    : o.ready
+      ? `<span class="oc-sb rdy">● Ready</span>`
+      : `<span class="oc-sb pend">Pending</span>`;
+  const urgTag = (o.priority==='urgent') ? `<span class="oc-sb urg">🔴 Urgent</span>` :
+                 (o.priority==='high')   ? `<span class="oc-sb" style="background:#FFF3E0;color:#E65100;border:1px solid #FFCC80">🟠 High</span>` : '';
+  const desTag = o.designer ? `<span class="oc-des">👤 ${esc(o.designer)}</span>` : '';
+  const noteHtml = o.internalNote
+    ? `<div class="oc-note">⚠️ ${esc(o.internalNote.slice(0,80)+(o.internalNote.length>80?'…':''))}</div>` : '';
+  const tickCls = o.fulfilled ? 'is-fulfilled' : o.ready ? 'is-ready' : '';
+  const tickClick = o.fulfilled ? '' : `onclick="event.stopPropagation();toggleReady('${o.id}')"`;
+  return `<div class="${cardCls}" onclick="openDP('${o.id}')">
+    <div class="oc-ph">${thumb}</div>
+    <div class="oc-main">
+      <div class="oc-top"><span class="oc-num">${esc(o.name)}</span><span class="oc-name">${esc(o.product||'–')}</span></div>
+      <div class="oc-cust">${esc(o.customer)}</div>
+      ${noteHtml}
+    </div>
+    <div class="oc-price">${price}</div>
+    <div class="oc-tt"><span class="oc-time">${o.dueTime||'–'}</span>${typeTag}</div>
+    <div class="oc-tags">${urgTag}${statTag}${desTag}</div>
+    <div class="oc-tick-col"><div class="oc-tick ${tickCls}" ${tickClick}>✓</div></div>
+  </div>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1884,14 +1946,14 @@ function renderHome() {
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   const list = sortedOrders(filteredOrders());
-  const tb = document.getElementById('orders-tbody');
+  const container = document.getElementById('orders-container');
   const allF = srch ? ORDERS : filteredOrders();
   const cntPu = document.getElementById('count-pickup');
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
   if (!list.length) {
-    tb.innerHTML = `<tr><td colspan="5" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></td></tr>`;
+    container.innerHTML = `<div style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div></div>`;
     return;
   }
   const groups = [];
