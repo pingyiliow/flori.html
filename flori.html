@@ -480,6 +480,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .qa-btn .qa-lbl{font-size:9px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted)}
 .qa-btn.qa-primary{border-color:var(--c-burg);background:var(--c-burg-lt)}
 .qa-btn.qa-primary .qa-lbl{color:var(--c-burg)}
+
+/* ── Swipe to reveal Delivered (mobile) ─────────────────────── */
+.swipe-row-wrap{position:relative;overflow:hidden}
+.swipe-reveal{position:absolute;right:0;top:0;bottom:0;width:100px;background:var(--c-burg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;transform:translateX(100%);transition:transform .2s ease;cursor:pointer}
+.swipe-reveal .sr-ico{font-size:20px;color:#EEE4DA}
+.swipe-reveal .sr-lbl{font-size:8px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(238,228,218,.8)}
 .recipe-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(--c-forest);border:1px solid var(--c-sage);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -1689,7 +1695,7 @@ function orderRow(o, showDate=true) {
   const dtCell = showDate
     ? `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div><div class="o-date">${o.dateObj ? fd(o.dateObj) : (o.dueDate||'–')}</div></td>`
     : `<td class="hide-m"><div class="o-time">${o.dueTime||'–'}</div></td>`;
-  return `<tr class="${rowCls}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
+  return `<tr class="${rowCls}" id="row-${o.id.replace(/[^a-z0-9]/gi,'_')}" onclick="openDP('${o.id}')" style="cursor:pointer"><td><div class="o-cell">${thumbCell(o)}<div class="o-num">${o.name}</div></div></td><td>${itemsCell(o)}</td>${dtCell}<td>${tagRow(o)}</td><td>${actionBtns(o.id)}</td></tr>`;
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -1753,6 +1759,7 @@ function renderOrders() {
     html += g.items.map(o=>orderRow(o,true)).join('');
   });
   tb.innerHTML = html;
+  setTimeout(initSwipeRows, 50);
 }
 
 function renderInventory() {
@@ -2669,6 +2676,68 @@ function savePur(){const name=document.getElementById('p-name').value.trim();if(
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
 function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
+/* ─── Swipe to deliver (mobile) ────────────────────────────── */
+function initSwipeRows() {
+  // Only on touch devices
+  if (!('ontouchstart' in window)) return;
+  document.querySelectorAll('tr.clickable-row[id^="row-"]').forEach(row => {
+    if (row._swipeInit) return;
+    row._swipeInit = true;
+    let startX = 0, startY = 0, dx = 0;
+    let swiping = false;
+    const reveal = document.createElement('div');
+    reveal.className = 'swipe-reveal';
+    reveal.innerHTML = '<span class="sr-ico">🚚</span><span class="sr-lbl">Delivered</span>';
+    const orderId = row.id.replace('row_','').replace(/_/g, (m, i, s) => {
+      // Reconstruct original id - use data attribute instead
+      return m;
+    });
+    // Get order id from the onclick attribute
+    const onclickStr = row.getAttribute('onclick') || '';
+    const idMatch = onclickStr.match(/openDP\('([^']+)'\)/);
+    if (!idMatch) return;
+    const oid = idMatch[1];
+    reveal.onclick = (e) => { e.stopPropagation(); markDelivered(oid); resetSwipe(row, reveal); };
+    row.style.position = 'relative';
+    row.style.overflow = 'hidden';
+    row.appendChild(reveal);
+
+    row.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0; swiping = false;
+    }, {passive:true});
+
+    row.addEventListener('touchmove', e => {
+      dx = e.touches[0].clientX - startX;
+      const dy = Math.abs(e.touches[0].clientY - startY);
+      if (Math.abs(dx) < 10 && dy < 10) return;
+      if (dy > Math.abs(dx)) return; // vertical scroll — ignore
+      swiping = true;
+      if (dx < 0) {
+        const pct = Math.min(-dx, 100);
+        reveal.style.transform = `translateX(${100 - pct}%)`;
+        e.preventDefault();
+      } else if (dx > 0) {
+        reveal.style.transform = 'translateX(100%)';
+      }
+    }, {passive:false});
+
+    row.addEventListener('touchend', () => {
+      if (!swiping) return;
+      if (dx < -60) {
+        reveal.style.transform = 'translateX(0%)'; // fully revealed
+      } else {
+        resetSwipe(row, reveal);
+      }
+    });
+  });
+}
+
+function resetSwipe(row, reveal) {
+  if (reveal) reveal.style.transform = 'translateX(100%)';
+}
+
 function markDelivered(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   o.ready=true; o.fulfilled=true;
@@ -2926,7 +2995,7 @@ function _renderDP(order, localOrder) {
     <button class="qa-btn" onclick="openRecipe('${localOrder.id}');closeDP()"><span class="qa-ico">📸</span><span class="qa-lbl">Recipe</span></button>
     ${addrForMaps ? `<a class="qa-btn" href="https://maps.google.com/?q=${addrForMaps}" target="_blank"><span class="qa-ico">📍</span><span class="qa-lbl">Maps</span></a>` : '<div></div>'}
     <button class="qa-btn" onclick="window.open('${shopifyOrderUrl}','_blank')"><span class="qa-ico">🖨</span><span class="qa-lbl">Shopify</span></button>
-    <button class="qa-btn qa-primary" onclick="markDelivered('${localOrder.id}')"><span class="qa-ico">🚚</span><span class="qa-lbl">Delivered</span></button>
+    <button class="qa-btn" onclick="triggerOrderPhoto('${localOrder.id}')"><span class="qa-ico">📷</span><span class="qa-lbl">Photo</span></button>
   </div>`;
 
   // ── Delivery / Pickup ──
@@ -2993,8 +3062,13 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Edit & Delete buttons at bottom ──
-  html += `<div style="display:flex;gap:10px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
+  // ── Delivered / Edit / Delete at bottom ──
+  if (!localOrder.fulfilled) {
+    html += `<button onclick="markDelivered('${localOrder.id}')" style="width:100%;padding:13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:background .12s" onmouseover="this.style.background='#3A080C'" onmouseout="this.style.background='var(--c-burg)'">
+      🚚 Mark as Delivered
+    </button>`;
+  }
+  html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
     <button onclick="closeDP();editOrder('${localOrder.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
       ✎ Edit Order
     </button>
