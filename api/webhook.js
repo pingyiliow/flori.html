@@ -1,51 +1,28 @@
 // POST /api/webhook
 // Receives Shopify order webhooks and saves to Supabase
-// Topics handled: orders/create, orders/updated, orders/fulfilled
 
-import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
-// ── Config — set these in Vercel environment variables ──
-const SB_URL       = process.env.SUPABASE_URL;
-const SB_KEY       = process.env.SUPABASE_SERVICE_KEY; // use service key server-side
-const WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET || 'not_set';
+const SB_URL = process.env.SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 export default async function handler(req, res) {
-  // Only accept POST
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-
-  // ── Verify Shopify webhook signature (only if secret is configured) ──
-  if (WEBHOOK_SECRET && WEBHOOK_SECRET !== 'not_set') {
-    const hmac = req.headers['x-shopify-hmac-sha256'];
-    if (hmac) {
-      // Shopify sends raw body for HMAC — use raw buffer
-      const rawBody = JSON.stringify(req.body);
-      const digest  = crypto
-        .createHmac('sha256', WEBHOOK_SECRET)
-        .update(rawBody, 'utf8')
-        .digest('base64');
-      if (digest !== hmac) {
-        console.error('Webhook signature mismatch');
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-    }
-  }
 
   const topic = req.headers['x-shopify-topic'] || '';
   const order = req.body;
 
   if (!order || !order.id) return res.status(400).json({ error: 'No order data' });
 
-  // ── Init Supabase ──
   if (!SB_URL || !SB_KEY) {
     console.error('Missing Supabase env vars');
-    return res.status(500).json({ error: 'Server misconfigured' });
+    return res.status(500).json({ error: 'Add SUPABASE_URL and SUPABASE_SERVICE_KEY to Vercel env vars' });
   }
+
   const sb = createClient(SB_URL, SB_KEY);
 
-  // ── Parse the Shopify order into our schema ──
-  const attrs      = order.note_attributes || [];
-  const getAttr    = k => attrs.find(a => a.name?.toLowerCase() === k.toLowerCase())?.value || '';
+  const attrs   = order.note_attributes || [];
+  const getAttr = k => attrs.find(a => a.name?.toLowerCase() === k.toLowerCase())?.value || '';
 
   const dueDate = getAttr('Order Due Date') ||
                   getAttr('Translated Order Due Date') ||
@@ -59,7 +36,6 @@ export default async function handler(req, res) {
 
   const typeRaw = (getAttr('Order Fulfillment Type') || getAttr('Type Of Order') || '').toLowerCase();
   const type    = /pick|collect|store pick/.test(typeRaw) ? 'pickup' : 'delivery';
-
   const fulfilled = order.fulfillment_status === 'fulfilled';
 
   const lineItems = (order.line_items || []).map(i => ({
@@ -89,20 +65,20 @@ export default async function handler(req, res) {
     due_time:    dueTime,
     type,
     fulfilled,
+    ready:       false,
     created_at:  order.created_at || null,
     manual_addr: null,
     recipe:      [],
     updated_at:  new Date().toISOString(),
   };
 
-  // ── Upsert into Supabase (insert or update) ──
   const { error } = await sb.from('orders').upsert(row, { onConflict: 'id' });
 
   if (error) {
-    console.error('Supabase upsert error:', error.message);
+    console.error('Supabase error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 
-  console.log(`[Webhook] ${topic} → ${order.name} saved to Supabase`);
-  return res.status(200).json({ ok: true, order: order.name, topic });
+  console.log(`[Webhook] ${topic} → ${order.name} saved`);
+  return res.status(200).json({ ok: true, order: order.name });
 }
