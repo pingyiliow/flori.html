@@ -1210,22 +1210,21 @@ async function signOut() {
 
 async function checkSession() {
   if (!hasSB()) {
-    // No Supabase configured — show app in local mode
     document.getElementById('app-loading').style.display = 'none';
     document.querySelector('.shell').style.display = 'grid';
     return;
   }
   try {
-    const { data, error } = await sb.auth.getSession();
+    const { data } = await sb.auth.getSession();
     if (data?.session?.user) {
       currentUser = data.session.user;
       showApp();
     } else {
+      document.getElementById('app-loading').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
     }
   } catch(e) {
     console.error('Session check failed:', e);
-    // Fallback — show login
     document.getElementById('app-loading').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   }
@@ -3249,15 +3248,23 @@ function init() {
     } else {
       location.reload(true);
     }
-    return;
+    // Don't return — fall through to checkSession in case reload is blocked
   }
   localStorage.setItem('bf-version', currentVer);
   handleOAuthCallback();
-  checkSession(); // restore session — no login needed if already signed in
+  checkSession();
   if('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
     if('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
+  // Safety fallback — if app-loading still showing after 5s, force show login
+  setTimeout(() => {
+    const loading = document.getElementById('app-loading');
+    if (loading && loading.style.display !== 'none') {
+      loading.style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+    }
+  }, 5000);
 }
 // Wait for everything to load before init
 if (document.readyState === 'loading') {
