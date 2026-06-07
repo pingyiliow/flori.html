@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="20260607073213">
+<meta name="version" content="20260607083001">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -1453,9 +1453,11 @@ async function shopifyGQL(query) {
   let token = localStorage.getItem('flori-token') || '';
   // If not in localStorage, try loading from Supabase first
   if ((!url || !token) && hasSB()) {
-    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-    if (sbUrl) { url = sbUrl; localStorage.setItem('flori-url', sbUrl); }
-    if (sbTok) { token = sbTok; localStorage.setItem('flori-token', sbTok); }
+    try {
+      const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+      if (sbUrl) { url = sbUrl; localStorage.setItem('flori-url', sbUrl); }
+      if (sbTok) { token = sbTok; localStorage.setItem('flori-token', sbTok); }
+    } catch(e) { console.warn('Could not load store config from Supabase:', e.message); }
   }
   if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
   if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
@@ -3371,31 +3373,31 @@ function _renderDPManual(o) {
 }
 
 function init() {
-  // Init Supabase first — so session is available even during version reload
-  initSupabase();
-
-  // Version check — force reload if new version deployed
-  const currentVer = document.querySelector('meta[name="version"]')?.content || '';
-  const storedVer  = localStorage.getItem('bf-version') || '';
-  if (storedVer && storedVer !== currentVer) {
-    localStorage.setItem('bf-version', currentVer);
-    if ('caches' in window) {
-      caches.keys().then(keys => {
-        Promise.all(keys.map(k => caches.delete(k))).then(() => location.reload(true));
-      });
-    } else {
-      location.reload(true);
+  // Safety: if Supabase helpers not loaded (stale cache), clear and reload once
+  if (typeof sbGetVal === 'undefined' || typeof initSupabase === 'undefined') {
+    const reloadKey = 'bf-reload-attempt';
+    if (!sessionStorage.getItem(reloadKey)) {
+      sessionStorage.setItem(reloadKey, '1');
+      if ('caches' in window) caches.keys().then(keys => Promise.all(keys.map(k=>caches.delete(k))));
+      if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r=>r.forEach(sw=>sw.unregister()));
+      location.href = location.href.split('?')[0] + '?v=' + Date.now();
     }
-    // Don't return — fall through to checkSession in case reload is blocked
+    return;
   }
-  localStorage.setItem('bf-version', currentVer);
+
+  initSupabase();
   handleOAuthCallback();
   checkSession();
-  if('serviceWorker' in navigator) {
+
+  // Clear any stale service workers and caches on every load
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-    if('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
   }
-  // Safety fallback — if app-loading still showing after 5s, force show login
+  if ('caches' in window) {
+    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
+  }
+
+  // Safety fallback — if loading screen stuck after 5s, show login
   setTimeout(() => {
     const loading = document.getElementById('app-loading');
     if (loading && loading.style.display !== 'none') {
