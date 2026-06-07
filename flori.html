@@ -1449,8 +1449,14 @@ function getType(attrs) {
 }
 
 async function shopifyGQL(query) {
-  const url   = localStorage.getItem('flori-url') || '';
-  const token = localStorage.getItem('flori-token') || '';
+  let url   = localStorage.getItem('flori-url') || '';
+  let token = localStorage.getItem('flori-token') || '';
+  // If not in localStorage, try loading from Supabase first
+  if ((!url || !token) && hasSB()) {
+    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+    if (sbUrl) { url = sbUrl; localStorage.setItem('flori-url', sbUrl); }
+    if (sbTok) { token = sbTok; localStorage.setItem('flori-token', sbTok); }
+  }
   if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
   if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
   let r;
