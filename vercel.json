@@ -1,4 +1,7 @@
 {
+  "rewrites": [
+    { "source": "/", "destination": "/flori.html" }
+  ],
   "headers": [
     {
       "source": "/flori.html",
@@ -9,9 +12,9 @@
       ]
     },
     {
-      "source": "/(.*)\\.html",
+      "source": "/api/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        { "key": "Cache-Control", "value": "no-store" }
       ]
     }
   ]
