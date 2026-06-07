@@ -153,14 +153,14 @@ img{display:block;max-width:100%}
   .main{padding-bottom:calc(56px + max(0px,env(safe-area-inset-bottom)))}
 }
 .mob-tab{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-  padding:9px 4px;
-  color:var(--c-muted);font-size:9px;font-weight:400;letter-spacing:.06em;
-  border-top:1.5px solid transparent;transition:all .12s;
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 4px 8px;
+  color:var(--c-muted);font-size:10px;font-weight:500;letter-spacing:.02em;
+  border-top:2px solid transparent;transition:all .12s;background:none;border-left:none;border-right:none;border-bottom:none;cursor:pointer;
 }
 .mob-tab:hover{color:var(--c-ink)}
 .mob-tab.on{color:var(--c-burg);border-top-color:var(--c-burg)}
-.mob-icon{font-size:18px}
+.mob-icon{font-size:22px;line-height:1}
 
 /* ── main ────────────────────────────────────────────────────── */
 .main{
@@ -229,7 +229,7 @@ img{display:block;max-width:100%}
 @media(max-width:860px){.o-prod{max-width:180px}}
 
 /* ── Desktop order cards ─────────────────────────────────────── */
-.oc{background:var(--c-surface);border-radius:12px;border:1.5px solid var(--c-border);display:grid;grid-template-columns:60px 1fr 110px 140px 150px 50px;align-items:stretch;overflow:hidden;margin-bottom:6px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.oc{background:var(--c-surface);border-radius:12px;border:1.5px solid var(--c-border);display:grid;grid-template-columns:64px 1fr 120px 150px 160px 52px;align-items:stretch;overflow:hidden;margin-bottom:6px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
 .oc:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-dpink)}
 .oc.oc-ready{border-color:#A5D6A7;background:#F5FBF5}
 .oc.oc-done{opacity:.45}
@@ -675,18 +675,7 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
     <div class="pc" style="padding-top:24px">
       <div class="card">
         <div class="card-hdr"><div class="card-ttl">Today's Schedule</div></div>
-        <div class="scroll-x">
-          <table class="tbl">
-            <thead><tr>
-              <th>Order</th>
-              <th>Product · Customer</th>
-              <th class="hide-m">Time</th>
-              <th>Type</th>
-              <th></th>
-            </tr></thead>
-            <tbody id="home-tbody"></tbody>
-          </table>
-        </div>
+        <div id="home-container" style="padding:0 4px 4px"></div>
       </div>
     </div>
   </div>
@@ -753,7 +742,7 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
 
     </div><!-- /pc -->
     <div class="pc" style="padding-top:20px">
-      <div id="orders-container"></div>
+      <div id="orders-container" style="padding-top:4px"></div>
     </div>
   </div>
 
@@ -838,10 +827,10 @@ align-items:center;gap:3px;font-size:9px;background:var(--c-sage-bg);color:var(-
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
 <nav class="mob-nav">
-  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
-  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
-  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
-  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
+  <button class="mob-tab on" data-pg="home"><span class="mob-icon">🏠</span><span>Home</span></button>
+  <button class="mob-tab" data-pg="orders"><span class="mob-icon">📋</span><span>Orders</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon">🌸</span><span>Stock</span></button>
+  <button class="mob-tab" data-pg="followup"><span class="mob-icon">📞</span><span>Follow-up</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -1244,11 +1233,14 @@ async function showApp() {
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
-    // Always pull store config from Supabase — all devices share the same connection
+    // Load store credentials from Supabase — shared across all devices
     const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
     if (sbUrl) {
       localStorage.setItem('flori-url', sbUrl);
       if (sbTok) localStorage.setItem('flori-token', sbTok);
+      // Update cfg inputs too
+      const cu = document.getElementById('cfg-url'); if(cu) cu.value = sbUrl;
+      const ct = document.getElementById('cfg-tok'); if(ct && sbTok) ct.value = sbTok;
       setPill(sbUrl); updateConnectedUI();
     }
     // Pull latest data from Supabase
@@ -1908,7 +1900,7 @@ function orderRow(o, showDate=true) {
   return `<div class="${cardCls}" onclick="openDP('${o.id}')">
     <div class="oc-ph">${thumb}</div>
     <div class="oc-main">
-      <div class="oc-top"><span class="oc-num">${esc(o.name)}</span><span class="oc-name">${esc(o.product||'–')}</span></div>
+      <div class="oc-top"><span class="oc-num">${esc(o.name)}</span><span class="oc-name">${esc((o.lineItems&&o.lineItems[0]?.title)||o.product||'–')}</span></div>
       <div class="oc-cust">${esc(o.customer)}</div>
       ${noteHtml}
     </div>
@@ -1939,8 +1931,9 @@ function renderHome() {
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   const sorted = sortedOrders(todayO);
-  const tb = document.getElementById('home-tbody');
-  tb.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<tr><td colspan="5" style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></td></tr>`;
+  const hc = document.getElementById('home-container');
+  if (!hc) return;
+  hc.innerHTML = sorted.length ? sorted.map(o=>orderRow(o,false)).join('') : `<div style="padding:40px;text-align:center"><div class="empty"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div></div>`;
 }
 
 function renderOrders() {
