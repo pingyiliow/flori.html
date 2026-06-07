@@ -1155,6 +1155,26 @@ async function sbDelete(table, id) {
   if (error) console.error('sbDelete', table, error.message);
 }
 
+/* settings table — key/value store shared across all devices.
+   Both helpers swallow their own errors so a missing/locked settings
+   table can never break the login path (showApp depends on sbGetVal). */
+async function sbGetVal(key) {
+  if (!hasSB()) return null;
+  try {
+    const { data, error } = await sb.from('settings').select('value').eq('key', key).maybeSingle();
+    if (error) { console.error('sbGetVal', key, error.message); return null; }
+    return data ? data.value : null;
+  } catch (e) { console.error('sbGetVal', key, e); return null; }
+}
+
+async function sbSet(key, value) {
+  if (!hasSB()) return;
+  try {
+    const { error } = await sb.from('settings').upsert({ key, value }, { onConflict: 'key' });
+    if (error) console.error('sbSet', key, error.message);
+  } catch (e) { console.error('sbSet', key, e); }
+}
+
 /* ─── Auth ───────────────────────────────────────────────────── */
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
@@ -1187,13 +1207,16 @@ async function showApp() {
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
-    // Always pull store config from Supabase — all devices share the same connection
-    const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
-    if (sbUrl) {
-      localStorage.setItem('flori-url', sbUrl);
-      if (sbTok) localStorage.setItem('flori-token', sbTok);
-      setPill(sbUrl); updateConnectedUI();
-    }
+    // Always pull store config from Supabase — all devices share the same connection.
+    // Wrapped so a settings read failure can never stop the data pull below.
+    try {
+      const [sbUrl, sbTok] = await Promise.all([sbGetVal('shopify_url'), sbGetVal('shopify_token')]);
+      if (sbUrl) {
+        localStorage.setItem('flori-url', sbUrl);
+        if (sbTok) localStorage.setItem('flori-token', sbTok);
+        setPill(sbUrl); updateConnectedUI();
+      }
+    } catch (e) { console.error('store config load failed:', e); }
     // Pull latest data from Supabase
     await loadFromSupabase();
   }
@@ -2574,6 +2597,7 @@ function saveToken() {
   const tok=document.getElementById('cfg-tok').value.trim();
   if(!url){setSpStatus('err','Store URL required');return;} if(!tok){setSpStatus('err','Token required');return;}
   localStorage.setItem('flori-url',url); localStorage.setItem('flori-token',tok);
+  sbSet('shopify_url',url); sbSet('shopify_token',tok); // share connection across devices
   updateConnectedUI(); setSpStatus('ok','✓ Saved'); setTimeout(()=>syncOrders(),500);
 }
 function disconnectShopify() {
@@ -2591,7 +2615,7 @@ function handleOAuthCallback() {
   if(!hash.startsWith('#connected?')) return false;
   const params=new URLSearchParams(hash.slice('#connected?'.length));
   const shop=params.get('shop'),token=params.get('token');
-  if(shop&&token){localStorage.setItem('flori-url',shop);localStorage.setItem('flori-token',token);history.replaceState(null,'',window.location.pathname);toast(`✓ Connected to ${shop}`);setPill(shop);setTimeout(()=>syncOrders(),600);return true;}
+  if(shop&&token){localStorage.setItem('flori-url',shop);localStorage.setItem('flori-token',token);sbSet('shopify_url',shop);sbSet('shopify_token',token);history.replaceState(null,'',window.location.pathname);toast(`✓ Connected to ${shop}`);setPill(shop);setTimeout(()=>syncOrders(),600);return true;}
   return false;
 }
 

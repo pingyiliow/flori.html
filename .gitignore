@@ -1,0 +1,4 @@
+# Local-only dev/verification helpers (do not deploy)
+serve.ps1
+.claude/
+node_modules/
