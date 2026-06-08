@@ -1667,10 +1667,13 @@ async function syncOrders() {
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ const ir={}; (o.lineItems||[]).forEach(i=>{ if(i.ready)ir[i.title]=true; }); prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,itemsReady:ir}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
-      if(prevMeta[o.id]) { const pm=prevMeta[o.id]; o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr; }
+      if(prevMeta[o.id]) { const pm=prevMeta[o.id]; o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
+        // restore per-product "ready" by title, then derive order-ready for multi-product
+        if(pm.itemsReady && o.lineItems && o.lineItems.length){ o.lineItems.forEach(i=>{ if(pm.itemsReady[i.title]) i.ready=true; }); if(o.lineItems.length>1) o.ready = o.lineItems.every(i=>i.ready); }
+      }
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -2081,45 +2084,60 @@ function orderTotal(o) {
   return null;
 }
 
-function orderCard(o) {
+// orderCard(o)               → one card for the whole order (single-product)
+// orderCard(o, item, idx)    → one card for a single product of a multi-product
+//                              order, with its own per-product "ready" tick.
+function orderCard(o, item, idx) {
   const zh = LANG === 'zh';
-  const state = orderState(o);                       // pending | ready | fulfilled
+  const multi = item != null;
   const items = (o.lineItems && o.lineItems.length) ? o.lineItems : null;
+  const itemReady = multi ? !!item.ready : o.ready;
+  const state = o.fulfilled ? 'fulfilled' : (itemReady ? 'ready' : 'pending');
 
   const cls = ['oc'];
   if (state === 'ready')     cls.push('ready');
   if (state === 'fulfilled') cls.push('done');
   if (o.priority === 'urgent' && !o.fulfilled) cls.push('urg');
 
-  // thumbnail
-  const imgSrc = (items ? (items.find(i => i.image) || {}).image : null) || o.image || null;
+  // thumbnail (this product's image when split)
+  const imgSrc = (multi ? item.image : (items ? (items.find(i => i.image) || {}).image : null)) || o.image || null;
   let ph;
   if (imgSrc) {
-    const safe = imgSrc.replace(/'/g, "\\'"), cap = (o.product || '').replace(/'/g, "\\'");
+    const safe = imgSrc.replace(/'/g, "\\'"), cap = ((multi ? item.title : o.product) || '').replace(/'/g, "\\'");
     ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();openZoom('${safe}','${cap}')" onerror="this.parentElement.textContent='🌸'"></div>`;
   } else ph = `<div class="ph">🌸</div>`;
 
-  // product name (+N for multi-item orders)
-  let name = esc(o.product || (items ? items[0].title : '') || '–');
-  if (items && items.length > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">+${items.length - 1}</span>`;
+  // product name
+  let name;
+  if (multi) {
+    name = esc(item.title || '–');
+    if (item.quantity > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">× ${item.quantity}</span>`;
+  } else {
+    name = esc(o.product || (items ? items[0].title : '') || '–');
+    if (items && items.length > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">+${items.length - 1}</span>`;
+  }
 
-  // price
-  const tot = orderTotal(o);
-  const priceTxt = tot != null ? `RM ${tot.toFixed(2)}` : '';
+  // order number (+ "n/total" when split)
+  const numTxt = multi
+    ? `${esc(o.name || '')} <span style="color:var(--c-border2);font-weight:400">${idx + 1}/${o.lineItems.length}</span>`
+    : esc(o.name || '');
+
+  // price (this product when split, else order total)
+  let priceTxt = '';
+  if (multi) { const p = parseFloat(item.price) || 0; if (p > 0) priceTxt = 'RM ' + (p * (item.quantity || 1)).toFixed(2); }
+  else { const tot = orderTotal(o); priceTxt = tot != null ? 'RM ' + tot.toFixed(2) : ''; }
   const mobPrice = priceTxt ? `<span class="oc-mob-price">${priceTxt}</span>` : '';
 
-  // internal note
+  // internal note (shared across the order)
   const note = o.internalNote
     ? `<div class="onote">⚠️ ${esc(o.internalNote.length > 70 ? o.internalNote.slice(0, 70) + '…' : o.internalNote)}</div>`
     : '';
 
-  // time + type
   const timeTxt = o.dueTime || '–';
   const typeTag = o.type === 'pickup'
     ? `<span class="tb pu">${zh ? '自取' : 'Pickup'}</span>`
     : `<span class="tb del">${zh ? '送货' : 'Delivery'}</span>`;
 
-  // status / priority / designer
   let priBadge = '';
   if (!o.fulfilled && o.priority === 'urgent')    priBadge = `<span class="sb urg">🔴 ${zh ? '紧急' : 'Urgent'}</span>`;
   else if (!o.fulfilled && o.priority === 'high') priBadge = `<span class="sb high">🟠 ${zh ? '重要' : 'High'}</span>`;
@@ -2129,15 +2147,20 @@ function orderCard(o) {
   else                        stateBadge = `<span class="sb pend">${zh ? '待准备' : 'Pending'}</span>`;
   const desTag = o.designer ? `<span class="des">👤 ${esc(o.designer)}</span>` : '';
 
-  // tick
-  const tick = o.fulfilled
-    ? `<button type="button" class="tick f" title="Fulfilled in Shopify" aria-label="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</button>`
-    : `<button type="button" class="tick ${o.ready ? 'r' : ''}" aria-label="${o.ready ? 'Mark as pending' : 'Mark as ready'}" title="${o.ready ? 'Mark as Pending' : 'Mark as Ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>`;
+  // tick — per product when split, whole order otherwise
+  let tick;
+  if (o.fulfilled) {
+    tick = `<button type="button" class="tick f" title="Fulfilled in Shopify" aria-label="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</button>`;
+  } else if (multi) {
+    tick = `<button type="button" class="tick ${itemReady ? 'r' : ''}" aria-label="${itemReady ? 'Mark product pending' : 'Mark product ready'}" title="${itemReady ? 'Mark product pending' : 'Mark product ready'}" onclick="event.stopPropagation();toggleItemReady('${o.id}',${idx})">✓</button>`;
+  } else {
+    tick = `<button type="button" class="tick ${o.ready ? 'r' : ''}" aria-label="${o.ready ? 'Mark as pending' : 'Mark as ready'}" title="${o.ready ? 'Mark as Pending' : 'Mark as Ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>`;
+  }
 
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     ${ph}
     <div class="oc-main">
-      <div class="oc-top"><span class="onum">${esc(o.name || '')}</span><span class="oname">${name}</span>${mobPrice}</div>
+      <div class="oc-top"><span class="onum">${numTxt}</span><span class="oname">${name}</span>${mobPrice}</div>
       <div class="ocust">${esc(o.customer || '')}</div>
       ${note}
     </div>
@@ -2146,6 +2169,15 @@ function orderCard(o) {
     <div class="otags">${priBadge}${stateBadge}${desTag}</div>
     <div class="otick">${tick}</div>
   </div>`;
+}
+
+// Toggle a single product's "ready" state; the order is "ready" only when
+// every product is ready (Shopify fulfilment stays a whole-order action).
+function toggleItemReady(id, idx) {
+  const o = ORDERS.find(x => x.id === id); if (!o || !o.lineItems || !o.lineItems[idx]) return;
+  o.lineItems[idx].ready = !o.lineItems[idx].ready;
+  o.ready = o.lineItems.length > 0 && o.lineItems.every(i => i.ready);
+  saveOrders(); renderHome(); renderOrders();
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -2230,8 +2262,16 @@ function renderOrders() {
     tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
   }
+  // Expand multi-product orders into one display unit per product so each can
+  // be prepped/ticked separately. Single-product orders stay one unit.
+  const units = [];
+  list.forEach(o => {
+    if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push({o, item:it, idx}));
+    else units.push({o});
+  });
+  const unitState = u => u.o.fulfilled ? 'fulfilled' : ((u.item ? u.item.ready : u.o.ready) ? 'ready' : 'pending');
   const groups = [];
-  list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
+  units.forEach(u => { const o=u.o; const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(u); });
   let html = '';
   groups.forEach(g => {
     const isGrpLate = g.d && isPast(g.d);
@@ -2241,17 +2281,17 @@ function renderOrders() {
       else if (isToday(g.d)) lbl = 'Today · ' + fd(g.d);
       else lbl = fd(g.d);
     } else { lbl = 'No date set'; }
-    // Group separator with pending/ready/fulfilled counts
-    const gPending   = g.items.filter(o=>!o.fulfilled&&!o.ready).length;
-    const gReady     = g.items.filter(o=>!o.fulfilled&&o.ready).length;
-    const gFulfilled = g.items.filter(o=>o.fulfilled).length;
+    // Group separator with pending/ready/fulfilled counts (per product)
+    const gPending   = g.items.filter(u=>unitState(u)==='pending').length;
+    const gReady     = g.items.filter(u=>unitState(u)==='ready').length;
+    const gFulfilled = g.items.filter(u=>unitState(u)==='fulfilled').length;
     const stats = [
       gPending   ? `<span class="ord-gc p">${gPending} pending</span>` : '',
       gReady     ? `<span class="ord-gc r">${gReady} ready</span>` : '',
       gFulfilled ? `<span class="ord-gc f">${gFulfilled} fulfilled</span>` : '',
     ].filter(Boolean).join('');
     html += `<div class="ord-grp"><div class="ord-grp-dot${isGrpLate?' late':''}"></div><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
-    html += g.items.map(o=>orderCard(o)).join('');
+    html += g.items.map(u=>orderCard(u.o, u.item, u.idx)).join('');
   });
   tb.innerHTML = html;
 }
