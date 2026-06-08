@@ -393,7 +393,7 @@ img{display:block;max-width:100%}
 .ov.on{display:block;opacity:1}
 .sp{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);background:var(--c-surface);box-shadow:var(--sh-lg);z-index:910;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .24s ease;}
 .sp.on{transform:translateX(0)}
-.sp-hdr{background:var(--c-burg);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.sp-hdr{background:var(--c-burg);padding:calc(16px + env(safe-area-inset-top)) 20px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .sp-ttl{font-family:var(--f-head);font-size:20px;color:var(--c-bg);font-weight:600}
 .sp-x{width:28px;height:28px;border-radius:var(--r);border:1px solid rgba(238,228,218,.3);background:transparent;color:rgba(238,228,218,.8);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;}
 .sp-x:hover{border-color:var(--c-bg);color:var(--c-bg)}
@@ -467,7 +467,7 @@ img{display:block;max-width:100%}
 .dp.on{transform:translateX(0)}
 .dp-hdr{
   background:var(--c-burg);
-  padding:16px 20px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
+  padding:calc(16px + env(safe-area-inset-top)) 20px 16px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
 }
 .dp-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:20px;display:flex;flex-direction:column;gap:20px}
 .dp-section-ttl{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--c-dpink);margin-bottom:8px}
@@ -503,7 +503,7 @@ img{display:block;max-width:100%}
 .fu-dp.on{transform:translateX(0)}
 .fu-dp-hdr{
   background:var(--c-burg);
-  padding:18px 22px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
+  padding:calc(18px + env(safe-area-inset-top)) 22px 18px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;
 }
 .fu-dp-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:22px;display:flex;flex-direction:column;gap:20px}
 .fu-sec-ttl{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--c-dpink);margin-bottom:8px}
@@ -3516,7 +3516,7 @@ function _renderDP(order, localOrder) {
   }
   document.getElementById('dp-sub').innerHTML = subHtml;
 
-  // ── Customer ──
+  // ── Customer (sender) ──
   html += `<div>
     <div class="dp-section-ttl">Customer</div>
     <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(((cust.firstName||'')+' '+(cust.lastName||'')).trim())||'Guest'}</div>
@@ -3524,19 +3524,14 @@ function _renderDP(order, localOrder) {
     ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
   </div>`;
 
-  // ── 3. QUICK ACTIONS BAR ──
-  const phoneClean = phone.replace(/[^0-9+]/g,'');
-  const waNum = phoneClean.startsWith('+') ? phoneClean.slice(1) : phoneClean.startsWith('0') ? '6'+phoneClean.slice(1) : phoneClean;
-  const addrForMaps = addr ? encodeURIComponent([addr.address1,addr.city,addr.province,addr.zip].filter(Boolean).join(', ')) : '';
-  const shopifyOrderUrl = `https://admin.shopify.com/store/${(localStorage.getItem('flori-url')||'').replace('.myshopify.com','')}/orders/${(localOrder.id||'').replace('gid://shopify/Order/','').replace('manual-','').replace(/[^0-9]/g,'')}`;
-  html += `<div class="qa-bar">
-    ${phone ? `<a class="qa-btn" href="tel:${phoneClean}"><span class="qa-ico">📞</span><span class="qa-lbl">Call</span></a>` : '<div></div>'}
-    ${phone ? `<a class="qa-btn" href="https://wa.me/${waNum}" target="_blank"><span class="qa-ico">💬</span><span class="qa-lbl">WhatsApp</span></a>` : '<div></div>'}
-    <button class="qa-btn" onclick="openRecipe('${localOrder.id}');closeDP()"><span class="qa-ico">📸</span><span class="qa-lbl">Recipe</span></button>
-    ${addrForMaps ? `<a class="qa-btn" href="https://maps.google.com/?q=${addrForMaps}" target="_blank"><span class="qa-ico">📍</span><span class="qa-lbl">Maps</span></a>` : '<div></div>'}
-    ${localOrder.src==='shopify' ? `<button class="qa-btn" onclick="window.open('${shopifyOrderUrl}','_blank')"><span class="qa-ico">🖨</span><span class="qa-lbl">Shopify</span></button>` : '<div></div>'}
-    <button class="qa-btn" onclick="triggerOrderPhoto('${localOrder.id}')"><span class="qa-ico">📷</span><span class="qa-lbl">Photo</span></button>
-  </div>`;
+  // ── Delivery Address — directly below the sender (delivery orders only) ──
+  if (addr && localOrder.type !== 'pickup') {
+    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
+    if (lines.length) html += `<div>
+      <div class="dp-section-ttl">Delivery Address</div>
+      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
+    </div>`;
+  }
 
   // ── Delivery / Pickup ──
   html += `<div>
@@ -3547,15 +3542,6 @@ function _renderDP(order, localOrder) {
       ${dueTime ? `<div class="dp-row"><div class="dp-row-lbl">Time</div><div class="dp-row-val" style="font-weight:500">${esc(dueTime)}</div></div>` : ''}
     </div>
   </div>`;
-
-  // ── Delivery Address (only for delivery) ──
-  if (addr && localOrder.type !== 'pickup') {
-    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
-    if (lines.length) html += `<div>
-      <div class="dp-section-ttl">Delivery Address</div>
-      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
-    </div>`;
-  }
 
   // ── Items & Price ──
   if (items.length) {
