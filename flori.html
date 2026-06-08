@@ -3088,11 +3088,51 @@ function resetSwipe(row, reveal) {
   if (reveal) reveal.style.transform = 'translateX(100%)';
 }
 
-function markDelivered(id){
+// Fulfill a Shopify order via the Admin API so the customer gets notified.
+// Queries the order's open fulfillment orders, then fulfillmentCreate with
+// notifyCustomer:true. Returns {already:true} if nothing is left to fulfill.
+async function fulfillInShopify(o){
+  const gid = `gid://shopify/Order/${shopId(o.id)}`;
+  const foData = await shopifyGQL(`{ order(id:"${gid}"){ fulfillmentOrders(first:10){ edges{ node{ id status } } } } }`);
+  const nodes = ((foData.order && foData.order.fulfillmentOrders && foData.order.fulfillmentOrders.edges) || []).map(e=>e.node);
+  const open = nodes.filter(n => n.status === 'OPEN' || n.status === 'IN_PROGRESS');
+  if (!open.length) return { already:true };
+  const byFO = open.map(n => `{ fulfillmentOrderId: "${n.id}" }`).join(', ');
+  const res = await shopifyGQL(`mutation { fulfillmentCreate(fulfillment: { notifyCustomer: true, lineItemsByFulfillmentOrder: [${byFO}] }) { fulfillment { id status } userErrors { field message } } }`);
+  const ue = (res.fulfillmentCreate && res.fulfillmentCreate.userErrors) || [];
+  if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+  return { fulfillment: res.fulfillmentCreate && res.fulfillmentCreate.fulfillment };
+}
+
+async function markDelivered(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
-  o.ready=true; o.fulfilled=true;
-  saveOrders(); renderHome(); renderOrders(); closeDP();
-  toast('✓ Marked as Delivered');
+  if (o.fulfilled){ toast('Already delivered'); return; }
+  // Manual (non-Shopify) orders: just mark locally.
+  if (o.src !== 'shopify'){
+    o.ready=true; o.fulfilled=true;
+    saveOrders(); renderHome(); renderOrders(); closeDP();
+    toast('✓ Marked as Delivered');
+    return;
+  }
+  // Shopify orders: fulfill in Shopify first so the customer is notified.
+  toast('Fulfilling in Shopify…');
+  try {
+    const r = await fulfillInShopify(o);
+    o.ready=true; o.fulfilled=true;
+    saveOrders(); renderHome(); renderOrders(); closeDP();
+    toast(r.already ? '✓ Delivered (was already fulfilled in Shopify)' : '✓ Delivered · customer notified');
+  } catch(e){
+    const msg = String((e && e.message) || e);
+    const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
+      ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
+    if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark delivered locally anyway? (the customer will NOT be notified)`)){
+      o.ready=true; o.fulfilled=true;
+      saveOrders(); renderHome(); renderOrders(); closeDP();
+      toast('Marked delivered locally — not synced to Shopify');
+    } else {
+      toast('Not delivered');
+    }
+  }
 }
 function delOrder(id){ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();if(hasSB())sbDelete('orders',id);renderAll();toast('Removed');}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
