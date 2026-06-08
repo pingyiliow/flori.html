@@ -1383,11 +1383,13 @@ function showLoginErr(msg) {
 
 async function showApp() {
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-loading').style.display = 'none';
   document.querySelector('.shell').style.display = 'grid';
-  // Load store config from Supabase (so staff don't need to connect manually)
-  // Load from localStorage first (instant)
-  loadData(); setLang(LANG); renderAll();
+  // Load localStorage into memory but DON'T paint yet — on a shared device the
+  // cached list is often behind another device's edits, and painting it first is
+  // exactly the "old orders flash for a second" the staff were seeing. Instead we
+  // keep the loading overlay up for the (sub-second) Supabase pull and paint once
+  // with authoritative data.
+  loadData(); setLang(LANG);
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -1401,9 +1403,11 @@ async function showApp() {
         setPill(sbUrl); updateConnectedUI();
       }
     } catch (e) { console.error('store config load failed:', e); }
-    // Pull latest data from Supabase
-    await loadFromSupabase();
+    // Pull latest data from Supabase (silent — the renderAll below is the first paint)
+    await loadFromSupabase({ skipRender: true });
   }
+  document.getElementById('app-loading').style.display = 'none';
+  renderAll();
   // Auto-sync from Shopify on load so a page refresh shows current
   // fulfilment status (not just the last cached state).
   syncOrders().catch(()=>{});
@@ -1633,8 +1637,9 @@ async function shopifyGQL(query) {
 }
 
 async function refreshAll() {
-  // Pull latest from Supabase (get other devices' changes) then sync Shopify
-  if (hasSB()) await loadFromSupabase();
+  // Pull latest from Supabase (get other devices' changes) then sync Shopify.
+  // skipRender so only syncOrders' final paint shows — no Supabase→Shopify flash.
+  if (hasSB()) await loadFromSupabase({ skipRender: true });
   await syncOrders();
 }
 
@@ -1695,9 +1700,10 @@ async function syncOrders() {
     setSBFoot(`Last sync: ${now}`);
     const sd=document.getElementById('sb-dot');if(sd)sd.style.background='#2A8C28';
     toast(`✓ Synced ${shopify.length} orders`);
-    renderAll();
   } catch(e) { setPill('Sync failed'); toast('⚠ ' + (e.message || 'Sync failed')); }
-  ico.classList.remove('spin');
+  // Single paint for the whole refresh chain. On failure this still renders the
+  // Supabase data a skipRender loadFromSupabase loaded silently just before.
+  finally { renderAll(); ico.classList.remove('spin'); }
 }
 
 /* ─── Data stores ────────────────────────────────────────────── */
@@ -1760,11 +1766,11 @@ function loadData() {
   if (url) { const el = document.getElementById('cfg-url'); if(el) el.value = url; }
   if (tok) { const el = document.getElementById('cfg-tok'); if(el) el.value = tok; }
   if (url) setPill(url);
-  // Then sync from Supabase in background (gets latest from other devices)
-  if (hasSB()) loadFromSupabase();
+  // NOTE: the Supabase pull is driven by the caller (showApp), not here, so we
+  // don't kick off a second, unawaited loadFromSupabase that paints out of order.
 }
 
-async function loadFromSupabase() {
+async function loadFromSupabase(opts = {}) {
   try {
     const [orders, followups, inventory, purchases, remoteRemoved] = await Promise.all([
       sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items')
@@ -1840,8 +1846,13 @@ async function loadFromSupabase() {
       localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
       changed = true;
     }
-    if (changed) { renderAll(); _lastRefresh = Date.now(); }
-  } catch(e) { console.error('loadFromSupabase error:', e); }
+    _lastRefresh = Date.now();
+    // When a syncOrders() paint is chained right after (showApp/refreshAll/tab
+    // return), the caller passes skipRender so we update data silently and let
+    // that single follow-up paint settle the UI — no intermediate stale frame.
+    if (changed && !opts.skipRender) renderAll();
+    return changed;
+  } catch(e) { console.error('loadFromSupabase error:', e); return false; }
 }
 
 // Merge two in-memory order rows that resolve to the same canonical id. Keeps the
@@ -3974,11 +3985,9 @@ document.addEventListener('visibilitychange', () => {
     const now = Date.now();
     if (now - _lastRefresh > 30000) { // max once per 30 seconds
       _lastRefresh = now;
-      // Sequence the two refreshes (as init() does): pull authoritative Supabase
-      // data first, THEN sync from Shopify so syncOrders rebuilds on fresh edits
-      // instead of a stale snapshot — otherwise the slower Shopify round-trip
-      // paints an intermediate frame of pre-edit orders before Supabase settles.
-      loadFromSupabase().then(() => syncOrders()).catch(()=>{});
+      // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
+      // single paint settles the UI, so there's no intermediate stale frame.
+      loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
     }
   }
 });
@@ -3986,7 +3995,7 @@ document.addEventListener('visibilitychange', () => {
 // Also refresh when PWA comes back to foreground (iOS)
 window.addEventListener('pageshow', (e) => {
   if (e.persisted && hasSB() && currentUser) {
-    loadFromSupabase().then(() => syncOrders()).catch(()=>{});
+    loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
   }
 });
 </script>
