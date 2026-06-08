@@ -3146,7 +3146,11 @@ function closeDP() {
 
 async function _fetchOrderDetail(id, o) {
   try {
-    const q = `{ order(id:"${id}"){
+    // Orders synced via GraphQL store a global id (gid://shopify/Order/123),
+    // but orders saved by the webhook store the bare numeric id. GraphQL's
+    // order(id:) requires the global id form, so normalize either shape.
+    const gid = /^gid:\/\//.test(id) ? id : `gid://shopify/Order/${id}`;
+    const q = `{ order(id:"${gid}"){
       name note createdAt
       customer { firstName lastName phone email }
       shippingAddress { address1 address2 city province zip country phone }
