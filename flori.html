@@ -1503,16 +1503,18 @@ function getType(attrs) {
 }
 
 async function shopifyGQL(query) {
-  const url   = localStorage.getItem('flori-url') || '';
-  const token = localStorage.getItem('flori-token') || '';
-  if (!url)   throw new Error('Store URL not set — open ⚙ Settings');
-  if (!token) throw new Error(LANG==='zh' ? '请先连接 Shopify — 点右上角 ⚙' : 'Not connected — tap ⚙ to connect Shopify');
+  // The Shopify token is managed entirely server-side — staff never connect
+  // Shopify on their device. We send the store URL plus the logged-in user's
+  // Supabase session so /api/query will mint+use the token only for staff.
+  const url = localStorage.getItem('flori-url') || '';
+  let authToken = '';
+  try { if (hasSB()) { const { data } = await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_) {}
   let r;
   try {
-    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, token, query }) });
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, authToken }) });
   } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
   let text = ''; try { text = await r.text(); } catch(_) {}
-  if (r.status === 401) throw new Error('Token invalid (401)');
+  if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
   if (r.status === 403) throw new Error('Token lacks permission (403)');
   if (!r.ok) throw new Error('Server error ' + r.status + ': ' + text.slice(0,150));
   let j; try { j = JSON.parse(text); } catch(_) { throw new Error('Bad response: ' + text.slice(0,150)); }
@@ -2871,10 +2873,13 @@ function closeSP() { document.getElementById('sp').classList.remove('on'); docum
 function updateConnectedUI() {
   const tok=localStorage.getItem('flori-token')||'',url=localStorage.getItem('flori-url')||'';
   const conn=document.getElementById('cfg-connected'),oauth=document.getElementById('cfg-oauth');
-  if(tok&&url){conn.style.display='flex';oauth.style.display='none';document.getElementById('cfg-shop-label').textContent=url;}
+  // The token is managed server-side, so the store counts as connected as soon
+  // as the shop URL is known (it auto-loads from the shared Supabase config) —
+  // staff never need to connect Shopify on their own device.
+  if(url){conn.style.display='flex';oauth.style.display='none';document.getElementById('cfg-shop-label').textContent=url;}
   else{conn.style.display='none';oauth.style.display='flex';}
-  if(url) document.getElementById('cfg-url').value=url;
-  if(tok) document.getElementById('cfg-tok').value=tok;
+  if(url){const e=document.getElementById('cfg-url');if(e)e.value=url;}
+  if(tok){const e=document.getElementById('cfg-tok');if(e)e.value=tok;}
 }
 function connectShopify() {
   const raw=document.getElementById('cfg-url').value.trim().replace(/^https?:\/\//i,'').replace(/\/+$/,'').toLowerCase();
