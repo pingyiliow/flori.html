@@ -1497,6 +1497,12 @@ async function refreshAll() {
   await syncOrders();
 }
 
+// Canonical Shopify order id = bare numeric (matches Shopify REST + webhook).
+// Accepts either the GraphQL global id (gid://shopify/Order/123) or a bare
+// numeric id and returns the numeric form. Manual ids (manual-…) pass through
+// unchanged since they lack the gid prefix.
+function shopId(raw){ return String(raw||'').replace(/^gid:\/\/shopify\/Order\//,''); }
+
 async function syncOrders() {
   const ico = document.getElementById('sync-ico');
   ico.classList.add('spin');
@@ -1522,12 +1528,13 @@ async function syncOrders() {
       const imgUrl = lineItems.find(i => i.image)?.image || null;
       const priceData = n.currentTotalPriceSet?.shopMoney;
       const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-      const mapped = { id:n.id, name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+      const mapped = { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
       return mapped;
     });
-    // Preserve ready state from previous sync
-    const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>o.id));
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[o.id]={designer:o.designer,priority:o.priority,internalNote:o.internalNote}; });
+    // Preserve ready state from previous sync. Key by canonical id so meta still
+    // transfers across the one sync where ORDERS may still hold legacy gid ids.
+    const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { o.designer=prevMeta[o.id].designer; o.priority=prevMeta[o.id].priority||'normal'; o.internalNote=prevMeta[o.id].internalNote; }
@@ -1609,8 +1616,8 @@ async function loadFromSupabase() {
     ]);
     let changed = false;
     if (orders && orders.length) {
-      ORDERS = orders.map(o => ({
-        id: o.id, name: o.name, src: o.src||'shopify',
+      const mapped = orders.map(o => ({
+        id: shopId(o.id), name: o.name, src: o.src||'shopify',
         customer: o.customer, product: o.product,
         lineItems: o.line_items||[], image: o.image||null,
         total: o.total||null, currency: o.currency||'MYR',
@@ -1622,6 +1629,15 @@ async function loadFromSupabase() {
         internalNote: o.internal_note||null,
         manualPrice: o.manual_price||null, dateObj: null
       }));
+      // Collapse any rows that still refer to the same order under different id
+      // shapes (numeric webhook row + legacy gid sync row) until the one-time
+      // migrateOrderIds() dedup runs. Merge local-only fields so nothing is lost.
+      const byId = new Map();
+      for (const o of mapped) {
+        const prev = byId.get(o.id);
+        byId.set(o.id, prev ? mergeOrderRows(prev, o) : o);
+      }
+      ORDERS = [...byId.values()];
       localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined}))));
       rehydrateOrders(); changed = true;
     }
@@ -1653,6 +1669,72 @@ async function loadFromSupabase() {
     if (changed) { renderAll(); _lastRefresh = Date.now(); }
   } catch(e) { console.error('loadFromSupabase error:', e); }
 }
+
+// Merge two in-memory order rows that resolve to the same canonical id. Keeps the
+// richer Shopify catalog data (more line items) and unions the local-only fields
+// (ready, designer, priority, internalNote, recipe, manualAddr, manualPrice).
+function mergeOrderRows(a, b){
+  const base  = (b.lineItems?.length||0) > (a.lineItems?.length||0) ? b : a;
+  const other = base === a ? b : a;
+  const m = {...other, ...base};
+  m.ready        = a.ready || b.ready;
+  m.designer     = a.designer || b.designer || null;
+  m.priority     = [a.priority,b.priority].find(p=>p&&p!=='normal') || 'normal';
+  m.internalNote = a.internalNote || b.internalNote || null;
+  m.manualAddr   = a.manualAddr || b.manualAddr || null;
+  m.manualPrice  = a.manualPrice ?? b.manualPrice ?? null;
+  m.recipe       = [a.recipe,b.recipe].filter(r=>Array.isArray(r)&&r.length).sort((x,y)=>y.length-x.length)[0] || [];
+  return m;
+}
+
+// One-time maintenance: collapse duplicate order rows created before ids were
+// unified, and rewrite every Shopify row to the canonical bare-numeric id.
+// Run once from the console of a logged-in session:  await migrateOrderIds()
+// Pass { dryRun:true } to preview the plan without writing anything.
+async function migrateOrderIds({ dryRun = false } = {}) {
+  if (!hasSB()) { console.warn('[migrate] no Supabase session — log in first'); return; }
+  const all = await sbGet('orders');
+  if (!all) { console.warn('[migrate] could not fetch orders'); return; }
+  const groups = new Map();
+  all.forEach(r => { const cid = shopId(r.id); if(!groups.has(cid)) groups.set(cid, []); groups.get(cid).push(r); });
+  const toUpsert = [], toDelete = [];
+  for (const [cid, rows] of groups) {
+    const needsRewrite = rows.some(r => String(r.id) !== cid);
+    if (rows.length === 1 && !needsRewrite) continue; // already canonical & unique
+    // Base = richest Shopify catalog row (most line items, then most recent).
+    const base = rows.slice().sort((x,y)=>{
+      const lx=(x.line_items?.length||0), ly=(y.line_items?.length||0);
+      if (lx!==ly) return ly-lx;
+      return String(y.updated_at||'').localeCompare(String(x.updated_at||''));
+    })[0];
+    const merged = { ...base, id: cid };
+    // Union local-only fields across every duplicate so nothing is lost.
+    merged.ready         = rows.some(r=>r.ready===true);
+    merged.designer      = rows.map(r=>r.designer).find(Boolean) || null;
+    merged.priority      = rows.map(r=>r.priority).find(p=>p&&p!=='normal') || 'normal';
+    merged.internal_note = rows.map(r=>r.internal_note).find(Boolean) || null;
+    merged.manual_addr   = rows.map(r=>r.manual_addr).find(Boolean) || null;
+    merged.manual_price  = rows.map(r=>r.manual_price).find(v=>v!=null && v!=='') ?? null;
+    merged.recipe        = rows.map(r=>r.recipe).filter(r=>Array.isArray(r)&&r.length).sort((a,b)=>b.length-a.length)[0] || [];
+    toUpsert.push(merged);
+    rows.forEach(r => { if (String(r.id) !== cid) toDelete.push(r.id); });
+  }
+  console.log(`[migrate] ${all.length} rows · ${toUpsert.length} to rewrite/merge · ${toDelete.length} legacy ids to delete`);
+  if (dryRun) {
+    console.table(toUpsert.map(r=>({ id:r.id, name:r.name, ready:r.ready, designer:r.designer, recipe:(r.recipe||[]).length })));
+    console.log('[migrate] would delete legacy ids:', toDelete);
+    return { toUpsert, toDelete };
+  }
+  // Write canonical rows first, then remove the legacy gid rows — safe ordering:
+  // the canonical row always exists before its duplicate is deleted.
+  if (toUpsert.length) await sbUpsert('orders', toUpsert);
+  for (const id of toDelete) await sbDelete('orders', id);
+  console.log('[migrate] done — reloading from Supabase');
+  await loadFromSupabase();
+  return { rewritten: toUpsert.length, deleted: toDelete.length };
+}
+if (typeof window !== 'undefined') window.migrateOrderIds = migrateOrderIds;
+
 function rehydrateOrders() {
   const now = today0();
   ORDERS.forEach(o => {
@@ -2411,10 +2493,38 @@ function editFollowup(id) {
   openModal('m-followup');
 }
 
+// Find an existing follow-up for the same customer (same phone, or same
+// name when no phone) — used to warn against duplicate entries.
+function _normPhone(s) {
+  let d = String(s || '').replace(/\D/g, '');
+  if (d.startsWith('60')) d = '0' + d.slice(2);   // +60 12-345 6789 == 012-345 6789 (Malaysia)
+  return d;
+}
+function findFollowupDup(name, contact, excludeId) {
+  const n = String(name || '').trim().toLowerCase();
+  const p = _normPhone(contact);
+  return FOLLOWUPS.find(f => {
+    if (f.id === excludeId) return false;
+    const fp = _normPhone(f.contact);
+    if (p && fp && p === fp) return true;                          // same phone
+    if (n && String(f.name || '').trim().toLowerCase() === n) return true; // same name
+    return false;
+  }) || null;
+}
+
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast('Sender name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
+  // Warn if this customer is already on the list (new entries only)
+  if (!editId) {
+    const dup = findFollowupDup(name, document.getElementById('fu-contact').value.trim(), null);
+    if (dup) {
+      const when = dup.dueDate || dup.orderDate || '';
+      const st = dup.status ? dup.status.charAt(0).toUpperCase() + dup.status.slice(1) : '';
+      if (!confirm(`⚠ "${dup.name}" is already on the follow-up list${when ? ` · due ${when}` : ''}${st ? ` · ${st}` : ''}.\n\nThis may be a duplicate. Add another entry anyway?`)) return;
+    }
+  }
   const stEl = document.getElementById('fu-status');
   const entry = {
     id: editId||('fu-'+Date.now()), name,
@@ -2473,6 +2583,9 @@ function renderFollowup() {
     return new Date(a.dueDate) - new Date(b.dueDate);
   });
   const todayStr = tdi(today0());
+  // Count how many entries share each customer (phone, else name) — flag duplicates
+  const dupCounts = {};
+  FOLLOWUPS.forEach(f => { const k = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(); if (k) dupCounts[k] = (dupCounts[k]||0) + 1; });
   tb.innerHTML = list.map(f => {
     const ch=chLabel[f.channel]||f.channel, chCl=chCls[f.channel]||'ch-ot';
     const payLbl=f.payment==='paid'?'Paid':'Pending', payCl=f.payment==='paid'?'pay-paid':'pay-pend';
@@ -2505,6 +2618,8 @@ function renderFollowup() {
     }
     const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
+    const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
+    const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">⚠ ${dupCounts[dupKey]}×</span>` : '';
     // Tick button style based on status
     const tickStyle = isCompleted
       ? 'background:var(--c-sage);border-color:var(--c-sage);color:#fff'
@@ -2514,7 +2629,7 @@ function renderFollowup() {
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
     return `<tr class="clickable-row" style="opacity:${rowOpacity};cursor:pointer" onclick="openFUDP('${f.id}')">
       <td>
-        <div style="font-size:13px;font-weight:500">${esc(f.name)}</div>
+        <div style="font-size:13px;font-weight:500">${esc(f.name)}${dupBadge}</div>
         ${recipSub}
         <div style="margin-top:2px"><span class="ch-badge ${chCl}" style="font-size:8px">${ch}</span></div>
       </td>
@@ -3146,9 +3261,9 @@ function closeDP() {
 
 async function _fetchOrderDetail(id, o) {
   try {
-    // Orders synced via GraphQL store a global id (gid://shopify/Order/123),
-    // but orders saved by the webhook store the bare numeric id. GraphQL's
-    // order(id:) requires the global id form, so normalize either shape.
+    // Order ids are stored canonically as the bare numeric id, but GraphQL's
+    // order(id:) requires the global id form, so wrap it here. The regex guard
+    // also tolerates any legacy gid rows that predate migrateOrderIds().
     const gid = /^gid:\/\//.test(id) ? id : `gid://shopify/Order/${id}`;
     const q = `{ order(id:"${gid}"){
       name note createdAt

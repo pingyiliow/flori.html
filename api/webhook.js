@@ -52,6 +52,9 @@ export default async function handler(req, res) {
   ].filter(Boolean).join(' ') || 'Guest';
 
   const row = {
+    // Canonical order id = bare numeric (Shopify REST id). The GraphQL sync in
+    // flori.html (syncOrders → shopId) normalizes its gids to this same shape so
+    // the webhook and manual sync never create duplicate rows for one order.
     id:          String(order.id),
     name:        order.name,
     src:         'shopify',
