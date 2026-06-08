@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-title" content="Bamboo Flower Club">
 <meta name="theme-color" content="#4D0E13">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%234D0E13' width='180' height='180'/><text x='90' y='125' font-size='95' text-anchor='middle'>🌸</text></svg>">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <title>Bamboo Flower Club · Florist Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,7 +86,8 @@ img{display:block;max-width:100%}
   padding:env(safe-area-inset-top) 0 0 0;gap:0;
   position:sticky;top:0;z-index:200;
 }
-.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-burg-dk);display:flex;align-items:center;padding:0 22px;flex-shrink:0}
+.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-burg-dk);display:flex;align-items:center;gap:11px;padding:0 22px;flex-shrink:0}
+.hdr-logo-mark{height:38px;width:38px;object-fit:contain;flex-shrink:0}
 .hdr-bloom{font-family:var(--f-head);font-size:20px;font-weight:600;color:var(--c-bg);letter-spacing:.02em;line-height:1}
 .hdr-flow{font-family:var(--f-head);font-size:20px;font-weight:400;color:var(--c-dpink);letter-spacing:.02em;line-height:1}
 .hdr-dot{width:5px;height:5px;border-radius:50%;background:var(--c-dpink);flex-shrink:0;margin:0 1px 2px;opacity:.7}
@@ -692,8 +694,10 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 }
 
 /* ── Dashboard home ───────────────────────────────────────────── */
-.h-hero{background:linear-gradient(135deg,var(--c-burg) 0%,var(--c-burg-dk) 100%);color:var(--c-bg);padding:18px 44px 20px}
-@media(max-width:860px){.h-hero{padding:16px 20px 18px}}
+.h-hero{background:linear-gradient(135deg,var(--c-burg) 0%,var(--c-burg-dk) 100%);color:var(--c-bg);padding:18px 44px 20px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.h-hero-txt{min-width:0}
+.h-hero-logo{height:84px;width:84px;object-fit:contain;flex-shrink:0;opacity:.95}
+@media(max-width:860px){.h-hero{padding:16px 20px 18px;gap:14px}.h-hero-logo{height:60px;width:60px}}
 .h-hero-day{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(238,228,218,.6);margin-bottom:5px}
 .h-hero-main{font-family:var(--f-head);font-size:28px;font-weight:700;line-height:1.05;color:var(--c-bg)}
 .h-hero-sub{font-size:12px;color:rgba(238,228,218,.72);margin-top:4px}
@@ -757,6 +761,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 <!-- ══ HEADER ═════════════════════════════════════════════════ -->
 <header class="hdr">
   <div class="hdr-logo-zone">
+    <img src="/logo-mark.png" alt="Bamboo Flower Club" class="hdr-logo-mark">
     <div>
       <div style="display:flex;align-items:baseline;gap:2px">
         <span class="hdr-bloom" style="font-size:17px">Bamboo</span>
@@ -797,9 +802,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   <!-- ── Dashboard ──────────────────────────────────────────── -->
   <div id="pg-home" class="page on">
     <div class="h-hero">
-      <div class="h-hero-day" id="h-day">—</div>
-      <div class="h-hero-main" id="h-greet">Dashboard</div>
-      <div class="h-hero-sub" id="h-sub"></div>
+      <div class="h-hero-txt">
+        <div class="h-hero-day" id="h-day">—</div>
+        <div class="h-hero-main" id="h-greet">Dashboard</div>
+        <div class="h-hero-sub" id="h-sub"></div>
+      </div>
+      <img src="/logo-mark.png" alt="Bamboo Flower Club" class="h-hero-logo">
     </div>
     <div class="h-stats">
       <div class="h-stat"><div class="h-stat-n pending" id="s-today">–</div><div class="h-stat-l">Pending</div></div>

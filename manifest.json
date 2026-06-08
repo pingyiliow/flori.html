@@ -6,20 +6,26 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#7c9a7e",
-  "background_color": "#faf8f4",
+  "theme_color": "#4D0E13",
+  "background_color": "#9B6559",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%237c9a7e' width='192' height='192'/><text x='96' y='135' font-size='100' text-anchor='middle' fill='white' font-family='system-ui' font-weight='bold'>🌸</text></svg>",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%237c9a7e' width='512' height='512'/><text x='256' y='375' font-size='280' text-anchor='middle' fill='white' font-family='system-ui' font-weight='bold'>🌸</text></svg>",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["business", "productivity"],
