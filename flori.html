@@ -1667,10 +1667,15 @@ async function syncOrders() {
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
-    const prevMeta = {}; ORDERS.forEach(o=>{ const ir={}; (o.lineItems||[]).forEach(i=>{ if(i.ready)ir[i.title]=true; }); prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,itemsReady:ir}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ const ir={}; (o.lineItems||[]).forEach(i=>{ if(i.ready)ir[i.title]=true; }); prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,itemsReady:ir,removedItems:o.removedItems||[]}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
-      if(prevMeta[o.id]) { const pm=prevMeta[o.id]; o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
+      if(prevMeta[o.id]) { const pm=prevMeta[o.id];
+        // Drop line items the user explicitly deleted locally (tombstone), so the
+        // fresh Shopify list doesn't resurrect them. Runs first so image/ready
+        // restores below operate on the filtered list.
+        if(pm.removedItems && pm.removedItems.length && o.lineItems){ const rm=new Set(pm.removedItems); o.lineItems=o.lineItems.filter(i=>!rm.has(i.title)); o.removedItems=pm.removedItems; o.product=o.lineItems.map(i=>i.title).join(', '); o.image=o.lineItems.find(i=>i.image)?.image||null; }
+        o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // restore per-product "ready" by title, then derive order-ready for multi-product
         if(pm.itemsReady && o.lineItems && o.lineItems.length){ o.lineItems.forEach(i=>{ if(pm.itemsReady[i.title]) i.ready=true; }); if(o.lineItems.length>1) o.ready = o.lineItems.every(i=>i.ready); }
       }
@@ -1707,6 +1712,12 @@ function saveOrders() {
       manual_price: o.manualPrice||null
     }));
     sbUpsert('orders', rows).catch(console.error);
+    // Persist delete tombstones to the shared settings store (the orders table has
+    // no column for them and the webhook would otherwise resurrect removed items).
+    // Full snapshot, so re-adding a product — which clears its tombstone — propagates.
+    const removedMap = {};
+    clean.forEach(o => { if (o.removedItems?.length) removedMap[shopId(o.id)] = o.removedItems; });
+    sbSet('removed_items', removedMap).catch(()=>{});
   }
 }
 function saveInventory() {
@@ -1747,9 +1758,15 @@ function loadData() {
 
 async function loadFromSupabase() {
   try {
-    const [orders, followups, inventory, purchases] = await Promise.all([
-      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases')
+    const [orders, followups, inventory, purchases, remoteRemoved] = await Promise.all([
+      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items')
     ]);
+    // Line-item delete tombstones. The orders table has no removedItems column and
+    // the webhook rewrites line_items straight from Shopify, so the canonical copy
+    // lives in the shared settings store (saveOrders writes it). Seed from there,
+    // then let any local pending removal win so an unsynced delete isn't lost.
+    const prevRemoved = { ...(remoteRemoved || {}) };
+    ORDERS.forEach(o => { if (o.removedItems?.length) prevRemoved[shopId(o.id)] = o.removedItems; });
     let changed = false;
     if (orders && orders.length) {
       const mapped = orders.map(o => ({
@@ -1774,6 +1791,19 @@ async function loadFromSupabase() {
         byId.set(o.id, prev ? mergeOrderRows(prev, o) : o);
       }
       ORDERS = [...byId.values()];
+      ORDERS.forEach(o => {
+        const rm = prevRemoved[o.id];
+        if (!rm || !rm.length) return;
+        o.removedItems = rm;
+        // Supabase line_items can still hold a removed product (webhook rewrites
+        // them from the live Shopify order), so re-apply the tombstone as a filter.
+        if (o.lineItems && o.lineItems.length) {
+          const set = new Set(rm);
+          o.lineItems = o.lineItems.filter(i => !set.has(i.title));
+          o.product = o.lineItems.map(i => i.title).join(', ');
+          o.image = o.lineItems.find(i => i.image)?.image || o.image || null;
+        }
+      });
       localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined}))));
       rehydrateOrders(); changed = true;
     }
@@ -3278,6 +3308,14 @@ function saveOrder() {
   const finalDateObj = dateVal ? pd(dateVal) : (prevOrder2?.dateObj || null);
   const firstImg = lineItems.find(i=>i.image)?.image || null;
   const prevOrder = editId ? ORDERS.find(x=>x.id===editId) : null;
+  // Tombstone of line-item titles the user has explicitly removed. Shopify sync
+  // rebuilds lineItems from the live catalog, so without this a deleted product
+  // reappears on the next sync. syncOrders() filters these titles out of the fresh
+  // Shopify list. Re-adding a title clears its tombstone.
+  const keptTitles  = new Set(lineItems.map(i => i.title));
+  const knownTitles = [...(prevOrder?.removedItems || []),
+                       ...((prevOrder?.lineItems || []).map(i => i.title))];
+  const removedItems = [...new Set(knownTitles)].filter(t => t && !keptTitles.has(t));
   const entry = {
     id: editId || ('manual-'+Date.now()),
     src: prevOrder?.src || 'manual',
@@ -3287,6 +3325,7 @@ function saveOrder() {
     customer: cust || 'Guest',
     image: firstImg,
     lineItems,
+    removedItems,
     dueDate: finalDateVal, dueTime: document.getElementById('o-time').value.trim(),
     dateObj: finalDateObj,
     type: document.getElementById('o-type').value,

@@ -51,6 +51,28 @@ export default async function handler(req, res) {
     order.customer?.last_name  || '',
   ].filter(Boolean).join(' ') || 'Guest';
 
+  // A Shopify "order updated" webhook fires for many reasons (fulfilment, notes,
+  // tags…). A blind upsert would wipe state the app owns — the per-product and
+  // whole-order "ready" flags, locally deleted line items, designer/priority/notes
+  // and manual fields — none of which Shopify knows about. So merge into the row
+  // that's already there instead of overwriting it.
+  const [{ data: existing }, { data: rmRow }] = await Promise.all([
+    sb.from('orders').select('*').eq('id', String(order.id)).maybeSingle(),
+    sb.from('settings').select('value').eq('key', 'removed_items').maybeSingle(),
+  ]);
+
+  // Respect the user's line-item delete tombstones (shared settings store) so a
+  // Shopify update can't resurrect a product they removed in the app.
+  const removedMap = (rmRow && rmRow.value) || {};
+  const removed    = new Set(removedMap[String(order.id)] || []);
+
+  // Carry each product's "ready" flag forward by title from the stored row.
+  const prevReady = {};
+  (existing?.line_items || []).forEach(i => { if (i.ready) prevReady[i.title] = true; });
+  const mergedLineItems = lineItems
+    .filter(i => !removed.has(i.title))
+    .map(i => (prevReady[i.title] ? { ...i, ready: true } : i));
+
   const row = {
     // Canonical order id = bare numeric (Shopify REST id). The GraphQL sync in
     // flori.html (syncOrders → shopId) normalizes its gids to this same shape so
@@ -59,19 +81,25 @@ export default async function handler(req, res) {
     name:        order.name,
     src:         'shopify',
     customer,
-    product:     lineItems.map(i => i.title).join(', '),
-    line_items:  lineItems,
-    image:       lineItems[0]?.image || null,
+    product:     mergedLineItems.map(i => i.title).join(', '),
+    line_items:  mergedLineItems,
+    image:       mergedLineItems.find(i => i.image)?.image || null,
     total:       order.current_total_price || order.total_price || null,
     currency:    order.currency || 'MYR',
     due_date:    dueDate,
     due_time:    dueTime,
     type,
     fulfilled,
-    ready:       false,
-    created_at:  order.created_at || null,
-    manual_addr: null,
-    recipe:      [],
+    // Shopify-sourced fields above are refreshed; app-managed fields below are
+    // preserved from the existing row (defaults only on first insert).
+    ready:         existing ? existing.ready         : false,
+    created_at:    order.created_at || null,
+    manual_addr:   existing ? existing.manual_addr   : null,
+    recipe:        existing ? existing.recipe        : [],
+    designer:      existing ? existing.designer      : null,
+    priority:      existing ? existing.priority      : 'normal',
+    internal_note: existing ? existing.internal_note : null,
+    manual_price:  existing ? existing.manual_price  : null,
     updated_at:  new Date().toISOString(),
   };
 
