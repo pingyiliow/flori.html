@@ -2,7 +2,7 @@
   "name": "Bloom Florist - Daily Order & Inventory Management",
   "short_name": "Bloom Florist",
   "description": "Mobile app for florist shop daily order management and inventory tracking with Shopify integration",
-  "start_url": "/florist_app.html",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -36,7 +36,7 @@
       "name": "Today's Orders",
       "short_name": "Orders",
       "description": "View today's flower delivery orders",
-      "url": "/florist_app.html?tab=orders",
+      "url": "/?tab=orders",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%237c9a7e' width='96' height='96'/><text x='48' y='70' font-size='50' text-anchor='middle' fill='white'>📋</text></svg>",
@@ -49,7 +49,7 @@
       "name": "Inventory",
       "short_name": "Stock",
       "description": "Check flower stock and materials",
-      "url": "/florist_app.html?tab=inventory",
+      "url": "/?tab=inventory",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%237c9a7e' width='96' height='96'/><text x='48' y='70' font-size='50' text-anchor='middle' fill='white'>📦</text></svg>",
