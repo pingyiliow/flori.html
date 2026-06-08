@@ -3966,8 +3966,11 @@ document.addEventListener('visibilitychange', () => {
     const now = Date.now();
     if (now - _lastRefresh > 30000) { // max once per 30 seconds
       _lastRefresh = now;
-      loadFromSupabase();
-      syncOrders().catch(()=>{});   // also pull fresh fulfilment status from Shopify
+      // Sequence the two refreshes (as init() does): pull authoritative Supabase
+      // data first, THEN sync from Shopify so syncOrders rebuilds on fresh edits
+      // instead of a stale snapshot — otherwise the slower Shopify round-trip
+      // paints an intermediate frame of pre-edit orders before Supabase settles.
+      loadFromSupabase().then(() => syncOrders()).catch(()=>{});
     }
   }
 });
@@ -3975,8 +3978,7 @@ document.addEventListener('visibilitychange', () => {
 // Also refresh when PWA comes back to foreground (iOS)
 window.addEventListener('pageshow', (e) => {
   if (e.persisted && hasSB() && currentUser) {
-    loadFromSupabase();
-    syncOrders().catch(()=>{});
+    loadFromSupabase().then(() => syncOrders()).catch(()=>{});
   }
 });
 </script>
