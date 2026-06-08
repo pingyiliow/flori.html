@@ -3636,6 +3636,18 @@ function _renderDP(order, localOrder) {
   }
   document.getElementById('dp-sub').innerHTML = subHtml;
 
+  // ── "View in Shopify" header link (Shopify orders only) ──
+  const _sl = document.getElementById('dp-shopify-link');
+  if (_sl) {
+    if (localOrder.src === 'shopify') {
+      const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+      _sl.href = `https://admin.shopify.com/store/${handle}/orders/${shopId(localOrder.id)}`;
+      _sl.style.display = '';
+    } else {
+      _sl.style.display = 'none';
+    }
+  }
+
   // ── Fulfilment (icon rows) ──
   html += `<div>
     <div class="dp-section-ttl">Fulfilment</div>
@@ -3834,8 +3846,11 @@ window.addEventListener('pageshow', (e) => {
 <div class="ov" id="dp-ov" onclick="closeDP()"></div>
 <div class="dp" id="dp">
   <div class="dp-hdr">
-    <div>
-      <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400;color:var(--c-bg)" id="dp-ttl">Order Detail</div>
+    <div style="min-width:0">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+        <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400;color:var(--c-bg)" id="dp-ttl">Order Detail</div>
+        <a id="dp-shopify-link" target="_blank" rel="noopener" style="display:none;font-size:10px;color:var(--c-dpink);text-decoration:underline;white-space:nowrap">↗ View in Shopify</a>
+      </div>
       <div style="font-size:11px;color:var(--c-dpink);margin-top:2px" id="dp-sub"></div>
     </div>
     <button class="sp-x" aria-label="Close" onclick="closeDP()">✕</button>
