@@ -2493,10 +2493,38 @@ function editFollowup(id) {
   openModal('m-followup');
 }
 
+// Find an existing follow-up for the same customer (same phone, or same
+// name when no phone) — used to warn against duplicate entries.
+function _normPhone(s) {
+  let d = String(s || '').replace(/\D/g, '');
+  if (d.startsWith('60')) d = '0' + d.slice(2);   // +60 12-345 6789 == 012-345 6789 (Malaysia)
+  return d;
+}
+function findFollowupDup(name, contact, excludeId) {
+  const n = String(name || '').trim().toLowerCase();
+  const p = _normPhone(contact);
+  return FOLLOWUPS.find(f => {
+    if (f.id === excludeId) return false;
+    const fp = _normPhone(f.contact);
+    if (p && fp && p === fp) return true;                          // same phone
+    if (n && String(f.name || '').trim().toLowerCase() === n) return true; // same name
+    return false;
+  }) || null;
+}
+
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast('Sender name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
+  // Warn if this customer is already on the list (new entries only)
+  if (!editId) {
+    const dup = findFollowupDup(name, document.getElementById('fu-contact').value.trim(), null);
+    if (dup) {
+      const when = dup.dueDate || dup.orderDate || '';
+      const st = dup.status ? dup.status.charAt(0).toUpperCase() + dup.status.slice(1) : '';
+      if (!confirm(`⚠ "${dup.name}" is already on the follow-up list${when ? ` · due ${when}` : ''}${st ? ` · ${st}` : ''}.\n\nThis may be a duplicate. Add another entry anyway?`)) return;
+    }
+  }
   const stEl = document.getElementById('fu-status');
   const entry = {
     id: editId||('fu-'+Date.now()), name,
@@ -2555,6 +2583,9 @@ function renderFollowup() {
     return new Date(a.dueDate) - new Date(b.dueDate);
   });
   const todayStr = tdi(today0());
+  // Count how many entries share each customer (phone, else name) — flag duplicates
+  const dupCounts = {};
+  FOLLOWUPS.forEach(f => { const k = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(); if (k) dupCounts[k] = (dupCounts[k]||0) + 1; });
   tb.innerHTML = list.map(f => {
     const ch=chLabel[f.channel]||f.channel, chCl=chCls[f.channel]||'ch-ot';
     const payLbl=f.payment==='paid'?'Paid':'Pending', payCl=f.payment==='paid'?'pay-paid':'pay-pend';
@@ -2587,6 +2618,8 @@ function renderFollowup() {
     }
     const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
+    const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
+    const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">⚠ ${dupCounts[dupKey]}×</span>` : '';
     // Tick button style based on status
     const tickStyle = isCompleted
       ? 'background:var(--c-sage);border-color:var(--c-sage);color:#fff'
@@ -2596,7 +2629,7 @@ function renderFollowup() {
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
     return `<tr class="clickable-row" style="opacity:${rowOpacity};cursor:pointer" onclick="openFUDP('${f.id}')">
       <td>
-        <div style="font-size:13px;font-weight:500">${esc(f.name)}</div>
+        <div style="font-size:13px;font-weight:500">${esc(f.name)}${dupBadge}</div>
         ${recipSub}
         <div style="margin-top:2px"><span class="ch-badge ${chCl}" style="font-size:8px">${ch}</span></div>
       </td>
