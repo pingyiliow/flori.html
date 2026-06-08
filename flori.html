@@ -11,6 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="BloomFlow">
 <meta name="theme-color" content="#4D0E13">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%234D0E13' width='180' height='180'/><text x='90' y='125' font-size='95' text-anchor='middle'>🌸</text></svg>">
 <title>BloomFlow · Florist Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,7 +55,7 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html{-webkit-font-smoothing:antialiased}
 body{font-family:var(--f-body);background:var(--c-bg);color:var(--c-ink);min-height:100vh;font-size:14px}
-button{font-family:var(--f-body);cursor:pointer;border:none;background:none}
+button{font-family:var(--f-body);cursor:pointer;border:none;background:none;-webkit-appearance:none;appearance:none;color:inherit}
 input,select,textarea{font-family:var(--f-body);font-size:13px;color:var(--c-ink)}
 img{display:block;max-width:100%}
 
@@ -613,6 +615,39 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   .onote{white-space:normal}
   .oc-mob-price{display:inline}
 }
+
+/* ── Stock page (Inventory + To Buy) ──────────────────────────── */
+.stock-tabs{display:flex;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:4px;width:fit-content;align-self:flex-start}
+.stock-tab{padding:8px 22px;border-radius:7px;font-size:12px;font-weight:500;color:var(--c-muted);background:transparent;display:flex;align-items:center;gap:7px;transition:all .15s}
+.stock-tab.on{background:var(--c-burg);color:var(--c-bg)}
+.stk-cat{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);padding:16px 0 8px;display:flex;align-items:center;gap:10px}
+.stk-cat::after{content:'';flex:1;height:1px;background:var(--c-border)}
+.stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+@media(max-width:480px){.stk-grid{grid-template-columns:1fr 1fr}}
+.stk-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:all .12s;position:relative}
+.stk-card:hover{border-color:var(--c-border2);box-shadow:0 2px 8px rgba(77,14,19,.08)}
+.stk-card.low{border-color:#EF9A9A;background:#FFF5F5}
+.stk-left{display:flex;flex-direction:column;gap:3px;min-width:0}
+.stk-name{font-size:13px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stk-unit{font-size:10px;color:var(--c-muted)}
+.stk-qty{font-family:var(--f-head);font-size:24px;font-weight:700;color:var(--c-burg);flex-shrink:0;line-height:1}
+.stk-qty.low{color:#C62828}
+.stk-add{width:100%;padding:11px;border:1.5px dashed var(--c-border2);border-radius:10px;background:transparent;color:var(--c-muted);font-size:12px;cursor:pointer;transition:all .12s;grid-column:1/-1}
+.stk-add:hover{border-color:var(--c-burg);color:var(--c-burg);background:var(--c-burg-lt)}
+.buy-item{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:6px;transition:all .12s}
+.buy-item.done{opacity:.5}
+.buy-check{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--c-border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--c-surface);cursor:pointer;color:transparent}
+.buy-check.checked{background:#EDF7ED;border-color:#A5D6A7;color:#2E7D32;font-weight:700}
+.buy-main{flex:1;min-width:0}
+.buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
+.buy-name.done{text-decoration:line-through}
+.buy-sub{font-size:11px;color:var(--c-muted);margin-top:2px}
+.buy-urg{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:3px;flex-shrink:0;white-space:nowrap}
+.buy-urg.today{background:#FDECEA;color:#C62828;border:1px solid #EF9A9A}
+.buy-urg.week{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+.buy-urg.stock{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
+.buy-del{width:26px;height:26px;border-radius:6px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:12px;flex-shrink:0;cursor:pointer}
+.buy-del:hover{border-color:var(--c-red);color:var(--c-red)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -754,9 +789,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   <div id="pg-stock" class="page">
     <div class="pc">
       <!-- Tab switcher -->
-      <div style="display:flex;gap:0;border:1.5px solid var(--c-border);border-radius:var(--r);overflow:hidden;align-self:flex-start">
-        <button id="stock-tab-inv" onclick="switchStockTab('inv')" style="padding:8px 20px;font-size:12px;font-weight:500;background:var(--c-burg);color:var(--c-bg);border:none;cursor:pointer;transition:all .12s">🌸 Inventory</button>
-        <button id="stock-tab-pur" onclick="switchStockTab('pur')" style="padding:8px 20px;font-size:12px;font-weight:500;background:var(--c-surface);color:var(--c-muted);border:none;cursor:pointer;transition:all .12s">🛒 To Buy</button>
+      <div class="stock-tabs">
+        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')">🌸 Inventory</button>
+        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')">🛒 To Buy</button>
       </div>
 
       <!-- Inventory pane -->
@@ -777,15 +812,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
             <button class="btn btn-primary" onclick="openAddPur()">+ Add Item</button>
           </div>
         </div>
-        <div class="card">
-          <div style="padding:0 18px" id="pur-body"></div>
-        </div>
-        <div class="card">
-          <div class="card-hdr"><div class="card-ttl">Supplier Notes</div></div>
-          <div style="padding:16px">
-            <textarea id="pur-notes" style="width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-family:var(--f-body);font-size:13px;resize:vertical;min-height:100px;background:var(--c-surface);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
-          </div>
-        </div>
+        <div id="pur-body" style="margin-top:14px"></div>
+        <div class="stk-cat" style="margin-top:8px">Supplier Notes</div>
+        <textarea id="pur-notes" style="width:100%;padding:12px;border:1.5px solid var(--c-border);border-radius:10px;font-family:var(--f-body);font-size:13px;resize:vertical;min-height:90px;background:var(--c-surface);color:var(--c-ink);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
       </div>
     </div>
   </div>
@@ -989,8 +1018,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 <!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
 <div id="m-inv" class="modal">
   <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl">Add Stock Item</div><button class="mc-x" onclick="closeModal('m-inv')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl" id="m-inv-ttl">Add Stock Item</div><button class="mc-x" onclick="closeModal('m-inv')">✕</button></div>
     <div class="mc-body">
+      <input type="hidden" id="i-edit-id">
       <div class="fg fg-2">
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
         <div class="ff"><label class="ff-l">Category</label>
@@ -1006,6 +1036,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="saveInv()">Save Item</button>
+        <button class="btn btn-ghost" id="i-del-btn" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteInvItem()">Delete</button>
         <button class="btn btn-ghost" onclick="closeModal('m-inv')">Cancel</button>
       </div>
     </div>
@@ -2080,34 +2111,51 @@ function switchStockTab(tab) {
   const isInv = tab === 'inv';
   document.getElementById('stock-pane-inv').style.display = isInv ? '' : 'none';
   document.getElementById('stock-pane-pur').style.display = isInv ? 'none' : '';
-  document.getElementById('stock-tab-inv').style.background = isInv ? 'var(--c-burg)' : 'var(--c-surface)';
-  document.getElementById('stock-tab-inv').style.color = isInv ? 'var(--c-bg)' : 'var(--c-muted)';
-  document.getElementById('stock-tab-pur').style.background = isInv ? 'var(--c-surface)' : 'var(--c-burg)';
-  document.getElementById('stock-tab-pur').style.color = isInv ? 'var(--c-muted)' : 'var(--c-bg)';
+  document.getElementById('stock-tab-inv').classList.toggle('on', isInv);
+  document.getElementById('stock-tab-pur').classList.toggle('on', !isInv);
 }
 
+const INV_CAT = {cut:'🌹 Cut Flowers',green:'🍃 Greenery',dried:'🌾 Dried Flowers',ribbon:'🎀 Ribbons & Wrapping',vase:'🏺 Vases & Containers',foam:'🧱 Floral Foam',other:'📦 Other'};
+const INV_LOW = 5; // qty at or below this is flagged low-stock
+
 function renderInventory() {
-  const CAT = {cut:'Cut Flowers',green:'Greenery',dried:'Dried Flowers',ribbon:'Ribbons & Wrapping',vase:'Vases & Containers',foam:'Floral Foam',other:'Other'};
   const cont = document.getElementById('inv-body');
   if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">◉</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   const byCat = {};
   INVENTORY.forEach(i => { (byCat[i.cat]=byCat[i.cat]||[]).push(i); });
+  const order = ['cut','green','dried','ribbon','vase','foam','other'];
+  const cats = Object.keys(byCat).sort((a,b)=>((order.indexOf(a)+1)||99)-((order.indexOf(b)+1)||99));
   let html = '';
-  Object.entries(byCat).forEach(([cat, items]) => {
-    const label = CAT[cat] || cat;
-    const cards = items.map(i => `<div class="inv-card"><div class="inv-cat">${label}</div><div class="inv-name">${esc(i.name)}</div><div class="inv-q"><div class="inv-n">${i.qty}</div><div class="inv-u">${esc(i.unit)}</div></div>${i.notes?`<div class="inv-note">${esc(i.notes)}</div>`:''}<div class="inv-acts"><button class="inv-act" onclick="invAdj('${i.id}',1)">+</button><button class="inv-act" onclick="invAdj('${i.id}',-1)">−</button><button class="inv-act x" onclick="invDel('${i.id}')">✕</button></div></div>`).join('');
-    html += `<div style="margin-bottom:20px"><div style="font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--c-border)">${label}</div><div class="inv-grid">${cards}</div></div>`;
+  cats.forEach(cat => {
+    const label = INV_CAT[cat] || cat;
+    const cards = byCat[cat].map(i => {
+      const low = (i.qty||0) <= INV_LOW;
+      return `<div class="stk-card ${low?'low':''}" onclick="editInv('${i.id}')">
+        <div class="stk-left"><div class="stk-name">${esc(i.name)}</div><div class="stk-unit">${esc(i.unit||'')}</div></div>
+        <div class="stk-qty ${low?'low':''}">${i.qty||0}</div>
+      </div>`;
+    }).join('');
+    html += `<div class="stk-cat">${label}</div><div class="stk-grid">${cards}<button class="stk-add" onclick="openAddInv('${cat}')">+ Add</button></div>`;
   });
   cont.innerHTML = html;
 }
 
 function renderPurchase() {
-  const URG = {today:{en:'Today',c:'var(--c-red)'},week:{en:'This Week',c:'var(--c-amber)'},stock:{en:'Stock Up',c:'var(--c-muted)'}};
+  const URG = {today:{l:'Today',c:'today'},week:{l:'This week',c:'week'},stock:{l:'Stock up',c:'stock'}};
   const cont = document.getElementById('pur-body');
-  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">No items</div></div>`; return; }
+  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">Nothing to buy — tap + Add Item</div></div>`; return; }
   const ord={today:0,week:1,stock:2};
-  const sorted = [...PURCHASES].sort((a,b)=>(ord[a.urg]||2)-(ord[b.urg]||2));
-  cont.innerHTML = sorted.map(p => { const u=URG[p.urg]||URG.stock; return `<div class="pur-item"><div class="pur-chk ${p.done?'done':''}" onclick="togglePur('${p.id}')">${p.done?'✓':''}</div><div class="pur-info" style="${p.done?'opacity:.4;text-decoration:line-through':''}"><div class="pur-name">${esc(p.name)}</div>${p.notes?`<div class="pur-sub">${esc(p.notes)}</div>`:''}<div class="pur-tags">${p.qty?`<span class="pur-qty">${esc(p.qty)}</span>`:''}<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:${u.c}">${u.en}</span></div></div><button class="pur-del" onclick="delPur('${p.id}')">✕</button></div>`; }).join('');
+  const sorted = [...PURCHASES].sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((ord[a.urg]??2)-(ord[b.urg]??2)));
+  cont.innerHTML = sorted.map(p => {
+    const u = URG[p.urg] || URG.stock;
+    const sub = [p.qty, p.notes].filter(Boolean).join(' · ');
+    return `<div class="buy-item ${p.done?'done':''}">
+      <div class="buy-check ${p.done?'checked':''}" onclick="togglePur('${p.id}')">${p.done?'✓':''}</div>
+      <div class="buy-main"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
+      <span class="buy-urg ${u.c}">${u.l}</span>
+      <button class="buy-del" onclick="delPur('${p.id}')">✕</button>
+    </div>`;
+  }).join('');
 }
 
 /* ─── Follow-up ──────────────────────────────────────────────── */
@@ -2882,7 +2930,35 @@ function openAddOrder(){
   addProductRow();
   openModal('m-order');
 }
-function openAddInv()  {openModal('m-inv');}
+function openAddInv(cat) {
+  document.getElementById('i-edit-id').value = '';
+  document.getElementById('i-name').value = '';
+  document.getElementById('i-cat').value = (typeof cat === 'string' && cat) ? cat : 'cut';
+  document.getElementById('i-qty').value = '0';
+  document.getElementById('i-unit').value = '';
+  document.getElementById('i-notes').value = '';
+  document.getElementById('m-inv-ttl').textContent = 'Add Stock Item';
+  document.getElementById('i-del-btn').style.display = 'none';
+  openModal('m-inv');
+}
+function editInv(id) {
+  const i = INVENTORY.find(x => x.id === id); if (!i) return;
+  document.getElementById('i-edit-id').value = i.id;
+  document.getElementById('i-name').value = i.name || '';
+  document.getElementById('i-cat').value = i.cat || 'other';
+  document.getElementById('i-qty').value = i.qty || 0;
+  document.getElementById('i-unit').value = i.unit || '';
+  document.getElementById('i-notes').value = i.notes || '';
+  document.getElementById('m-inv-ttl').textContent = 'Edit Stock Item';
+  document.getElementById('i-del-btn').style.display = '';
+  openModal('m-inv');
+}
+function deleteInvItem() {
+  const id = document.getElementById('i-edit-id').value;
+  if (!id || !confirm('Remove this item?')) return;
+  INVENTORY = INVENTORY.filter(x => x.id !== id);
+  saveInventory(); closeModal('m-inv'); renderInventory(); toast('Removed');
+}
 function openAddPur()  {openModal('m-pur');}
 
 /* ─── Photo compression ──────────────────────────────────────── */
@@ -3033,7 +3109,15 @@ function saveOrder() {
   toast('✓ Order saved'); renderAll();
 }
 
-function saveInv(){const name=document.getElementById('i-name').value.trim();if(!name){toast('Name required');return;}INVENTORY.push({id:'inv-'+Date.now(),name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()});saveInventory();closeModal('m-inv');['i-name','i-unit','i-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));document.getElementById('i-qty').value='0';toast('✓ Item added');renderInventory();}
+function saveInv(){
+  const name=document.getElementById('i-name').value.trim();
+  if(!name){toast('Name required');return;}
+  const editId=document.getElementById('i-edit-id').value;
+  const data={name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()};
+  if(editId){ const i=INVENTORY.find(x=>x.id===editId); if(i)Object.assign(i,data); }
+  else { INVENTORY.push({id:'inv-'+Date.now(),...data}); }
+  saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
+}
 function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));toast('✓ Added');renderPurchase();}
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
