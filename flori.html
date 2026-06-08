@@ -660,6 +660,28 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .buy-urg.stock{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
 .buy-del{width:26px;height:26px;border-radius:6px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:12px;flex-shrink:0;cursor:pointer}
 .buy-del:hover{border-color:var(--c-red);color:var(--c-red)}
+
+/* ── Follow-up cards ──────────────────────────────────────────── */
+.fu-cards{display:flex;flex-direction:column;gap:7px}
+.fu-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-left:4px solid var(--c-blush);border-radius:12px;display:grid;grid-template-columns:1fr 132px 96px 150px 46px;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.fu-card:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-border2)}
+.fu-card.ready{border-left-color:var(--c-burg)}
+.fu-card.done{opacity:.55;border-left-color:var(--c-sage)}
+.fu-c-main{min-width:0}
+.fu-c-name{font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;flex-wrap:wrap;gap:2px}
+.fu-c-recip{font-size:10px;color:var(--c-muted);margin-top:1px}
+.fu-c-items{font-size:11px;color:var(--c-muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fu-c-amt{font-size:13px;font-weight:700;color:var(--c-burg);text-align:right;white-space:nowrap}
+.fu-c-badges{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+.fu-c-tick{display:flex;justify-content:flex-end}
+@media(max-width:860px){
+  .fu-card{grid-template-columns:1fr auto;grid-template-areas:"main main" "date amt" "badges tick";align-items:start;row-gap:8px}
+  .fu-c-main{grid-area:main}
+  .fu-c-date{grid-area:date;align-self:center}
+  .fu-c-amt{grid-area:amt;align-self:center}
+  .fu-c-badges{grid-area:badges;flex-direction:row;align-items:center;flex-wrap:wrap}
+  .fu-c-tick{grid-area:tick;align-self:center}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -853,16 +875,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         <button class="f-btn" data-fu="payment-pending">Unpaid</button>
         <button class="f-btn" data-fu="completed">Completed</button>
       </div>
-      <div class="card">
-        <div class="scroll-x">
-          <table class="tbl">
-            <thead><tr>
-              <th>Customer · Recipient</th><th>Delivery Date</th><th>Items</th><th>Amount</th><th>Payment</th><th>Status</th><th></th>
-            </tr></thead>
-            <tbody id="followup-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+      <div class="fu-cards" id="followup-tbody"></div>
     </div>
   </div>
 
@@ -2634,7 +2647,7 @@ function renderFollowup() {
   if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
   if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
   if(fuFilter==='completed')        list=list.filter(x=>x.status==='completed');
-  if(!list.length){tb.innerHTML=`<tr><td colspan="7" style="padding:56px;text-align:center"><div class="empty"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div></td></tr>`;return;}
+  if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
   // Sort by dueDate ascending (most urgent first), undated at bottom
@@ -2689,28 +2702,23 @@ function renderFollowup() {
         ? 'background:var(--c-burg-lt);border-color:var(--c-burg);color:var(--c-burg)'
         : 'background:var(--c-surface);border-color:var(--c-border);color:var(--c-muted)';
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
-    return `<tr class="clickable-row" style="opacity:${rowOpacity};cursor:pointer" onclick="openFUDP('${f.id}')">
-      <td>
-        <div style="font-size:13px;font-weight:500">${esc(f.name)}${dupBadge}</div>
-        ${recipSub}
-        <div style="margin-top:2px"><span class="ch-badge ${chCl}" style="font-size:8px">${ch}</span></div>
-      </td>
-      <td>${dateCellHtml}</td>
-      <td><div style="font-size:11px;color:var(--c-muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(itemsPreview)}</div></td>
-      <td><div style="font-size:12px;font-weight:500;color:${isCompleted?'var(--c-muted)':'var(--c-burg)'}">${amt}</div></td>
-      <td><button onclick="event.stopPropagation();togglePayment('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button></td>
-      <td>
-        <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" style="cursor:pointer;background:none;border:none;padding:0" title="${tickTitle}">
-          <span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span>
-        </button>
-      </td>
-      <td>
-        <div style="display:flex;justify-content:flex-end">
-          <button class="act-btn" style="${tickStyle};width:28px;height:28px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .12s"
-            onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}">✓</button>
-        </div>
-      </td>
-    </tr>`;
+    return `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
+      <div class="fu-c-main">
+        <div class="fu-c-name">${esc(f.name)}${dupBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
+        ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
+        <div class="fu-c-items">${esc(itemsPreview)}</div>
+      </div>
+      <div class="fu-c-date">${dateCellHtml}</div>
+      <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}</div>
+      <div class="fu-c-badges">
+        <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
+        <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
+      </div>
+      <div class="fu-c-tick">
+        <button class="act-btn" style="${tickStyle};width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px"
+          onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}">✓</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
