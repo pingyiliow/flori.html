@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="version" content="20260607073213">
+<meta name="version" content="20260608120000">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="BloomFlow">
+<meta name="apple-mobile-web-app-title" content="Bamboo Flower Club">
 <meta name="theme-color" content="#4D0E13">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%234D0E13' width='180' height='180'/><text x='90' y='125' font-size='95' text-anchor='middle'>🌸</text></svg>">
-<title>BloomFlow · Florist Studio</title>
+<title>Bamboo Flower Club · Florist Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
@@ -755,10 +755,10 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 <header class="hdr">
   <div class="hdr-logo-zone">
     <div>
-      <div style="display:flex;align-items:baseline;gap:1px">
-        <span class="hdr-bloom">Bloom</span>
+      <div style="display:flex;align-items:baseline;gap:2px">
+        <span class="hdr-bloom" style="font-size:17px">Bamboo</span>
         <span class="hdr-dot"></span>
-        <span class="hdr-flow">Flow</span>
+        <span class="hdr-flow" style="font-size:17px">Flower&nbsp;Club</span>
       </div>
       <span class="hdr-tagline">Florist Studio</span>
     </div>
@@ -1033,7 +1033,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     <div>
       <div class="sp-section-ttl">About</div>
       <div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.7">
-        BloomFlow v1.0 · Florist Studio<br>Built for Bamboo Green Florist (M) Sdn Bhd
+        Bamboo Flower Club v1.0 · Florist Studio<br>Built for Bamboo Green Florist (M) Sdn Bhd
       </div>
     </div>
   </div>
@@ -3328,17 +3328,18 @@ async function fulfillInShopify(o){
 
 async function markDelivered(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
-  if (o.fulfilled){ toast('Already delivered'); return; }
+  const verb = o.type==='pickup' ? 'Picked Up' : 'Delivered';
+  if (o.fulfilled){ toast('Already '+verb.toLowerCase()); return; }
   // Confirm first — fulfilling notifies the customer, so guard against mis-taps.
   const confirmMsg = o.src === 'shopify'
-    ? `Mark ${o.name||'this order'} as Delivered?\n\nThis fulfils the order in Shopify and notifies the customer.`
-    : `Mark ${o.name||'this order'} as Delivered?`;
+    ? `Mark ${o.name||'this order'} as ${verb}?\n\nThis fulfils the order in Shopify and notifies the customer.`
+    : `Mark ${o.name||'this order'} as ${verb}?`;
   if (!confirm(confirmMsg)) return;
   // Manual (non-Shopify) orders: just mark locally.
   if (o.src !== 'shopify'){
     o.ready=true; o.fulfilled=true;
     saveOrders(); renderHome(); renderOrders(); closeDP();
-    toast('✓ Marked as Delivered');
+    toast('✓ Marked as '+verb);
     return;
   }
   // Shopify orders: fulfill in Shopify first so the customer is notified.
@@ -3347,17 +3348,17 @@ async function markDelivered(id){
     const r = await fulfillInShopify(o);
     o.ready=true; o.fulfilled=true;
     saveOrders(); renderHome(); renderOrders(); closeDP();
-    toast(r.already ? '✓ Delivered (was already fulfilled in Shopify)' : '✓ Delivered · customer notified');
+    toast(r.already ? `✓ ${verb} (was already fulfilled in Shopify)` : `✓ ${verb} · customer notified`);
   } catch(e){
     const msg = String((e && e.message) || e);
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
-    if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark delivered locally anyway? (the customer will NOT be notified)`)){
+    if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway? (the customer will NOT be notified)`)){
       o.ready=true; o.fulfilled=true;
       saveOrders(); renderHome(); renderOrders(); closeDP();
-      toast('Marked delivered locally — not synced to Shopify');
+      toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else {
-      toast('Not delivered');
+      toast('Cancelled');
     }
   }
 }
@@ -3409,7 +3410,7 @@ function updateBadge(){
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-function exportData(){const d={orders:ORDERS.map(o=>({...o,dateObj:undefined})),inventory:INVENTORY,purchases:PURCHASES,notes:localStorage.getItem('flori-pur-notes')||'',at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='bloomflow-'+tdi(new Date())+'.json';a.click();toast('✓ Data exported');}
+function exportData(){const d={orders:ORDERS.map(o=>({...o,dateObj:undefined})),inventory:INVENTORY,purchases:PURCHASES,notes:localStorage.getItem('flori-pur-notes')||'',at:new Date().toISOString()};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,2)],{type:'application/json'}));a.download='bamboo-flower-club-'+tdi(new Date())+'.json';a.click();toast('✓ Data exported');}
 function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders','flori-inventory','flori-purchases','flori-pur-notes'].forEach(k=>localStorage.removeItem(k));ORDERS=[];INVENTORY=[];PURCHASES=[];renderAll();closeSP();toast('All local data cleared');}
 
 document.addEventListener('keydown', e => {
@@ -3635,6 +3636,18 @@ function _renderDP(order, localOrder) {
   }
   document.getElementById('dp-sub').innerHTML = subHtml;
 
+  // ── "View in Shopify" header link (Shopify orders only) ──
+  const _sl = document.getElementById('dp-shopify-link');
+  if (_sl) {
+    if (localOrder.src === 'shopify') {
+      const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+      _sl.href = `https://admin.shopify.com/store/${handle}/orders/${shopId(localOrder.id)}`;
+      _sl.style.display = '';
+    } else {
+      _sl.style.display = 'none';
+    }
+  }
+
   // ── Fulfilment (icon rows) ──
   html += `<div>
     <div class="dp-section-ttl">Fulfilment</div>
@@ -3711,7 +3724,7 @@ function _renderDP(order, localOrder) {
   // ── Delivered / Edit / Delete at bottom ──
   if (!localOrder.fulfilled) {
     html += `<button onclick="markDelivered('${localOrder.id}')" style="width:100%;padding:13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:background .12s" onmouseover="this.style.background='#3A080C'" onmouseout="this.style.background='var(--c-burg)'">
-      🚚 Mark as Delivered
+      ${localOrder.type==='pickup' ? '🛍 Mark as Picked Up' : '🚚 Mark as Delivered'}
     </button>`;
   }
   html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
@@ -3833,8 +3846,11 @@ window.addEventListener('pageshow', (e) => {
 <div class="ov" id="dp-ov" onclick="closeDP()"></div>
 <div class="dp" id="dp">
   <div class="dp-hdr">
-    <div>
-      <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400;color:var(--c-bg)" id="dp-ttl">Order Detail</div>
+    <div style="min-width:0">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+        <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400;color:var(--c-bg)" id="dp-ttl">Order Detail</div>
+        <a id="dp-shopify-link" target="_blank" rel="noopener" style="display:none;font-size:10px;color:var(--c-dpink);text-decoration:underline;white-space:nowrap">↗ View in Shopify</a>
+      </div>
       <div style="font-size:11px;color:var(--c-dpink);margin-top:2px" id="dp-sub"></div>
     </div>
     <button class="sp-x" aria-label="Close" onclick="closeDP()">✕</button>
@@ -3869,14 +3885,14 @@ window.addEventListener('pageshow', (e) => {
 
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════ -->
 <div id="app-loading" style="position:fixed;inset:0;background:var(--c-burg-dk);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
-  <div style="font-family:Georgia,serif;font-size:28px;font-weight:700;color:#EEE4DA;letter-spacing:.02em">Bloom<span style="color:#C8A49F">Flow</span></div>
+  <div style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:#EEE4DA;letter-spacing:.02em">Bamboo <span style="color:#C8A49F">Flower Club</span></div>
   <div style="font-size:12px;color:rgba(238,228,218,.5);letter-spacing:.1em;text-transform:uppercase">Loading…</div>
 </div>
 <div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0">
   <div style="width:min(360px,90vw);display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
     <!-- Logo -->
-    <div style="font-family:var(--f-head);font-size:28px;font-weight:700;color:var(--c-burg);letter-spacing:.02em">
-      Bloom<span style="color:var(--c-dpink)">Flow</span>
+    <div style="font-family:var(--f-head);font-size:26px;font-weight:700;color:var(--c-burg);letter-spacing:.02em">
+      Bamboo <span style="color:var(--c-dpink)">Flower Club</span>
     </div>
     <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-muted);margin-top:-16px">Florist Studio</div>
 
@@ -3904,7 +3920,7 @@ window.addEventListener('pageshow', (e) => {
     </button>
 
     <div style="font-size:10px;color:var(--c-muted);text-align:center">
-      Bamboo Green · BloomFlow
+      Bamboo Flower Club (M) Sdn Bhd
     </div>
   </div>
 </div>
