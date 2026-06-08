@@ -3321,6 +3321,11 @@ async function fulfillInShopify(o){
 async function markDelivered(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   if (o.fulfilled){ toast('Already delivered'); return; }
+  // Confirm first — fulfilling notifies the customer, so guard against mis-taps.
+  const confirmMsg = o.src === 'shopify'
+    ? `Mark ${o.name||'this order'} as Delivered?\n\nThis fulfils the order in Shopify and notifies the customer.`
+    : `Mark ${o.name||'this order'} as Delivered?`;
+  if (!confirm(confirmMsg)) return;
   // Manual (non-Shopify) orders: just mark locally.
   if (o.src !== 'shopify'){
     o.ready=true; o.fulfilled=true;
