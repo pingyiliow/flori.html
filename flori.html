@@ -682,6 +682,61 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   .fu-c-badges{grid-area:badges;flex-direction:row;align-items:center;flex-wrap:wrap}
   .fu-c-tick{grid-area:tick;align-self:center}
 }
+
+/* ── Dashboard home ───────────────────────────────────────────── */
+.h-hero{background:linear-gradient(135deg,var(--c-burg) 0%,var(--c-burg-dk) 100%);color:var(--c-bg);padding:18px 44px 20px}
+@media(max-width:860px){.h-hero{padding:16px 20px 18px}}
+.h-hero-day{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(238,228,218,.6);margin-bottom:5px}
+.h-hero-main{font-family:var(--f-head);font-size:28px;font-weight:700;line-height:1.05;color:var(--c-bg)}
+.h-hero-sub{font-size:12px;color:rgba(238,228,218,.72);margin-top:4px}
+.h-stats{display:grid;grid-template-columns:repeat(4,1fr);background:var(--c-burg-dk);border-top:1px solid rgba(255,255,255,.1)}
+.h-stat{padding:12px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.08)}
+.h-stat:last-child{border-right:none}
+.h-stat-n{font-family:var(--f-head);font-size:24px;font-weight:700;color:var(--c-bg);line-height:1}
+.h-stat-n.pending{color:#FFB3B3}.h-stat-n.ready{color:#A5D6A7}.h-stat-n.done{color:var(--c-dpink)}.h-stat-n.total{color:#FFD96A}
+.h-stat-l{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:rgba(238,228,218,.5);margin-top:3px}
+.h-sec-ttl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted)}
+.h-qa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:640px){.h-qa-grid{grid-template-columns:1fr 1fr}}
+.h-qa{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;width:100%;transition:all .12s}
+.h-qa:hover{border-color:var(--c-border2);background:var(--c-burg-lt)}
+.h-qa-ico{font-size:22px;flex-shrink:0;line-height:1}
+.h-qa-lbl{font-size:13px;font-weight:600;color:var(--c-ink)}
+.h-qa-sub{font-size:10px;color:var(--c-muted);margin-top:1px}
+.h-qa.urgent{border-color:#EF9A9A;background:#FFF5F5}
+.h-qa.urgent .h-qa-lbl{color:#C62828}
+.h-mc{background:var(--c-surface);border:1.5px solid var(--c-border);border-left:4px solid var(--c-dpink);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .12s}
+.h-mc:hover{border-color:var(--c-border2)}
+.h-mc.ready{border-left-color:#2E7D32;background:#F5FBF5}
+.h-mc.done{opacity:.5;border-left-color:var(--c-sage)}
+.h-mc.urg{border-left-color:#C62828}
+.h-mc-thumb{width:38px;height:38px;border-radius:8px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;overflow:hidden}
+.h-mc-thumb img{width:100%;height:100%;object-fit:cover}
+.h-mc-body{flex:1;min-width:0}
+.h-mc-name{font-size:12px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-mc-meta{font-size:10px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-mc-note{font-size:9px;color:#5D4037;background:#FFF8E1;border-left:2px solid #FFD54F;padding:2px 5px;border-radius:0 3px 3px 0;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-mc-r{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.h-mc-time{font-size:11px;font-weight:600;color:var(--c-ink);white-space:nowrap}
+.h-mc-badge{font-size:8px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.h-mc-badge.p{background:#fdecea;color:#c62828}.h-mc-badge.r{background:#EDF7ED;color:#2E7D32}.h-mc-badge.f{background:var(--c-sage-bg);color:var(--c-sage)}
+.h-mc-tick{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);flex-shrink:0}
+.h-mc-tick.r{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
+.h-mc-tick.f{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage)}
+.h-fualert{background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.h-fualert-dot{width:8px;height:8px;border-radius:50%;background:#F57F17;flex-shrink:0}
+.h-fualert-txt{font-size:12px;font-weight:500;color:#3E2723;flex:1}
+.h-fualert-cnt{font-family:var(--f-head);font-size:18px;font-weight:700;color:#F57F17;flex-shrink:0}
+
+/* ── Detail panel: icon fulfilment + address box + avatar customer ── */
+.dp-fl{display:flex;align-items:center;gap:12px;padding:7px 0}
+.dp-fl-ico{width:34px;height:34px;border-radius:8px;background:var(--c-burg-lt);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.dp-fl-val{font-size:14px;font-weight:600;color:var(--c-ink);line-height:1.2}
+.dp-fl-lbl{font-size:10px;color:var(--c-muted);margin-top:1px}
+.dp-addrbox{background:var(--c-bg);border-radius:10px;padding:12px 14px;font-size:12px;line-height:1.6;color:var(--c-ink)}
+.dp-cust{display:flex;align-items:center;gap:12px}
+.dp-cust-av{width:42px;height:42px;border-radius:50%;background:var(--c-burg);color:var(--c-bg);display:flex;align-items:center;justify-content:center;font-family:var(--f-head);font-size:18px;font-weight:700;flex-shrink:0}
+.dp-cust-name{font-size:14px;font-weight:600;color:var(--c-ink)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -730,24 +785,30 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 
   <!-- ── Dashboard ──────────────────────────────────────────── -->
   <div id="pg-home" class="page on">
-    <div class="pc" style="padding-bottom:0;gap:20px">
-      <div class="page-hdr">
-        <div>
-          <div class="page-title" id="dash-date">—</div>
-          <div class="page-sub">Today's overview</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all orders →</button>
+    <div class="h-hero">
+      <div class="h-hero-day" id="h-day">—</div>
+      <div class="h-hero-main" id="h-greet">Dashboard</div>
+      <div class="h-hero-sub" id="h-sub"></div>
+    </div>
+    <div class="h-stats">
+      <div class="h-stat"><div class="h-stat-n pending" id="s-today">–</div><div class="h-stat-l">Pending</div></div>
+      <div class="h-stat"><div class="h-stat-n ready" id="s-pu">–</div><div class="h-stat-l">Ready</div></div>
+      <div class="h-stat"><div class="h-stat-n done" id="s-de">–</div><div class="h-stat-l">Done</div></div>
+      <div class="h-stat"><div class="h-stat-n total" id="s-total">–</div><div class="h-stat-l">Total</div></div>
+    </div>
+    <div class="pc" style="padding-top:16px;gap:18px">
+      <div>
+        <div class="h-sec-ttl" style="margin-bottom:8px">Quick Actions</div>
+        <div class="h-qa-grid" id="h-quick"></div>
       </div>
-    </div>
-    <div class="stats" style="margin:0 44px">
-      <div class="stat f"><div class="stat-n" id="s-total">–</div><div class="stat-l">Total Today</div></div>
-      <div class="stat s"><div class="stat-n" id="s-today">–</div><div class="stat-l">Pending</div></div>
-      <div class="stat a"><div class="stat-n" id="s-pu">–</div><div class="stat-l">Ready</div></div>
-      <div class="stat b"><div class="stat-n" id="s-de">–</div><div class="stat-l">Fulfilled</div></div>
-    </div>
-    <div class="pc" style="padding-top:24px;gap:12px">
-      <div class="card-ttl" style="font-family:var(--f-head);font-size:16px;font-weight:600;letter-spacing:.02em">Today's Schedule</div>
-      <div class="ord-cards" id="home-list"></div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="h-sec-ttl">Today's Schedule</div>
+          <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all →</button>
+        </div>
+        <div id="home-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
+      <div id="h-fualert-wrap"></div>
     </div>
   </div>
 
@@ -2073,6 +2134,33 @@ function orderCard(o) {
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
 
+function homeMiniCard(o) {
+  const state = orderState(o);
+  const items = (o.lineItems && o.lineItems.length) ? o.lineItems : null;
+  const cls = ['h-mc'];
+  if (state==='ready') cls.push('ready');
+  if (state==='fulfilled') cls.push('done');
+  if (o.priority==='urgent' && !o.fulfilled) cls.push('urg');
+  const imgSrc = (items ? (items.find(i=>i.image)||{}).image : null) || o.image || null;
+  const thumb = imgSrc
+    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();openZoom('${imgSrc.replace(/'/g,"\\'")}','${(o.product||'').replace(/'/g,"\\'")}')" onerror="this.parentElement.textContent='🌸'"></div>`
+    : `<div class="h-mc-thumb">🌸</div>`;
+  const name = esc(o.product || (items?items[0].title:'') || '–');
+  const note = o.internalNote ? `<div class="h-mc-note">⚠ ${esc(o.internalNote.length>42?o.internalNote.slice(0,42)+'…':o.internalNote)}</div>` : '';
+  let badge;
+  if (state==='fulfilled')   badge='<span class="h-mc-badge f">✓ Done</span>';
+  else if (state==='ready')  badge='<span class="h-mc-badge r">● Ready</span>';
+  else                       badge='<span class="h-mc-badge p">'+(o.priority==='urgent'?'🔴 Urgent':'Pending')+'</span>';
+  const tick = o.fulfilled
+    ? `<button type="button" class="h-mc-tick f" aria-label="Fulfilled" onclick="event.stopPropagation()">✓</button>`
+    : `<button type="button" class="h-mc-tick ${o.ready?'r':''}" aria-label="${o.ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>`;
+  return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
+    ${thumb}
+    <div class="h-mc-body"><div class="h-mc-name">${name}</div><div class="h-mc-meta">${esc(o.name||'')}${o.customer?' · '+esc(o.customer):''}</div>${note}</div>
+    <div class="h-mc-r"><div class="h-mc-time">${esc(o.dueTime||'')}</div>${badge}${tick}</div>
+  </div>`;
+}
+
 function renderHome() {
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
@@ -2084,15 +2172,33 @@ function renderHome() {
   const pendingT  = todayO.filter(o => !o.fulfilled && !o.ready);
   const readyT    = todayO.filter(o => !o.fulfilled && o.ready);
   const fulfilledT= todayO.filter(o => o.fulfilled);
+  const urgentT   = todayO.filter(o => !o.fulfilled && o.priority==='urgent');
   document.getElementById('s-total').textContent = todayO.length;
   document.getElementById('s-today').textContent = pendingT.length;
   document.getElementById('s-pu').textContent    = readyT.length;
   document.getElementById('s-de').textContent    = fulfilledT.length;
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('en-MY', {weekday:'long',day:'numeric',month:'long'});
-  const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
+  // Hero — time-based greeting + date
+  const now=new Date(), h=now.getHours();
+  const greet = h<12 ? 'Good morning 🌸' : h<18 ? 'Good afternoon ☀️' : 'Good evening 🌙';
+  document.getElementById('h-day').textContent = now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('h-greet').textContent = greet;
+  document.getElementById('h-sub').textContent = 'Bamboo Green · '+todayO.length+' order'+(todayO.length===1?'':'s')+' today';
+  const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
+  // Quick actions
+  const fuPending = (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').length;
+  const lowStock = (typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>(i.qty||0)<=(typeof INV_LOW!=='undefined'?INV_LOW:5)).length;
+  const qa = [];
+  if (urgentT.length) qa.push(`<button class="h-qa urgent" onclick="goPage('orders')"><span class="h-qa-ico">🔴</span><div><div class="h-qa-lbl">${urgentT.length} Urgent</div><div class="h-qa-sub">Needs attention</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="openAddOrder()"><span class="h-qa-ico">➕</span><div><div class="h-qa-lbl">Add Order</div><div class="h-qa-sub">Walk-in / WA</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="goPage('followup')"><span class="h-qa-ico">📋</span><div><div class="h-qa-lbl">Follow-up</div><div class="h-qa-sub">${fuPending} pending</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="goPage('stock')"><span class="h-qa-ico">🌸</span><div><div class="h-qa-lbl">Stock</div><div class="h-qa-sub">${lowStock?lowStock+' low':'In stock'}</div></div></button>`);
+  document.getElementById('h-quick').innerHTML = qa.join('');
+  // Today's schedule — mini cards
   const sorted = sortedOrders(todayO);
-  const tb = document.getElementById('home-list');
-  tb.innerHTML = sorted.length ? sorted.map(o=>orderCard(o)).join('') : `<div class="empty" style="padding:48px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
+  document.getElementById('home-list').innerHTML = sorted.length ? sorted.map(homeMiniCard).join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
+  // Follow-up alert
+  const fw=document.getElementById('h-fualert-wrap');
+  if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
 }
 
 function renderOrders() {
@@ -3516,30 +3622,31 @@ function _renderDP(order, localOrder) {
   }
   document.getElementById('dp-sub').innerHTML = subHtml;
 
-  // ── Customer (sender) ──
-  html += `<div>
-    <div class="dp-section-ttl">Customer</div>
-    <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(((cust.firstName||'')+' '+(cust.lastName||'')).trim())||'Guest'}</div>
-    ${phone ? `<div style="margin-bottom:3px">${waLink(phone)}</div>` : ''}
-    ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
-  </div>`;
-
-  // ── Delivery Address — directly below the sender (delivery orders only) ──
-  if (addr && localOrder.type !== 'pickup') {
-    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
-    if (lines.length) html += `<div>
-      <div class="dp-section-ttl">Delivery Address</div>
-      <div class="dp-addr">${lines.map(l=>esc(l)).join('<br>')}</div>
-    </div>`;
-  }
-
-  // ── Delivery / Pickup ──
+  // ── Fulfilment (icon rows) ──
   html += `<div>
     <div class="dp-section-ttl">Fulfilment</div>
-    <div style="display:flex;flex-direction:column;gap:6px">
-      <div class="dp-row"><div class="dp-row-lbl">Type</div><div class="dp-row-val">${fulfType}</div></div>
-      ${dueDate ? `<div class="dp-row"><div class="dp-row-lbl">Date</div><div class="dp-row-val" style="font-weight:500;color:var(--c-burg)">${esc(dueDate)}</div></div>` : ''}
-      ${dueTime ? `<div class="dp-row"><div class="dp-row-lbl">Time</div><div class="dp-row-val" style="font-weight:500">${esc(dueTime)}</div></div>` : ''}
+    <div class="dp-fl"><div class="dp-fl-ico">${localOrder.type==='pickup'?'🛍':'📦'}</div><div><div class="dp-fl-val">${fulfType}</div><div class="dp-fl-lbl">Type</div></div></div>
+    ${(dueDate||localOrder.dateObj) ? `<div class="dp-fl"><div class="dp-fl-ico">📅</div><div><div class="dp-fl-val">${esc(localOrder.dateObj?fd(localOrder.dateObj):dueDate)}</div><div class="dp-fl-lbl">${localOrder.type==='pickup'?'Pickup Date':'Delivery Date'}</div></div></div>` : ''}
+    ${dueTime ? `<div class="dp-fl"><div class="dp-fl-ico">⏰</div><div><div class="dp-fl-val">${esc(dueTime)}</div><div class="dp-fl-lbl">Time Slot</div></div></div>` : ''}
+  </div>`;
+
+  // ── Delivery Address — grey box under fulfilment (delivery orders only) ──
+  if (addr && localOrder.type !== 'pickup') {
+    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
+    if (lines.length) html += `<div class="dp-addrbox">${lines.map(l=>esc(l)).join('<br>')}</div>`;
+  }
+
+  // ── Customer (sender) — avatar ──
+  const custName = ((cust.firstName||'')+' '+(cust.lastName||'')).trim() || 'Guest';
+  html += `<div>
+    <div class="dp-section-ttl">Customer</div>
+    <div class="dp-cust">
+      <div class="dp-cust-av">${esc((custName.charAt(0)||'?').toUpperCase())}</div>
+      <div style="min-width:0">
+        <div class="dp-cust-name">${esc(custName)}</div>
+        ${phone ? `<div style="margin-top:2px">${waLink(phone)}</div>` : ''}
+        ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
+      </div>
     </div>
   </div>`;
 
