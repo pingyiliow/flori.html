@@ -1393,6 +1393,9 @@ async function showApp() {
     // Pull latest data from Supabase
     await loadFromSupabase();
   }
+  // Auto-sync from Shopify on load so a page refresh shows current
+  // fulfilment status (not just the last cached state).
+  syncOrders().catch(()=>{});
 }
 
 async function signOut() {
@@ -3830,6 +3833,7 @@ document.addEventListener('visibilitychange', () => {
     if (now - _lastRefresh > 30000) { // max once per 30 seconds
       _lastRefresh = now;
       loadFromSupabase();
+      syncOrders().catch(()=>{});   // also pull fresh fulfilment status from Shopify
     }
   }
 });
@@ -3838,6 +3842,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pageshow', (e) => {
   if (e.persisted && hasSB() && currentUser) {
     loadFromSupabase();
+    syncOrders().catch(()=>{});
   }
 });
 </script>
