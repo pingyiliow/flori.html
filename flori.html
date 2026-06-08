@@ -98,6 +98,14 @@ img{display:block;max-width:100%}
 }
 .hdr-pill:empty{display:none}
 .hdr-actions{display:flex;align-items:center;gap:8px;padding-right:22px}
+/* Mobile header must fit narrow screens (no fixed sidebar-width logo zone,
+   hide the long shop pill) — otherwise the page is wider than the phone and
+   zooms out. */
+@media(max-width:860px){
+  .hdr-logo-zone{width:auto;padding:0 16px}
+  .hdr-pill{display:none}
+  .hdr-actions{padding-right:14px}
+}
 .hdr-btn{
   width:34px;height:34px;border-radius:var(--r);
   display:flex;align-items:center;justify-content:center;
