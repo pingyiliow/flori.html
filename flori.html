@@ -3371,19 +3371,37 @@ function saveRecipe() {
 }
 
 /* ─── Order detail panel ─────────────────────────────────────── */
+// Build a Shopify-shaped order object from the locally-synced data, so the
+// detail panel can render instantly without a live Shopify call.
+function localToDPOrder(o) {
+  const cur = o.currency || 'MYR';
+  return {
+    name: o.name, note: '', createdAt: o.createdAt || null,
+    customer: { firstName: o.customer || '', lastName: '', phone: '', email: '' },
+    shippingAddress: o.manualAddr ? { address1: o.manualAddr } : null,
+    lineItems: { edges: (o.lineItems || []).map(i => ({ node: {
+      title: i.title, quantity: i.quantity,
+      originalUnitPriceSet: { shopMoney: { amount: i.price || null, currencyCode: cur } },
+      originalTotalSet:     { shopMoney: { amount: i.price ? (parseFloat(i.price)||0)*(i.quantity||1) : null, currencyCode: cur } },
+    }})) },
+    currentTotalPriceSet: (o.total || o.manualPrice) ? { shopMoney: { amount: o.total || o.manualPrice, currencyCode: cur } } : null,
+    currentSubtotalPriceSet: null, totalShippingPriceSet: null,
+    customAttributes: [],
+  };
+}
+
 function openDP(id) {
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
-  document.getElementById('dp-body').innerHTML = '<div class="dp-loading">Loading…</div>';
   document.getElementById('dp').classList.add('on');
   document.getElementById('dp-ov').classList.add('on');
 
-  if (o.src === 'shopify') {
-    _fetchOrderDetail(id, o);
-  } else {
-    _renderDPManual(o);
-  }
+  // Render instantly from synced data — no waiting on Shopify.
+  _renderDP(localToDPOrder(o), o);
+  // For Shopify orders, enrich in the background (adds delivery address / phone /
+  // exact pricing). If that call fails (offline, no scope, demo), the local view stays.
+  if (o.src === 'shopify') _fetchOrderDetail(id, o);
 }
 
 function closeDP() {
@@ -3412,9 +3430,10 @@ async function _fetchOrderDetail(id, o) {
       customAttributes { key value }
     }}`;
     const data = await shopifyGQL(q);
-    _renderDP(data.order, o);
+    if (data && data.order) _renderDP(data.order, o);  // enrich with live details
   } catch(e) {
-    document.getElementById('dp-body').innerHTML = `<div style="padding:24px;color:var(--c-red);font-size:12px">⚠ ${esc(e.message)}</div>`;
+    // Local view is already shown — don't replace it with an error.
+    console.warn('Live order detail unavailable:', e.message);
   }
 }
 
@@ -3473,12 +3492,13 @@ function _renderDP(order, localOrder) {
     </select>
   </div>`;
 
-  // ── Total price in header ──
-  const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
+  // ── Total price in header (set, not append, so re-render doesn't duplicate) ──
+  const totalAmt = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total || localOrder.manualPrice;
+  let subHtml = (localOrder.type==='pickup'?'Pickup':'Delivery') + (localOrder.dueDate ? ' · ' + fd(localOrder.dateObj||pd(localOrder.dueDate)) : '');
   if (totalAmt && parseFloat(totalAmt) > 0) {
-    const sym = (order.currentTotalPriceSet?.shopMoney?.currencyCode||localOrder.currency||'MYR')==='MYR'?'RM':'RM';
-    document.getElementById('dp-sub').innerHTML += ` · <span style="color:#FFD96A;font-weight:700;font-family:var(--f-head);font-size:15px">${sym} ${parseFloat(totalAmt).toFixed(2)}</span>`;
+    subHtml += ` · <span style="color:#FFD96A;font-weight:700;font-family:var(--f-head);font-size:15px">RM ${parseFloat(totalAmt).toFixed(2)}</span>`;
   }
+  document.getElementById('dp-sub').innerHTML = subHtml;
 
   // ── Customer ──
   html += `<div>
@@ -3498,7 +3518,7 @@ function _renderDP(order, localOrder) {
     ${phone ? `<a class="qa-btn" href="https://wa.me/${waNum}" target="_blank"><span class="qa-ico">💬</span><span class="qa-lbl">WhatsApp</span></a>` : '<div></div>'}
     <button class="qa-btn" onclick="openRecipe('${localOrder.id}');closeDP()"><span class="qa-ico">📸</span><span class="qa-lbl">Recipe</span></button>
     ${addrForMaps ? `<a class="qa-btn" href="https://maps.google.com/?q=${addrForMaps}" target="_blank"><span class="qa-ico">📍</span><span class="qa-lbl">Maps</span></a>` : '<div></div>'}
-    <button class="qa-btn" onclick="window.open('${shopifyOrderUrl}','_blank')"><span class="qa-ico">🖨</span><span class="qa-lbl">Shopify</span></button>
+    ${localOrder.src==='shopify' ? `<button class="qa-btn" onclick="window.open('${shopifyOrderUrl}','_blank')"><span class="qa-ico">🖨</span><span class="qa-lbl">Shopify</span></button>` : '<div></div>'}
     <button class="qa-btn" onclick="triggerOrderPhoto('${localOrder.id}')"><span class="qa-ico">📷</span><span class="qa-lbl">Photo</span></button>
   </div>`;
 
