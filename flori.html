@@ -67,7 +67,7 @@ img{display:block;max-width:100%}
   min-height:100vh;
 }
 @media(max-width:860px){
-  .shell{grid-template-columns:1fr;grid-template-rows:var(--hdr) 1fr auto}
+  .shell{grid-template-columns:1fr;grid-template-rows:calc(var(--hdr) + env(safe-area-inset-top)) 1fr auto}
 }
 
 /* ── header ──────────────────────────────────────────────────── */
@@ -75,7 +75,7 @@ img{display:block;max-width:100%}
   grid-column:1/-1;
   background:var(--c-burg);
   display:flex;align-items:center;justify-content:space-between;
-  padding:0;gap:0;
+  padding:env(safe-area-inset-top) 0 0 0;gap:0;
   position:sticky;top:0;z-index:200;
 }
 .hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-burg-dk);display:flex;align-items:center;padding:0 22px;flex-shrink:0}
@@ -152,7 +152,6 @@ img{display:block;max-width:100%}
 }
 @media(max-width:860px){
   .mob-nav{display:flex}
-  .main{padding-bottom:calc(56px + max(0px,env(safe-area-inset-bottom)))}
 }
 .mob-tab{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
@@ -168,6 +167,11 @@ img{display:block;max-width:100%}
 .main{
   padding:0;overflow-y:auto;background:var(--c-bg);
   display:flex;flex-direction:column;
+}
+/* Mobile: clear the fixed bottom nav (+ iOS home-indicator safe area) so the
+   last card is never hidden. Placed after .main{padding:0} so it isn't overridden. */
+@media(max-width:860px){
+  .main{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 }
 .stat-band{background:var(--c-burg);padding:18px 44px;display:flex;gap:12px;flex-shrink:0}
 @media(max-width:860px){.stat-band{padding:12px 20px;gap:7px}}
@@ -2838,13 +2842,12 @@ function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','inventory','purchase','followup'];
+const PAGES = ['home','orders','stock','followup'];
 function goPage(pg) {
   if(pg==='followup') renderFollowup();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
-  if(pg==='inventory') renderInventory();
-  if(pg==='purchase')  renderPurchase();
+  if(pg==='stock'){ renderInventory(); renderPurchase(); }
 }
 document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
 document.querySelectorAll('[data-f]').forEach(btn => {
