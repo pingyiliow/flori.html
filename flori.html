@@ -745,6 +745,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .dp-cust{display:flex;align-items:center;gap:12px}
 .dp-cust-av{width:42px;height:42px;border-radius:50%;background:var(--c-burg);color:var(--c-bg);display:flex;align-items:center;justify-content:center;font-family:var(--f-head);font-size:18px;font-weight:700;flex-shrink:0}
 .dp-cust-name{font-size:14px;font-weight:600;color:var(--c-ink)}
+.dp-photo-zone{border:2px dashed var(--c-border2);border-radius:var(--r-lg);background:var(--c-bg);min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;overflow:hidden;position:relative;font-size:11px;color:var(--c-muted);line-height:1.5;transition:all .12s}
+.dp-photo-zone:hover,.dp-photo-zone.drag{border-color:var(--c-burg);background:var(--c-burg-lt);color:var(--c-burg)}
+.dp-photo-zone img{width:100%;max-height:240px;object-fit:cover;display:block}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -1661,10 +1664,10 @@ async function syncOrders() {
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
-      if(prevMeta[o.id]) { o.designer=prevMeta[o.id].designer; o.priority=prevMeta[o.id].priority||'normal'; o.internalNote=prevMeta[o.id].internalNote; }
+      if(prevMeta[o.id]) { const pm=prevMeta[o.id]; o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr; }
     });
     ORDERS = [...shopify, ...manuals];
     saveOrders(); rehydrateOrders();
@@ -1808,6 +1811,7 @@ function mergeOrderRows(a, b){
   m.designer     = a.designer || b.designer || null;
   m.priority     = [a.priority,b.priority].find(p=>p&&p!=='normal') || 'normal';
   m.internalNote = a.internalNote || b.internalNote || null;
+  m.image        = a.image || b.image || null;
   m.manualAddr   = a.manualAddr || b.manualAddr || null;
   m.manualPrice  = a.manualPrice ?? b.manualPrice ?? null;
   m.recipe       = [a.recipe,b.recipe].filter(r=>Array.isArray(r)&&r.length).sort((x,y)=>y.length-x.length)[0] || [];
@@ -1901,9 +1905,22 @@ function orderState(o) {
 function filteredOrders() {
   const t0 = today0(), t1 = new Date(t0.getTime()+86400000);
   const thirtyDaysAgo = new Date(t0.getTime() - 30*86400000);
+  // Search — bypass ALL filters, search everything
+  const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
+  if (srch) return ORDERS.filter(o =>
+    (o.name||'').toLowerCase().includes(srch) ||
+    (o.customer||'').toLowerCase().includes(srch) ||
+    (o.product||'').toLowerCase().includes(srch)
+  );
+
   let list = ORDERS;
 
-  if (orderFilter === 'today') {
+  if (calFilter) {
+    // A specific calendar date is picked — show ALL orders for that date,
+    // regardless of the status tab (otherwise "Today" + another date = empty).
+    const [cy,cm,cd] = calFilter.split('-').map(Number);
+    list = list.filter(o => o.dateObj && o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd);
+  } else if (orderFilter === 'today') {
     // Today: show orders dated today (by dueDate) OR created today (for fulfilled with no dueDate)
     const todayStr = tdi(t0);
     list = list.filter(o => {
@@ -1927,18 +1944,6 @@ function filteredOrders() {
     // All: everything today+future (no past clutter)
     list = list.filter(o => !o.dateObj || o.dateObj >= t0);
   }
-
-  if (calFilter) {
-    const [cy,cm,cd] = calFilter.split('-').map(Number);
-    list = list.filter(o => { if (!o.dateObj) return false; return o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd; });
-  }
-  // Search — bypass ALL filters, search everything
-  const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
-  if (srch) return ORDERS.filter(o =>
-    (o.name||'').toLowerCase().includes(srch) ||
-    (o.customer||'').toLowerCase().includes(srch) ||
-    (o.product||'').toLowerCase().includes(srch)
-  );
 
   if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
   if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
@@ -2932,6 +2937,8 @@ function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;rende
 
 function clearCalFilter() {
   calFilter=null;
+  orderFilter='today';
+  document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on', b.dataset.f==='today'));
   const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
   const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
   if(btnLbl) btnLbl.textContent='Select date'; if(selLbl) selLbl.textContent='';
@@ -2963,6 +2970,13 @@ function renderCalendar() {
 
 function selectCalDay(key) {
   calFilter=calFilter===key?null:key;
+  // A picked date overrides the status tabs; clearing it restores "Today".
+  if (calFilter) {
+    document.querySelectorAll('[data-f]').forEach(b=>b.classList.remove('on'));
+  } else {
+    orderFilter='today';
+    document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on', b.dataset.f==='today'));
+  }
   const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display=calFilter?'':'none';
   const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl'),chevron=document.getElementById('cal-chevron');
   if(calFilter){const[cy,cm,cd]=calFilter.split('-').map(Number);const formatted=new Date(cy,cm-1,cd).toLocaleDateString('en-MY',{day:'numeric',month:'short'});if(btnLbl)btnLbl.textContent='';if(selLbl)selLbl.textContent=formatted;const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-burg)';}
@@ -3526,8 +3540,10 @@ function localToDPOrder(o) {
   };
 }
 
+let _dpId = null;
 function openDP(id) {
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  _dpId = id;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
   document.getElementById('dp').classList.add('on');
@@ -3541,9 +3557,37 @@ function openDP(id) {
 }
 
 function closeDP() {
+  _dpId = null;
   document.getElementById('dp').classList.remove('on');
   document.getElementById('dp-ov').classList.remove('on');
 }
+
+/* ─── Order photo (detail panel): click / drag / paste ───────────── */
+function pickOrderPhoto(id){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=function(){ const f=inp.files&&inp.files[0]; if(f) _ingestOrderPhoto(id,f); };
+  inp.click();
+}
+function dpPhotoDrop(e,id){ e.preventDefault(); if(e.currentTarget)e.currentTarget.classList.remove('drag'); const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f&&/^image\//.test(f.type)) _ingestOrderPhoto(id,f); }
+function _ingestOrderPhoto(id,file){
+  if(!file||!/^image\//.test(file.type||'')){ toast('Not an image'); return; }
+  toast('Adding photo…');
+  compressPhoto(file,1200,0.82,function(b64){ setOrderPhoto(id,b64); });
+}
+function setOrderPhoto(id,b64){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  o.image=b64;
+  saveOrders(); renderHome(); renderOrders();   // persists to Supabase + updates cards
+  const z=document.getElementById('dp-photo-zone'); if(z) z.innerHTML=`<img src="${b64}" alt="Order photo" onclick="event.stopPropagation();openZoom('${b64.replace(/'/g,"\\'")}','')">`;
+  toast('✓ Photo saved');
+}
+// Paste an image while an order's detail panel is open
+document.addEventListener('paste', function(e){
+  if(!_dpId) return;
+  const dp=document.getElementById('dp'); if(!dp||!dp.classList.contains('on')) return;
+  const items=(e.clipboardData&&e.clipboardData.items)||[];
+  for(let i=0;i<items.length;i++){ if(items[i].type&&items[i].type.indexOf('image')===0){ const f=items[i].getAsFile(); if(f){ e.preventDefault(); _ingestOrderPhoto(_dpId,f); break; } } }
+});
 
 async function _fetchOrderDetail(id, o) {
   try {
@@ -3700,6 +3744,17 @@ function _renderDP(order, localOrder) {
       ${total?`<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">${_fmt(total,currency)}</div></div>`:''}
     </div>`;
   }
+
+  // ── Photo (tap / drag / paste) ──
+  html += `<div>
+    <div class="dp-section-ttl">Photo</div>
+    <div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
+         ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
+      ${localOrder.image
+        ? `<img src="${localOrder.image}" alt="Order photo" onclick="event.stopPropagation();openZoom('${(localOrder.image||'').replace(/'/g,"\\'")}','')">`
+        : `📷 Tap to add a photo<br><span style="font-size:10px">or drag &amp; drop / paste an image</span>`}
+    </div>
+  </div>`;
 
   // ── Flower Recipe ──
   html += `<div>
