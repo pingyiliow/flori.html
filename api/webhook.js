@@ -92,7 +92,9 @@ export default async function handler(req, res) {
     customer,
     product:     mergedLineItems.map(i => i.title).join(', '),
     line_items:  mergedLineItems,
-    image:       mergedLineItems.find(i => i.image)?.image || null,
+    // Cover photo is app-managed (Shopify doesn't know about uploaded photos), so
+    // preserve the existing row's image on update; only derive one on first insert.
+    image:       existing ? (existing.image || null) : (mergedLineItems.find(i => i.image)?.image || null),
     total:       order.current_total_price || order.total_price || null,
     currency:    order.currency || 'MYR',
     due_date:    dueDate,
