@@ -1961,11 +1961,25 @@ function mergeOrderRows(a, b){
   const base  = (b.lineItems?.length||0) > (a.lineItems?.length||0) ? b : a;
   const other = base === a ? b : a;
   const m = {...other, ...base};
+  // Merge staff-added photos (images[]) from BOTH rows by title. A stale duplicate
+  // row (e.g. a leftover gid:// row that never received the photo) must never drop
+  // a photo the other row has — this was wiping photos on multi-product orders.
+  const hasUserPhotos = li => Array.isArray(li?.images) && li.images.length > 0;
+  if (Array.isArray(m.lineItems)) {
+    const fromOther = {};
+    (other.lineItems||[]).forEach(li => { if (hasUserPhotos(li)) fromOther[li.title] = li.images; });
+    m.lineItems = m.lineItems.map(li => {
+      if (hasUserPhotos(li)) return li;
+      const ph = fromOther[li.title];
+      return ph ? { ...li, images: ph, image: ph[0] } : li;
+    });
+  }
   m.ready        = a.ready || b.ready;
   m.designer     = a.designer || b.designer || null;
   m.priority     = [a.priority,b.priority].find(p=>p&&p!=='normal') || 'normal';
   m.internalNote = a.internalNote || b.internalNote || null;
-  m.image        = a.image || b.image || null;
+  // Cover: a merged user photo wins; otherwise keep whichever row had a cover.
+  m.image        = (m.lineItems||[]).find(hasUserPhotos)?.image || a.image || b.image || null;
   m.manualAddr   = a.manualAddr || b.manualAddr || null;
   m.manualPrice  = a.manualPrice ?? b.manualPrice ?? null;
   m.recipe       = [a.recipe,b.recipe].filter(r=>Array.isArray(r)&&r.length).sort((x,y)=>y.length-x.length)[0] || [];
