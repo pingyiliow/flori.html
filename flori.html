@@ -449,6 +449,13 @@ img{display:block;max-width:100%}
 .dp-ph-add{width:56px;height:56px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:17px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1}
 .dp-ph-add span{font-size:7.5px;letter-spacing:.04em}
 .dp-ph-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
+/* Order Photos carousel in the detail panel */
+.dp-carousel{position:relative;border-radius:var(--r-lg);overflow:hidden;background:var(--c-bg);border:1px solid var(--c-border);user-select:none}
+.dp-carousel img{width:100%;max-height:300px;object-fit:contain;display:block;cursor:zoom-in;background:#000}
+.dp-car-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:none;background:rgba(0,0,0,.45);color:#fff;font-size:22px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s}
+.dp-car-nav:hover{background:rgba(0,0,0,.75)}
+.dp-car-nav.prev{left:8px}.dp-car-nav.next{right:8px}
+.dp-car-count{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:11px;padding:2px 10px;border-radius:12px;pointer-events:none}
 /* multi-photo count badge on cards */
 .h-mc-imgcount,.o-imgcount{position:absolute;bottom:2px;right:2px;background:rgba(77,14,19,.8);color:#EEE4DA;font-size:8px;font-weight:600;padding:1px 4px;border-radius:6px;letter-spacing:.03em;pointer-events:none}
 .zoom-close{position:absolute;top:18px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:background .15s;}
@@ -1302,7 +1309,9 @@ Address: 12 Jalan Bunga, Penang"></textarea>
 <!-- ══ ZOOM OVERLAY ══════════════════════════════════════════ -->
 <div id="zoom" class="zoom" onclick="closeZoom()">
   <div class="zoom-esc">Press Esc to close</div>
-  <img id="zoom-img" src="" alt="" onclick="event.stopPropagation()">
+  <img id="zoom-img" src="" alt="" onclick="event.stopPropagation()"
+       ontouchstart="_galTouch=event.changedTouches[0].clientX"
+       ontouchend="event.stopPropagation();var dx=event.changedTouches[0].clientX-_galTouch;if(Math.abs(dx)>40)galStep(dx<0?1:-1)">
   <div id="zoom-cap" class="zoom-cap"></div>
   <div id="zoom-nav" style="display:none">
     <button class="zoom-navbtn" onclick="galStep(-1,event)" aria-label="Previous photo">‹</button>
@@ -3570,7 +3579,7 @@ function itemPhotos(it){
   if(Array.isArray(it.images) && it.images.length) return it.images.filter(Boolean);
   return it.image ? [it.image] : [];
 }
-let _gal=[], _galIdx=0, _galCap='';
+let _gal=[], _galIdx=0, _galCap='', _galTouch=0;
 function openZoom(src,cap){ openGallery([src],0,cap); }
 function openGallery(imgs,start,cap){
   _gal=(Array.isArray(imgs)?imgs:[imgs]).filter(Boolean); if(!_gal.length) return;
@@ -3584,6 +3593,29 @@ function _galRender(){
   const nav=document.getElementById('zoom-nav'); if(nav) nav.style.display=_gal.length>1?'flex':'none';
 }
 function galStep(d,e){ if(e)e.stopPropagation(); if(_gal.length<2)return; _galIdx=(_galIdx+d+_gal.length)%_gal.length; _galRender(); }
+// Inline carousel inside the detail panel's "Order Photos" section.
+let _dpCarPhotos=[], _dpCarIdx=0;
+function renderDpCarousel(photos){
+  _dpCarPhotos = photos; _dpCarIdx = 0;
+  const multi = photos.length > 1;
+  return `<div class="dp-carousel"
+       ontouchstart="_dpCarTouch=event.changedTouches[0].clientX"
+       ontouchend="_dpCarSwipe(event)">
+    <img id="dp-car-img" src="${photos[0]}" alt="Order photo" onclick="openGallery(_dpCarPhotos,_dpCarIdx,'')">
+    ${multi?`<button class="dp-car-nav prev" onclick="dpCarStep(-1,event)" aria-label="Previous photo">‹</button>
+    <button class="dp-car-nav next" onclick="dpCarStep(1,event)" aria-label="Next photo">›</button>
+    <div class="dp-car-count" id="dp-car-count">1 / ${photos.length}</div>`:''}
+  </div>`;
+}
+function dpCarStep(d,e){
+  if(e)e.stopPropagation();
+  if(_dpCarPhotos.length<2) return;
+  _dpCarIdx=(_dpCarIdx+d+_dpCarPhotos.length)%_dpCarPhotos.length;
+  const img=document.getElementById('dp-car-img'); if(img) img.src=_dpCarPhotos[_dpCarIdx];
+  const c=document.getElementById('dp-car-count'); if(c) c.textContent=(_dpCarIdx+1)+' / '+_dpCarPhotos.length;
+}
+let _dpCarTouch=0;
+function _dpCarSwipe(e){ const dx=e.changedTouches[0].clientX-_dpCarTouch; if(Math.abs(dx)>40) dpCarStep(dx<0?1:-1); }
 // Open the photo gallery for one order line item, looked up live (avoids inlining
 // huge base64 data URLs into onclick attributes).
 function zoomItem(orderId,itemIdx,start,e){
@@ -3974,15 +4006,20 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Order cover photo (tap / drag / paste) — per-product photos live in Items above ──
+  // ── Order Photos — a carousel of every photo on the order (cover + each
+  // product's reference photos), tap to view full size. Per-product add/delete
+  // lives in the Items section above.
+  const allPhotos = []; const _seen = new Set();
+  (localOrder.lineItems||[]).forEach(li => itemPhotos(li).forEach(s => { if(s && !_seen.has(s)){ _seen.add(s); allPhotos.push(s); } }));
+  if (localOrder.image && !_seen.has(localOrder.image)) { allPhotos.unshift(localOrder.image); _seen.add(localOrder.image); }
   html += `<div>
-    <div class="dp-section-ttl">Order Photo <span style="font-weight:400;color:var(--c-muted);font-size:10px;text-transform:none;letter-spacing:0">· cover / general</span></div>
-    <div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
-         ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
-      ${localOrder.image
-        ? `<img src="${localOrder.image}" alt="Order photo" onclick="event.stopPropagation();openZoom('${(localOrder.image||'').replace(/'/g,"\\'")}','')">`
-        : `📷 Tap to add a photo<br><span style="font-size:10px">or drag &amp; drop / paste an image</span>`}
-    </div>
+    <div class="dp-section-ttl">Order Photos${allPhotos.length>1?` <span style="font-weight:400;color:var(--c-muted);font-size:10px;text-transform:none;letter-spacing:0">· ${allPhotos.length} photos · swipe</span>`:''}</div>
+    ${allPhotos.length
+      ? renderDpCarousel(allPhotos)
+      : `<div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
+           ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
+          📷 Tap to add a photo<br><span style="font-size:10px">or drag &amp; drop / paste an image</span>
+        </div>`}
   </div>`;
 
   // ── Flower Recipe ──
