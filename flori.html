@@ -441,9 +441,14 @@ img{display:block;max-width:100%}
 .op-photo-add{width:52px;height:52px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;flex-shrink:0;line-height:1}
 .op-photo-add span{font-size:7.5px;letter-spacing:.04em}
 .op-photo-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
-/* Per-item photo thumbnails in the order detail panel */
-.dp-item-photos{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
-.dp-item-photos img{width:54px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer}
+/* Per-product photo manager in the order detail panel (view / add / delete) */
+.dp-item-photos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+.dp-ph{position:relative;width:56px;height:56px;flex-shrink:0}
+.dp-ph img{width:100%;height:100%;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer;display:block}
+.dp-ph-del{position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--c-surface);background:var(--c-red);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.dp-ph-add{width:56px;height:56px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:17px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1}
+.dp-ph-add span{font-size:7.5px;letter-spacing:.04em}
+.dp-ph-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
 /* multi-photo count badge on cards */
 .h-mc-imgcount,.o-imgcount{position:absolute;bottom:2px;right:2px;background:rgba(77,14,19,.8);color:#EEE4DA;font-size:8px;font-weight:600;padding:1px 4px;border-radius:6px;letter-spacing:.03em;pointer-events:none}
 .zoom-close{position:absolute;top:18px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:background .15s;}
@@ -3587,6 +3592,36 @@ function zoomItem(orderId,itemIdx,start,e){
   const it=(o.lineItems||[])[itemIdx];
   openGallery(itemPhotos(it), start||0, (it&&it.title)||o.product||'');
 }
+// ── Per-product reference photos, managed from the order detail panel ──
+function addItemPhoto(orderId,itemIdx){
+  const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
+  inp.onchange=function(){
+    const files=Array.from(inp.files||[]); if(!files.length) return;
+    const it=o.lineItems[itemIdx];
+    if(!Array.isArray(it.images)) it.images=itemPhotos(it);   // migrate single image -> array
+    toast(files.length>1?`Adding ${files.length} photos…`:'Adding photo…');
+    let pending=files.length;
+    files.forEach(f=>compressPhoto(f,1200,0.82,b64=>{ it.images.push(b64); it.image=it.images[0]; if(--pending===0) _persistItemPhotos(o); }));
+  };
+  inp.click();
+}
+function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
+  if(e)e.stopPropagation();
+  const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
+  if(!confirm('Delete this photo?')) return;
+  const it=o.lineItems[itemIdx];
+  const imgs=itemPhotos(it); imgs.splice(photoIdx,1);
+  it.images=imgs; it.image=imgs[0]||null;
+  _persistItemPhotos(o);
+}
+function _persistItemPhotos(o){
+  // keep the order-level thumbnail pointed at the first available product photo
+  o.image = (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || null;
+  saveOrders(); renderHome(); renderOrders();
+  if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
+  toast('✓ Photos updated');
+}
 function closeZoom(){document.getElementById('zoom').classList.remove('on');}
 let _toastT;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('on'),2400);}
@@ -3805,7 +3840,9 @@ function _fmt(amount, currency) {
   return (currency === 'MYR' ? 'RM ' : (currency+' ')) + n.toFixed(2);
 }
 
+let _dpLastOrder = null;
 function _renderDP(order, localOrder) {
+  _dpLastOrder = order;   // cached so in-place photo edits can re-render with enriched data
   const cust   = order.customer || {};
   const addr   = order.shippingAddress;
   const items  = order.lineItems?.edges?.map(e=>e.node) || [];
@@ -3917,8 +3954,10 @@ function _renderDP(order, localOrder) {
       const li = liLocal.find(x => x.title === i.title) || liLocal[k];
       const liIdx = li ? liLocal.indexOf(li) : -1;
       const ph = itemPhotos(li);
-      const strip = (liIdx>=0 && ph.length)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)">`).join('')}</div>`
+      // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
+      // line items we can resolve locally (liIdx>=0) so edits hit the right item.
+      const strip = (liIdx>=0)
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" title="Add photo for this product">＋<span>Add</span></button></div>`
         : '';
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(i.title)} ${i.quantity>1?`<span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
@@ -3935,9 +3974,9 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Photo (tap / drag / paste) ──
+  // ── Order cover photo (tap / drag / paste) — per-product photos live in Items above ──
   html += `<div>
-    <div class="dp-section-ttl">Photo</div>
+    <div class="dp-section-ttl">Order Photo <span style="font-weight:400;color:var(--c-muted);font-size:10px;text-transform:none;letter-spacing:0">· cover / general</span></div>
     <div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
          ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
       ${localOrder.image
