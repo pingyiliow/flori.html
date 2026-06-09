@@ -19,11 +19,24 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const {
     R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL,
   } = process.env;
+
+  // Health check (GET): reports whether the R2 env vars are present, never their
+  // values. Lets you confirm config from a browser without uploading anything.
+  if (req.method === 'GET') {
+    return res.status(200).json({
+      ok: true,
+      configured: !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET && R2_PUBLIC_URL),
+      present: {
+        R2_ACCOUNT_ID: !!R2_ACCOUNT_ID, R2_ACCESS_KEY_ID: !!R2_ACCESS_KEY_ID,
+        R2_SECRET_ACCESS_KEY: !!R2_SECRET_ACCESS_KEY, R2_BUCKET: !!R2_BUCKET, R2_PUBLIC_URL: !!R2_PUBLIC_URL,
+      },
+    });
+  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || !R2_PUBLIC_URL) {
     // 501 = not configured. The client treats this as "use base64 fallback".
