@@ -430,6 +430,22 @@ img{display:block;max-width:100%}
 .zoom img{max-width:min(600px,88vw);max-height:85vh;object-fit:contain;border-radius:var(--r);cursor:default;animation:zscale .2s cubic-bezier(.2,.8,.3,1) forwards;}
 @keyframes zscale{from{transform:scale(.92);opacity:.5}to{transform:scale(1);opacity:1}}
 .zoom-cap{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);color:#fff;border-radius:20px;padding:7px 18px;font-size:13px;font-style:italic;font-family:var(--f-head);white-space:nowrap;max-width:80vw;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
+#zoom-nav{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 12px;pointer-events:none}
+.zoom-navbtn{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:none;background:rgba(0,0,0,.5);color:#fff;font-size:26px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s}
+.zoom-navbtn:hover{background:rgba(0,0,0,.8)}
+/* Per-product photo strip in the Add/Edit order form */
+.op-photos{display:flex;flex-wrap:wrap;gap:6px}
+.op-photo{position:relative;width:52px;height:52px;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--c-border);flex-shrink:0}
+.op-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.op-photo-x{position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;border:none;background:rgba(77,14,19,.85);color:#fff;font-size:9px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.op-photo-add{width:52px;height:52px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:18px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;flex-shrink:0;line-height:1}
+.op-photo-add span{font-size:7.5px;letter-spacing:.04em}
+.op-photo-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
+/* Per-item photo thumbnails in the order detail panel */
+.dp-item-photos{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}
+.dp-item-photos img{width:54px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer}
+/* multi-photo count badge on cards */
+.h-mc-imgcount,.o-imgcount{position:absolute;bottom:2px;right:2px;background:rgba(77,14,19,.8);color:#EEE4DA;font-size:8px;font-weight:600;padding:1px 4px;border-radius:6px;letter-spacing:.03em;pointer-events:none}
 .zoom-close{position:absolute;top:18px;right:20px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:background .15s;}
 .zoom-close:hover{background:rgba(255,255,255,.25)}
 .zoom-esc{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;pointer-events:none;}
@@ -1283,6 +1299,10 @@ Address: 12 Jalan Bunga, Penang"></textarea>
   <div class="zoom-esc">Press Esc to close</div>
   <img id="zoom-img" src="" alt="" onclick="event.stopPropagation()">
   <div id="zoom-cap" class="zoom-cap"></div>
+  <div id="zoom-nav" style="display:none">
+    <button class="zoom-navbtn" onclick="galStep(-1,event)" aria-label="Previous photo">‹</button>
+    <button class="zoom-navbtn" onclick="galStep(1,event)" aria-label="Next photo">›</button>
+  </div>
   <button class="zoom-close" onclick="closeZoom()" aria-label="Close image">✕</button>
 </div>
 
@@ -1680,7 +1700,7 @@ async function syncOrders() {
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
-    const prevMeta = {}; ORDERS.forEach(o=>{ const ir={}; (o.lineItems||[]).forEach(i=>{ if(i.ready)ir[i.title]=true; }); prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,itemsReady:ir,removedItems:o.removedItems||[]}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ const ir={}, ii={}; (o.lineItems||[]).forEach(i=>{ if(i.ready)ir[i.title]=true; if(Array.isArray(i.images)&&i.images.length)ii[i.title]=i.images; }); prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,itemsReady:ir,itemImages:ii,removedItems:o.removedItems||[]}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1691,6 +1711,9 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.image)o.image=pm.image; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // restore per-product "ready" by title, then derive order-ready for multi-product
         if(pm.itemsReady && o.lineItems && o.lineItems.length){ o.lineItems.forEach(i=>{ if(pm.itemsReady[i.title]) i.ready=true; }); if(o.lineItems.length>1) o.ready = o.lineItems.every(i=>i.ready); }
+        // restore staff-added reference photos (images[]) by title — Shopify only
+        // sends one image per item, so without this the gallery is lost on sync.
+        if(pm.itemImages && o.lineItems){ o.lineItems.forEach(i=>{ const ph=pm.itemImages[i.title]; if(ph&&ph.length){ i.images=ph; i.image=ph[0]; } }); o.image=o.lineItems.find(i=>i.image)?.image||o.image||null; }
       }
     });
     ORDERS = [...shopify, ...manuals];
@@ -2231,29 +2254,40 @@ function toggleItemReady(id, idx) {
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
 
-function homeMiniCard(o) {
-  const state = orderState(o);
-  const items = (o.lineItems && o.lineItems.length) ? o.lineItems : null;
+// Renders one dashboard mini-card. For a multi-product order each product is
+// passed as its own unit (item + idx) so it gets its own line, photo and tick.
+function homeMiniCard(o, item, idx) {
+  const isUnit = !!item;
+  const ready  = isUnit ? !!item.ready : !!o.ready;
+  const state  = o.fulfilled ? 'fulfilled' : (ready ? 'ready' : 'pending');
   const cls = ['h-mc'];
   if (state==='ready') cls.push('ready');
   if (state==='fulfilled') cls.push('done');
   if (o.priority==='urgent' && !o.fulfilled) cls.push('urg');
-  const imgSrc = (items ? (items.find(i=>i.image)||{}).image : null) || o.image || null;
+  const photos = isUnit ? itemPhotos(item)
+                        : ((o.lineItems||[]).map(itemPhotos).find(a=>a.length) || (o.image?[o.image]:[]));
+  const imgSrc = photos[0] || null;
+  const onThumb = isUnit
+    ? `zoomItem('${o.id}',${idx},0,event)`
+    : `openZoom('${(imgSrc||'').replace(/'/g,"\\'")}','${(o.product||'').replace(/'/g,"\\'")}')`;
+  const count = photos.length>1 ? `<span class="h-mc-imgcount">⧉ ${photos.length}</span>` : '';
   const thumb = imgSrc
-    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();openZoom('${imgSrc.replace(/'/g,"\\'")}','${(o.product||'').replace(/'/g,"\\'")}')" onerror="this.parentElement.textContent='🌸'"></div>`
+    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="this.parentElement.textContent='🌸'">${count}</div>`
     : `<div class="h-mc-thumb">🌸</div>`;
-  const name = esc(o.product || (items?items[0].title:'') || '–');
+  const name = esc(isUnit ? (item.title||'–') : (o.product || ((o.lineItems&&o.lineItems[0])?o.lineItems[0].title:'') || '–'));
+  const unitTag = (isUnit && o.lineItems.length>1) ? ` <span style="color:var(--c-muted);font-weight:400">${idx+1}/${o.lineItems.length}</span>` : '';
   const note = o.internalNote ? `<div class="h-mc-note">⚠ ${esc(o.internalNote.length>42?o.internalNote.slice(0,42)+'…':o.internalNote)}</div>` : '';
   let badge;
   if (state==='fulfilled')   badge='<span class="h-mc-badge f">✓ Done</span>';
   else if (state==='ready')  badge='<span class="h-mc-badge r">● Ready</span>';
   else                       badge='<span class="h-mc-badge p">'+(o.priority==='urgent'?'🔴 Urgent':'Pending')+'</span>';
+  const tickAction = isUnit ? `toggleItemReady('${o.id}',${idx})` : `toggleReady('${o.id}')`;
   const tick = o.fulfilled
     ? `<button type="button" class="h-mc-tick f" aria-label="Fulfilled" onclick="event.stopPropagation()">✓</button>`
-    : `<button type="button" class="h-mc-tick ${o.ready?'r':''}" aria-label="${o.ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>`;
+    : `<button type="button" class="h-mc-tick ${ready?'r':''}" aria-label="${ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();${tickAction}">✓</button>`;
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     ${thumb}
-    <div class="h-mc-body"><div class="h-mc-name">${name}</div><div class="h-mc-meta">${esc(o.name||'')}${o.customer?' · '+esc(o.customer):''}</div>${note}</div>
+    <div class="h-mc-body"><div class="h-mc-name">${name}${unitTag}</div><div class="h-mc-meta">${esc(o.name||'')}${o.customer?' · '+esc(o.customer):''}</div>${note}</div>
     <div class="h-mc-r"><div class="h-mc-time">${esc(o.dueTime||'')}</div>${badge}${tick}</div>
   </div>`;
 }
@@ -2290,9 +2324,15 @@ function renderHome() {
   qa.push(`<button class="h-qa" onclick="goPage('followup')"><span class="h-qa-ico">📋</span><div><div class="h-qa-lbl">Follow-up</div><div class="h-qa-sub">${fuPending} pending</div></div></button>`);
   qa.push(`<button class="h-qa" onclick="goPage('stock')"><span class="h-qa-ico">🌸</span><div><div class="h-qa-lbl">Stock</div><div class="h-qa-sub">${lowStock?lowStock+' low':'In stock'}</div></div></button>`);
   document.getElementById('h-quick').innerHTML = qa.join('');
-  // Today's schedule — mini cards
+  // Today's schedule — mini cards. Multi-product orders are expanded into one
+  // card per product (own line, photo and ready tick); single-product unchanged.
   const sorted = sortedOrders(todayO);
-  document.getElementById('home-list').innerHTML = sorted.length ? sorted.map(homeMiniCard).join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
+  const units = [];
+  sorted.forEach(o => {
+    if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push(homeMiniCard(o, it, idx)));
+    else units.push(homeMiniCard(o));
+  });
+  document.getElementById('home-list').innerHTML = units.length ? units.join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
   // Follow-up alert
   const fw=document.getElementById('h-fualert-wrap');
   if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
@@ -3158,7 +3198,7 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('on');
   if (id === 'm-order') {
     document.getElementById('o-products-list').innerHTML='';
-    _productRowCount=0;
+    _productRowCount=0; _productImages={};
   }
 }
 function openAddOrder(){
@@ -3169,7 +3209,7 @@ function openAddOrder(){
   document.getElementById('o-addr').value='';
   document.getElementById('o-edit-id').value='';
   document.getElementById('o-modal-ttl').textContent='Add Order';
-  _productRowCount=0;
+  _productRowCount=0; _productImages={};
   document.getElementById('o-products-list').innerHTML='';
   addProductRow();
   openModal('m-order');
@@ -3248,29 +3288,23 @@ function handleFUPhoto(input) {
 }
 
 function handleProductPhoto(input, idx) {
-  const file = input.files[0]; if (!file) return;
-  toast('Compressing…');
-  compressPhoto(file, 1200, 0.82, b64 => {
-    document.getElementById('opimg-b64-'+idx).value = b64;
-    const thumb = document.getElementById('opthumb-'+idx);
-    if (thumb) thumb.innerHTML = `<img src="${b64}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>`;
-    toast('✓ Photo added');
-  });
+  const files = Array.from(input.files || []); if (!files.length) return;
+  if (!_productImages[idx]) _productImages[idx] = [];
+  toast(files.length>1 ? `Compressing ${files.length} photos…` : 'Compressing…');
+  let pending = files.length;
+  files.forEach(f => compressPhoto(f, 1200, 0.82, b64 => {
+    _productImages[idx].push(b64);
+    if (--pending === 0) { renderProductPhotos(idx); toast('✓ Photo added'); }
+  }));
+  input.value = '';   // allow re-picking the same file
 }
 
 /* ─── Multi-product row system ────────────────────────────────── */
 let _productRowCount = 0;
 
 function _productRowHTML(idx, item) {
-  const imgSrc = item.image || '';
   return `<div class="o-prod-row" id="oprow-${idx}" style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--c-surface)">
     <div style="display:flex;gap:8px;align-items:flex-start">
-      <div id="opthumb-${idx}" style="position:relative;width:52px;height:52px;border-radius:var(--r);background:var(--c-bg);border:1.5px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden;cursor:pointer" onclick="document.getElementById('opimg-${idx}').click()" title="Upload photo">
-        ${imgSrc ? `<img src="${imgSrc}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : '🌸'}
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(77,14,19,.6);color:#EEE4DA;font-size:7.5px;text-align:center;padding:2px;letter-spacing:.06em">PHOTO</div>
-      </div>
-      <input type="file" id="opimg-${idx}" accept="image/*" style="display:none" onchange="handleProductPhoto(this,${idx})">
-      <input type="hidden" id="opimg-b64-${idx}" value="${imgSrc}">
       <div style="flex:1;display:flex;flex-direction:column;gap:6px">
         <input id="opname-${idx}" type="text" placeholder="Product / Bouquet name" value="${esc(item.title||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:var(--c-surface);color:var(--c-ink)">
         <div style="display:flex;gap:6px">
@@ -3280,15 +3314,30 @@ function _productRowHTML(idx, item) {
       </div>
       <button onclick="removeProductRow(${idx})" style="width:24px;height:24px;border:1.5px solid var(--c-border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);cursor:pointer;flex-shrink:0;background:transparent;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">✕</button>
     </div>
+    <div id="opphotos-${idx}" class="op-photos"></div>
+    <input type="file" id="opimg-${idx}" accept="image/*" multiple style="display:none" onchange="handleProductPhoto(this,${idx})">
   </div>`;
 }
+// Per-row photo arrays, keyed by row index. _collectProductRows reads from here.
+let _productImages = {};
+function renderProductPhotos(idx) {
+  const el = document.getElementById('opphotos-'+idx); if (!el) return;
+  const imgs = _productImages[idx] || [];
+  el.innerHTML = imgs.map((src,i) =>
+    `<div class="op-photo"><img src="${src}" alt="" onclick="zoomFormPhotos(${idx},${i})"><button type="button" class="op-photo-x" onclick="removeProductPhoto(${idx},${i})" aria-label="Remove photo">✕</button></div>`
+  ).join('') + `<button type="button" class="op-photo-add" onclick="document.getElementById('opimg-${idx}').click()" title="Add photo">＋<span>Photo</span></button>`;
+}
+function zoomFormPhotos(idx,start){ openGallery(_productImages[idx]||[], start||0, ''); }
+function removeProductPhoto(idx,i){ if(_productImages[idx]){ _productImages[idx].splice(i,1); renderProductPhotos(idx); } }
 
 function addProductRow(item) {
   const container = document.getElementById('o-products-list');
   const idx = _productRowCount++;
+  _productImages[idx] = itemPhotos(item || {});
   const div = document.createElement('div');
-  div.innerHTML = _productRowHTML(idx, item || {title:'',price:null,quantity:1,image:null});
+  div.innerHTML = _productRowHTML(idx, item || {title:'',price:null,quantity:1});
   container.appendChild(div.firstChild);
+  renderProductPhotos(idx);
 }
 
 function removeProductRow(idx) {
@@ -3306,8 +3355,8 @@ function _collectProductRows() {
     const title = document.getElementById('opname-'+idx)?.value.trim() || '';
     const price = parseFloat(document.getElementById('opprice-'+idx)?.value) || 0;
     const qty   = parseInt(document.getElementById('opqty-'+idx)?.value)   || 1;
-    const image = document.getElementById('opimg-b64-'+idx)?.value || null;
-    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, image: image||null, currency:'MYR' });
+    const imgs = (_productImages[idx] || []).filter(Boolean);
+    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, image: imgs[0]||null, images: imgs, currency:'MYR' });
   });
   return items;
 }
@@ -3501,7 +3550,7 @@ function editOrder(id) {
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
   // Build product rows from lineItems (or legacy product string)
-  _productRowCount=0;
+  _productRowCount=0; _productImages={};
   document.getElementById('o-products-list').innerHTML='';
   const items = o.lineItems && o.lineItems.length ? o.lineItems : [{title:o.product||'',price:o.manualPrice?String(o.manualPrice):null,quantity:1,image:o.image||null}];
   items.forEach(item => addProductRow(item));
@@ -3509,7 +3558,35 @@ function editOrder(id) {
 }
 
 /* ─── Zoom / Toast / Utils ───────────────────────────────────── */
-function openZoom(src,cap){document.getElementById('zoom-img').src=src;document.getElementById('zoom-cap').textContent=cap||'';document.getElementById('zoom').classList.add('on');}
+// A line item may carry several reference photos (images[]). Older data / Shopify
+// items only have a single `image`, so normalise to an array everywhere.
+function itemPhotos(it){
+  if(!it) return [];
+  if(Array.isArray(it.images) && it.images.length) return it.images.filter(Boolean);
+  return it.image ? [it.image] : [];
+}
+let _gal=[], _galIdx=0, _galCap='';
+function openZoom(src,cap){ openGallery([src],0,cap); }
+function openGallery(imgs,start,cap){
+  _gal=(Array.isArray(imgs)?imgs:[imgs]).filter(Boolean); if(!_gal.length) return;
+  _galIdx=Math.max(0,Math.min(start||0,_gal.length-1)); _galCap=cap||'';
+  _galRender(); document.getElementById('zoom').classList.add('on');
+}
+function _galRender(){
+  document.getElementById('zoom-img').src=_gal[_galIdx];
+  const cap=document.getElementById('zoom-cap');
+  cap.textContent = _gal.length>1 ? ((_galCap?_galCap+' · ':'')+(_galIdx+1)+'/'+_gal.length) : _galCap;
+  const nav=document.getElementById('zoom-nav'); if(nav) nav.style.display=_gal.length>1?'flex':'none';
+}
+function galStep(d,e){ if(e)e.stopPropagation(); if(_gal.length<2)return; _galIdx=(_galIdx+d+_gal.length)%_gal.length; _galRender(); }
+// Open the photo gallery for one order line item, looked up live (avoids inlining
+// huge base64 data URLs into onclick attributes).
+function zoomItem(orderId,itemIdx,start,e){
+  if(e)e.stopPropagation();
+  const o=ORDERS.find(x=>x.id===orderId); if(!o) return;
+  const it=(o.lineItems||[])[itemIdx];
+  openGallery(itemPhotos(it), start||0, (it&&it.title)||o.product||'');
+}
 function closeZoom(){document.getElementById('zoom').classList.remove('on');}
 let _toastT;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('on'),2400);}
@@ -3529,6 +3606,10 @@ function exportData(){const d={orders:ORDERS.map(o=>({...o,dateObj:undefined})),
 function clearAll(){if(!confirm('Clear all local data?'))return;['flori-orders','flori-inventory','flori-purchases','flori-pur-notes'].forEach(k=>localStorage.removeItem(k));ORDERS=[];INVENTORY=[];PURCHASES=[];renderAll();closeSP();toast('All local data cleared');}
 
 document.addEventListener('keydown', e => {
+  // When the photo viewer is open, arrow keys page through the gallery.
+  if(document.getElementById('zoom')?.classList.contains('on')){
+    if(e.key==='ArrowLeft'){galStep(-1);return;} if(e.key==='ArrowRight'){galStep(1);return;}
+  }
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
   if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('stock'); if(e.key==='4') goPage('stock');
   if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();closeFUDP();}
@@ -3828,13 +3909,21 @@ function _renderDP(order, localOrder) {
     const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
     const total    = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
 
-    const itemRows = items.map(i => {
+    const liLocal = localOrder.lineItems || [];
+    const itemRows = items.map((i,k) => {
       const price = i.originalUnitPriceSet?.shopMoney?.amount;
       const lineTotal = i.originalTotalSet?.shopMoney?.amount;
+      // Match this displayed item back to the stored line item to pull its photos.
+      const li = liLocal.find(x => x.title === i.title) || liLocal[k];
+      const liIdx = li ? liLocal.indexOf(li) : -1;
+      const ph = itemPhotos(li);
+      const strip = (liIdx>=0 && ph.length)
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)">`).join('')}</div>`
+        : '';
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(i.title)} ${i.quantity>1?`<span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
         <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
-      </div>`;
+      </div>${strip}`;
     }).join('');
 
     html += `<div>
@@ -3913,12 +4002,14 @@ function _renderDPManual(o) {
   }
   // Per-item prices
   if (o.lineItems && o.lineItems.length > 0) {
-    const itemRows = o.lineItems.map(i => {
+    const itemRows = o.lineItems.map((i,k) => {
       const lineTotal = i.price && parseFloat(i.price) > 0 ? parseFloat(i.price) * (i.quantity||1) : null;
+      const ph = itemPhotos(i);
+      const strip = ph.length ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<img src="${s}" loading="lazy" alt="" onclick="zoomItem('${o.id}',${k},${pi},event)">`).join('')}</div>` : '';
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(i.title)}${i.quantity>1?` <span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
         <div class="dp-row-val">${lineTotal ? 'RM '+lineTotal.toFixed(2) : '–'}</div>
-      </div>`;
+      </div>${strip}`;
     }).join('');
     const grandTotal = o.lineItems.reduce((s,i) => s + (parseFloat(i.price)||0)*(i.quantity||1), 0);
     html += `<div>
