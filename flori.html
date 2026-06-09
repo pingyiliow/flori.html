@@ -1746,7 +1746,14 @@ async function syncOrders() {
         if(pm.itemsReady && o.lineItems && o.lineItems.length){ o.lineItems.forEach(i=>{ if(pm.itemsReady[i.title]) i.ready=true; }); if(o.lineItems.length>1) o.ready = o.lineItems.every(i=>i.ready); }
         // restore staff-added reference photos (images[]) by title — Shopify only
         // sends one image per item, so without this the gallery is lost on sync.
-        if(pm.itemImages && o.lineItems){ o.lineItems.forEach(i=>{ const ph=pm.itemImages[i.title]; if(ph&&ph.length){ i.images=ph; i.image=ph[0]; } }); o.image=o.lineItems.find(i=>i.image)?.image||o.image||null; }
+        if(pm.itemImages && o.lineItems){
+          o.lineItems.forEach(i=>{ const ph=pm.itemImages[i.title]; if(ph&&ph.length){ i.images=ph; i.image=ph[0]; } });
+          // Cover thumbnail: a restored USER photo wins; otherwise keep the user's
+          // explicit cover (pm.image, restored just above). NEVER overwrite a user
+          // photo with Shopify's product image — that was wiping uploads on sync.
+          const up=o.lineItems.find(i=>Array.isArray(i.images)&&i.images.length);
+          if(up) o.image=up.image;
+        }
       }
     });
     ORDERS = [...shopify, ...manuals];
@@ -1904,7 +1911,9 @@ async function loadFromSupabase(opts = {}) {
           const set = new Set(rm);
           o.lineItems = o.lineItems.filter(i => !set.has(i.title));
           o.product = o.lineItems.map(i => i.title).join(', ');
-          o.image = o.lineItems.find(i => i.image)?.image || o.image || null;
+          // Prefer a user-curated photo for the cover; keep the existing cover
+          // otherwise (don't fall back to a removed item's Shopify product image).
+          o.image = o.lineItems.find(i => Array.isArray(i.images) && i.images.length)?.image || o.image || null;
         }
       });
       try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
