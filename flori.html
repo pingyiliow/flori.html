@@ -1745,9 +1745,35 @@ async function syncOrders() {
 
 /* ─── Data stores ────────────────────────────────────────────── */
 let ORDERS=[], INVENTORY=[], PURCHASES=[];
+// Best-effort localStorage write: a full cache (QuotaExceededError) must never
+// throw out of a save function and skip the Supabase write that follows it.
+function _lsSet(key, value){ try { localStorage.setItem(key, value); } catch(e){ /* cache full — Supabase is the source of truth */ } }
+// Drop inline base64 image blobs (keep http/R2 urls) so the localStorage cache
+// stays small. The full images live in Supabase, which is the source of truth.
+function _liteOrder(o){
+  const isData = s => typeof s === 'string' && s.startsWith('data:');
+  const c = {...o, dateObj:undefined};
+  if (isData(c.image)) c.image = null;
+  if (Array.isArray(c.lineItems)) c.lineItems = c.lineItems.map(li => {
+    const l = {...li};
+    if (isData(l.image)) l.image = null;
+    if (Array.isArray(l.images)) l.images = l.images.filter(s => !isData(s));
+    return l;
+  });
+  return c;
+}
 function saveOrders() {
   const clean = ORDERS.map(o => ({...o, dateObj:undefined}));
-  localStorage.setItem('flori-orders', JSON.stringify(clean));
+  // localStorage is a best-effort offline cache. A QuotaExceededError here (old
+  // base64 photos bloat it) must NEVER block the Supabase write below — that's
+  // what actually persists the data across reloads/devices. Retry with inline
+  // photos stripped so the cache keeps working for everything else.
+  try {
+    localStorage.setItem('flori-orders', JSON.stringify(clean));
+  } catch(e) {
+    try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); }
+    catch(_) { /* cache full even when lean — rely on Supabase */ }
+  }
   if (hasSB()) {
     const rows = clean.map(o => ({
       id: o.id, name: o.name, src: o.src||'shopify',
@@ -1772,7 +1798,7 @@ function saveOrders() {
   }
 }
 function saveInventory() {
-  localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY));
+  _lsSet('flori-inventory', JSON.stringify(INVENTORY));
   if (hasSB()) {
     sbUpsert('inventory', INVENTORY.map(i => ({
       id: i.id, name: i.name, cat: i.cat||'other',
@@ -1781,7 +1807,7 @@ function saveInventory() {
   }
 }
 function savePurchases() {
-  localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
+  _lsSet('flori-purchases', JSON.stringify(PURCHASES));
   if (hasSB()) {
     sbUpsert('purchases', PURCHASES.map(p => ({
       id: p.id, name: p.name, qty: p.qty||null,
@@ -1855,7 +1881,8 @@ async function loadFromSupabase(opts = {}) {
           o.image = o.lineItems.find(i => i.image)?.image || o.image || null;
         }
       });
-      localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined}))));
+      try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
+      catch(e){ try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); } catch(_){} }
       rehydrateOrders(); changed = true;
     }
     if (followups && followups.length) {
@@ -1870,17 +1897,17 @@ async function loadFromSupabase(opts = {}) {
         cardMsg: f.card_msg||'', remarks: f.remarks||'',
         photo: f.photo||'', ts: f.ts||Date.now()
       }));
-      localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
+      _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
       changed = true;
     }
     if (inventory && inventory.length) {
       INVENTORY = inventory;
-      localStorage.setItem('flori-inventory', JSON.stringify(INVENTORY));
+      _lsSet('flori-inventory', JSON.stringify(INVENTORY));
       changed = true;
     }
     if (purchases && purchases.length) {
       PURCHASES = purchases;
-      localStorage.setItem('flori-purchases', JSON.stringify(PURCHASES));
+      _lsSet('flori-purchases', JSON.stringify(PURCHASES));
       changed = true;
     }
     _lastRefresh = Date.now();
@@ -2454,7 +2481,7 @@ function renderPurchase() {
 let FOLLOWUPS = [];
 function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
 function saveFollowups() {
-  localStorage.setItem('flori-followup', JSON.stringify(FOLLOWUPS));
+  _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
   if (hasSB()) {
     const rows = FOLLOWUPS.map(f => ({
       id: f.id, name: f.name, contact: f.contact||null,
