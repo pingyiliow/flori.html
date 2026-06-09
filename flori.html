@@ -1362,9 +1362,28 @@ async function sbGet(table) {
 }
 
 async function sbUpsert(table, rows) {
-  if (!hasSB() || !rows.length) return;
-  const { error } = await sb.from(table).upsert(rows, { onConflict: 'id' });
-  if (error) console.error('sbUpsert', table, error.message);
+  if (!hasSB() || !rows.length) return true;
+  // Chunk by payload size. A single bulk upsert of every order (some carrying
+  // base64 photos) can exceed Supabase's request-size limit and fail as a whole,
+  // so nothing — including a just-added photo — gets saved. Splitting into small
+  // requests keeps each one under the limit.
+  const MAX = 500000; // ~0.5 MB per request
+  let batch = [], size = 0, failed = false, errMsg = '';
+  const flush = async () => {
+    if (!batch.length) return;
+    const { error } = await sb.from(table).upsert(batch, { onConflict: 'id' });
+    if (error) { failed = true; errMsg = error.message; console.error('sbUpsert', table, error.message); }
+    batch = []; size = 0;
+  };
+  for (const r of rows) {
+    const s = JSON.stringify(r).length;
+    if (batch.length && size + s > MAX) await flush();
+    batch.push(r); size += s;
+    if (size > MAX) await flush();   // oversized single row — send it alone
+  }
+  await flush();
+  if (failed) toast('⚠ Cloud save failed: ' + (errMsg || 'database error'));
+  return !failed;
 }
 
 async function sbDelete(table, id) {
@@ -1762,7 +1781,25 @@ function _liteOrder(o){
   });
   return c;
 }
-function saveOrders() {
+function _orderRow(o){
+  return {
+    id: o.id, name: o.name, src: o.src||'shopify',
+    customer: o.customer, product: o.product,
+    line_items: o.lineItems||[], image: o.image||null,
+    total: o.total||null, currency: o.currency||'MYR',
+    due_date: o.dueDate||null, due_time: o.dueTime||null,
+    type: o.type||'delivery', fulfilled: o.fulfilled||false,
+    ready: o.ready||false, created_at: o.createdAt||null,
+    manual_addr: o.manualAddr||null, recipe: o.recipe||[],
+    designer: o.designer||null, priority: o.priority||'normal',
+    internal_note: o.internalNote||null,
+    manual_price: o.manualPrice||null
+  };
+}
+// saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
+// only those rows are upserted (a tiny request that can't be dragged down by other
+// orders' base64 blobs). With no argument it upserts everything (used by sync).
+function saveOrders(changed) {
   const clean = ORDERS.map(o => ({...o, dateObj:undefined}));
   // localStorage is a best-effort offline cache. A QuotaExceededError here (old
   // base64 photos bloat it) must NEVER block the Supabase write below — that's
@@ -1775,19 +1812,8 @@ function saveOrders() {
     catch(_) { /* cache full even when lean — rely on Supabase */ }
   }
   if (hasSB()) {
-    const rows = clean.map(o => ({
-      id: o.id, name: o.name, src: o.src||'shopify',
-      customer: o.customer, product: o.product,
-      line_items: o.lineItems||[], image: o.image||null,
-      total: o.total||null, currency: o.currency||'MYR',
-      due_date: o.dueDate||null, due_time: o.dueTime||null,
-      type: o.type||'delivery', fulfilled: o.fulfilled||false,
-      ready: o.ready||false, created_at: o.createdAt||null,
-      manual_addr: o.manualAddr||null, recipe: o.recipe||[],
-      designer: o.designer||null, priority: o.priority||'normal',
-      internal_note: o.internalNote||null,
-      manual_price: o.manualPrice||null
-    }));
+    const list = changed ? (Array.isArray(changed) ? changed : [changed]) : ORDERS;
+    const rows = list.map(_orderRow);
     sbUpsert('orders', rows).catch(console.error);
     // Persist delete tombstones to the shared settings store (the orders table has
     // no column for them and the webhook would otherwise resurrect removed items).
@@ -2290,7 +2316,7 @@ function toggleItemReady(id, idx) {
   const o = ORDERS.find(x => x.id === id); if (!o || !o.lineItems || !o.lineItems[idx]) return;
   o.lineItems[idx].ready = !o.lineItems[idx].ready;
   o.ready = o.lineItems.length > 0 && o.lineItems.every(i => i.ready);
-  saveOrders(); renderHome(); renderOrders();
+  saveOrders(o); renderHome(); renderOrders();
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
@@ -3462,7 +3488,7 @@ function saveOrder() {
     internalNote: document.getElementById('o-internal-note')?.value.trim()||null
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
-  saveOrders(); closeModal('m-order');
+  saveOrders(entry); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
@@ -3485,11 +3511,11 @@ function quickAssign(id, field, value) {
   if (field === 'designer') o.designer = value || null;
   if (field === 'priority') o.priority = value || 'normal';
   if (field === 'internalNote') o.internalNote = value || null;
-  saveOrders(); renderOrders(); renderHome();
+  saveOrders(o); renderOrders(); renderHome();
   toast('✓ Updated');
 }
 
-function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders();renderHome();renderOrders();}
+function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders(o);renderHome();renderOrders();}
 /* ─── Swipe to deliver (mobile) ────────────────────────────── */
 function initSwipeRows() {
   if (!('ontouchstart' in window)) return;
@@ -3559,7 +3585,7 @@ async function markDelivered(id){
   // Manual (non-Shopify) orders: just mark locally.
   if (o.src !== 'shopify'){
     o.ready=true; o.fulfilled=true;
-    saveOrders(); renderHome(); renderOrders(); closeDP();
+    saveOrders(o); renderHome(); renderOrders(); closeDP();
     toast('✓ Marked as '+verb);
     return;
   }
@@ -3568,7 +3594,7 @@ async function markDelivered(id){
   try {
     const r = await fulfillInShopify(o);
     o.ready=true; o.fulfilled=true;
-    saveOrders(); renderHome(); renderOrders(); closeDP();
+    saveOrders(o); renderHome(); renderOrders(); closeDP();
     toast(r.already ? `✓ ${verb} (was already fulfilled in Shopify)` : `✓ ${verb} · customer notified`);
   } catch(e){
     const msg = String((e && e.message) || e);
@@ -3576,7 +3602,7 @@ async function markDelivered(id){
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway? (the customer will NOT be notified)`)){
       o.ready=true; o.fulfilled=true;
-      saveOrders(); renderHome(); renderOrders(); closeDP();
+      saveOrders(o); renderHome(); renderOrders(); closeDP();
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else {
       toast('Cancelled');
@@ -3693,7 +3719,7 @@ function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
 function _persistItemPhotos(o){
   // keep the order-level thumbnail pointed at the first available product photo
   o.image = (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || null;
-  saveOrders(); renderHome(); renderOrders();
+  saveOrders(o); renderHome(); renderOrders();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
   toast('✓ Photos updated');
 }
@@ -3806,7 +3832,7 @@ function saveRecipe() {
     if (name) recipe.push({name, qty, unit});
   });
   o.recipe = recipe;
-  saveOrders();
+  saveOrders(o);
   closeModal('m-recipe');
   toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':''));
   renderOrders(); renderHome();
@@ -3869,7 +3895,7 @@ function _ingestOrderPhoto(id,file){
 function setOrderPhoto(id,b64){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   o.image=b64;
-  saveOrders(); renderHome(); renderOrders();   // persists to Supabase + updates cards
+  saveOrders(o); renderHome(); renderOrders();   // persists to Supabase + updates cards
   const z=document.getElementById('dp-photo-zone'); if(z) z.innerHTML=`<img src="${b64}" alt="Order photo" onclick="event.stopPropagation();openZoom('${b64.replace(/'/g,"\\'")}','')">`;
   toast('✓ Photo saved');
 }
