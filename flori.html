@@ -4056,12 +4056,17 @@ function _renderDP(order, localOrder) {
     const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
     const total    = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
 
-    const liLocal = localOrder.lineItems || [];
+    // Read photos from the CURRENT order in ORDERS (localOrder may be a stale
+    // reference captured before a load/sync), and prefer positional matching when
+    // counts line up — Shopify's line-item titles don't always equal the stored ones.
+    const liSrc  = ORDERS.find(x => String(x.id) === String(localOrder.id)) || localOrder;
+    const liLocal = liSrc.lineItems || [];
+    const sameCount = items.length === liLocal.length;
     const itemRows = items.map((i,k) => {
       const price = i.originalUnitPriceSet?.shopMoney?.amount;
       const lineTotal = i.originalTotalSet?.shopMoney?.amount;
       // Match this displayed item back to the stored line item to pull its photos.
-      const li = liLocal.find(x => x.title === i.title) || liLocal[k];
+      const li = sameCount ? liLocal[k] : (liLocal.find(x => x.title === i.title) || liLocal[k]);
       const liIdx = li ? liLocal.indexOf(li) : -1;
       const ph = itemPhotos(li);
       // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
