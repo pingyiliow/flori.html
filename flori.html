@@ -3952,6 +3952,10 @@ function _fmt(amount, currency) {
 
 let _dpLastOrder = null;
 function _renderDP(order, localOrder) {
+  // The passed localOrder can be a stale snapshot captured before a load/sync (e.g.
+  // the Shopify-enrichment re-render reuses the reference from openDP time), which
+  // would miss recently-saved photos. Always work from the live order in ORDERS.
+  localOrder = ORDERS.find(x => String(x.id) === String(localOrder.id)) || localOrder;
   _dpLastOrder = order;   // cached so in-place photo edits can re-render with enriched data
   const cust   = order.customer || {};
   const addr   = order.shippingAddress;
