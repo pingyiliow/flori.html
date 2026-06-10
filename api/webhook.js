@@ -66,21 +66,13 @@ export default async function handler(req, res) {
   const removedMap = (rmRow && rmRow.value) || {};
   const removed    = new Set(removedMap[String(order.id)] || []);
 
-  // Carry each product's "ready" flag and staff-added reference photos (images[])
-  // forward by title from the stored row — Shopify knows about neither.
-  const prevReady = {}, prevImages = {};
-  (existing?.line_items || []).forEach(i => {
-    if (i.ready) prevReady[i.title] = true;
-    if (Array.isArray(i.images) && i.images.length) prevImages[i.title] = i.images;
-  });
-  const mergedLineItems = lineItems
-    .filter(i => !removed.has(i.title))
-    .map(i => {
-      let m = prevReady[i.title] ? { ...i, ready: true } : i;
-      const ph = prevImages[i.title];
-      if (ph) m = { ...m, images: ph, image: ph[0] };
-      return m;
-    });
+  // Line items are app-managed once the order exists: the user may have edited
+  // product names/prices/quantities, added photos, marked items ready, or deleted
+  // some — Shopify knows none of it. So on UPDATE keep the stored line items
+  // wholesale; only build from Shopify's payload on FIRST insert (new order).
+  const mergedLineItems = (existing && Array.isArray(existing.line_items) && existing.line_items.length)
+    ? existing.line_items
+    : lineItems.filter(i => !removed.has(i.title));
 
   const row = {
     // Canonical order id = bare numeric (Shopify REST id). The GraphQL sync in
