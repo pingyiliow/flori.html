@@ -2662,7 +2662,7 @@ function parseOrderForm() {
   }
 
   // ── Detect format: structured (has "Name:" / "Phone:" labels) vs freeform ──
-  const isStructured = lines.some(l => /^(name|sender|order\s*by|ordered\s*by|from|customer|cust|phone|mobile|contact|hp|tel|whatsapp|wa|no\.?|email|e-mail|address|alamat|deliver(?:y)?|ship(?:ping)?|recipient|recipient\s*name|to|penerima|item|items|product|products|flower|flowers|bouquet|arrangement|order(?:\s*details?)?|date|due|delivery\s*date|card|card\s*message|message|msg|greeting|note|remarks?|amount|total|payment|paid)\s*[:\-]/i.test(l));
+  const isStructured = lines.some(l => /^(name|sender|order\s*by|ordered\s*by|from|customer|cust|phone|mobile|contact|hp|tel|whatsapp|wa|no\.?|email|e-mail|address|alamat|deliver(?:y)?|ship(?:ping)?|recipient|receiver|received|recipient\s*name|to|penerima|item|items|product|products|flower|flowers|bouquet|arrangement|order(?:\s*details?)?|date|due|delivery\s*date|card|card\s*message|message|msg|greeting|note|remarks?|amount|total|payment|paid)\s*[:\-]/i.test(l));
 
   if (isStructured) {
     // ── STRUCTURED FORM (e.g. Delivery Order Form) ──
@@ -2675,7 +2675,7 @@ function parseOrderForm() {
     ]);
     result.senderEmail = get([/^(?:sender\s*)?e-?mail\s*[:\-]\s*(.+)/i]);
 
-    const recipIdx = lines.findIndex(l => /recipient|recipient\s*details/i.test(l));
+    const recipIdx = lines.findIndex(l => /recipient|receiver|received\s*by|recipient\s*details/i.test(l));
     const recipLines = recipIdx >= 0 ? lines.slice(recipIdx) : lines;
     const getRecip = (patterns) => {
       for (const pat of patterns) {
@@ -2686,8 +2686,8 @@ function parseOrderForm() {
       }
       return '';
     };
-    result.recipName  = getRecip([/^(?:recipient|penerima|deliver\s*to|send\s*to|to)\s*(?:name)?\s*[:\-]\s*(.+)/i, /^name\s*[:\-]\s*(.+)/i]);
-    result.recipPhone = getRecip([/^(?:recipient\s*)?(?:phone|mobile|tel|contact(?:\s*no\.?)?|hp|h\/p|no\.?|whatsapp|wa)\s*(?:no\.?|number)?\s*[:\-]\s*(.+)/i]);
+    result.recipName  = getRecip([/^(?:recipient|receiver|received\s*by|penerima|deliver\s*to|send\s*to|to)\s*(?:name)?\s*[:\-]\s*(.+)/i, /^name\s*[:\-]\s*(.+)/i]);
+    result.recipPhone = getRecip([/^(?:recipient|receiver)?\s*(?:phone|mobile|tel|contact(?:\s*no\.?)?|hp|h\/p|no\.?|whatsapp|wa)\s*(?:no\.?|number)?\s*[:\-]\s*(.+)/i]);
     result.addr       = getRecip([
       /^(?:delivery\s*|deliver(?:y)?\s*|shipping\s*|ship(?:ping)?\s*)?address\s*[:\-]\s*(.+)/i,
       /^(?:deliver\s*to|ship\s*to|send\s*to|alamat(?:\s*penghantaran)?)\s*[:\-]\s*(.+)/i,
