@@ -3126,6 +3126,9 @@ async function _draftFindOrCreateCustomer(f) {
     if (parts.length) ci.lastName = parts.join(' ');
     if (phone) ci.phone = phone;
     if (email) ci.email = email;
+    // Tag the new customer with their order source (WhatsApp / Walk-in / …).
+    const src = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
+    if (src) ci.tags = [src];
     const cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id } userErrors { field message } } }`, { input: ci });
     if ((cd.customerCreate?.userErrors||[]).length) { console.warn('customerCreate:', cd.customerCreate.userErrors); return null; }
     return cd.customerCreate?.customer?.id || null;
