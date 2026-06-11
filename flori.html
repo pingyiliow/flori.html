@@ -3085,6 +3085,11 @@ async function searchDraftProducts() {
   }, 350);
 }
 
+// Format a date as DD/MM/YYYY for Shopify (pd() reads this format back fine).
+function _fmtDDMM(s){
+  const d = pd(s); if (!d) return String(s||'');
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
 // Normalise a Malaysian phone to E.164 (Shopify customer/address phones need it).
 function _e164(s){
   let d = String(s||'').trim();
@@ -3153,13 +3158,13 @@ async function createShopifyDraft() {
   // so staff can fill them in during the final check in Shopify.
   const customAttributes = [
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
-    { key:'Order Due Date', value: f.dueDate ? String(f.dueDate) : '' },
+    { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
     { key:'Order Due Time', value: '' },
     { key:'Paid By', value: '' },
   ];
   // Clean, useful tags: fulfilment type + delivery date (no internal codes).
   const tags = [ f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' ];
-  if (f.dueDate) tags.push(String(f.dueDate));
+  if (f.dueDate) tags.push(_fmtDDMM(f.dueDate));
 
   const btn = document.getElementById('fu-draft-create-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
