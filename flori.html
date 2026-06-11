@@ -2662,13 +2662,18 @@ function parseOrderForm() {
   }
 
   // ── Detect format: structured (has "Name:" / "Phone:" labels) vs freeform ──
-  const isStructured = lines.some(l => /^(name|phone|mobile|email|address|item|product|date|sender|recipient)\s*[:\-]/i.test(l));
+  const isStructured = lines.some(l => /^(name|sender|order\s*by|ordered\s*by|from|customer|cust|phone|mobile|contact|hp|tel|whatsapp|wa|no\.?|email|e-mail|address|alamat|deliver(?:y)?|ship(?:ping)?|recipient|recipient\s*name|to|penerima|item|items|product|products|flower|flowers|bouquet|arrangement|order(?:\s*details?)?|date|due|delivery\s*date|card|card\s*message|message|msg|greeting|note|remarks?|amount|total|payment|paid)\s*[:\-]/i.test(l));
 
   if (isStructured) {
     // ── STRUCTURED FORM (e.g. Delivery Order Form) ──
-    result.senderName  = get([/^(?:sender\s*)?name\s*[:\-]\s*(.+)/i]);
-    result.senderPhone = get([/^(?:sender\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:sender\s*)?(?:mobile|tel|whatsapp)\s*[:\-]\s*(.+)/i]);
-    result.senderEmail = get([/^(?:sender\s*)?email\s*[:\-]\s*(.+)/i]);
+    result.senderName  = get([
+      /^(?:sender|order(?:ed)?\s*by|from|customer|cust|buyer)\s*(?:name)?\s*[:\-]\s*(.+)/i,
+      /^name\s*[:\-]\s*(.+)/i,
+    ]);
+    result.senderPhone = get([
+      /^(?:sender\s*)?(?:phone|mobile|tel|telephone|contact(?:\s*no\.?)?|hp|h\/p|no\.?|number|whatsapp|wa)\s*(?:no\.?|number)?\s*[:\-]\s*(.+)/i,
+    ]);
+    result.senderEmail = get([/^(?:sender\s*)?e-?mail\s*[:\-]\s*(.+)/i]);
 
     const recipIdx = lines.findIndex(l => /recipient|recipient\s*details/i.test(l));
     const recipLines = recipIdx >= 0 ? lines.slice(recipIdx) : lines;
@@ -2681,36 +2686,40 @@ function parseOrderForm() {
       }
       return '';
     };
-    result.recipName  = getRecip([/^(?:recipient\s*)?name\s*[:\-]\s*(.+)/i]);
-    result.recipPhone = getRecip([/^(?:recipient\s*)?phone\s*[:\-]\s*(.+)/i, /^(?:recipient\s*)?(?:mobile|tel)\s*[:\-]\s*(.+)/i]);
-    result.addr       = getRecip([/^address\s*[:\-]\s*(.+)/i, /^(?:delivery\s*)?address\s*[:\-]\s*(.+)/i]);
+    result.recipName  = getRecip([/^(?:recipient|penerima|deliver\s*to|send\s*to|to)\s*(?:name)?\s*[:\-]\s*(.+)/i, /^name\s*[:\-]\s*(.+)/i]);
+    result.recipPhone = getRecip([/^(?:recipient\s*)?(?:phone|mobile|tel|contact(?:\s*no\.?)?|hp|h\/p|no\.?|whatsapp|wa)\s*(?:no\.?|number)?\s*[:\-]\s*(.+)/i]);
+    result.addr       = getRecip([
+      /^(?:delivery\s*|deliver(?:y)?\s*|shipping\s*|ship(?:ping)?\s*)?address\s*[:\-]\s*(.+)/i,
+      /^(?:deliver\s*to|ship\s*to|send\s*to|alamat(?:\s*penghantaran)?)\s*[:\-]\s*(.+)/i,
+    ]);
 
     // Date — use parseDate for all formats
     const rawDate = get([
-      /date\s*of\s*delivery\s*[:\-]\s*(.+)/i,
-      /delivery\s*date\s*[:\-]\s*(.+)/i,
-      /pickup\s*date\s*[:\-]\s*(.+)/i,
-      /due\s*date\s*[:\-]\s*(.+)/i,
+      /(?:date\s*of\s*delivery|delivery\s*date|deliver(?:y)?\s*(?:on|date)|date\s*of\s*pickup|pickup\s*date|collection\s*date|due\s*date|date\s*needed|required\s*(?:date|on|by)|needed\s*(?:by|on)|send\s*(?:on|date)|tarikh(?:\s*hantar)?)\s*[:\-]\s*(.+)/i,
       /date\s*[:\-]\s*(.+)/i,
     ]);
     if (rawDate) result.dueDate = parseDate(rawDate);
 
-    // Items
+    // Items / products / flowers
     result.items = get([
       /^item\(s\)\s*[:\-]\s*(.+)/i,
       /^items?\s*[:\-]\s*(.+)/i,
-      /^product\s*[:\-]\s*(.+)/i,
+      /^products?\s*[:\-]\s*(.+)/i,
+      /^flowers?\s*[:\-]\s*(.+)/i,
+      /^(?:bouquet|arrangement|flower\s*type)\s*[:\-]\s*(.+)/i,
       /^order\s*details?\s*[:\-]\s*(.+)/i,
+      /^order\s*[:\-]\s*(.+)/i,
     ]) || '';
 
-    // Card message (multi-line)
-    const cardIdx = lines.findIndex(l => /^card\s*message\s*[:\-]/i.test(l));
+    // Card message (multi-line) — accepts many label variants
+    const CARD_LABEL = /^(?:card\s*message|message\s*on\s*card|card\s*msg|card\s*note|note\s*on\s*card|greeting(?:\s*card)?|card|message|msg)\s*[:\-]\s*/i;
+    const cardIdx = lines.findIndex(l => CARD_LABEL.test(l));
     if (cardIdx >= 0) {
       const cardLines = [];
-      const firstVal = lines[cardIdx].replace(/^card\s*message\s*[:\-]\s*/i,'').trim();
+      const firstVal = lines[cardIdx].replace(CARD_LABEL,'').trim();
       if (firstVal) cardLines.push(firstVal);
       for (let i = cardIdx+1; i < lines.length; i++) {
-        if (/^(remarks|total|amount|item|name|phone|address|date)/i.test(lines[i])) break;
+        if (/^(remarks?|total|amount|item|items|product|products|flower|flowers|name|phone|contact|address|deliver|date|payment|sender|recipient)\s*[:\-]/i.test(lines[i])) break;
         if (/^[─—]{3,}$/.test(lines[i])) break;
         cardLines.push(lines[i]);
       }
@@ -2991,10 +3000,16 @@ function renderFollowup() {
   if(fuTotal) fuTotal.textContent=totalAll; if(fuFuP) fuFuP.textContent=fuPending; if(fuPend) fuPend.textContent=payPending; if(fuPaid) fuPaid.textContent=completed;
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
+  // An entry is "archived" once it's marked completed OR its delivery date has
+  // passed. The default "All" view hides archived entries so it stays a short,
+  // active list; the Completed tab is where archived entries live.
+  const _t0 = today0();
+  const isArchived = x => x.status==='completed' || (x.dueDate && (()=>{ const d=pd(x.dueDate); return !!d && d < _t0; })());
+  if(fuFilter==='all' || !fuFilter)  list=list.filter(x=>!isArchived(x));
   if(fuFilter==='followup-pending') list=list.filter(x=>x.status==='pending');
   if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
   if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
-  if(fuFilter==='completed')        list=list.filter(x=>x.status==='completed');
+  if(fuFilter==='completed')        list=list.filter(x=>isArchived(x));
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
