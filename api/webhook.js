@@ -113,6 +113,21 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
+  // If this order came from a BloomFlow follow-up draft (tagged on creation by
+  // createShopifyDraft), mark that follow-up "Completed" now that it's a real order.
+  // order.tags is a comma-separated string in the REST webhook payload.
+  try {
+    const tags = String(order.tags || '').split(',').map(t => t.trim());
+    if (tags.includes('bloomflow-followup')) {
+      const fuId = tags.find(t => /^fu-/.test(t));
+      if (fuId) {
+        const { error: fuErr } = await sb.from('followups').update({ status: 'completed' }).eq('id', fuId);
+        if (fuErr) console.error('Follow-up complete error:', fuErr.message);
+        else console.log(`[Webhook] follow-up ${fuId} → completed`);
+      }
+    }
+  } catch (e) { console.error('Follow-up tag check failed:', e.message); }
+
   console.log(`[Webhook] ${topic} → ${order.name} saved`);
   return res.status(200).json({ ok: true, order: order.name });
 }

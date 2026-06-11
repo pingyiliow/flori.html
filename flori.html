@@ -1198,6 +1198,37 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 </div>
 
 <!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
+<!-- ══ FOLLOW-UP → SHOPIFY DRAFT (product picker) ══════════════ -->
+<div id="m-fu-draft" class="modal">
+  <div class="mc" style="max-width:480px">
+    <div class="mc-hdr">
+      <div class="mc-ttl">🛍 Send to Shopify Draft</div>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-draft')">✕</button>
+    </div>
+    <div class="mc-body">
+      <input type="hidden" id="fu-draft-id">
+      <input id="fu-draft-search" type="text" placeholder="Search products…" autocomplete="off"
+             oninput="searchDraftProducts()"
+             style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);margin-bottom:8px">
+      <div id="fu-draft-results" style="max-height:230px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+      <div style="text-align:center;color:var(--c-muted);font-size:10px;margin:14px 0 10px;letter-spacing:.12em">── OR ADD CUSTOM ITEM ──</div>
+      <input id="fu-draft-custom-name" type="text" placeholder="Custom item name" autocomplete="off"
+             oninput="_fuDraftClearVariant()"
+             style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="fu-draft-custom-price" type="number" min="0" step="0.01" placeholder="Price (RM)"
+               style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+        <input id="fu-draft-qty" type="number" min="1" value="1" title="Quantity"
+               style="width:64px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);text-align:center">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button onclick="closeModal('m-fu-draft')" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer">Cancel</button>
+        <button id="fu-draft-create-btn" onclick="createShopifyDraft()" style="flex:2;padding:11px;border:none;border-radius:var(--r);font-size:13px;font-weight:600;color:var(--c-bg);background:var(--c-burg);cursor:pointer">Create Draft →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="m-followup" class="modal">
   <div class="mc" style="max-width:580px">
     <div class="mc-hdr">
@@ -1667,7 +1698,7 @@ function getType(attrs) {
   return 'delivery'; // default
 }
 
-async function shopifyGQL(query) {
+async function shopifyGQL(query, variables) {
   // The Shopify token is managed entirely server-side — staff never connect
   // Shopify on their device. We send the store URL plus the logged-in user's
   // Supabase session so /api/query will mint+use the token only for staff.
@@ -1676,7 +1707,7 @@ async function shopifyGQL(query) {
   try { if (hasSB()) { const { data } = await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_) {}
   let r;
   try {
-    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, authToken }) });
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken }) });
   } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
   let text = ''; try { text = await r.text(); } catch(_) {}
   if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
@@ -1931,7 +1962,7 @@ async function loadFromSupabase(opts = {}) {
         addr: f.addr||'', payment: f.payment||'pending',
         status: f.status||'pending', items: f.items||'',
         cardMsg: f.card_msg||'', remarks: f.remarks||'',
-        photo: f.photo||'', ts: f.ts||Date.now()
+        photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
       changed = true;
@@ -2548,7 +2579,7 @@ function saveFollowups() {
       addr: f.addr||null, payment: f.payment||'pending',
       status: f.status||'pending', items: f.items||null,
       card_msg: f.cardMsg||null, remarks: f.remarks||null,
-      photo: f.photo||null, ts: f.ts||Date.now()
+      photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).catch(console.error);
   }
@@ -2958,8 +2989,10 @@ function saveFollowup() {
     }
   }
   const stEl = document.getElementById('fu-status');
+  const prevFu = editId ? FOLLOWUPS.find(x=>x.id===editId) : null;
   const entry = {
     id: editId||('fu-'+Date.now()), name,
+    shopifyDraftId: prevFu?.shopifyDraftId || null,
     photo: document.getElementById('fu-photo-b64')?.value||'',
     contact:    document.getElementById('fu-contact').value.trim(),
     email:      document.getElementById('fu-email')?.value.trim()||'',
@@ -2972,7 +3005,7 @@ function saveFollowup() {
     amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
     payment:    document.getElementById('fu-payment').value,
-    status:     stEl?stEl.value:'pending',
+    status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
     items:      document.getElementById('fu-items')?.value.trim()||'',
     cardMsg:    document.getElementById('fu-card-msg')?.value.trim()||'',
     remarks:    document.getElementById('fu-remarks')?.value.trim()||'',
@@ -2986,12 +3019,137 @@ function saveFollowup() {
 function delFollowup(id) { if(!confirm('Delete this follow-up entry? This cannot be undone.'))return; FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); saveFollowups(); if(hasSB())sbDelete('followups',id); renderFollowup(); toast('Entry removed'); }
 function toggleFUStatus(id) {
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
-  const cycle = {pending:'ready', ready:'completed', completed:'pending'};
+  // 'draft' is set automatically by createShopifyDraft (not part of the manual
+  // cycle); tapping a draft lets staff mark it completed if needed.
+  const cycle = {pending:'ready', ready:'completed', draft:'completed', completed:'pending'};
   f.status = cycle[f.status] || 'ready';
   saveFollowups(); renderFollowup();
 }
 function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
 function toggleComplete(id) { toggleFUStatus(id); }
+
+/* ─── Follow-up → Shopify Draft ──────────────────────────────── */
+let _fuDraftVariant = null;   // {id,title,price} when an existing Shopify product is picked
+let _fuDraftSearchT = null;
+
+function openFUDraftModal(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  _fuDraftVariant = null;
+  document.getElementById('fu-draft-id').value = id;
+  document.getElementById('fu-draft-search').value = '';
+  document.getElementById('fu-draft-custom-name').value = '';
+  document.getElementById('fu-draft-custom-price').value = (f.amount && parseFloat(f.amount)>0) ? parseFloat(f.amount).toFixed(2) : '';
+  document.getElementById('fu-draft-qty').value = '1';
+  document.getElementById('fu-draft-results').innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">Search your Shopify products above, or add a custom item below.</div>';
+  closeFUDP();
+  openModal('m-fu-draft');
+}
+
+function _fuDraftClearVariant() {
+  _fuDraftVariant = null;
+  document.querySelectorAll('#fu-draft-results .fu-draft-row').forEach(r=>{ r.style.borderColor='var(--c-border)'; r.style.background='var(--c-surface)'; });
+}
+
+function selectDraftVariant(vid, title, price) {
+  _fuDraftVariant = { id: vid, title, price };
+  document.getElementById('fu-draft-custom-name').value = '';
+  document.querySelectorAll('#fu-draft-results .fu-draft-row').forEach(r=>{
+    const on = r.dataset.vid===vid;
+    r.style.borderColor = on ? 'var(--c-burg)' : 'var(--c-border)';
+    r.style.background  = on ? 'var(--c-burg-lt)' : 'var(--c-surface)';
+  });
+  const pe=document.getElementById('fu-draft-custom-price'); if(pe && price) pe.value = parseFloat(price).toFixed(2);
+}
+
+async function searchDraftProducts() {
+  const q = document.getElementById('fu-draft-search').value.trim();
+  const box = document.getElementById('fu-draft-results');
+  clearTimeout(_fuDraftSearchT);
+  if (q.length < 2) { box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">Type at least 2 letters to search…</div>'; return; }
+  _fuDraftSearchT = setTimeout(async () => {
+    box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">Searching…</div>';
+    try {
+      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title variants(first:1){ edges { node { id price } } } } } } }`;
+      const data = await shopifyGQL(query);
+      const items = (data.products?.edges||[]).map(e=>{ const v=e.node.variants?.edges?.[0]?.node; return v?{id:v.id,title:e.node.title,price:v.price}:null; }).filter(Boolean);
+      if (!items.length) { box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">No products found — add a custom item below.</div>'; return; }
+      box.innerHTML = items.map(it => {
+        const t = esc(it.title), tArg = t.replace(/'/g,"\\'");
+        return `<div class="fu-draft-row" data-vid="${esc(it.id)}" onclick="selectDraftVariant('${esc(it.id)}','${tArg}','${it.price}')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);cursor:pointer;font-size:12px">
+          <span>${t}</span><span style="color:var(--c-muted);white-space:nowrap">RM ${parseFloat(it.price).toFixed(2)}</span>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      box.innerHTML = `<div style="font-size:11px;color:var(--c-red);padding:6px 2px">Search failed: ${esc(e.message||'error')}</div>`;
+    }
+  }, 350);
+}
+
+async function createShopifyDraft() {
+  const id = document.getElementById('fu-draft-id').value;
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f){ toast('Follow-up not found'); return; }
+  const qty = Math.max(1, parseInt(document.getElementById('fu-draft-qty').value)||1);
+  const customName  = document.getElementById('fu-draft-custom-name').value.trim();
+  const customPrice = document.getElementById('fu-draft-custom-price').value.trim();
+
+  let lineItem;
+  if (customName) {
+    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty };
+  } else if (_fuDraftVariant) {
+    lineItem = { variantId: _fuDraftVariant.id, quantity: qty };
+  } else {
+    toast('Pick a product or enter a custom item'); return;
+  }
+
+  // Attributes mirror the keys syncOrders/webhook read back from Shopify.
+  const customAttributes = [
+    { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
+  ];
+  if (f.dueDate)    customAttributes.push({ key:'Order Due Date', value:String(f.dueDate) });
+  if (f.name)       customAttributes.push({ key:'Sender', value:f.name });
+  if (f.contact)    customAttributes.push({ key:'Sender Contact', value:f.contact });
+  if (f.recipName)  customAttributes.push({ key:'Recipient', value:f.recipName });
+  if (f.recipPhone) customAttributes.push({ key:'Recipient Contact', value:f.recipPhone });
+
+  const input = {
+    lineItems: [ lineItem ],
+    customAttributes,
+    note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
+    tags: ['bloomflow-followup', f.id],
+  };
+  // Delivery orders with an address → prefill shipping (admin verifies in Shopify).
+  // Phone is kept out of the address (Shopify rejects non-E.164) — it's an attribute.
+  if (f.fulfil !== 'pickup' && f.addr) {
+    input.shippingAddress = { address1: f.addr, countryCode: 'MY', firstName: (f.recipName || f.name || 'Recipient') };
+  }
+
+  const btn = document.getElementById('fu-draft-create-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  toast('Creating Shopify draft…');
+  try {
+    const mutation = `mutation($input: DraftOrderInput!) { draftOrderCreate(input:$input) { draftOrder { id name invoiceUrl } userErrors { field message } } }`;
+    const data = await shopifyGQL(mutation, { input });
+    const ue = data.draftOrderCreate?.userErrors || [];
+    if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+    const draft = data.draftOrderCreate?.draftOrder;
+    if (!draft) throw new Error('No draft returned');
+    f.status = 'draft';
+    f.shopifyDraftId = draft.id;
+    saveFollowups(); renderFollowup();
+    closeModal('m-fu-draft');
+    toast('✓ Draft ' + (draft.name||'') + ' created in Shopify');
+    // Open the ADMIN draft editor (where staff do the final check + Create Order),
+    // falling back to the customer invoice URL if we can't build the admin link.
+    const numId = (String(draft.id).match(/(\d+)$/)||[])[1];
+    const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+    const adminUrl = (shopUrl && numId) ? `https://admin.shopify.com/store/${shopUrl}/draft_orders/${numId}` : draft.invoiceUrl;
+    if (adminUrl) window.open(adminUrl, '_blank');
+  } catch(e) {
+    toast('⚠ Draft failed: ' + (e.message||'error'));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Draft →'; }
+  }
+}
 
 function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
@@ -3004,7 +3162,7 @@ function renderFollowup() {
   // passed. The default "All" view hides archived entries so it stays a short,
   // active list; the Completed tab is where archived entries live.
   const _t0 = today0();
-  const isArchived = x => x.status==='completed' || (x.dueDate && (()=>{ const d=pd(x.dueDate); return !!d && d < _t0; })());
+  const isArchived = x => x.status!=='draft' && (x.status==='completed' || (x.dueDate && (()=>{ const d=pd(x.dueDate); return !!d && d < _t0; })()));
   if(fuFilter==='all' || !fuFilter)  list=list.filter(x=>!isArchived(x));
   if(fuFilter==='followup-pending') list=list.filter(x=>x.status==='pending');
   if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
@@ -3027,13 +3185,16 @@ function renderFollowup() {
   tb.innerHTML = list.map(f => {
     const ch=chLabel[f.channel]||f.channel, chCl=chCls[f.channel]||'ch-ot';
     const payLbl=f.payment==='paid'?'Paid':'Pending', payCl=f.payment==='paid'?'pay-paid':'pay-pend';
-    // Status — 3 states
+    // Status — pending / ready / draft / completed
     const isCompleted = f.status==='completed';
+    const isDraft     = f.status==='draft';
     const isReady     = f.status==='ready';
-    const isPending   = !isCompleted && !isReady;
+    const isPending   = !isCompleted && !isReady && !isDraft;
     let stLabel, stBg, stColor, stBorder;
     if (isCompleted) {
       stLabel='Completed'; stBg='var(--c-sage-bg)'; stColor='var(--c-sage)'; stBorder='#c0d9be';
+    } else if (isDraft) {
+      stLabel='↗ In Shopify Draft'; stBg='#E3F2FD'; stColor='#1565C0'; stBorder='#90CAF9';
     } else if (isReady) {
       stLabel='Ready'; stBg='var(--c-burg-lt)'; stColor='var(--c-burg)'; stBorder='var(--c-dpink)';
     } else {
@@ -3090,15 +3251,17 @@ function openFUDP(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
-  const isCompleted2 = f.status==='completed', isReady2 = f.status==='ready';
+  const isCompleted2 = f.status==='completed', isReady2 = f.status==='ready', isDraft2 = f.status==='draft';
   const payLbl = f.payment==='paid' ? 'Paid' : 'Pending';
   const payCl  = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
-  const stLbl  = isCompleted2 ? 'Completed — Added in Shopify' : isReady2 ? 'Ready — Add to Shopify' : 'Follow-up Pending';
+  const stLbl  = isCompleted2 ? 'Completed — Added in Shopify' : isDraft2 ? '↗ In Shopify Draft' : isReady2 ? 'Ready — Add to Shopify' : 'Follow-up Pending';
   const stStyle = isCompleted2
     ? 'background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be'
-    : isReady2
-      ? 'background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink)'
-      : 'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
+    : isDraft2
+      ? 'background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9'
+      : isReady2
+        ? 'background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink)'
+        : 'background:var(--c-blush-bg);color:var(--c-blush);border:1px solid #f0c0b0';
   const fulfil = f.fulfil === 'pickup' ? 'Self Collect' : 'Delivery';
   const isDone = isCompleted2;
   // Header
@@ -3151,8 +3314,12 @@ function openFUDP(id) {
   const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
-    <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border-radius:var(--r);font-size:12px;font-weight:500;text-decoration:none;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
-      <span style="font-size:15px">🛍</span> Add Order in Shopify
+    <button onclick="openFUDraftModal('${f.id}')" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
+      <span style="font-size:15px">🛍</span> ${isDraft2 ? 'Re-send to Shopify Draft' : 'Send to Shopify Draft'}
+    </button>
+    ${isDraft2 ? `<div style="font-size:11px;color:#1565C0;text-align:center">↗ A draft was created in Shopify — open Shopify → Drafts to confirm &amp; create the order.</div>` : ''}
+    <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;font-weight:500;text-decoration:none">
+      Open Shopify Admin
     </a>
     <div style="display:flex;gap:8px">
       <button onclick="closeFUDP();editFollowup('${f.id}')" style="flex:1;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">✎ Edit</button>
