@@ -3498,13 +3498,18 @@ function saveOrder() {
                        ...((prevOrder?.lineItems || []).map(i => i.title))];
   const removedItems = [...new Set(knownTitles)].filter(t => t && !keptTitles.has(t));
   const entry = {
+    // Preserve every field the edit form does NOT touch (cover image, recipe,
+    // total, currency, createdAt, fulfilment, etc.) so editing a name/price can't
+    // silently wipe them. Form fields below override.
+    ...(prevOrder || {}),
     id: editId || ('manual-'+Date.now()),
     src: prevOrder?.src || 'manual',
     fulfilled: prevOrder?.fulfilled || false,
     name: document.getElementById('o-num').value.trim() || prevOrder?.name || ('#M-'+Date.now().toString().slice(-4)),
     product: lineItems.map(i=>i.title).join(', '),
     customer: cust || 'Guest',
-    image: firstImg,
+    // A per-product photo wins; otherwise keep the order's existing cover photo.
+    image: firstImg || prevOrder?.image || null,
     lineItems,
     removedItems,
     dueDate: finalDateVal, dueTime: document.getElementById('o-time').value.trim(),
@@ -3512,7 +3517,6 @@ function saveOrder() {
     type: document.getElementById('o-type').value,
     ready: prevOrder?.ready || false,
     manualAddr: addrVal || null,
-    manualPrice: null,
     designer: document.getElementById('o-designer')?.value||null,
     priority: document.getElementById('o-priority')?.value||'normal',
     internalNote: document.getElementById('o-internal-note')?.value.trim()||null
