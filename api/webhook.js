@@ -113,18 +113,24 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
-  // If this order came from a BloomFlow follow-up draft (tagged on creation by
-  // createShopifyDraft), mark that follow-up "Completed" now that it's a real order.
-  // order.tags is a comma-separated string in the REST webhook payload.
+  // If this order came from a BloomFlow follow-up draft, mark that follow-up
+  // "Completed" now that it's a real order. The follow-up id rides as a hidden
+  // line-item property (_bloomflow_followup); older drafts carried it as a tag,
+  // so fall back to that.
   try {
-    const tags = String(order.tags || '').split(',').map(t => t.trim());
-    if (tags.includes('bloomflow-followup')) {
-      const fuId = tags.find(t => /^fu-/.test(t));
-      if (fuId) {
-        const { error: fuErr } = await sb.from('followups').update({ status: 'completed' }).eq('id', fuId);
-        if (fuErr) console.error('Follow-up complete error:', fuErr.message);
-        else console.log(`[Webhook] follow-up ${fuId} → completed`);
-      }
+    let fuId = null;
+    for (const li of (order.line_items || [])) {
+      const p = (li.properties || []).find(x => x && x.name === '_bloomflow_followup');
+      if (p && p.value) { fuId = String(p.value).trim(); break; }
+    }
+    if (!fuId) {
+      const tags = String(order.tags || '').split(',').map(t => t.trim());
+      if (tags.includes('bloomflow-followup')) fuId = tags.find(t => /^fu-/.test(t)) || null;
+    }
+    if (fuId) {
+      const { error: fuErr } = await sb.from('followups').update({ status: 'completed' }).eq('id', fuId);
+      if (fuErr) console.error('Follow-up complete error:', fuErr.message);
+      else console.log(`[Webhook] follow-up ${fuId} → completed`);
     }
   } catch (e) { console.error('Follow-up tag check failed:', e.message); }
 

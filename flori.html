@@ -3101,15 +3101,19 @@ function _e164(s){
 // customer (admin can attach one). Returns a customer GID or null.
 async function _draftFindOrCreateCustomer(f) {
   const phone = _e164(f.contact);
-  const email = (f.email||'').trim();
+  const email = (f.email||'').trim().toLowerCase();
   try {
     const terms = [];
     if (email) terms.push('email:'+JSON.stringify(email));
     if (phone) terms.push('phone:'+JSON.stringify(phone));
     if (terms.length) {
-      const sd = await shopifyGQL(`{ customers(first:1, query:${JSON.stringify(terms.join(' OR '))}) { edges { node { id } } } }`);
-      const found = sd.customers?.edges?.[0]?.node?.id;
-      if (found) return found;
+      const sd = await shopifyGQL(`{ customers(first:10, query:${JSON.stringify(terms.join(' OR '))}) { edges { node { id phone email } } } }`);
+      // VERIFY the match — Shopify's search can be fuzzy and return unrelated
+      // customers. Only link one whose phone or email actually matches the sender.
+      const match = (sd.customers?.edges||[]).map(e=>e.node).find(n =>
+        (phone && _e164(n.phone) === phone) || (email && (n.email||'').toLowerCase() === email)
+      );
+      if (match) return match.id;
     }
     if (!f.name && !phone && !email) return null;
     const parts = String(f.name||'').trim().split(/\s+/).filter(Boolean);
@@ -3138,16 +3142,24 @@ async function createShopifyDraft() {
   } else {
     toast('Pick a product or enter a custom item'); return;
   }
+  // Hidden line-item property carries the follow-up id for the webhook to match
+  // on. The leading underscore keeps it out of the Shopify admin display, so the
+  // order tags can stay clean/meaningful instead of holding a long code.
+  lineItem.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
 
   // Order-level attributes only (the keys syncOrders/webhook read back). Sender &
   // recipient are NOT attributes — sender becomes the Shopify customer, recipient
-  // the shipping address. Due Date & Due Time are always present (blank if unknown)
+  // the shipping address. Date/Time/Paid By are always present (blank if unknown)
   // so staff can fill them in during the final check in Shopify.
   const customAttributes = [
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
     { key:'Order Due Date', value: f.dueDate ? String(f.dueDate) : '' },
     { key:'Order Due Time', value: '' },
+    { key:'Paid By', value: '' },
   ];
+  // Clean, useful tags: fulfilment type + delivery date (no internal codes).
+  const tags = [ f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' ];
+  if (f.dueDate) tags.push(String(f.dueDate));
 
   const btn = document.getElementById('fu-draft-create-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
@@ -3160,7 +3172,7 @@ async function createShopifyDraft() {
       lineItems: [ lineItem ],
       customAttributes,
       note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
-      tags: ['bloomflow-followup', f.id],
+      tags,
     };
     if (customerId) input.purchasingEntity = { customerId };
     // Recipient → shipping address (delivery orders with an address).
