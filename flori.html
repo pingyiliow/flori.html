@@ -3175,12 +3175,28 @@ async function createShopifyDraft() {
       tags,
     };
     if (customerId) input.purchasingEntity = { customerId };
-    // Recipient → shipping address (delivery orders with an address).
-    if (f.fulfil !== 'pickup' && f.addr) {
-      const rParts = String(f.recipName||'').trim().split(/\s+/).filter(Boolean);
-      input.shippingAddress = { address1: f.addr, countryCode: 'MY', firstName: rParts.shift() || (f.recipName || f.name || 'Recipient') };
+    const e164c = _e164(f.contact), e164r = _e164(f.recipPhone);
+
+    // Sender → billing address (+ email). This guarantees the sender's name and
+    // contact show on the draft even when the linked customer record is sparse.
+    const sParts = String(f.name||'').trim().split(/\s+/).filter(Boolean);
+    if (f.name || e164c) {
+      input.billingAddress = { countryCode: 'MY' };
+      if (sParts[0]) input.billingAddress.firstName = sParts.shift();
+      if (sParts.length) input.billingAddress.lastName = sParts.join(' ');
+      if (e164c) input.billingAddress.phone = e164c;
+    }
+    if (!customerId && f.email) input.email = String(f.email).trim();
+
+    // Recipient + delivery address → shipping address (delivery orders). If no
+    // separate recipient was captured, fall back to the sender's name/contact.
+    if (f.fulfil !== 'pickup' && (f.addr || f.recipName || f.recipPhone)) {
+      const rParts = String(f.recipName || f.name || '').trim().split(/\s+/).filter(Boolean);
+      input.shippingAddress = { countryCode: 'MY' };
+      if (f.addr) input.shippingAddress.address1 = f.addr;
+      if (rParts[0]) input.shippingAddress.firstName = rParts.shift();
       if (rParts.length) input.shippingAddress.lastName = rParts.join(' ');
-      const rPhone = _e164(f.recipPhone);
+      const rPhone = e164r || e164c;
       if (rPhone) input.shippingAddress.phone = rPhone;
     }
 
