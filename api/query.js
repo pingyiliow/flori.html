@@ -82,8 +82,12 @@ export default async function handler(req, res) {
   let out;
   try {
     out = await callShopify(shop, token, query, variables);
-    // If a server-minted token expired, refresh once and retry.
-    if (out.status === 401 && serverMinted) {
+    // Refresh the server-minted token and retry once if it looks stale: either a
+    // 401 (expired) OR a GraphQL "access denied / scope" error (HTTP 200) — the
+    // latter happens right after the app's scopes change, while the cached token
+    // still carries the old scopes. Busting the cache re-mints with the new ones.
+    const scopeErr = out.status === 200 && /access denied|access scope/i.test(out.text || '');
+    if (serverMinted && (out.status === 401 || scopeErr)) {
       _tok = null; _tokExp = 0;
       token = await getServerToken(shop);
       out = await callShopify(shop, token, query, variables);
