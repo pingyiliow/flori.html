@@ -75,6 +75,7 @@ export default async function handler(req, res) {
     // No client token → server-managed token, gated on an authenticated staff session.
     const jwt = authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     if (!(await isAuthedUser(jwt))) return res.status(401).json({ error: 'Sign in required' });
+    if (body.refreshToken) { _tok = null; _tokExp = 0; }   // force a fresh mint (e.g. after a scope change)
     try { token = await getServerToken(shop); serverMinted = true; }
     catch (e) { return res.status(500).json({ error: 'Could not obtain Shopify token: ' + e.message }); }
   }
