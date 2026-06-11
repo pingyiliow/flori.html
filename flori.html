@@ -3085,6 +3085,44 @@ async function searchDraftProducts() {
   }, 350);
 }
 
+// Normalise a Malaysian phone to E.164 (Shopify customer/address phones need it).
+function _e164(s){
+  let d = String(s||'').trim();
+  if (/^\+/.test(d)) return d.replace(/[^\d+]/g,'');
+  d = d.replace(/\D/g,'');
+  if (!d) return '';
+  if (d.startsWith('60')) return '+'+d;
+  if (d.startsWith('0'))  return '+60'+d.slice(1);
+  return '+60'+d;
+}
+
+// Find an existing Shopify customer (by phone/email) or create one for the sender.
+// Best-effort: any failure returns null and the draft is created without a linked
+// customer (admin can attach one). Returns a customer GID or null.
+async function _draftFindOrCreateCustomer(f) {
+  const phone = _e164(f.contact);
+  const email = (f.email||'').trim();
+  try {
+    const terms = [];
+    if (email) terms.push('email:'+JSON.stringify(email));
+    if (phone) terms.push('phone:'+JSON.stringify(phone));
+    if (terms.length) {
+      const sd = await shopifyGQL(`{ customers(first:1, query:${JSON.stringify(terms.join(' OR '))}) { edges { node { id } } } }`);
+      const found = sd.customers?.edges?.[0]?.node?.id;
+      if (found) return found;
+    }
+    if (!f.name && !phone && !email) return null;
+    const parts = String(f.name||'').trim().split(/\s+/).filter(Boolean);
+    const ci = { firstName: parts.shift() || (f.name || 'Customer') };
+    if (parts.length) ci.lastName = parts.join(' ');
+    if (phone) ci.phone = phone;
+    if (email) ci.email = email;
+    const cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id } userErrors { field message } } }`, { input: ci });
+    if ((cd.customerCreate?.userErrors||[]).length) { console.warn('customerCreate:', cd.customerCreate.userErrors); return null; }
+    return cd.customerCreate?.customer?.id || null;
+  } catch(e) { console.warn('customer find/create failed:', e.message); return null; }
+}
+
 async function createShopifyDraft() {
   const id = document.getElementById('fu-draft-id').value;
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f){ toast('Follow-up not found'); return; }
@@ -3101,32 +3139,39 @@ async function createShopifyDraft() {
     toast('Pick a product or enter a custom item'); return;
   }
 
-  // Attributes mirror the keys syncOrders/webhook read back from Shopify.
+  // Order-level attributes only (the keys syncOrders/webhook read back). Sender &
+  // recipient are NOT attributes — sender becomes the Shopify customer, recipient
+  // the shipping address. Due Date & Due Time are always present (blank if unknown)
+  // so staff can fill them in during the final check in Shopify.
   const customAttributes = [
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
+    { key:'Order Due Date', value: f.dueDate ? String(f.dueDate) : '' },
+    { key:'Order Due Time', value: '' },
   ];
-  if (f.dueDate)    customAttributes.push({ key:'Order Due Date', value:String(f.dueDate) });
-  if (f.name)       customAttributes.push({ key:'Sender', value:f.name });
-  if (f.contact)    customAttributes.push({ key:'Sender Contact', value:f.contact });
-  if (f.recipName)  customAttributes.push({ key:'Recipient', value:f.recipName });
-  if (f.recipPhone) customAttributes.push({ key:'Recipient Contact', value:f.recipPhone });
-
-  const input = {
-    lineItems: [ lineItem ],
-    customAttributes,
-    note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
-    tags: ['bloomflow-followup', f.id],
-  };
-  // Delivery orders with an address → prefill shipping (admin verifies in Shopify).
-  // Phone is kept out of the address (Shopify rejects non-E.164) — it's an attribute.
-  if (f.fulfil !== 'pickup' && f.addr) {
-    input.shippingAddress = { address1: f.addr, countryCode: 'MY', firstName: (f.recipName || f.name || 'Recipient') };
-  }
 
   const btn = document.getElementById('fu-draft-create-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   toast('Creating Shopify draft…');
   try {
+    // Sender → Shopify customer (search existing, else create).
+    const customerId = await _draftFindOrCreateCustomer(f);
+
+    const input = {
+      lineItems: [ lineItem ],
+      customAttributes,
+      note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
+      tags: ['bloomflow-followup', f.id],
+    };
+    if (customerId) input.purchasingEntity = { customerId };
+    // Recipient → shipping address (delivery orders with an address).
+    if (f.fulfil !== 'pickup' && f.addr) {
+      const rParts = String(f.recipName||'').trim().split(/\s+/).filter(Boolean);
+      input.shippingAddress = { address1: f.addr, countryCode: 'MY', firstName: rParts.shift() || (f.recipName || f.name || 'Recipient') };
+      if (rParts.length) input.shippingAddress.lastName = rParts.join(' ');
+      const rPhone = _e164(f.recipPhone);
+      if (rPhone) input.shippingAddress.phone = rPhone;
+    }
+
     const mutation = `mutation($input: DraftOrderInput!) { draftOrderCreate(input:$input) { draftOrder { id name invoiceUrl } userErrors { field message } } }`;
     const data = await shopifyGQL(mutation, { input });
     const ue = data.draftOrderCreate?.userErrors || [];
