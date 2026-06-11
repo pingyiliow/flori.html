@@ -3107,6 +3107,7 @@ function _e164(s){
 async function _draftFindOrCreateCustomer(f) {
   const phone = _e164(f.contact);
   const email = (f.email||'').trim().toLowerCase();
+  const src = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
   try {
     const terms = [];
     if (email) terms.push('email:'+JSON.stringify(email));
@@ -3118,7 +3119,14 @@ async function _draftFindOrCreateCustomer(f) {
       const match = (sd.customers?.edges||[]).map(e=>e.node).find(n =>
         (phone && _e164(n.phone) === phone) || (email && (n.email||'').toLowerCase() === email)
       );
-      if (match) return match.id;
+      if (match) {
+        // Returning customer — add the source tag + a "Repeat" tag so loyal/repeat
+        // buyers are filterable. tagsAdd keeps their existing tags intact.
+        const addTags = [src, 'Repeat'].filter(Boolean);
+        try { await shopifyGQL(`mutation($id:ID!,$tags:[String!]!){ tagsAdd(id:$id, tags:$tags){ userErrors { field message } } }`, { id: match.id, tags: addTags }); }
+        catch(e){ console.warn('tagsAdd:', e.message); }
+        return match.id;
+      }
     }
     if (!f.name && !phone && !email) return null;
     const parts = String(f.name||'').trim().split(/\s+/).filter(Boolean);
@@ -3126,9 +3134,7 @@ async function _draftFindOrCreateCustomer(f) {
     if (parts.length) ci.lastName = parts.join(' ');
     if (phone) ci.phone = phone;
     if (email) ci.email = email;
-    // Tag the new customer with their order source (WhatsApp / Walk-in / …).
-    const src = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
-    if (src) ci.tags = [src];
+    if (src) ci.tags = [src];   // new (first-time) customer → source tag only
     const cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id } userErrors { field message } } }`, { input: ci });
     if ((cd.customerCreate?.userErrors||[]).length) { console.warn('customerCreate:', cd.customerCreate.userErrors); return null; }
     return cd.customerCreate?.customer?.id || null;
