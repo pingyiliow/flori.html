@@ -1750,7 +1750,6 @@ async function syncOrders() {
     const raw = [...data1.orders.edges, ...data2.orders.edges]
       .map(e => e.node)
       .filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
-    const manuals = ORDERS.filter(o => o.src === 'manual');
     const shopify = raw.map(n => {
       const attrs = n.customAttributes || [];
       const ds = getDueDate(attrs);
@@ -1788,7 +1787,14 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
       }
     });
-    ORDERS = [...shopify, ...manuals];
+    // Keep every order we already have that this fetch didn't return — the query
+    // only covers the 250 most-recent OPEN orders + the last 7 days, so fulfilled
+    // or older orders would otherwise vanish from the list on each sync even though
+    // they're safe in Supabase. Merge: fresh fetched rows win; everything else
+    // (manuals + older Shopify orders) is preserved by id.
+    const freshIds = new Set(shopify.map(o => o.id));
+    const kept = ORDERS.filter(o => o.src === 'manual' || !freshIds.has(shopId(o.id)));
+    ORDERS = [...shopify, ...kept];
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
