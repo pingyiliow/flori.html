@@ -3,3 +3,5 @@ serve.ps1
 .claude/
 node_modules/
 demo.html
+# Task brief — contains a Shopify token, must never be committed
+CLAUDE_CODE_TASK.md

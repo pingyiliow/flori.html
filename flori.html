@@ -625,6 +625,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .onum{font-size:10px;font-weight:700;color:var(--c-muted);flex-shrink:0}
 .oname{font-size:14px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ocust{font-size:11px;color:var(--c-muted)}
+.ocdate{font-size:11px;font-weight:600;color:var(--c-burg);margin-top:2px}
 .onote{display:flex;align-items:center;gap:5px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 8px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc .price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:flex-start;justify-content:flex-end;white-space:nowrap}
 .ott{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px}
@@ -2475,10 +2476,16 @@ function orderCard(o, item, idx) {
     ? `<div class="onote">⚠️ ${esc(o.internalNote.length > 70 ? o.internalNote.slice(0, 70) + '…' : o.internalNote)}</div>`
     : '';
 
-  // In production mode show the due date on the card (cards aren't grouped by date there).
-  const timeTxt = prodMode
-    ? (((o.dateObj ? fd(o.dateObj) : (o.dueDate||'')) + (o.dueTime ? ' · '+o.dueTime : '')) || '–')
-    : (o.dueTime || '–');
+  const timeTxt = o.dueTime || '–';
+  // In production mode cards are grouped by product, not date, so surface the due
+  // date on the card itself — placed in the flexible main column so it can wrap
+  // instead of overflowing the narrow fixed-width time column.
+  const prodDateTxt = prodMode
+    ? ((o.dateObj ? fd(o.dateObj) : (o.dueDate || '')) + (o.dueTime ? ' · ' + o.dueTime : ''))
+    : '';
+  const prodDateLine = prodDateTxt
+    ? `<div class="ocdate">📅 ${esc(prodDateTxt)}</div>`
+    : '';
   const typeTag = o.type === 'pickup'
     ? `<span class="tb pu">${zh ? '自取' : 'Pickup'}</span>`
     : `<span class="tb del">${zh ? '送货' : 'Delivery'}</span>`;
@@ -2507,6 +2514,7 @@ function orderCard(o, item, idx) {
     <div class="oc-main">
       <div class="oc-top"><span class="onum">${numTxt}</span><span class="oname">${name}</span>${mobPrice}</div>
       <div class="ocust">${esc(o.customer || '')}</div>
+      ${prodDateLine}
       ${note}
     </div>
     <div class="price">${priceTxt}</div>
