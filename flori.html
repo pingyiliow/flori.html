@@ -490,6 +490,7 @@ img{display:block;max-width:100%}
 .ch-fb{background:#E8EDFF;color:#1B3FA0;border:1px solid #C5D0F8}
 .ch-ig{background:#FDEDF5;color:#9B1B6A;border:1px solid #F5C4E2}
 .ch-wi{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
+.ch-sh{background:#E6F4EA;color:#0E7C3A;border:1px solid #B7E1C4}
 .ch-ot{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
 .pay-paid{background:var(--c-sage-bg);color:var(--c-forest);border:1px solid #c0d9be}
 .pay-pend{background:var(--c-amber-bg);color:var(--c-amber);border:1px solid #e8c8a0}
@@ -1239,6 +1240,31 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   </div>
 </div>
 
+<!-- ══ MARK FOLLOW-UP COMPLETED (confirm + order no) ══════════════ -->
+<div id="m-fu-complete" class="modal">
+  <div class="mc" style="max-width:400px">
+    <div class="mc-hdr">
+      <div class="mc-ttl">✓ Mark as Completed</div>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-complete')">✕</button>
+    </div>
+    <div class="mc-body">
+      <input type="hidden" id="fu-complete-id">
+      <div id="fu-complete-name" style="font-size:14px;font-weight:600;color:var(--c-ink);margin-bottom:4px"></div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;margin-bottom:14px">Confirm this follow-up is done and the order is created in Shopify. Enter the order number for your records.</div>
+      <div class="ff">
+        <label class="ff-l">Shopify Order Number</label>
+        <input id="fu-complete-orderno" type="text" placeholder="e.g. #1234" autocomplete="off"
+               onkeydown="if(event.key==='Enter')doCompleteFollowup()"
+               style="padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+      </div>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <button onclick="closeModal('m-fu-complete')" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer">Cancel</button>
+        <button onclick="doCompleteFollowup()" style="flex:2;padding:11px;border:none;border-radius:var(--r);font-size:13px;font-weight:600;color:#fff;background:var(--c-sage);cursor:pointer">✓ Confirm Completed</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="m-followup" class="modal">
   <div class="mc" style="max-width:580px">
     <div class="mc-hdr">
@@ -1299,8 +1325,9 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           </div>
           <div class="ff"><label class="ff-l">Order Date</label><input id="fu-order-date" type="date"></div>
           <div class="ff"><label class="ff-l">Delivery / Pickup Date</label><input id="fu-due-date" type="date"></div>
+          <div class="ff"><label class="ff-l">Delivery / Pickup Time</label><input id="fu-due-time" type="text" placeholder="e.g. 2pm – 4pm" autocomplete="off"></div>
           <div class="ff"><label class="ff-l">Order Channel</label>
-            <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
+            <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="shopify">Shopify</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
           </div>
           <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="ff"><label class="ff-l">Payment</label>
@@ -2008,7 +2035,8 @@ async function loadFromSupabase(opts = {}) {
         email: f.email||'', recipName: f.recip_name||'',
         recipPhone: f.recip_phone||'', channel: f.channel||'whatsapp',
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
-        dueDate: f.due_date||'', amount: f.amount||0,
+        dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
+        amount: f.amount||0,
         addr: f.addr||'', payment: f.payment||'pending',
         status: f.status||'pending', items: f.items||'',
         cardMsg: f.card_msg||'', remarks: f.remarks||'',
@@ -2625,7 +2653,8 @@ function saveFollowups() {
       email: f.email||null, recip_name: f.recipName||null,
       recip_phone: f.recipPhone||null, channel: f.channel||'whatsapp',
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
-      due_date: f.dueDate||null, amount: f.amount||null,
+      due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
+      amount: f.amount||null,
       addr: f.addr||null, payment: f.payment||'pending',
       status: f.status||'pending', items: f.items||null,
       card_msg: f.cardMsg||null, remarks: f.remarks||null,
@@ -2994,6 +3023,7 @@ function editFollowup(id) {
   const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = f.fulfil || 'delivery';
   const od = document.getElementById('fu-order-date'); if(od) od.value = f.orderDate||'';
   const dd = document.getElementById('fu-due-date');   if(dd) dd.value = f.dueDate||'';
+  const dt = document.getElementById('fu-due-time');   if(dt) dt.value = f.dueTime||'';
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
   const fiEl = document.getElementById('fu-items');    if(fiEl) fiEl.value = f.items||'';
@@ -3043,6 +3073,7 @@ function saveFollowup() {
   const entry = {
     id: editId||('fu-'+Date.now()), name,
     shopifyDraftId: prevFu?.shopifyDraftId || null,
+    orderNo: prevFu?.orderNo || null,
     photo: document.getElementById('fu-photo-b64')?.value||'',
     contact:    document.getElementById('fu-contact').value.trim(),
     email:      document.getElementById('fu-email')?.value.trim()||'',
@@ -3052,6 +3083,7 @@ function saveFollowup() {
     fulfil:     document.getElementById('fu-fulfil')?.value||'delivery',
     orderDate:  document.getElementById('fu-order-date')?.value||'',
     dueDate:    document.getElementById('fu-due-date')?.value||'',
+    dueTime:    document.getElementById('fu-due-time')?.value.trim()||'',
     amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
     payment:    document.getElementById('fu-payment').value,
@@ -3072,8 +3104,30 @@ function toggleFUStatus(id) {
   // 'draft' is set automatically by createShopifyDraft (not part of the manual
   // cycle); tapping a draft lets staff mark it completed if needed.
   const cycle = {pending:'ready', ready:'completed', draft:'completed', completed:'pending'};
-  f.status = cycle[f.status] || 'ready';
+  const next = cycle[f.status] || 'ready';
+  // Completing needs an explicit confirm + order number (prevents mis-click that
+  // would otherwise drop the entry out of the All tab).
+  if (next === 'completed') { openFUCompleteModal(id); return; }
+  f.status = next;
   saveFollowups(); renderFollowup();
+}
+function openFUCompleteModal(id) {
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  document.getElementById('fu-complete-id').value = id;
+  document.getElementById('fu-complete-name').textContent = f.name || '';
+  document.getElementById('fu-complete-orderno').value = f.orderNo || '';   // pre-fill if known
+  closeFUDP();
+  openModal('m-fu-complete');
+}
+function doCompleteFollowup() {
+  const id = document.getElementById('fu-complete-id').value;
+  const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  let on = document.getElementById('fu-complete-orderno').value.trim();
+  if (on && !on.startsWith('#')) on = '#'+on;
+  f.status = 'completed';
+  f.orderNo = on || f.orderNo || null;
+  saveFollowups(); renderFollowup(); closeModal('m-fu-complete');
+  toast('✓ Marked completed' + (f.orderNo ? ' · '+f.orderNo : ''));
 }
 function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
 function toggleComplete(id) { toggleFUStatus(id); }
@@ -3298,16 +3352,18 @@ function renderFollowup() {
   // An entry is "archived" once it's marked completed OR its delivery date has
   // passed. The default "All" view hides archived entries so it stays a short,
   // active list; the Completed tab is where archived entries live.
-  const _t0 = today0();
-  const isArchived = x => x.status!=='draft' && (x.status==='completed' || (x.dueDate && (()=>{ const d=pd(x.dueDate); return !!d && d < _t0; })()));
+  // Only COMPLETED entries leave the All tab → they move to Completed. Overdue
+  // (past delivery date) but not-yet-completed entries STAY in All so they're not
+  // lost — they still need action.
+  const isArchived = x => x.status==='completed';
   if(fuFilter==='all' || !fuFilter)  list=list.filter(x=>!isArchived(x));
   if(fuFilter==='followup-pending') list=list.filter(x=>x.status==='pending');
   if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
   if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
   if(fuFilter==='completed')        list=list.filter(x=>isArchived(x));
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
-  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
-  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
+  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
+  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
   // Sort by dueDate ascending (most urgent first), undated at bottom
   list.sort((a,b) => {
     if (!a.dueDate && !b.dueDate) return 0;
@@ -3349,8 +3405,11 @@ function renderFollowup() {
       const color = isCompleted ? 'var(--c-muted)' : isPast2 ? 'var(--c-red)' : isToday2 ? 'var(--c-burg)' : 'var(--c-ink)';
       const weight = (isToday2 || isPast2) && !isCompleted ? '600' : '400';
       dateCellHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">${dStr}</div>
+        ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">🕐 ${esc(f.dueTime)}</div>`:''}
         ${isPast2&&!isCompleted?'<div style="font-size:9px;color:var(--c-red);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Overdue</div>':''}
         ${isToday2&&!isCompleted?'<div style="font-size:9px;color:var(--c-burg);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Today</div>':''}`;
+    } else if (f.dueTime) {
+      dateCellHtml = `<div style="font-size:10px;color:var(--c-ink)">🕐 ${esc(f.dueTime)}</div>`;
     }
     const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
@@ -3386,8 +3445,8 @@ function renderFollowup() {
 /* ─── Follow-up Detail Panel ─────────────────────────────────── */
 function openFUDP(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
-  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'};
-  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',walkin:'ch-wi',other:'ch-ot'};
+  const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
+  const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
   const isCompleted2 = f.status==='completed', isReady2 = f.status==='ready', isDraft2 = f.status==='draft';
   const payLbl = f.payment==='paid' ? 'Paid' : 'Pending';
   const payCl  = f.payment==='paid' ? 'pay-paid' : 'pay-pend';
@@ -3431,9 +3490,11 @@ function openFUDP(id) {
     ['Fulfilment',     fulfil],
     ['Order Date',     f.orderDate ? fd(pd(f.orderDate)) : '–'],
     [fulfil+' Date',   f.dueDate   ? fd(pd(f.dueDate))  : '–'],
+    [fulfil+' Time',   f.dueTime   || '–'],
     ['Amount',         f.amount && parseFloat(f.amount)>0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–'],
     ['Payment',        payLbl],
   ];
+  if (f.orderNo) rows.push(['Shopify Order', f.orderNo]);
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
   });

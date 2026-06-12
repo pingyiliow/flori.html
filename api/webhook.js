@@ -128,9 +128,11 @@ export default async function handler(req, res) {
       if (tags.includes('bloomflow-followup')) fuId = tags.find(t => /^fu-/.test(t)) || null;
     }
     if (fuId) {
-      const { error: fuErr } = await sb.from('followups').update({ status: 'completed' }).eq('id', fuId);
+      // Also stamp the created order's number so it auto-shows on the completed
+      // follow-up (no manual entry needed for orders exported from BloomFlow).
+      const { error: fuErr } = await sb.from('followups').update({ status: 'completed', order_no: order.name || null }).eq('id', fuId);
       if (fuErr) console.error('Follow-up complete error:', fuErr.message);
-      else console.log(`[Webhook] follow-up ${fuId} → completed`);
+      else console.log(`[Webhook] follow-up ${fuId} → completed (${order.name})`);
     }
   } catch (e) { console.error('Follow-up tag check failed:', e.message); }
 
