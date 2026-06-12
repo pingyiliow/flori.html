@@ -1039,6 +1039,16 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       </div>
     </div>
     <div>
+      <div class="sp-section-ttl">Import an Order</div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Pull a specific older order into the list by its number (for orders outside the normal sync window).</div>
+      <div style="display:flex;gap:8px">
+        <input id="import-order-num" type="text" placeholder="e.g. 121827" autocomplete="off"
+               onkeydown="if(event.key==='Enter'){importOrderByName(this.value);this.value='';}"
+               style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+        <button class="btn btn-primary btn-sm" onclick="(()=>{const el=document.getElementById('import-order-num');importOrderByName(el.value);el.value='';})()">Import</button>
+      </div>
+    </div>
+    <div>
       <div class="sp-section-ttl">Account</div>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px" id="sp-user-email"></div>
       <button class="btn btn-ghost" onclick="signOut()" style="width:100%">Sign Out</button>
@@ -1733,6 +1743,46 @@ async function refreshAll() {
 // unchanged since they lack the gid prefix.
 function shopId(raw){ return String(raw||'').replace(/^gid:\/\/shopify\/Order\//,''); }
 
+// Map a Shopify order GraphQL node → the local ORDERS shape (shared by syncOrders
+// and importOrderByName so imported orders look exactly like synced ones).
+function _mapShopifyOrder(n){
+  const attrs = n.customAttributes || [];
+  const ds = getDueDate(attrs);
+  const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
+  const imgUrl = lineItems.find(i => i.image)?.image || null;
+  const priceData = n.currentTotalPriceSet?.shopMoney;
+  const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
+  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+}
+
+// One-time import: pull a specific order from Shopify by its number (e.g. #121827)
+// and add it to the list. Useful for old/fulfilled orders that fall outside the
+// normal sync window and aren't yet in Supabase.
+async function importOrderByName(rawName){
+  const name = String(rawName||'').trim().replace(/^#/, '');
+  if (!name) { toast('Enter an order number'); return; }
+  toast('Importing #'+name+'…');
+  try {
+    const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
+      id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+      customer{firstName lastName} lineItems(first:50){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+      customAttributes{key value} } } } }`;
+    const data = await shopifyGQL(q);
+    const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
+    if (!node) { toast('⚠ Order #'+name+' not found in Shopify'); return; }
+    const mapped = _mapShopifyOrder(node);
+    const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
+    if (idx !== -1) ORDERS[idx] = { ...ORDERS[idx], ...mapped };  // refresh if already present
+    else ORDERS.push(mapped);
+    rehydrateOrders();
+    saveOrders(mapped);   // single-row upsert → persists to Supabase + localStorage
+    renderAll();
+    toast('✓ Imported '+(node.name||('#'+name)));
+  } catch(e) {
+    toast('⚠ Import failed: ' + (e.message||'error'));
+  }
+}
+
 async function syncOrders() {
   const ico = document.getElementById('sync-ico');
   ico.classList.add('spin');
@@ -1750,16 +1800,7 @@ async function syncOrders() {
     const raw = [...data1.orders.edges, ...data2.orders.edges]
       .map(e => e.node)
       .filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
-    const shopify = raw.map(n => {
-      const attrs = n.customAttributes || [];
-      const ds = getDueDate(attrs);
-      const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
-      const imgUrl = lineItems.find(i => i.image)?.image || null;
-      const priceData = n.currentTotalPriceSet?.shopMoney;
-      const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-      const mapped = { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
-      return mapped;
-    });
+    const shopify = raw.map(_mapShopifyOrder);
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
