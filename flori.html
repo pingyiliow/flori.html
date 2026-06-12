@@ -1048,8 +1048,11 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
                style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
         <button class="btn btn-primary btn-sm" onclick="(()=>{const el=document.getElementById('import-order-num');importOrderByName(el.value);el.value='';})()">Import</button>
       </div>
-      <button id="import-year-btn" class="btn btn-ghost" onclick="importYearOrders()" style="width:100%;margin-top:10px">Import past 12 months</button>
-      <div style="font-size:10px;color:var(--c-muted);margin-top:4px">Pulls every order from the last year (may take a minute).</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px">
+        <div class="ff" style="flex:1"><label class="ff-l">Import all orders since</label><input id="import-from-date" type="date"></div>
+        <button id="import-year-btn" class="btn btn-ghost" onclick="importOrdersSince(document.getElementById('import-from-date').value)" style="white-space:nowrap">Import orders</button>
+      </div>
+      <div style="font-size:10px;color:var(--c-muted);margin-top:4px">e.g. set 2025-01-01 to pull last year + this year (may take a minute).</div>
     </div>
     <div>
       <div class="sp-section-ttl">Account</div>
@@ -1812,17 +1815,18 @@ async function importOrderByName(rawName){
   }
 }
 
-// Bulk import: page through every order created in the last 12 months and add
-// them so the whole year shows in the list. Gentle on Shopify's rate limit
-// (small pages + delay + throttle retry); the merge in syncOrders keeps them.
+// Bulk import: page through every order created since a given date and add them
+// so past orders show in the list. Gentle on Shopify's rate limit (small pages +
+// delay + throttle retry); the merge in syncOrders keeps them persisted.
 let _importingYear = false;
-async function importYearOrders(){
+async function importOrdersSince(fromISO){
   if (_importingYear) return;
-  if (!confirm('Import all orders from the past 12 months? This may take a minute.')) return;
+  // Default to Jan 1 of last year (covers last year + this year).
+  if (!fromISO) fromISO = (new Date().getFullYear()-1) + '-01-01';
+  if (!confirm('Import all orders created since '+fromISO+'? This may take a minute.')) return;
   _importingYear = true;
   const btn = document.getElementById('import-year-btn'); if (btn){ btn.disabled = true; btn.textContent = 'Importing…'; }
-  const since = new Date(); since.setFullYear(since.getFullYear()-1);
-  const sinceISO = since.toISOString().slice(0,10);
+  const sinceISO = fromISO;
   let cursor = null, page = 0, total = 0;
   try {
     while (page < 120) {
@@ -1852,13 +1856,13 @@ async function importYearOrders(){
       await new Promise(r=>setTimeout(r, 500));  // stay under the rate limit
     }
     rehydrateOrders(); saveOrders(); renderAll();
-    toast('✓ Imported '+total+' orders from the past year');
+    toast('✓ Imported '+total+' orders since '+fromISO);
   } catch(e){
     rehydrateOrders(); saveOrders(); renderAll();
     toast('⚠ Import stopped after '+total+': '+(e.message||'error'));
   } finally {
     _importingYear = false;
-    if (btn){ btn.disabled = false; btn.textContent = 'Import past 12 months'; }
+    if (btn){ btn.disabled = false; btn.textContent = 'Import orders'; }
   }
 }
 
@@ -3674,6 +3678,8 @@ function openSP() {
   updateConnectedUI();
   const emailEl = document.getElementById('sp-user-email');
   if (emailEl) emailEl.textContent = currentUser ? '✉ '+currentUser.email : 'Not signed in';
+  const fromEl = document.getElementById('import-from-date');
+  if (fromEl && !fromEl.value) fromEl.value = (new Date().getFullYear()-1) + '-01-01';   // default: last year Jan 1
   document.getElementById('sp').classList.add('on');
   document.getElementById('sp-ov').classList.add('on');
 }
