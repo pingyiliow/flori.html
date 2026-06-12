@@ -869,6 +869,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         </div>
         <div class="btn-row">
           <input id="order-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
+          <button class="btn btn-ghost" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making">🏭 By Product</button>
           <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
         </div>
       </div>
@@ -2221,6 +2222,13 @@ function rehydrateOrders() {
 
 /* ─── Rendering ──────────────────────────────────────────────── */
 let orderFilter = 'today', typeFilter = 'all';
+let prodMode = false;   // Production mode: group the orders list by product, not date
+function toggleProdMode(){
+  prodMode = !prodMode;
+  const b = document.getElementById('prod-mode-btn');
+  if (b){ b.classList.toggle('btn-primary', prodMode); b.classList.toggle('btn-ghost', !prodMode); b.textContent = prodMode ? '📅 By Date' : '🏭 By Product'; }
+  renderOrders();
+}
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 let fuFilter = 'all';
 
@@ -2467,7 +2475,10 @@ function orderCard(o, item, idx) {
     ? `<div class="onote">⚠️ ${esc(o.internalNote.length > 70 ? o.internalNote.slice(0, 70) + '…' : o.internalNote)}</div>`
     : '';
 
-  const timeTxt = o.dueTime || '–';
+  // In production mode show the due date on the card (cards aren't grouped by date there).
+  const timeTxt = prodMode
+    ? (((o.dateObj ? fd(o.dateObj) : (o.dueDate||'')) + (o.dueTime ? ' · '+o.dueTime : '')) || '–')
+    : (o.dueTime || '–');
   const typeTag = o.type === 'pickup'
     ? `<span class="tb pu">${zh ? '自取' : 'Pickup'}</span>`
     : `<span class="tb del">${zh ? '送货' : 'Delivery'}</span>`;
@@ -2622,12 +2633,26 @@ function renderOrders() {
   });
   const unitState = u => u.o.fulfilled ? 'fulfilled' : ((u.item ? u.item.ready : u.o.ready) ? 'ready' : 'pending');
   const groups = [];
-  units.forEach(u => { const o=u.o; const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(u); });
+  if (prodMode) {
+    // Production mode: group by product so the same item across orders is made
+    // together. Biggest batches first; within a batch sort by due date.
+    units.forEach(u => {
+      const title = (u.item ? u.item.title : ((u.o.lineItems&&u.o.lineItems[0]&&u.o.lineItems[0].title)||u.o.product||'–')) || '–';
+      const k = String(title).trim().toLowerCase();
+      let g = groups.find(x=>x.k===k); if(!g){ g={k, prod:title, items:[]}; groups.push(g); } g.items.push(u);
+    });
+    groups.sort((a,b)=> b.items.length - a.items.length || a.prod.localeCompare(b.prod));
+    groups.forEach(g => g.items.sort((a,b)=> (a.o.dateObj?+a.o.dateObj:8.64e15) - (b.o.dateObj?+b.o.dateObj:8.64e15)));
+  } else {
+    units.forEach(u => { const o=u.o; const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(u); });
+  }
   let html = '';
   groups.forEach(g => {
-    const isGrpLate = g.d && isPast(g.d);
+    const isGrpLate = !prodMode && g.d && isPast(g.d);
     let lbl='–';
-    if (g.d) {
+    if (prodMode) {
+      lbl = `🏭 ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
+    } else if (g.d) {
       if (isPast(g.d)) lbl = 'Overdue · ' + fd(g.d);
       else if (isToday(g.d)) lbl = 'Today · ' + fd(g.d);
       else lbl = fd(g.d);
