@@ -1790,10 +1790,13 @@ async function syncOrders() {
   try {
     // Query 1: 250 most recent open orders
     const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
-    // Query 2: orders created in last 7 days (catches today's orders even if >250 total open)
-    const since = new Date(); since.setDate(since.getDate()-7);
+    // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
+    // updated_at (not created_at) means each sync also re-pulls older/fulfilled
+    // orders that were changed recently, so their Shopify updates flow in — while
+    // the merge below keeps everything else persisted.
+    const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"created_at:>=${sinceISO}",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
