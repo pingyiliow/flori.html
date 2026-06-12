@@ -1048,6 +1048,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
                style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
         <button class="btn btn-primary btn-sm" onclick="(()=>{const el=document.getElementById('import-order-num');importOrderByName(el.value);el.value='';})()">Import</button>
       </div>
+      <button id="import-year-btn" class="btn btn-ghost" onclick="importYearOrders()" style="width:100%;margin-top:10px">Import past 12 months</button>
+      <div style="font-size:10px;color:var(--c-muted);margin-top:4px">Pulls every order from the last year (may take a minute).</div>
     </div>
     <div>
       <div class="sp-section-ttl">Account</div>
@@ -1807,6 +1809,56 @@ async function importOrderByName(rawName){
     toast('✓ Imported '+(node.name||('#'+name)));
   } catch(e) {
     toast('⚠ Import failed: ' + (e.message||'error'));
+  }
+}
+
+// Bulk import: page through every order created in the last 12 months and add
+// them so the whole year shows in the list. Gentle on Shopify's rate limit
+// (small pages + delay + throttle retry); the merge in syncOrders keeps them.
+let _importingYear = false;
+async function importYearOrders(){
+  if (_importingYear) return;
+  if (!confirm('Import all orders from the past 12 months? This may take a minute.')) return;
+  _importingYear = true;
+  const btn = document.getElementById('import-year-btn'); if (btn){ btn.disabled = true; btn.textContent = 'Importing…'; }
+  const since = new Date(); since.setFullYear(since.getFullYear()-1);
+  const sinceISO = since.toISOString().slice(0,10);
+  let cursor = null, page = 0, total = 0;
+  try {
+    while (page < 120) {
+      page++;
+      const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
+      const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
+        pageInfo { hasNextPage endCursor }
+        edges { node { id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+          customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+          customAttributes{key value} } } } }`;
+      let data;
+      for (let attempt=0; attempt<5; attempt++){
+        try { data = await shopifyGQL(q); break; }
+        catch(e){ if (/throttle/i.test(e.message) && attempt<4){ await new Promise(r=>setTimeout(r, 2500*(attempt+1))); continue; } throw e; }
+      }
+      const conn = data.orders;
+      (conn.edges||[]).map(e=>e.node).forEach(n => {
+        const mapped = _mapShopifyOrder(n);
+        const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
+        if (idx !== -1) ORDERS[idx] = { ...ORDERS[idx], ...mapped }; else ORDERS.push(mapped);
+        total++;
+      });
+      if (btn) btn.textContent = 'Imported '+total+'…';
+      setPill('Importing year… '+total);
+      if (!conn.pageInfo?.hasNextPage) break;
+      cursor = conn.pageInfo.endCursor;
+      await new Promise(r=>setTimeout(r, 500));  // stay under the rate limit
+    }
+    rehydrateOrders(); saveOrders(); renderAll();
+    toast('✓ Imported '+total+' orders from the past year');
+  } catch(e){
+    rehydrateOrders(); saveOrders(); renderAll();
+    toast('⚠ Import stopped after '+total+': '+(e.message||'error'));
+  } finally {
+    _importingYear = false;
+    if (btn){ btn.disabled = false; btn.textContent = 'Import past 12 months'; }
   }
 }
 
