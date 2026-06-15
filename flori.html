@@ -679,6 +679,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .stk-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:all .12s;position:relative}
 .stk-card:hover{border-color:var(--c-border2);box-shadow:0 2px 8px rgba(77,14,19,.08)}
 .stk-card.low{border-color:#EF9A9A;background:#FFF5F5}
+.stk-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--c-bg);cursor:zoom-in}
 .stk-left{display:flex;flex-direction:column;gap:3px;min-width:0}
 .stk-name{font-size:13px;font-weight:600;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stk-unit{font-size:10px;color:var(--c-muted)}
@@ -690,6 +691,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .buy-item.done{opacity:.5}
 .buy-check{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--c-border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--c-surface);cursor:pointer;color:transparent}
 .buy-check.checked{background:#EDF7ED;border-color:#A5D6A7;color:#2E7D32;font-weight:700}
+.buy-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--c-bg);cursor:zoom-in}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -1184,6 +1186,14 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         <div class="ff"><label class="ff-l">Quantity</label><input id="i-qty" type="number" value="0" min="0"></div>
         <div class="ff"><label class="ff-l">Unit</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier, price per stem…"></textarea></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
+          <input type="hidden" id="i-photo">
+          <div class="photo-zone" id="i-photo-zone" style="min-height:90px">
+            <div class="photo-zone-icon" style="font-size:20px">📷</div>
+            <div class="photo-zone-lbl">Tap to add a photo</div>
+            <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'i-photo-zone','i-photo')">
+          </div>
+        </div>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="saveInv()">Save Item</button>
@@ -1206,6 +1216,14 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
           <select id="p-urg"><option value="today">Today</option><option value="week">This Week</option><option value="stock">Stock Up</option></select>
         </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><input id="p-notes" type="text" placeholder="Supplier / price / delivery day"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
+          <input type="hidden" id="p-photo">
+          <div class="photo-zone" id="p-photo-zone" style="min-height:90px">
+            <div class="photo-zone-icon" style="font-size:20px">📷</div>
+            <div class="photo-zone-lbl">Tap to add a photo</div>
+            <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'p-photo-zone','p-photo')">
+          </div>
+        </div>
       </div>
       <div class="btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="savePur()">Add Item</button>
@@ -2002,7 +2020,7 @@ function saveInventory() {
   if (hasSB()) {
     sbUpsert('inventory', INVENTORY.map(i => ({
       id: i.id, name: i.name, cat: i.cat||'other',
-      qty: i.qty||0, unit: i.unit||'pcs', notes: i.notes||null
+      qty: i.qty||0, unit: i.unit||'pcs', notes: i.notes||null, photo: i.photo||null
     }))).catch(console.error);
   }
 }
@@ -2011,7 +2029,7 @@ function savePurchases() {
   if (hasSB()) {
     sbUpsert('purchases', PURCHASES.map(p => ({
       id: p.id, name: p.name, qty: p.qty||null,
-      urg: p.urg||'week', notes: p.notes||null, done: p.done||false
+      urg: p.urg||'week', notes: p.notes||null, done: p.done||false, photo: p.photo||null
     }))).catch(console.error);
   }
 }
@@ -2703,8 +2721,9 @@ function renderInventory() {
     const label = INV_CAT[cat] || cat;
     const cards = byCat[cat].map(i => {
       const low = (i.qty||0) <= INV_LOW;
+      const thumb = i.photo ? `<img class="stk-thumb" src="${esc(i.photo)}" alt="" onclick="event.stopPropagation();openZoom('${String(i.photo).replace(/'/g,"\\'")}','')">` : '';
       return `<div class="stk-card ${low?'low':''}" onclick="editInv('${i.id}')">
-        <div class="stk-left"><div class="stk-name">${esc(i.name)}</div><div class="stk-unit">${esc(i.unit||'')}</div></div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">${thumb}<div class="stk-left"><div class="stk-name">${esc(i.name)}</div><div class="stk-unit">${esc(i.unit||'')}</div></div></div>
         <div class="stk-qty ${low?'low':''}">${i.qty||0}</div>
       </div>`;
     }).join('');
@@ -2722,8 +2741,10 @@ function renderPurchase() {
   cont.innerHTML = sorted.map(p => {
     const u = URG[p.urg] || URG.stock;
     const sub = [p.qty, p.notes].filter(Boolean).join(' · ');
+    const thumb = p.photo ? `<img class="buy-thumb" src="${esc(p.photo)}" alt="" onclick="openZoom('${String(p.photo).replace(/'/g,"\\'")}','')">` : '';
     return `<div class="buy-item ${p.done?'done':''}">
       <button type="button" class="buy-check ${p.done?'checked':''}" role="checkbox" aria-checked="${p.done?'true':'false'}" aria-label="Mark ${esc(p.name)} bought" onclick="togglePur('${p.id}')">${p.done?'✓':''}</button>
+      ${thumb}
       <div class="buy-main"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
       <span class="buy-urg ${u.c}">${u.l}</span>
       <button class="buy-del" onclick="delPur('${p.id}')">✕</button>
@@ -3789,6 +3810,7 @@ function openAddInv(cat) {
   document.getElementById('i-qty').value = '0';
   document.getElementById('i-unit').value = '';
   document.getElementById('i-notes').value = '';
+  setPhotoZone('i-photo-zone', 'i-photo', '');
   document.getElementById('m-inv-ttl').textContent = 'Add Stock Item';
   document.getElementById('i-del-btn').style.display = 'none';
   openModal('m-inv');
@@ -3801,6 +3823,7 @@ function editInv(id) {
   document.getElementById('i-qty').value = i.qty || 0;
   document.getElementById('i-unit').value = i.unit || '';
   document.getElementById('i-notes').value = i.notes || '';
+  setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('m-inv-ttl').textContent = 'Edit Stock Item';
   document.getElementById('i-del-btn').style.display = '';
   openModal('m-inv');
@@ -3809,9 +3832,10 @@ function deleteInvItem() {
   const id = document.getElementById('i-edit-id').value;
   if (!id || !confirm('Remove this item?')) return;
   INVENTORY = INVENTORY.filter(x => x.id !== id);
-  saveInventory(); closeModal('m-inv'); renderInventory(); toast('Removed');
+  saveInventory(); if (hasSB()) sbDelete('inventory', id);
+  closeModal('m-inv'); renderInventory(); toast('Removed');
 }
-function openAddPur()  {openModal('m-pur');}
+function openAddPur()  {setPhotoZone('p-photo-zone','p-photo','');openModal('m-pur');}
 
 /* ─── Photo compression ──────────────────────────────────────── */
 function compressPhoto(file, maxPx, quality, callback) {
@@ -3858,6 +3882,16 @@ function handlePhotoUpload(input, zoneId, hiddenId) {
     if (hidden) hidden.value = src;
     toast('✓ Photo added');
   });
+}
+
+// Reset or populate a generic .photo-zone (inventory / purchase modals). Pass a
+// src to show the image, or '' to restore the empty "tap to add" placeholder.
+function setPhotoZone(zoneId, hiddenId, src) {
+  const hidden = document.getElementById(hiddenId); if (hidden) hidden.value = src || '';
+  const zone = document.getElementById(zoneId); if (!zone) return;
+  zone.innerHTML = src
+    ? `<img src="${src}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`
+    : `<div class="photo-zone-icon" style="font-size:20px">📷</div><div class="photo-zone-lbl">Tap to add a photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
 }
 
 function handleFUPhoto(input) {
@@ -4003,12 +4037,12 @@ function saveInv(){
   const name=document.getElementById('i-name').value.trim();
   if(!name){toast('Name required');return;}
   const editId=document.getElementById('i-edit-id').value;
-  const data={name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim()};
+  const data={name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||''};
   if(editId){ const i=INVENTORY.find(x=>x.id===editId); if(i)Object.assign(i,data); }
   else { INVENTORY.push({id:'inv-'+Date.now(),...data}); }
   saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
 }
-function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));toast('✓ Added');renderPurchase();}
+function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),photo:document.getElementById('p-photo').value||'',done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));setPhotoZone('p-photo-zone','p-photo','');toast('✓ Added');renderPurchase();}
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
 function quickAssign(id, field, value) {
@@ -4116,10 +4150,10 @@ async function markDelivered(id){
 }
 function delOrder(id){if(!confirm('Delete this order? This cannot be undone.'))return;ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();if(hasSB())sbDelete('orders',id);renderAll();toast('Removed');}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
-function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();renderInventory();toast('Removed');}
+function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
 function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
-function delPur(id){PURCHASES=PURCHASES.filter(x=>x.id!==id);savePurchases();renderPurchase();}
-function clearDone(){PURCHASES=PURCHASES.filter(x=>!x.done);savePurchases();renderPurchase();toast('Cleared done items');}
+function delPur(id){PURCHASES=PURCHASES.filter(x=>x.id!==id);savePurchases();if(hasSB())sbDelete('purchases',id);renderPurchase();}
+function clearDone(){const gone=PURCHASES.filter(x=>x.done).map(x=>x.id);PURCHASES=PURCHASES.filter(x=>!x.done);savePurchases();if(hasSB())gone.forEach(id=>sbDelete('purchases',id));renderPurchase();toast('Cleared done items');}
 
 function editOrder(id) {
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
