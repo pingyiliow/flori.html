@@ -2460,11 +2460,12 @@ function orderCard(o, item, idx) {
   if (state === 'fulfilled') cls.push('done');
   if (o.priority === 'urgent' && !o.fulfilled) cls.push('urg');
 
-  // thumbnail — for a SPLIT product show only that product's own photo (never the
-  // order cover, or a product with no photo would inherit another product's / the
-  // cover image). A whole-order card may fall back to any product photo, then cover.
+  // thumbnail — a SPLIT product shows its own photo first. Only the FIRST unit may
+  // fall back to the order cover (the cover represents the main/first product), so
+  // a later photo-less product (e.g. "Omakase Greens") no longer inherits it.
+  // A whole-order card may fall back to any product photo, then the cover.
   const imgSrc = multi
-    ? (itemPhotos(item)[0] || null)
+    ? (itemPhotos(item)[0] || (idx === 0 ? o.image : null) || null)
     : ((items ? (items.find(i => itemPhotos(i).length) || {}).image : null) || o.image || null);
   let ph;
   if (imgSrc) {
