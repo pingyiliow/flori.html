@@ -1942,31 +1942,37 @@ async function syncOrders() {
     const freshIds = new Set(shopify.map(o => o.id));
     const kept = ORDERS.filter(o => o.src === 'manual' || !freshIds.has(shopId(o.id)));
     ORDERS = [...shopify, ...kept];
-    // Photo-loss guard. This sync ends with a full saveOrders() that re-writes EVERY
-    // order from memory. If our memory is stale or incomplete — a second tab/device
-    // uploaded a photo after we loaded, or the Supabase load above hiccupped — that
-    // write would erase a photo that's safe in the database with an in-memory null.
-    // So re-read the current photos straight from Supabase and restore any the order
-    // in memory is missing, BEFORE saving. (We only ever fill a missing photo, never
-    // replace one, so a just-saved upload still wins.)
+    // Multi-device clobber guard. This sync ends with a full saveOrders() that
+    // re-writes EVERY order from memory. With several staff on different devices all
+    // day, this device's memory is often slightly behind: a teammate may have just
+    // uploaded a photo, ticked an item ready, assigned a designer, or edited a
+    // product on another device. Every such edit writes straight to Supabase, so the
+    // database — not our memory — holds the latest. Re-read it right before saving
+    // and overlay the app-managed fields, so the bulk write carries Shopify's fresh
+    // status/totals on top of the newest app data instead of erasing a teammate's
+    // change. (Shopify-sourced fields — totals, dates, customer, fulfilled — keep the
+    // fresh values from this sync; only app-managed fields are taken from Supabase.)
     if (hasSB()) {
       try {
         const remote = await sbGet('orders');
         const byRemote = {}; (remote||[]).forEach(r => { byRemote[shopId(r.id)] = r; });
         ORDERS.forEach(o => {
-          const r = byRemote[shopId(o.id)]; if (!r) return;
-          if (Array.isArray(o.lineItems) && Array.isArray(r.line_items)) {
-            o.lineItems.forEach((li, i) => {
-              const rli = r.line_items[i];
-              if (rli && !itemPhotos(li).length && itemPhotos(rli).length) {
-                li.images = Array.isArray(rli.images) ? rli.images.slice() : (rli.image ? [rli.image] : []);
-                li.image  = li.images[0] || null;
-              }
-            });
+          const r = byRemote[shopId(o.id)]; if (!r) return;   // new order not yet in DB → keep Shopify data
+          if (Array.isArray(r.line_items) && r.line_items.length) {
+            o.lineItems = r.line_items;                       // names/prices/qty + per-item photos & ready
+            o.product   = r.product || o.lineItems.map(i => i.title).join(', ');
           }
-          if (!o.image) o.image = (o.lineItems||[]).find(i=>itemPhotos(i).length)?.image || r.image || null;
+          o.image        = r.image || (o.lineItems||[]).find(i => itemPhotos(i).length)?.image || null;
+          o.ready        = !!r.ready;
+          o.designer     = r.designer || null;
+          o.priority     = r.priority || 'normal';
+          o.internalNote = r.internal_note || null;
+          if (Array.isArray(r.recipe) && r.recipe.length) o.recipe = r.recipe;
+          o.manualPrice  = r.manual_price ?? o.manualPrice ?? null;
+          o.manualAddr   = r.manual_addr  || o.manualAddr  || null;
+          o.fulfilled    = o.fulfilled || !!r.fulfilled;      // keep a fulfilled state set on any device
         });
-      } catch (e) { console.warn('Photo-preserve read failed:', e && e.message); }
+      } catch (e) { console.warn('Sync merge read failed:', e && e.message); }
     }
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
