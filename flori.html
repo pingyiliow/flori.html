@@ -1825,7 +1825,7 @@ function _mapShopifyOrder(n){
   const imgUrl = lineItems.find(i => i.image)?.image || null;
   const priceData = n.currentTotalPriceSet?.shopMoney;
   const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
 }
 
 // One-time import: pull a specific order from Shopify by its number (e.g. #121827)
@@ -1837,13 +1837,14 @@ async function importOrderByName(rawName){
   toast('Importing #'+name+'…');
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
-      id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+      id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
       customer{firstName lastName} lineItems(first:50){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
     if (!node) { toast('⚠ Order #'+name+' not found in Shopify'); return; }
     const mapped = _mapShopifyOrder(node);
+    if (mapped.cancelled) { toast('⚠ '+(node.name||('#'+name))+' is cancelled in Shopify — not imported'); return; }
     // Importing an order by number is an explicit "bring it back" — clear any delete
     // tombstone so it isn't filtered straight back out.
     if (DELETED_ORDERS.has(mapped.id) || DELETED_ORDERS.has(String(node.id))) {
@@ -1880,7 +1881,7 @@ async function importOrdersSince(fromISO){
       const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
-        edges { node { id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+        edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
           customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
           customAttributes{key value} } } } }`;
       let data;
@@ -1891,6 +1892,7 @@ async function importOrdersSince(fromISO){
       const conn = data.orders;
       (conn.edges||[]).map(e=>e.node).forEach(n => {
         const mapped = _mapShopifyOrder(n);
+        if (mapped.cancelled) return;                // skip orders cancelled in Shopify
         if (DELETED_ORDERS.has(mapped.id)) return;   // don't re-import an order deleted in BloomFlow
         const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
         if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped); else ORDERS.push(mapped);
@@ -1919,21 +1921,27 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
     const raw = [...data1.orders.edges, ...data2.orders.edges]
       .map(e => e.node)
       .filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
-    const shopify = raw.map(_mapShopifyOrder);
+    const mappedAll = raw.map(_mapShopifyOrder);
+    // Orders cancelled in Shopify should not live in BloomFlow. Query 2 (by
+    // updated_at) re-surfaces a freshly-cancelled order, so drop them here and clean
+    // any copy out of Supabase + the list — cancelling in Shopify removes it for good.
+    const cancelledIds = new Set(mappedAll.filter(o => o.cancelled).map(o => o.id));
+    if (cancelledIds.size && hasSB()) cancelledIds.forEach(id => sbDelete('orders', id));
+    const shopify = mappedAll.filter(o => !o.cancelled);
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
@@ -1968,9 +1976,9 @@ async function syncOrders() {
     // (manuals + older Shopify orders) is preserved by id.
     const freshIds = new Set(shopify.map(o => o.id));
     const kept = ORDERS.filter(o => o.src === 'manual' || !freshIds.has(shopId(o.id)));
-    // Drop orders the user deleted in BloomFlow — they may still be OPEN in Shopify
-    // (so they come back in the fetch above) but must stay gone here.
-    ORDERS = [...shopify, ...kept].filter(o => !DELETED_ORDERS.has(shopId(o.id)));
+    // Drop orders the user deleted in BloomFlow, plus anything cancelled in Shopify
+    // (a cancelled order in `kept` must not survive either).
+    ORDERS = [...shopify, ...kept].filter(o => !DELETED_ORDERS.has(shopId(o.id)) && !cancelledIds.has(shopId(o.id)));
     // Multi-device clobber guard. This sync ends with a full saveOrders() that
     // re-writes EVERY order from memory. With several staff on different devices all
     // day, this device's memory is often slightly behind: a teammate may have just

@@ -21,6 +21,14 @@ export default async function handler(req, res) {
 
   const sb = createClient(SB_URL, SB_KEY);
 
+  // Order cancelled in Shopify (orders/cancelled, or an update carrying cancelled_at):
+  // it shouldn't live in BloomFlow, so remove it and stop here.
+  if (topic === 'orders/cancelled' || order.cancelled_at) {
+    await sb.from('orders').delete().eq('id', String(order.id));
+    console.log(`[Webhook] ${order.name} cancelled → removed from BloomFlow`);
+    return res.status(200).json({ ok: true, cancelled: true, order: order.name });
+  }
+
   const attrs   = order.note_attributes || [];
   const getAttr = k => attrs.find(a => a.name?.toLowerCase() === k.toLowerCase())?.value || '';
 
