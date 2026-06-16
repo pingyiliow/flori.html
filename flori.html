@@ -1942,6 +1942,32 @@ async function syncOrders() {
     const freshIds = new Set(shopify.map(o => o.id));
     const kept = ORDERS.filter(o => o.src === 'manual' || !freshIds.has(shopId(o.id)));
     ORDERS = [...shopify, ...kept];
+    // Photo-loss guard. This sync ends with a full saveOrders() that re-writes EVERY
+    // order from memory. If our memory is stale or incomplete — a second tab/device
+    // uploaded a photo after we loaded, or the Supabase load above hiccupped — that
+    // write would erase a photo that's safe in the database with an in-memory null.
+    // So re-read the current photos straight from Supabase and restore any the order
+    // in memory is missing, BEFORE saving. (We only ever fill a missing photo, never
+    // replace one, so a just-saved upload still wins.)
+    if (hasSB()) {
+      try {
+        const remote = await sbGet('orders');
+        const byRemote = {}; (remote||[]).forEach(r => { byRemote[shopId(r.id)] = r; });
+        ORDERS.forEach(o => {
+          const r = byRemote[shopId(o.id)]; if (!r) return;
+          if (Array.isArray(o.lineItems) && Array.isArray(r.line_items)) {
+            o.lineItems.forEach((li, i) => {
+              const rli = r.line_items[i];
+              if (rli && !itemPhotos(li).length && itemPhotos(rli).length) {
+                li.images = Array.isArray(rli.images) ? rli.images.slice() : (rli.image ? [rli.image] : []);
+                li.image  = li.images[0] || null;
+              }
+            });
+          }
+          if (!o.image) o.image = (o.lineItems||[]).find(i=>itemPhotos(i).length)?.image || r.image || null;
+        });
+      } catch (e) { console.warn('Photo-preserve read failed:', e && e.message); }
+    }
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
