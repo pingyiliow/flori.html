@@ -4584,32 +4584,40 @@ function _renderDP(order, localOrder) {
   </div>`;
 
   // ── Items & Price ──
-  if (items.length) {
-    const currency = items[0]?.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR';
+  // Line items are app-managed: the user can rename products, change prices or
+  // quantities, add photos, or delete items, and Shopify's live copy knows none of
+  // it. So render rows from the STORED order (the source of truth) — using the
+  // current copy in ORDERS, since localOrder may be a snapshot from before a sync.
+  // Fall back to Shopify's line items only for orders we have nothing stored for.
+  const liSrc  = ORDERS.find(x => String(x.id) === String(localOrder.id)) || localOrder;
+  const liLocal = liSrc.lineItems || [];
+  const useLocal = liLocal.length > 0;
+  const dispItems = useLocal ? liLocal : items;
+  if (dispItems.length) {
+    const currency = (useLocal ? liLocal[0]?.currency : items[0]?.originalUnitPriceSet?.shopMoney?.currencyCode) || 'MYR';
     const subtotal = order.currentSubtotalPriceSet?.shopMoney?.amount;
     const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
     const total    = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
-
-    // Read photos from the CURRENT order in ORDERS (localOrder may be a stale
-    // reference captured before a load/sync), and prefer positional matching when
-    // counts line up — Shopify's line-item titles don't always equal the stored ones.
-    const liSrc  = ORDERS.find(x => String(x.id) === String(localOrder.id)) || localOrder;
-    const liLocal = liSrc.lineItems || [];
     const sameCount = items.length === liLocal.length;
-    const itemRows = items.map((i,k) => {
-      const price = i.originalUnitPriceSet?.shopMoney?.amount;
-      const lineTotal = i.originalTotalSet?.shopMoney?.amount;
-      // Match this displayed item back to the stored line item to pull its photos.
-      const li = sameCount ? liLocal[k] : (liLocal.find(x => x.title === i.title) || liLocal[k]);
-      const liIdx = li ? liLocal.indexOf(li) : -1;
-      const ph = itemPhotos(li);
+    const itemRows = dispItems.map((li,k) => {
+      const title = li.title || '–';
+      const qty   = li.quantity || 1;
+      // Line total: a locally-edited unit price wins (× qty); otherwise use the
+      // matched Shopify line's original total. Match positionally when counts line
+      // up, since edited titles won't equal Shopify's.
+      const shopMatch = useLocal ? (sameCount ? items[k] : items.find(x => x.title === li.title)) : li;
+      const shopTotal = shopMatch?.originalTotalSet?.shopMoney?.amount;
+      const unit = (useLocal && li.price != null && li.price !== '') ? parseFloat(li.price) : null;
+      const lineTotal = unit != null ? unit * qty : (shopTotal || null);
       // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
-      // line items we can resolve locally (liIdx>=0) so edits hit the right item.
+      // stored line items (liIdx>=0) so edits hit the right item.
+      const liIdx = useLocal ? k : -1;
+      const ph = liIdx >= 0 ? itemPhotos(li) : [];
       const strip = (liIdx>=0)
         ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" title="Add photo for this product">＋<span>Add</span></button></div>`
         : '';
       return `<div class="dp-row">
-        <div class="dp-row-lbl">${esc(i.title)} ${i.quantity>1?`<span style="color:var(--c-muted)">× ${i.quantity}</span>`:''}</div>
+        <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
         <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
       </div>${strip}`;
     }).join('');
