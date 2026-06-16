@@ -448,7 +448,7 @@ img{display:block;max-width:100%}
 .dp-ph-del{position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--c-surface);background:var(--c-red);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .dp-ph-add{width:56px;height:56px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:17px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1}
 .dp-ph-add span{font-size:7.5px;letter-spacing:.04em}
-.dp-ph-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
+.dp-ph-add:hover,.dp-ph-add.drag{border-color:var(--c-burg);color:var(--c-burg);background:var(--c-burg-lt)}
 /* Order Photos carousel in the detail panel */
 .dp-carousel{position:relative;border-radius:var(--r-lg);overflow:hidden;background:var(--c-bg);border:1px solid var(--c-border);user-select:none}
 .dp-carousel img{width:100%;max-height:300px;object-fit:contain;display:block;cursor:zoom-in;background:#000}
@@ -2621,8 +2621,11 @@ function homeMiniCard(o, item, idx) {
   if (state==='ready') cls.push('ready');
   if (state==='fulfilled') cls.push('done');
   if (o.priority==='urgent' && !o.fulfilled) cls.push('urg');
-  const photos = isUnit ? itemPhotos(item)
-                        : ((o.lineItems||[]).map(itemPhotos).find(a=>a.length) || (o.image?[o.image]:[]));
+  // Per-product photos. A split product shows its own; only the first unit may fall
+  // back to the order cover (matches the order list + the per-product photo model).
+  const photos = isUnit
+    ? (itemPhotos(item).length ? itemPhotos(item) : (idx === 0 && o.image ? [o.image] : []))
+    : ((o.lineItems||[]).map(itemPhotos).find(a=>a.length) || (o.image?[o.image]:[]));
   const imgSrc = photos[0] || null;
   const onThumb = isUnit
     ? `zoomItem('${o.id}',${idx},0,event)`
@@ -4304,6 +4307,19 @@ function addItemPhoto(orderId,itemIdx){
   };
   inp.click();
 }
+// Drag & drop image(s) straight onto a product's ＋ Add button.
+function addItemPhotoDrop(e,orderId,itemIdx){
+  e.preventDefault(); e.stopPropagation();
+  if(e.currentTarget) e.currentTarget.classList.remove('drag');
+  const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
+  const files=Array.from((e.dataTransfer&&e.dataTransfer.files)||[]).filter(f=>/^image\//.test(f.type||''));
+  if(!files.length){ toast('Not an image'); return; }
+  const it=o.lineItems[itemIdx];
+  if(!Array.isArray(it.images)) it.images=itemPhotos(it);
+  toast(files.length>1?`Uploading ${files.length} photos…`:'Uploading photo…');
+  let pending=files.length;
+  files.forEach(f=>storePhoto(f,src=>{ it.images.push(src); it.image=it.images[0]; if(--pending===0) _persistItemPhotos(o); }));
+}
 function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
   if(e)e.stopPropagation();
   const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
@@ -4698,7 +4714,7 @@ function _renderDP(order, localOrder) {
       const liIdx = useLocal ? k : -1;
       const ph = liIdx >= 0 ? itemPhotos(li) : [];
       const strip = (liIdx>=0)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" title="Add photo for this product">＋<span>Add</span></button></div>`
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
         : '';
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
@@ -4727,10 +4743,7 @@ function _renderDP(order, localOrder) {
     <div class="dp-section-ttl">Order Photos${allPhotos.length>1?` <span style="font-weight:400;color:var(--c-muted);font-size:10px;text-transform:none;letter-spacing:0">· ${allPhotos.length} photos · swipe</span>`:''}</div>
     ${allPhotos.length
       ? renderDpCarousel(allPhotos)
-      : `<div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
-           ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
-          📷 Tap to add a photo<br><span style="font-size:10px">added to the first product · or use ＋ Add on a product above</span>
-        </div>`}
+      : `<div style="font-size:11px;color:var(--c-muted);padding:6px 0">No photos yet — use the ＋ Add button on a product above (tap or drag &amp; drop an image).</div>`}
   </div>`;
 
   // ── Flower Recipe ──
