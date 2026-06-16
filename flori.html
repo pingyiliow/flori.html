@@ -2460,8 +2460,12 @@ function orderCard(o, item, idx) {
   if (state === 'fulfilled') cls.push('done');
   if (o.priority === 'urgent' && !o.fulfilled) cls.push('urg');
 
-  // thumbnail (this product's image when split)
-  const imgSrc = (multi ? item.image : (items ? (items.find(i => i.image) || {}).image : null)) || o.image || null;
+  // thumbnail — for a SPLIT product show only that product's own photo (never the
+  // order cover, or a product with no photo would inherit another product's / the
+  // cover image). A whole-order card may fall back to any product photo, then cover.
+  const imgSrc = multi
+    ? (itemPhotos(item)[0] || null)
+    : ((items ? (items.find(i => itemPhotos(i).length) || {}).image : null) || o.image || null);
   let ph;
   if (imgSrc) {
     const safe = imgSrc.replace(/'/g, "\\'"), cap = ((multi ? item.title : o.product) || '').replace(/'/g, "\\'");
