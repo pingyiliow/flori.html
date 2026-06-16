@@ -2426,7 +2426,7 @@ function sortedOrders(list) {
 function thumbCell(o) {
   const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
   const src = (items ? items.find(i => i.image)?.image : null) || o.image || null;
-  if (src) { const safe=src.replace(/'/g,"\\'"); const cap=(o.product||'').replace(/'/g,"\\'"); return `<div class="o-thumb"><img src="${src}" alt="" onclick="openZoom('${safe}','${cap}')" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`; }
+  if (src) { const safe=src.replace(/'/g,"\\'"); return `<div class="o-thumb"><img src="${src}" alt="" onclick="event.stopPropagation();zoomOrder('${o.id}','${safe}',event)" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`; }
   return `<div class="o-thumb ph">🌸</div>`;
 }
 
@@ -2454,15 +2454,14 @@ function itemsCell(o) {
       ${priceHtml}
     </div>`;
   } else {
-    const lines = items.map(item => {
+    const lines = items.map((item, idx) => {
       const qty = item.quantity > 1 ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
       const priceHtml = _priceTag(item);
       if (item.image) {
-        const s = item.image.replace(/'/g,"\\'"), t = item.title.replace(/'/g,"\\'");
         return `<div class="o-item-line" style="justify-content:space-between">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
             <img class="o-item-mini" src="${item.image}" loading="lazy" alt=""
-              onclick="event.stopPropagation();openZoom('${s}','${t}')"
+              onclick="event.stopPropagation();zoomItem('${o.id}',${idx},0,event)"
               onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
             <span class="o-item-title">${esc(item.title)}${qty}</span>
           </div>${priceHtml}
@@ -2560,8 +2559,11 @@ function orderCard(o, item, idx) {
     : ((items ? (items.find(i => itemPhotos(i).length) || {}).image : null) || o.image || null);
   let ph;
   if (imgSrc) {
-    const safe = imgSrc.replace(/'/g, "\\'"), cap = ((multi ? item.title : o.product) || '').replace(/'/g, "\\'");
-    ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();openZoom('${safe}','${cap}')" onerror="this.parentElement.textContent='🌸'"></div>`;
+    const safe = imgSrc.replace(/'/g, "\\'");
+    // A split product opens that product's photos; a whole-order card opens every
+    // photo on the order — both swipeable when there's more than one.
+    const onZoom = multi ? `zoomItem('${o.id}',${idx},0,event)` : `zoomOrder('${o.id}','${safe}',event)`;
+    ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onZoom}" onerror="this.parentElement.textContent='🌸'"></div>`;
   } else ph = `<div class="ph">🌸</div>`;
 
   // product name
@@ -2667,7 +2669,7 @@ function homeMiniCard(o, item, idx) {
   const imgSrc = photos[0] || null;
   const onThumb = isUnit
     ? `zoomItem('${o.id}',${idx},0,event)`
-    : `openZoom('${(imgSrc||'').replace(/'/g,"\\'")}','${(o.product||'').replace(/'/g,"\\'")}')`;
+    : `zoomOrder('${o.id}','${(imgSrc||'').replace(/'/g,"\\'")}',event)`;
   const count = photos.length>1 ? `<span class="h-mc-imgcount">⧉ ${photos.length}</span>` : '';
   const thumb = imgSrc
     ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="this.parentElement.textContent='🌸'">${count}</div>`
@@ -4342,6 +4344,24 @@ function zoomItem(orderId,itemIdx,start,e){
   const o=ORDERS.find(x=>x.id===orderId); if(!o) return;
   const it=(o.lineItems||[])[itemIdx];
   openGallery(itemPhotos(it), start||0, (it&&it.title)||o.product||'');
+}
+// Every photo on an order (cover + each product's photos, deduped).
+function orderPhotos(o){
+  const out=[], seen=new Set();
+  (o&&o.lineItems||[]).forEach(li=>itemPhotos(li).forEach(s=>{ if(s&&!seen.has(s)){ seen.add(s); out.push(s); } }));
+  if(o&&o.image && !seen.has(o.image)){ out.unshift(o.image); seen.add(o.image); }
+  return out;
+}
+// Open the gallery with ALL of an order's photos, starting on the clicked one, so a
+// single-thumbnail card photo can still be swiped through when the order has several.
+function zoomOrder(orderId,startSrc,e){
+  if(e)e.stopPropagation();
+  const o=ORDERS.find(x=>x.id===orderId);
+  const ph=orderPhotos(o);
+  const list=ph.length?ph:(startSrc?[startSrc]:[]);
+  if(!list.length) return;
+  const start=startSrc?Math.max(0,list.indexOf(startSrc)):0;
+  openGallery(list, start, (o&&o.product)||'');
 }
 // ── Per-product reference photos, managed from the order detail panel ──
 function addItemPhoto(orderId,itemIdx){
