@@ -3653,11 +3653,12 @@ function renderFollowup() {
       <div class="fu-c-badges">
         <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
         <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
-        <button onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Mark: request invoice'}" aria-label="Toggle invoice request" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">🧾 ${f.needInvoice?'Invoice':'Invoice?'}</span></button>
       </div>
-      <div class="fu-c-tick">
+      <div class="fu-c-tick" style="display:flex;flex-direction:column;gap:6px;align-items:center">
         <button class="act-btn" style="${tickStyle};width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px"
           onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}">✓</button>
+        <button class="act-btn" style="width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:12px;${f.needInvoice?'background:#E8F0FE;border-color:#90CAF9':'background:var(--c-surface);border-color:var(--c-border);opacity:.6'}"
+          onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Tick if an invoice is needed'}" aria-label="Toggle invoice needed">🧾</button>
       </div>
     </div>`;
   }).join('');
