@@ -1797,6 +1797,27 @@ function shopId(raw){ return String(raw||'').replace(/^gid:\/\/shopify\/Order\//
 
 // Map a Shopify order GraphQL node → the local ORDERS shape (shared by syncOrders
 // and importOrderByName so imported orders look exactly like synced ones).
+// Overlay fresh Shopify fields onto an order we already hold, WITHOUT wiping the
+// app-managed data (cover/line-item photos, product/price edits, ready, designer,
+// priority, internal note, recipe, manual price/addr, delete tombstones). Used by
+// the import paths so re-importing an order can never erase a teammate's photo/edit.
+function _applyShopifyToExisting(prev, m){
+  return { ...prev, ...m,
+    image:        prev.image || m.image || null,
+    lineItems:    (prev.lineItems && prev.lineItems.length) ? prev.lineItems : m.lineItems,
+    product:      (prev.lineItems && prev.lineItems.length) ? (prev.product || m.product) : m.product,
+    ready:        prev.ready || false,
+    designer:     prev.designer || null,
+    priority:     prev.priority || 'normal',
+    internalNote: prev.internalNote || null,
+    recipe:       (prev.recipe && prev.recipe.length) ? prev.recipe : [],
+    manualPrice:  prev.manualPrice ?? null,
+    manualAddr:   prev.manualAddr || null,
+    removedItems: prev.removedItems || [],
+    fulfilled:    m.fulfilled || prev.fulfilled || false,
+  };
+}
+
 function _mapShopifyOrder(n){
   const attrs = n.customAttributes || [];
   const ds = getDueDate(attrs);
@@ -1824,7 +1845,7 @@ async function importOrderByName(rawName){
     if (!node) { toast('⚠ Order #'+name+' not found in Shopify'); return; }
     const mapped = _mapShopifyOrder(node);
     const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
-    if (idx !== -1) ORDERS[idx] = { ...ORDERS[idx], ...mapped };  // refresh if already present
+    if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped);  // refresh, keep app-managed data
     else ORDERS.push(mapped);
     rehydrateOrders();
     saveOrders(mapped);   // single-row upsert → persists to Supabase + localStorage
@@ -1866,7 +1887,7 @@ async function importOrdersSince(fromISO){
       (conn.edges||[]).map(e=>e.node).forEach(n => {
         const mapped = _mapShopifyOrder(n);
         const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
-        if (idx !== -1) ORDERS[idx] = { ...ORDERS[idx], ...mapped }; else ORDERS.push(mapped);
+        if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped); else ORDERS.push(mapped);
         total++;
       });
       if (btn) btn.textContent = 'Imported '+total+'…';
