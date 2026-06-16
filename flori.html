@@ -4455,9 +4455,25 @@ function localToDPOrder(o) {
   };
 }
 
+// Photos are per-product now. Older orders may still carry a standalone "cover"
+// photo (o.image) that was uploaded before this change and isn't attached to any
+// product — e.g. #122652's cake. Move it onto the first product so it shows in that
+// product's photo slot and the gallery. One-time, idempotent (skips once any
+// product already has a photo). Returns true if it changed something.
+function _migrateCoverToProduct(o){
+  if(!o || !Array.isArray(o.lineItems) || !o.lineItems.length) return false;
+  if(o.lineItems.some(li => itemPhotos(li).length)) return false;   // a product already has a photo
+  if(!o.image) return false;                                         // nothing to migrate
+  const li = o.lineItems[0];
+  if(!Array.isArray(li.images)) li.images = [];
+  li.images.unshift(o.image); li.image = li.images[0];
+  return true;
+}
+
 let _dpId = null;
 function openDP(id) {
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  if(_migrateCoverToProduct(o)) saveOrders(o);   // attach legacy cover to its product, persist once
   _dpId = id;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
@@ -4489,12 +4505,22 @@ function _ingestOrderPhoto(id,file){
   toast('Uploading photo…');
   storePhoto(file,function(src){ setOrderPhoto(id,src); });
 }
-function setOrderPhoto(id,b64){
+function setOrderPhoto(id,src){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
-  o.image=b64;
+  // Photos are per-product now. An order-level add (drag/drop/paste) attaches to the
+  // first product so every photo lives in one place; the cover (o.image) is derived
+  // from the product photos. Falls back to a bare cover only if there are no products.
+  if(o.lineItems && o.lineItems.length){
+    const li=o.lineItems[0];
+    if(!Array.isArray(li.images)) li.images=itemPhotos(li);
+    li.images.push(src); li.image=li.images[0];
+    o.image=(o.lineItems.find(i=>itemPhotos(i).length)||{}).image||null;
+  } else {
+    o.image=src;
+  }
   saveOrders(o); renderHome(); renderOrders();   // persists to Supabase + updates cards
-  const z=document.getElementById('dp-photo-zone'); if(z) z.innerHTML=`<img src="${b64}" alt="Order photo" onclick="event.stopPropagation();openZoom('${b64.replace(/'/g,"\\'")}','')">`;
-  toast('✓ Photo saved');
+  if(_dpId===id) _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast('✓ Photo added');
 }
 // Paste an image while an order's detail panel is open
 document.addEventListener('paste', function(e){
@@ -4689,19 +4715,21 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Order Photos — a carousel of every photo on the order (cover + each
-  // product's reference photos), tap to view full size. Per-product add/delete
-  // lives in the Items section above.
+  // ── Order Photos — a read-only gallery of all the product photos combined, tap
+  // to view full size. Photos are managed per-product in the Items section above
+  // (＋ Add / ✕). This is just a linked view of those same photos, so the two are
+  // never out of sync. (The empty-state zone is a convenience that drops the photo
+  // onto the first product.)
   const allPhotos = []; const _seen = new Set();
-  (localOrder.lineItems||[]).forEach(li => itemPhotos(li).forEach(s => { if(s && !_seen.has(s)){ _seen.add(s); allPhotos.push(s); } }));
-  if (localOrder.image && !_seen.has(localOrder.image)) { allPhotos.unshift(localOrder.image); _seen.add(localOrder.image); }
+  (liSrc.lineItems||[]).forEach(li => itemPhotos(li).forEach(s => { if(s && !_seen.has(s)){ _seen.add(s); allPhotos.push(s); } }));
+  if (liSrc.image && !_seen.has(liSrc.image)) { allPhotos.unshift(liSrc.image); _seen.add(liSrc.image); }
   html += `<div>
     <div class="dp-section-ttl">Order Photos${allPhotos.length>1?` <span style="font-weight:400;color:var(--c-muted);font-size:10px;text-transform:none;letter-spacing:0">· ${allPhotos.length} photos · swipe</span>`:''}</div>
     ${allPhotos.length
       ? renderDpCarousel(allPhotos)
       : `<div class="dp-photo-zone" id="dp-photo-zone" onclick="pickOrderPhoto('${localOrder.id}')"
            ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="dpPhotoDrop(event,'${localOrder.id}')">
-          📷 Tap to add a photo<br><span style="font-size:10px">or drag &amp; drop / paste an image</span>
+          📷 Tap to add a photo<br><span style="font-size:10px">added to the first product · or use ＋ Add on a product above</span>
         </div>`}
   </div>`;
 
