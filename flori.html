@@ -2208,6 +2208,7 @@ async function loadFromSupabase(opts = {}) {
         addr: f.addr||'', payment: f.payment||'pending',
         status: f.status||'pending', items: f.items||'',
         cardMsg: f.card_msg||'', remarks: f.remarks||'',
+        needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
@@ -2870,6 +2871,7 @@ function saveFollowups() {
       addr: f.addr||null, payment: f.payment||'pending',
       status: f.status||'pending', items: f.items||null,
       card_msg: f.cardMsg||null, remarks: f.remarks||null,
+      need_invoice: !!f.needInvoice,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).catch(console.error);
@@ -3342,6 +3344,7 @@ function doCompleteFollowup() {
   toast('✓ Marked completed' + (f.orderNo ? ' · '+f.orderNo : ''));
 }
 function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
+function toggleInvoice(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.needInvoice=!f.needInvoice; saveFollowups(); renderFollowup(); toast(f&&f.needInvoice?'🧾 Invoice requested':'Invoice request cleared'); }
 function toggleComplete(id) { toggleFUStatus(id); }
 
 /* ─── Follow-up → Shopify Draft ──────────────────────────────── */
@@ -3627,6 +3630,11 @@ function renderFollowup() {
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
     const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
     const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">⚠ ${dupCounts[dupKey]}×</span>` : '';
+    // Invoice-requested badge — shown up front so admin processes it correctly.
+    const invBadge = f.needInvoice ? `<span title="Invoice requested" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">🧾 Invoice</span>` : '';
+    // Shopify order number once this follow-up has been turned into an order — shown
+    // on the card so staff can see at a glance which one it became.
+    const orderNoBadge = f.orderNo ? `<span title="Shopify order ${esc(f.orderNo)}" style="font-size:9px;font-weight:700;letter-spacing:.02em;background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap">🛍 ${esc(f.orderNo)}</span>` : '';
     // Tick button style based on status
     const tickStyle = isCompleted
       ? 'background:var(--c-sage);border-color:var(--c-sage);color:#fff'
@@ -3636,7 +3644,7 @@ function renderFollowup() {
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
     return `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
       <div class="fu-c-main">
-        <div class="fu-c-name">${esc(f.name)}${dupBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
+        <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
         ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
         <div class="fu-c-items">${esc(itemsPreview)}</div>
       </div>
@@ -3645,6 +3653,7 @@ function renderFollowup() {
       <div class="fu-c-badges">
         <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
         <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
+        <button onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Mark: request invoice'}" aria-label="Toggle invoice request" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">🧾 ${f.needInvoice?'Invoice':'Invoice?'}</span></button>
       </div>
       <div class="fu-c-tick">
         <button class="act-btn" style="${tickStyle};width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px"
@@ -3683,6 +3692,7 @@ function openFUDP(id) {
   html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
     <button onclick="togglePayment('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
     <button onclick="toggleFUStatus('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl} →</span></button>
+    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" title="Request an invoice for this order" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">🧾 ${f.needInvoice?'Invoice requested':'Request invoice'}</span></button>
   </div>`;
   // Contact
   html += `<div><div class="fu-sec-ttl">Sender</div>`;
