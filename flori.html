@@ -1950,7 +1950,7 @@ async function syncOrders() {
           o.image       = pm.image || (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || o.image || null;
           if(o.lineItems.length>1) o.ready = o.lineItems.every(i=>i.ready);
         } else if(pm.removedItems && pm.removedItems.length && o.lineItems){
-          const rm=new Set(pm.removedItems); o.lineItems=o.lineItems.filter(i=>!rm.has(i.title)); o.removedItems=pm.removedItems; o.product=o.lineItems.map(i=>i.title).join(', '); o.image=o.lineItems.find(i=>i.image)?.image||o.image||null;
+          const rm=new Set(pm.removedItems); o.lineItems=o.lineItems.filter(i=>!rm.has(i.title)||itemPhotos(i).length); o.removedItems=pm.removedItems.filter(t=>!o.lineItems.some(i=>i.title===t)); o.product=o.lineItems.map(i=>i.title).join(', '); o.image=o.lineItems.find(i=>itemPhotos(i).length)?.image||o.image||null;
         }
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
       }
@@ -2141,17 +2141,24 @@ async function loadFromSupabase(opts = {}) {
       ORDERS = [...byId.values()];
       ORDERS.forEach(o => {
         const rm = prevRemoved[o.id];
-        if (!rm || !rm.length) return;
-        o.removedItems = rm;
+        if (!rm || !rm.length) { return; }
         // Supabase line_items can still hold a removed product (webhook rewrites
         // them from the live Shopify order), so re-apply the tombstone as a filter.
         if (o.lineItems && o.lineItems.length) {
           const set = new Set(rm);
-          o.lineItems = o.lineItems.filter(i => !set.has(i.title));
+          // NEVER strip a line item that carries user photos — a photographed product
+          // is clearly wanted. (A stale tombstone matching a product the user had since
+          // photographed was deleting the whole line item and its photo on every load.)
+          o.lineItems = o.lineItems.filter(i => !set.has(i.title) || itemPhotos(i).length);
+          // Prune any titles we kept (still present) from the tombstone so it stops
+          // fighting that product on future loads; only genuinely-gone items remain.
+          o.removedItems = rm.filter(t => !o.lineItems.some(i => i.title === t));
           o.product = o.lineItems.map(i => i.title).join(', ');
           // Prefer a user-curated photo for the cover; keep the existing cover
           // otherwise (don't fall back to a removed item's Shopify product image).
           o.image = o.lineItems.find(i => Array.isArray(i.images) && i.images.length)?.image || o.image || null;
+        } else {
+          o.removedItems = rm;
         }
       });
       try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
