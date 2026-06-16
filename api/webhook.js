@@ -56,10 +56,19 @@ export default async function handler(req, res) {
   // whole-order "ready" flags, locally deleted line items, designer/priority/notes
   // and manual fields — none of which Shopify knows about. So merge into the row
   // that's already there instead of overwriting it.
-  const [{ data: existing }, { data: rmRow }] = await Promise.all([
+  const [{ data: existing }, { data: rmRow }, { data: delRow }] = await Promise.all([
     sb.from('orders').select('*').eq('id', String(order.id)).maybeSingle(),
     sb.from('settings').select('value').eq('key', 'removed_items').maybeSingle(),
+    sb.from('settings').select('value').eq('key', 'deleted_orders').maybeSingle(),
   ]);
+
+  // Respect order-delete tombstones: if the user deleted this order in BloomFlow it
+  // may still be OPEN in Shopify and keep firing update webhooks — don't resurrect it.
+  const deleted = new Set((delRow && Array.isArray(delRow.value) ? delRow.value : []).map(String));
+  if (deleted.has(String(order.id))) {
+    console.log(`[Webhook] ${order.name} is delete-tombstoned — skipping upsert`);
+    return res.status(200).json({ ok: true, skipped: 'deleted', order: order.name });
+  }
 
   // Respect the user's line-item delete tombstones (shared settings store) so a
   // Shopify update can't resurrect a product they removed in the app.

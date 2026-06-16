@@ -1844,6 +1844,11 @@ async function importOrderByName(rawName){
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
     if (!node) { toast('⚠ Order #'+name+' not found in Shopify'); return; }
     const mapped = _mapShopifyOrder(node);
+    // Importing an order by number is an explicit "bring it back" — clear any delete
+    // tombstone so it isn't filtered straight back out.
+    if (DELETED_ORDERS.has(mapped.id) || DELETED_ORDERS.has(String(node.id))) {
+      DELETED_ORDERS.delete(mapped.id); DELETED_ORDERS.delete(String(node.id)); saveDeletedOrders();
+    }
     const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
     if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped);  // refresh, keep app-managed data
     else ORDERS.push(mapped);
@@ -1886,6 +1891,7 @@ async function importOrdersSince(fromISO){
       const conn = data.orders;
       (conn.edges||[]).map(e=>e.node).forEach(n => {
         const mapped = _mapShopifyOrder(n);
+        if (DELETED_ORDERS.has(mapped.id)) return;   // don't re-import an order deleted in BloomFlow
         const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
         if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped); else ORDERS.push(mapped);
         total++;
@@ -1962,7 +1968,9 @@ async function syncOrders() {
     // (manuals + older Shopify orders) is preserved by id.
     const freshIds = new Set(shopify.map(o => o.id));
     const kept = ORDERS.filter(o => o.src === 'manual' || !freshIds.has(shopId(o.id)));
-    ORDERS = [...shopify, ...kept];
+    // Drop orders the user deleted in BloomFlow — they may still be OPEN in Shopify
+    // (so they come back in the fetch above) but must stay gone here.
+    ORDERS = [...shopify, ...kept].filter(o => !DELETED_ORDERS.has(shopId(o.id)));
     // Multi-device clobber guard. This sync ends with a full saveOrders() that
     // re-writes EVERY order from memory. With several staff on different devices all
     // day, this device's memory is often slightly behind: a teammate may have just
@@ -2009,6 +2017,15 @@ async function syncOrders() {
 
 /* ─── Data stores ────────────────────────────────────────────── */
 let ORDERS=[], INVENTORY=[], PURCHASES=[];
+// Order-delete tombstones: ids of orders the user deleted in BloomFlow. They may
+// still be OPEN in Shopify, so without this every sync would re-import them. Sync,
+// load and the webhook all skip these ids. Canonical (shopId) form. Shared via the
+// settings store so a delete on one device sticks on all of them.
+let DELETED_ORDERS = new Set();
+function saveDeletedOrders(){
+  _lsSet('flori-deleted', JSON.stringify([...DELETED_ORDERS]));
+  if (hasSB()) sbSet('deleted_orders', [...DELETED_ORDERS]).catch(()=>{});
+}
 // Best-effort localStorage write: a full cache (QuotaExceededError) must never
 // throw out of a save function and skip the Supabase write that follows it.
 function _lsSet(key, value){ try { localStorage.setItem(key, value); } catch(e){ /* cache full — Supabase is the source of truth */ } }
@@ -2092,6 +2109,7 @@ function loadData() {
   try { ORDERS    = JSON.parse(localStorage.getItem('flori-orders')    || '[]'); } catch(e) { ORDERS=[]; }
   try { INVENTORY = JSON.parse(localStorage.getItem('flori-inventory') || '[]'); } catch(e) { INVENTORY=[]; }
   try { PURCHASES = JSON.parse(localStorage.getItem('flori-purchases') || '[]'); } catch(e) { PURCHASES=[]; }
+  try { DELETED_ORDERS = new Set(JSON.parse(localStorage.getItem('flori-deleted') || '[]')); } catch(e) { DELETED_ORDERS = new Set(); }
   loadFollowups(); rehydrateOrders();
   const notes = localStorage.getItem('flori-pur-notes') || '';
   const ta = document.getElementById('pur-notes'); if (ta) ta.value = notes;
@@ -2106,9 +2124,12 @@ function loadData() {
 
 async function loadFromSupabase(opts = {}) {
   try {
-    const [orders, followups, inventory, purchases, remoteRemoved] = await Promise.all([
-      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items')
+    const [orders, followups, inventory, purchases, remoteRemoved, remoteDeleted] = await Promise.all([
+      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
     ]);
+    // Order-delete tombstones (shared). Union the remote list with any local deletes
+    // so a just-deleted order isn't resurrected before its tombstone has synced.
+    if (Array.isArray(remoteDeleted)) remoteDeleted.forEach(id => DELETED_ORDERS.add(String(id)));
     // Line-item delete tombstones. The orders table has no removedItems column and
     // the webhook rewrites line_items straight from Shopify, so the canonical copy
     // lives in the shared settings store (saveOrders writes it). Seed from there,
@@ -2117,7 +2138,9 @@ async function loadFromSupabase(opts = {}) {
     ORDERS.forEach(o => { if (o.removedItems?.length) prevRemoved[shopId(o.id)] = o.removedItems; });
     let changed = false;
     if (orders && orders.length) {
-      const mapped = orders.map(o => ({
+      const mapped = orders
+        .filter(o => !DELETED_ORDERS.has(shopId(o.id)))   // skip orders deleted in BloomFlow
+        .map(o => ({
         id: shopId(o.id), _rawId: o.id, name: o.name, src: o.src||'shopify',
         customer: o.customer, product: o.product,
         lineItems: o.line_items||[], image: o.image||null,
@@ -4216,7 +4239,19 @@ async function markDelivered(id){
     }
   }
 }
-function delOrder(id){if(!confirm('Delete this order? This cannot be undone.'))return;ORDERS=ORDERS.filter(x=>x.id!==id);saveOrders();if(hasSB())sbDelete('orders',id);renderAll();toast('Removed');}
+function delOrder(id){
+  if(!confirm('Delete this order? This cannot be undone.'))return;
+  // Tombstone the id so sync/load/webhook don't re-import it (it may still be OPEN
+  // in Shopify). Record both the canonical and raw id forms to be safe.
+  const o = ORDERS.find(x=>x.id===id);
+  DELETED_ORDERS.add(shopId(id)); DELETED_ORDERS.add(String(id));
+  if (o && o._rawId) DELETED_ORDERS.add(String(o._rawId));
+  saveDeletedOrders();
+  ORDERS=ORDERS.filter(x=>x.id!==id);
+  saveOrders();
+  if(hasSB()) sbDelete('orders', id);
+  renderAll(); toast('Order deleted');
+}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
 function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
 function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
