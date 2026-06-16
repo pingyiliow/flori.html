@@ -1207,8 +1207,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl">Add to Purchase List</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-pur')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl" id="p-modal-ttl">Add to Purchase List</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-pur')">✕</button></div>
     <div class="mc-body">
+      <input type="hidden" id="p-edit-id">
       <div class="fg fg-2">
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="p-name" type="text" placeholder="e.g. White Tulips"></div>
         <div class="ff"><label class="ff-l">Qty Needed</label><input id="p-qty" type="text" placeholder="50 stems"></div>
@@ -1226,7 +1227,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         </div>
       </div>
       <div class="btn-row">
-        <button class="btn btn-primary" style="flex:1" onclick="savePur()">Add Item</button>
+        <button class="btn btn-primary" style="flex:1" id="p-save-btn" onclick="savePur()">Add Item</button>
         <button class="btn btn-ghost" onclick="closeModal('m-pur')">Cancel</button>
       </div>
     </div>
@@ -2846,7 +2847,7 @@ function renderPurchase() {
     return `<div class="buy-item ${p.done?'done':''}">
       <button type="button" class="buy-check ${p.done?'checked':''}" role="checkbox" aria-checked="${p.done?'true':'false'}" aria-label="Mark ${esc(p.name)} bought" onclick="togglePur('${p.id}')">${p.done?'✓':''}</button>
       ${thumb}
-      <div class="buy-main"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
+      <div class="buy-main" style="cursor:pointer" onclick="editPur('${p.id}')" title="Tap to edit"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
       <span class="buy-urg ${u.c}">${u.l}</span>
       <button class="buy-del" onclick="delPur('${p.id}')">✕</button>
     </div>`;
@@ -3936,7 +3937,27 @@ function deleteInvItem() {
   saveInventory(); if (hasSB()) sbDelete('inventory', id);
   closeModal('m-inv'); renderInventory(); toast('Removed');
 }
-function openAddPur()  {setPhotoZone('p-photo-zone','p-photo','');openModal('m-pur');}
+function openAddPur(){
+  document.getElementById('p-edit-id').value='';
+  ['p-name','p-qty','p-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('p-urg').value='week';
+  setPhotoZone('p-photo-zone','p-photo','');
+  document.getElementById('p-modal-ttl').textContent='Add to Purchase List';
+  document.getElementById('p-save-btn').textContent='Add Item';
+  openModal('m-pur');
+}
+function editPur(id){
+  const p=PURCHASES.find(x=>x.id===id); if(!p) return;
+  document.getElementById('p-edit-id').value=p.id;
+  document.getElementById('p-name').value=p.name||'';
+  document.getElementById('p-qty').value=p.qty||'';
+  document.getElementById('p-urg').value=p.urg||'week';
+  document.getElementById('p-notes').value=p.notes||'';
+  setPhotoZone('p-photo-zone','p-photo',p.photo||'');
+  document.getElementById('p-modal-ttl').textContent='Edit Item';
+  document.getElementById('p-save-btn').textContent='Save';
+  openModal('m-pur');
+}
 
 /* ─── Photo compression ──────────────────────────────────────── */
 function compressPhoto(file, maxPx, quality, callback) {
@@ -4143,7 +4164,19 @@ function saveInv(){
   else { INVENTORY.push({id:'inv-'+Date.now(),...data}); }
   saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
 }
-function savePur(){const name=document.getElementById('p-name').value.trim();if(!name){toast('Name required');return;}PURCHASES.push({id:'pur-'+Date.now(),name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),photo:document.getElementById('p-photo').value||'',done:false});savePurchases();closeModal('m-pur');['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));setPhotoZone('p-photo-zone','p-photo','');toast('✓ Added');renderPurchase();}
+function savePur(){
+  const name=document.getElementById('p-name').value.trim();
+  if(!name){toast('Name required');return;}
+  const editId=document.getElementById('p-edit-id').value;
+  const data={name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),photo:document.getElementById('p-photo').value||''};
+  if(editId){ const p=PURCHASES.find(x=>x.id===editId); if(p) Object.assign(p,data); }
+  else { PURCHASES.push({id:'pur-'+Date.now(),...data,done:false}); }
+  savePurchases();closeModal('m-pur');
+  document.getElementById('p-edit-id').value='';
+  ['p-name','p-qty','p-notes'].forEach(id=>document.getElementById(id)&&(document.getElementById(id).value=''));
+  setPhotoZone('p-photo-zone','p-photo','');
+  toast(editId?'✓ Updated':'✓ Added');renderPurchase();
+}
 function savePurNotes(){localStorage.setItem('flori-pur-notes',document.getElementById('pur-notes').value);}
 
 function quickAssign(id, field, value) {
