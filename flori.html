@@ -4688,6 +4688,7 @@ async function _fetchOrderDetail(id, o) {
       name note createdAt
       customer { firstName lastName phone email }
       shippingAddress { address1 address2 city province zip country phone }
+      billingAddress { phone }
       lineItems(first:10){ edges{ node{
         title quantity
         originalUnitPriceSet { shopMoney { amount currencyCode } }
@@ -4725,7 +4726,11 @@ function _renderDP(order, localOrder) {
   const attrs  = order.customAttributes || [];
   const getAttr = k => attrs.find(a=>a.key.toLowerCase()===k.toLowerCase())?.value || '';
 
-  const phone = addr?.phone || cust.phone || '';
+  // The Customer section is the SENDER (who placed the order) — staff contact them
+  // before delivery. Use the customer/billing phone, NOT the shipping address phone
+  // (that's the recipient and would mislead staff into calling the wrong person).
+  const phone = cust.phone || order.billingAddress?.phone || '';
+  const recipPhone = addr?.phone || '';   // recipient — shown with the delivery address
   const email = cust.email || '';
   const note  = order.note || '';
   const recipe = localOrder.recipe || [];
@@ -4798,7 +4803,11 @@ function _renderDP(order, localOrder) {
   // ── Delivery Address — grey box under fulfilment (delivery orders only) ──
   if (addr && localOrder.type !== 'pickup') {
     const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
-    if (lines.length) html += `<div class="dp-addrbox">${lines.map(l=>esc(l)).join('<br>')}</div>`;
+    // Recipient phone belongs here (it's who's at the delivery address), not in the
+    // sender's Customer section — only when it differs from the sender's number.
+    const recipLine = (recipPhone && recipPhone !== phone)
+      ? `<div style="margin-top:6px;font-size:11px;color:var(--c-muted)">Recipient: ${waLink(recipPhone)}</div>` : '';
+    if (lines.length || recipLine) html += `<div class="dp-addrbox">${lines.map(l=>esc(l)).join('<br>')}${recipLine}</div>`;
   }
 
   // ── Customer (sender) — avatar ──
