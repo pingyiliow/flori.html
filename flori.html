@@ -810,7 +810,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       <span id="sync-ico" style="display:inline-block">⟳</span>
       <span class="hide-m">Sync Orders</span>
     </button>
-    <button class="hdr-btn" onclick="openSP()" title="Settings" aria-label="Settings">⚙</button>
+    <button class="hdr-btn" data-role-gate="settings" onclick="openSP()" title="Settings" aria-label="Settings">⚙</button>
   </div>
 </header>
 
@@ -822,6 +822,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     <button class="nav-btn" data-pg="orders"><span class="nav-icon">◫</span><span>Daily Orders</span><span class="nav-badge" id="nb-orders">0</span></button>
     <div class="nav-sep" style="margin-top:6px">Admin</div>
     <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
+    <button class="nav-btn" data-pg="customers"><span class="nav-icon">☺</span><span>Customers</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
   </div>
@@ -992,6 +993,34 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
     </div>
   </div>
 
+  <!-- ── Customers (CRM) ────────────────────────────────────── -->
+  <div id="pg-customers" class="page">
+    <div class="pc">
+      <!-- LIST VIEW -->
+      <div id="cust-list-view">
+        <div class="page-hdr">
+          <div><div class="page-title">Customers</div><div id="cust-count" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div>
+          <button class="btn btn-primary" onclick="openAddCustomer()">+ Add Customer</button>
+        </div>
+        <input id="cust-search" type="text" placeholder="Search name or phone…" oninput="renderCustomers()"
+          style="width:100%;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);margin-bottom:10px">
+        <div class="filters" id="cust-filters">
+          <button class="f-btn on" data-cf="all">All</button>
+          <button class="f-btn" data-cf="vip">VIP</button>
+          <button class="f-btn" data-cf="prospect">Prospect</button>
+          <button class="f-btn" data-cf="regular">Regular</button>
+          <button class="f-btn" data-cf="wedding">Wedding</button>
+          <button class="f-btn" data-cf="corporate">Corporate</button>
+          <button class="f-btn" data-cf="reorder">No order 45d</button>
+          <button class="f-btn" data-cf="birthday">Birthday this month</button>
+        </div>
+        <div id="cust-list" style="margin-top:12px;display:flex;flex-direction:column;gap:7px"></div>
+      </div>
+      <!-- PROFILE VIEW -->
+      <div id="cust-profile-view" style="display:none"></div>
+    </div>
+  </div>
+
 </main>
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
@@ -1000,6 +1029,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
   <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
+  <button class="mob-tab" data-pg="customers"><span class="mob-icon">☺</span><span>CRM</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -1234,6 +1264,27 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   </div>
 </div>
 
+<!-- ══ MODAL — Add Customer (CRM) ════════════════════════════ -->
+<div id="m-customer" class="modal">
+  <div class="mc">
+    <div class="mc-hdr"><div class="mc-ttl">Add Customer</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-customer')">✕</button></div>
+    <div class="mc-body">
+      <div class="fg fg-2">
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Name</label><input id="mc-name" type="text" placeholder="Customer name"></div>
+        <div class="ff"><label class="ff-l">Phone (WhatsApp) — required</label><input id="mc-phone" type="text" placeholder="+60…"></div>
+        <div class="ff"><label class="ff-l">Tag</label>
+          <select id="mc-tag"><option value="regular">Regular</option><option value="vip">VIP</option><option value="wedding">Wedding</option><option value="corporate">Corporate</option><option value="prospect">Prospect</option></select>
+        </div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Email</label><input id="mc-email" type="email" placeholder="optional"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="saveNewCustomer()">Save Customer</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-customer')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
 <!-- ══ FOLLOW-UP → SHOPIFY DRAFT (product picker) ══════════════ -->
 <div id="m-fu-draft" class="modal">
@@ -1426,6 +1477,39 @@ const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 let sb = null;
 let currentUser = null;
 
+/* ─── Roles (CRM) ────────────────────────────────────────────────
+   Role lives in the Supabase `profiles` table (admin | cs | florist).
+   Tabs are gated by role; unknown/missing role falls back to florist. */
+let currentUserRole = 'florist';
+let currentUserName = '';
+const TAB_ACCESS = {
+  home:      ['admin','cs','florist'],
+  orders:    ['admin','cs','florist'],
+  stock:     ['admin','cs','florist'],
+  followup:  ['admin','cs'],
+  customers: ['admin','cs'],
+  settings:  ['admin'],
+};
+function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || r.includes(currentUserRole); }
+async function getUserRole(){
+  try {
+    if (!hasSB() || !currentUser) return { role:'florist', name:'' };
+    const { data } = await sb.from('profiles').select('role,name').eq('id', currentUser.id).single();
+    return data || { role:'florist', name:'' };
+  } catch(_) { return { role:'florist', name:'' }; }
+}
+// Show/hide nav + settings by role. Driven by data-pg (nav buttons) and the
+// data-role-gate attribute (settings gear).
+function applyRoleGating(){
+  document.querySelectorAll('[data-pg]').forEach(el => {
+    const roles = TAB_ACCESS[el.dataset.pg];
+    if (roles) el.style.display = roles.includes(currentUserRole) ? '' : 'none';
+  });
+  document.querySelectorAll('[data-role-gate]').forEach(el => {
+    el.style.display = canAccess(el.dataset.roleGate) ? '' : 'none';
+  });
+}
+
 function initSupabase() {
   if (!_SB_URL || _SB_URL === 'YOUR_SUPABASE_URL') return false;
   if (typeof supabase === 'undefined') {
@@ -1537,6 +1621,11 @@ async function showApp() {
   // keep the loading overlay up for the (sub-second) Supabase pull and paint once
   // with authoritative data.
   loadData(); setLang(LANG);
+  // Load this user's role and gate the nav before the first paint.
+  const _profile = await getUserRole();
+  currentUserRole = (_profile && _profile.role) || 'florist';
+  currentUserName = (_profile && _profile.name) || (currentUser ? currentUser.email : '');
+  applyRoleGating();
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -3836,9 +3925,11 @@ function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','stock','followup'];
+const PAGES = ['home','orders','stock','followup','customers'];
 function goPage(pg) {
+  if(!canAccess(pg)) pg = 'home';   // role guard — bounce to dashboard if not allowed
   if(pg==='followup') renderFollowup();
+  if(pg==='customers') renderCustomers();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   if(pg==='stock'){ renderInventory(); renderPurchase(); }
@@ -3857,9 +3948,207 @@ document.querySelectorAll('[data-f]').forEach(btn => {
 });
 document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; renderOrders(); }); });
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
+document.querySelectorAll('#cust-filters [data-cf]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#cust-filters [data-cf]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); custFilter=btn.dataset.cf; renderCustomers(); }); });
+
+/* ─── Customers (CRM) ─────────────────────────────────────────── */
+let CUSTOMERS = [], custFilter = 'all', _custProfileId = null, _custLoaded = false;
+
+async function loadCustomers(){
+  if (!hasSB()) return;
+  try {
+    const { data, error } = await sb.from('customers').select('*').order('last_order_at', { ascending:false, nullsFirst:false });
+    if (error) { console.error('loadCustomers', error.message); return; }
+    CUSTOMERS = data || []; _custLoaded = true;
+  } catch(e){ console.error('loadCustomers', e); }
+}
+
+function _custTagStyle(tag){
+  return ({
+    vip:       'background:#FFF3E0;color:#E65100;border-color:#FFCC80',
+    wedding:   'background:#FCE4EC;color:#AD1457;border-color:#F8BBD0',
+    corporate: 'background:#E3F2FD;color:#1565C0;border-color:#90CAF9',
+    prospect:  'background:var(--c-blush-bg);color:var(--c-blush);border-color:#f0c0b0',
+  })[tag] || 'background:var(--c-bg);color:var(--c-muted);border-color:var(--c-border)';
+}
+function _daysSince(iso){ if(!iso) return null; return Math.floor((today0()-new Date(iso))/86400000); }
+function _isThisMonth(d){ if(!d) return false; const x=new Date(d); return !isNaN(x) && x.getMonth()===new Date().getMonth(); }
+
+async function renderCustomers(){
+  document.getElementById('cust-profile-view').style.display='none';
+  document.getElementById('cust-list-view').style.display='';
+  const cont = document.getElementById('cust-list'); if(!cont) return;
+  if (!_custLoaded){ cont.innerHTML = `<div style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</div>`; await loadCustomers(); }
+  const cntEl = document.getElementById('cust-count');
+  const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
+  let list = CUSTOMERS.slice();
+  if (custFilter==='reorder') list = list.filter(c => { const d=_daysSince(c.last_order_at); return d!=null && d>=45; });
+  else if (custFilter==='birthday') list = list.filter(c => _isThisMonth(c.birthday));
+  else if (custFilter!=='all') list = list.filter(c => (c.tag||'regular')===custFilter);
+  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q));
+  if (cntEl) cntEl.textContent = `${CUSTOMERS.length} total${list.length!==CUSTOMERS.length?` · ${list.length} shown`:''}`;
+  if (!list.length){ cont.innerHTML = `<div class="empty" style="padding:48px 20px"><div class="empty-ico">☺</div><div class="empty-txt">${CUSTOMERS.length? 'No customers match' : 'No customers yet — import from Shopify in Settings, or tap + Add Customer'}</div></div>`; return; }
+  cont.innerHTML = list.map(customerRow).join('');
+}
+
+function customerRow(c){
+  const tag = c.tag||'regular';
+  const last = c.last_order_at ? fd(new Date(c.last_order_at)) : '–';
+  const spend = c.total_spend ? 'RM '+Number(c.total_spend).toFixed(0) : '';
+  const init = ((c.name||'?').trim().charAt(0)||'?').toUpperCase();
+  return `<div onclick="openCustomer('${c.id}')" style="display:flex;align-items:center;gap:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;cursor:pointer">
+    <div class="dp-cust-av" style="flex-shrink:0">${esc(init)}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(c.name||'(no name)')}
+        <span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;${_custTagStyle(tag)}">${esc(tag)}</span></div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''}</div>
+    </div>
+    <div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em">Last order</div><div style="font-size:11px;color:var(--c-ink)">${last}</div></div>
+  </div>`;
+}
+
+function backToCustomerList(){ _custProfileId=null; renderCustomers(); }
+
+async function openCustomer(id){
+  const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
+  _custProfileId = id;
+  document.getElementById('cust-list-view').style.display='none';
+  const view = document.getElementById('cust-profile-view'); view.style.display='';
+  view.innerHTML = `<div style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</div>`;
+  let prefs={}, notes=[];
+  try {
+    const [p, n] = await Promise.all([
+      sb.from('customer_preferences').select('*').eq('customer_id', id).maybeSingle(),
+      sb.from('customer_notes').select('*').eq('customer_id', id).order('created_at',{ascending:false}),
+    ]);
+    prefs = (p && p.data) || {}; notes = (n && n.data) || [];
+  } catch(e){ console.error('openCustomer', e); }
+  renderCustomerProfile(c, prefs, notes);
+}
+
+function _fld(label, id, value, type){
+  return `<div class="ff"><label class="ff-l">${label}</label><input id="${id}" type="${type||'text'}" value="${esc(value||'')}"></div>`;
+}
+function _sel(label, id, value, opts){
+  const o = [['','—']].concat(opts).map(([v,l])=>`<option value="${v}" ${(value||'')===v?'selected':''}>${l}</option>`).join('');
+  return `<div class="ff"><label class="ff-l">${label}</label><select id="${id}">${o}</select></div>`;
+}
+
+function renderCustomerProfile(c, prefs, notes){
+  const created = c.created_at ? fd(new Date(c.created_at)) : '–';
+  const wa = c.phone ? waLink(c.phone) : '';
+  // recent orders matched from the local list by customer name (best effort)
+  const recent = ORDERS.filter(o => (o.customer||'').trim().toLowerCase() === (c.name||'').trim().toLowerCase())
+    .sort((a,b)=>(b.dateObj?+b.dateObj:0)-(a.dateObj?+a.dateObj:0)).slice(0,5);
+  const money = n => n!=null ? 'RM '+Number(n).toFixed(2) : '–';
+  const init = ((c.name||'?').trim().charAt(0)||'?').toUpperCase();
+  const view = document.getElementById('cust-profile-view');
+  view.innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="backToCustomerList()" style="margin-bottom:14px">← All customers</button>
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+      <div class="dp-cust-av" style="width:52px;height:52px;font-size:20px">${esc(init)}</div>
+      <div><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</div>
+        <div style="font-size:11px;color:var(--c-muted)">${esc(c.source||'shopify')} · added ${created}</div></div>
+    </div>
+
+    <div class="dp-section-ttl">Identity</div>
+    <div class="dp-fl"><div class="dp-fl-ico">📱</div><div><div class="dp-fl-val">${wa||'–'}</div><div class="dp-fl-lbl">Phone (WhatsApp)</div></div></div>
+    ${c.email?`<div class="dp-fl"><div class="dp-fl-ico">✉</div><div><div class="dp-fl-val">${esc(c.email)}</div><div class="dp-fl-lbl">Email</div></div></div>`:''}
+    <div class="fg fg-2" style="margin-top:8px">
+      ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
+      <div class="ff"><label class="ff-l">Phone</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
+    </div>
+
+    <div class="dp-section-ttl" style="margin-top:18px">Key dates</div>
+    <div class="fg fg-2">
+      ${_fld('Birthday','cust-birthday',c.birthday,'date')}
+      ${_fld('Anniversary','cust-anniversary',c.anniversary,'date')}
+    </div>
+
+    <div class="dp-section-ttl" style="margin-top:18px">Purchase summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1.5px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;background:var(--c-surface)">
+      <div style="padding:14px 16px;border-right:1px solid var(--c-border);border-bottom:1px solid var(--c-border)"><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-ink)">${c.total_orders||0}</div><div class="dp-fl-lbl">Total orders</div></div>
+      <div style="padding:14px 16px;border-bottom:1px solid var(--c-border)"><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-burg)">${money(c.total_spend)}</div><div class="dp-fl-lbl">Total spend</div></div>
+      <div style="padding:14px 16px;border-right:1px solid var(--c-border)"><div style="font-size:13px;color:var(--c-ink)">${c.first_order_at?fd(new Date(c.first_order_at)):'–'}</div><div class="dp-fl-lbl">First order</div></div>
+      <div style="padding:14px 16px"><div style="font-size:13px;color:var(--c-ink)">${c.last_order_at?fd(new Date(c.last_order_at)):'–'}</div><div class="dp-fl-lbl">Last order</div></div>
+    </div>
+
+    <div class="dp-section-ttl" style="margin-top:18px">Preferences</div>
+    <div class="fg fg-2">
+      ${_fld('Colour / mood','pref-colour_mood',prefs.colour_mood)}
+      ${_fld('Style','pref-style',prefs.style)}
+      ${_fld('Favourite flowers','pref-favourite_flowers',prefs.favourite_flowers)}
+      ${_fld('Avoid','pref-avoid_flowers',prefs.avoid_flowers)}
+      ${_sel('Usual budget','pref-usual_budget',prefs.usual_budget,[['under100','Under RM100'],['100-200','RM100–200'],['200-300','RM200–300'],['300+','RM300+']])}
+      ${_sel('Buying for','pref-buying_for',prefs.buying_for,[['self','Self'],['partner','Partner'],['parent','Parent'],['friend','Friend'],['corporate','Corporate']])}
+      ${_sel('Occasion','pref-occasion_type',prefs.occasion_type,[['birthday','Birthday'],['anniversary','Anniversary'],['sympathy','Sympathy'],['celebration','Celebration'],['just because','Just because']])}
+      ${_sel('Scent','pref-scent_preference',prefs.scent_preference,[['fragrant','Fragrant'],['light','Light'],['none','None']])}
+    </div>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveCustomerProfile('${c.id}')">Save details</button>
+
+    <div class="dp-section-ttl" style="margin-top:20px">Notes</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <input id="cust-note-input" type="text" placeholder="Add a note…" style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)" onkeydown="if(event.key==='Enter')addCustomerNote('${c.id}')">
+      <button class="btn btn-primary btn-sm" onclick="addCustomerNote('${c.id}')">Add</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">${(notes||[]).map(n=>`<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--c-ink)">${esc(n.note)}</div><div style="font-size:10px;color:var(--c-muted);margin-top:4px">${esc(n.author_name||'')} · ${n.created_at?fd(new Date(n.created_at)):''}</div></div>`).join('') || '<div style="font-size:11px;color:var(--c-muted)">No notes yet</div>'}</div>
+
+    <div class="dp-section-ttl" style="margin-top:20px">Recent orders</div>
+    ${recent.length ? recent.map(o=>`<div class="dp-fl"><div class="dp-fl-ico">🌸</div><div style="flex:1"><div class="dp-fl-val">${esc(o.name||'')} · ${esc(o.product||'')}</div><div class="dp-fl-lbl">${o.dateObj?fd(o.dateObj):(o.dueDate||'')}${o.total?' · RM '+Number(o.total).toFixed(2):''}</div></div></div>`).join('')
+      : '<div style="font-size:11px;color:var(--c-muted)">No matching orders in the current list</div>'}
+    <div style="height:30px"></div>`;
+}
+
+async function saveCustomerProfile(id){
+  const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
+  const g = i => document.getElementById(i)?.value.trim() || null;
+  const custData = { tag: g('cust-tag')||'regular', phone: g('cust-phone'), birthday: g('cust-birthday'), anniversary: g('cust-anniversary'), updated_at: new Date().toISOString() };
+  const prefData = { customer_id: id, updated_at: new Date().toISOString() };
+  ['colour_mood','style','favourite_flowers','avoid_flowers','usual_budget','buying_for','occasion_type','scent_preference'].forEach(f => prefData[f] = g('pref-'+f));
+  try {
+    const { error: e1 } = await sb.from('customers').update(custData).eq('id', id);
+    if (e1) throw e1;
+    const { error: e2 } = await sb.from('customer_preferences').upsert(prefData, { onConflict:'customer_id' });
+    if (e2) throw e2;
+    Object.assign(c, custData);   // reflect in memory
+    toast('✓ Saved');
+  } catch(e){ console.error('saveCustomerProfile', e); toast('⚠ Save failed: '+(e.message||'')); }
+}
+
+async function addCustomerNote(id){
+  const ta = document.getElementById('cust-note-input'); const text = (ta?.value||'').trim(); if(!text) return;
+  try {
+    const row = { customer_id:id, note:text, author_id: currentUser?.id||null, author_name: currentUserName || (currentUser?currentUser.email:'') };
+    const { error } = await sb.from('customer_notes').insert(row); if (error) throw error;
+    if (ta) ta.value=''; toast('✓ Note added'); openCustomer(id);
+  } catch(e){ console.error('addCustomerNote', e); toast('⚠ Could not add note'); }
+}
+
+function openAddCustomer(){
+  document.getElementById('mc-name').value='';
+  document.getElementById('mc-phone').value='';
+  document.getElementById('mc-email').value='';
+  document.getElementById('mc-tag').value='regular';
+  openModal('m-customer');
+}
+async function saveNewCustomer(){
+  const name = document.getElementById('mc-name').value.trim();
+  const phone = document.getElementById('mc-phone').value.trim();
+  if (!phone) { toast('Phone is required (it’s the merge key)'); return; }
+  const row = { name: name||null, phone, email: document.getElementById('mc-email').value.trim()||null,
+    tag: document.getElementById('mc-tag').value, source:'walkin', updated_at:new Date().toISOString() };
+  try {
+    const { data, error } = await sb.from('customers').upsert(row, { onConflict:'phone' }).select().single();
+    if (error) throw error;
+    closeModal('m-customer');
+    // refresh list
+    const i = CUSTOMERS.findIndex(x=>x.phone===phone); if(i>=0) CUSTOMERS[i]=data; else CUSTOMERS.unshift(data);
+    toast('✓ Customer saved'); renderCustomers();
+  } catch(e){ console.error('saveNewCustomer', e); toast('⚠ Save failed: '+(e.message||'')); }
+}
 
 /* ─── Settings ───────────────────────────────────────────────── */
 function openSP() {
+  if (!canAccess('settings')) { toast('Settings is admin-only'); return; }
   updateConnectedUI();
   const emailEl = document.getElementById('sp-user-email');
   if (emailEl) emailEl.textContent = currentUser ? '✉ '+currentUser.email : 'Not signed in';
