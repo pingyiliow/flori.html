@@ -1943,6 +1943,11 @@ async function syncOrders() {
     const cancelledIds = new Set(mappedAll.filter(o => o.cancelled).map(o => o.id));
     if (cancelledIds.size && hasSB()) cancelledIds.forEach(id => sbDelete('orders', id));
     const shopify = mappedAll.filter(o => !o.cancelled);
+    // Capture each order's Shopify line-item images BEFORE the merge below replaces
+    // o.lineItems with the stored copy — used to auto-fill a product's photo from
+    // Shopify when it has none of its own.
+    const shopLineImgs = {};
+    shopify.forEach(o => { shopLineImgs[o.id] = (o.lineItems||[]).map(li => ({ title: li.title, image: li.image||null })); });
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
@@ -2012,6 +2017,19 @@ async function syncOrders() {
         });
       } catch (e) { console.warn('Sync merge read failed:', e && e.message); }
     }
+    // Auto-fill product photos from Shopify: if a line item has no user-uploaded
+    // photo but Shopify carries a product image, adopt it (stored in .image, so a
+    // photo the user adds later still wins via itemPhotos()). Match by position,
+    // falling back to title.
+    ORDERS.forEach(o => {
+      const sl = shopLineImgs[shopId(o.id)]; if (!sl || !Array.isArray(o.lineItems)) return;
+      o.lineItems = o.lineItems.map((li, i) => {
+        if (itemPhotos(li).length) return li;   // already has a photo (user or Shopify)
+        const m = (sl[i] && sl[i].title === li.title) ? sl[i] : sl.find(s => s.title === li.title);
+        return (m && m.image) ? { ...li, image: m.image } : li;
+      });
+      if (!o.image) o.image = (o.lineItems.find(i => itemPhotos(i).length)||{}).image || null;
+    });
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
