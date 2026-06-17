@@ -130,6 +130,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
+  // CRM: keep the customers table in sync (merge on phone). Best-effort — a CRM
+  // failure must never fail the order webhook.
+  await handleCustomerSync(sb, order);
+
   // If this order came from a BloomFlow follow-up draft, mark that follow-up
   // "Completed" now that it's a real order. The follow-up id rides as a hidden
   // line-item property (_bloomflow_followup); older drafts carried it as a tag,
@@ -155,4 +159,38 @@ export default async function handler(req, res) {
 
   console.log(`[Webhook] ${topic} → ${order.name} saved`);
   return res.status(200).json({ ok: true, order: order.name });
+}
+
+// CRM customer sync — upsert the customers table on phone (the single merge key).
+// Preserves CRM-owned fields (tag, birthday, anniversary, source, notes, prefs)
+// by only writing the Shopify-sourced columns. first_order_at is set once.
+async function handleCustomerSync(sb, order) {
+  try {
+    const c = order.customer;
+    if (!c) return;                                   // guest checkout — nothing to merge
+    const phone = c.phone || order.billing_address?.phone || c.default_address?.phone || null;
+    if (!phone) return;                               // no phone = can't merge
+
+    const { data: existing } = await sb.from('customers')
+      .select('id, first_order_at').eq('phone', phone).maybeSingle();
+
+    const row = {
+      phone,
+      name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || null,
+      email: c.email || order.email || null,
+      last_order_at: order.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (c.id != null)            row.shopify_customer_id = String(c.id);
+    if (c.orders_count != null)  row.total_orders = c.orders_count;
+    if (c.total_spent != null)   row.total_spend  = parseFloat(c.total_spent) || 0;
+    // Stamp the first order date only when we don't already have one.
+    if (!existing || !existing.first_order_at) row.first_order_at = order.created_at || new Date().toISOString();
+
+    const { error } = await sb.from('customers').upsert(row, { onConflict: 'phone' });
+    if (error) console.error('CRM customer sync error:', error.message);
+    else console.log(`[Webhook] CRM customer synced (${phone})`);
+  } catch (e) {
+    console.error('handleCustomerSync failed:', e.message);
+  }
 }

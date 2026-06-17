@@ -849,6 +849,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
       <div class="h-stat"><div class="h-stat-n total" id="s-total">–</div><div class="h-stat-l">Total</div></div>
     </div>
     <div class="pc" style="padding-top:16px;gap:18px">
+      <div id="crm-reminders"></div>
       <div>
         <div class="h-sec-ttl" style="margin-bottom:8px">Quick Actions</div>
         <div class="h-qa-grid" id="h-quick"></div>
@@ -1087,6 +1088,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
         <button id="import-year-btn" class="btn btn-ghost" onclick="importOrdersSince(document.getElementById('import-from-date').value)" style="white-space:nowrap">Import orders</button>
       </div>
       <div style="font-size:10px;color:var(--c-muted);margin-top:4px">e.g. set 2025-01-01 to pull last year + this year (may take a minute).</div>
+    </div>
+    <div>
+      <div class="sp-section-ttl">Customers (CRM)</div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">One-time import of your existing Shopify customers into the CRM (merges on phone number; customers without a phone are skipped). New orders sync automatically after this.</div>
+      <button id="crm-import-btn" class="btn btn-ghost" onclick="importCustomersFromShopify()" style="width:100%">Import customers from Shopify</button>
+      <div id="crm-import-status" style="font-size:11px;color:var(--c-muted);margin-top:6px"></div>
     </div>
     <div>
       <div class="sp-section-ttl">Account</div>
@@ -1626,6 +1633,9 @@ async function showApp() {
   currentUserRole = (_profile && _profile.role) || 'florist';
   currentUserName = (_profile && _profile.name) || (currentUser ? currentUser.email : '');
   applyRoleGating();
+  // Preload customers for admin/cs so the dashboard birthday/anniversary widget
+  // can show on landing (also primes the Customers tab). Best-effort.
+  if (canAccess('customers')) loadCustomers().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); });
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -2802,6 +2812,7 @@ function homeMiniCard(o, item, idx) {
 }
 
 function renderHome() {
+  renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
   const todayO    = ORDERS.filter(o => {
@@ -3972,6 +3983,41 @@ function _custTagStyle(tag){
 }
 function _daysSince(iso){ if(!iso) return null; return Math.floor((today0()-new Date(iso))/86400000); }
 function _isThisMonth(d){ if(!d) return false; const x=new Date(d); return !isNaN(x) && x.getMonth()===new Date().getMonth(); }
+// Days until the NEXT occurrence of a month/day (ignoring year). null if invalid.
+function _upcomingDays(dateStr){
+  if(!dateStr) return null;
+  const d=new Date(dateStr); if(isNaN(d)) return null;
+  const t0=today0(); const y=t0.getFullYear();
+  let next=new Date(y, d.getMonth(), d.getDate()); next.setHours(0,0,0,0);
+  if (next < t0) next=new Date(y+1, d.getMonth(), d.getDate());
+  return Math.round((next - t0)/86400000);
+}
+// Dashboard widget: customers with a birthday/anniversary within the next 7 days.
+// Admin/cs only (others never load the customer data).
+function renderCrmReminders(){
+  const el = document.getElementById('crm-reminders'); if(!el) return;
+  if (!canAccess('customers')) { el.innerHTML=''; return; }
+  const items=[];
+  CUSTOMERS.forEach(c=>{
+    const b=_upcomingDays(c.birthday);     if(b!=null && b<=7) items.push({c, kind:'🎂 Birthday', days:b});
+    const a=_upcomingDays(c.anniversary);  if(a!=null && a<=7) items.push({c, kind:'💐 Anniversary', days:a});
+  });
+  if(!items.length){ el.innerHTML=''; return; }
+  items.sort((x,y)=>x.days-y.days);
+  const when = d => d===0?'today':d===1?'tomorrow':`in ${d} days`;
+  el.innerHTML = `<div style="background:var(--c-burg-lt);border:1.5px solid var(--c-dpink);border-radius:var(--r-lg);padding:14px 16px">
+    <div class="h-sec-ttl" style="margin-bottom:10px;color:var(--c-burg)">🌸 Reach out this week</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      ${items.map(it=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:9px 12px">
+        <div style="min-width:0;cursor:pointer" onclick="goPage('customers');setTimeout(()=>openCustomer('${it.c.id}'),60)">
+          <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${it.kind} · ${esc(it.c.name||'(no name)')}</div>
+          <div style="font-size:10px;color:var(--c-muted)">${when(it.days)}</div>
+        </div>
+        ${it.c.phone?`<div onclick="event.stopPropagation()">${waLink(it.c.phone)}</div>`:''}
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
 
 async function renderCustomers(){
   document.getElementById('cust-profile-view').style.display='none';
@@ -4144,6 +4190,64 @@ async function saveNewCustomer(){
     const i = CUSTOMERS.findIndex(x=>x.phone===phone); if(i>=0) CUSTOMERS[i]=data; else CUSTOMERS.unshift(data);
     toast('✓ Customer saved'); renderCustomers();
   } catch(e){ console.error('saveNewCustomer', e); toast('⚠ Save failed: '+(e.message||'')); }
+}
+
+// One-time backfill: page through every Shopify customer (via the app's server
+// proxy) and upsert into the customers table on phone. Admin-run from Settings;
+// uses the logged-in session, so no service key or Node needed.
+async function importCustomersFromShopify(){
+  if (!canAccess('settings')) { toast('Admin only'); return; }
+  if (!hasSB()) { toast('Not connected'); return; }
+  const btn = document.getElementById('crm-import-btn');
+  const stat = document.getElementById('crm-import-status');
+  if (btn){ btn.disabled = true; btn.textContent = 'Importing…'; }
+  let cursor = null, seen = 0, imported = 0, skipped = 0;
+  try {
+    while (true) {
+      const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
+      const q = `{ customers(first:100${after}) {
+        pageInfo { hasNextPage endCursor }
+        edges { node { id firstName lastName email phone createdAt numberOfOrders amountSpent { amount } defaultAddress { phone } } }
+      } }`;
+      const data = await shopifyGQL(q);
+      const conn = data && data.customers; if (!conn) break;
+      const byPhone = {};
+      for (const e of (conn.edges||[])) {
+        const n = e.node; seen++;
+        const phone = n.phone || (n.defaultAddress && n.defaultAddress.phone) || null;
+        if (!phone) { skipped++; continue; }
+        byPhone[phone] = {                                    // dedupe within the batch
+          shopify_customer_id: String(n.id).replace(/^gid:\/\/shopify\/Customer\//,''),
+          name: `${n.firstName||''} ${n.lastName||''}`.trim() || null,
+          phone,
+          email: n.email || null,
+          total_orders: parseInt(n.numberOfOrders||0) || 0,
+          total_spend: parseFloat(n.amountSpent && n.amountSpent.amount || 0) || 0,
+          first_order_at: n.createdAt || null,
+          updated_at: new Date().toISOString(),
+        };
+      }
+      const rows = Object.values(byPhone);
+      if (rows.length) {
+        const { error } = await sb.from('customers').upsert(rows, { onConflict:'phone' });
+        if (error) throw error;
+        imported += rows.length;
+      }
+      if (stat) stat.textContent = `Imported ${imported}… (${seen} scanned)`;
+      if (!conn.pageInfo || !conn.pageInfo.hasNextPage) break;
+      cursor = conn.pageInfo.endCursor;
+    }
+    _custLoaded = false; await loadCustomers();
+    if (typeof renderCustomers === 'function' && document.getElementById('pg-customers')?.classList.contains('on')) renderCustomers();
+    if (stat) stat.textContent = `✓ Done — ${imported} imported, ${skipped} skipped (no phone), ${seen} scanned.`;
+    toast(`✓ Imported ${imported} customers`);
+  } catch(e){
+    console.error('importCustomersFromShopify', e);
+    if (stat) stat.textContent = '⚠ '+(e.message||'Import failed');
+    toast('⚠ Import failed: '+(e.message||''));
+  } finally {
+    if (btn){ btn.disabled = false; btn.textContent = 'Import customers from Shopify'; }
+  }
 }
 
 /* ─── Settings ───────────────────────────────────────────────── */
