@@ -1017,6 +1017,13 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
           <button class="f-btn" data-cf="corporate">Corporate</button>
           <button class="f-btn" data-cf="reorder">No order 45d</button>
           <button class="f-btn" data-cf="birthday">Birthday this month</button>
+          <span style="width:1px;background:var(--c-border);margin:0 2px"></span>
+          <button class="f-btn" data-cf="src-online">🛒 Online</button>
+          <button class="f-btn" data-cf="src-draft">📝 Draft</button>
+          <button class="f-btn" data-cf="src-whatsapp">💬 WhatsApp</button>
+          <button class="f-btn" data-cf="src-instagram">📸 Instagram</button>
+          <button class="f-btn" data-cf="src-walkin">🚶 Walk-in</button>
+          <button class="f-btn" data-cf="src-quiz">❓ Quiz</button>
         </div>
         <div id="cust-list" style="margin-top:12px;display:flex;flex-direction:column;gap:7px"></div>
       </div>
@@ -3984,6 +3991,32 @@ function _custTagStyle(tag){
     prospect:  'background:var(--c-blush-bg);color:var(--c-blush);border-color:#f0c0b0',
   })[tag] || 'background:var(--c-bg);color:var(--c-muted);border-color:var(--c-border)';
 }
+// Follow-up channel link: match follow-ups to a customer by WhatsApp number so the
+// CRM knows they came via WhatsApp / Instagram / etc. Rebuilt each render.
+let _fuChannelMap = null;
+function _buildFuChannelMap(){
+  const m = {};
+  (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f => {
+    [f.contact, f.recipPhone].forEach(p => { const k=_normPhone(p); if(k){ (m[k]=m[k]||new Set()).add(f.channel||'other'); } });
+  });
+  _fuChannelMap = m; return m;
+}
+function _custFollowupChannels(c){
+  const m = _fuChannelMap || _buildFuChannelMap();
+  const k = _normPhone(c.phone); return (k && m[k]) ? [...m[k]] : [];
+}
+const SRC_LABELS = { online:'🛒 Online Store', draft:'📝 Draft order', mixed:'🛒 / 📝 Online + Draft',
+  whatsapp:'💬 WhatsApp', instagram:'📸 Instagram', facebook:'📘 Facebook',
+  walkin:'🚶 Walk-in', quiz:'❓ Quiz', shopify:'🛒 Shopify', other:'Other' };
+// The customer's primary source: a follow-up channel wins (most specific for
+// manually-sourced customers), else the Shopify order source, else stored source.
+function customerSourceKey(c){
+  const ch = _custFollowupChannels(c).find(x => ['whatsapp','instagram','facebook'].includes(x));
+  if (ch) return ch;
+  if (c.order_source) return c.order_source;
+  return c.source || 'shopify';
+}
+function sourceBadge(c){ const k = customerSourceKey(c); return SRC_LABELS[k] || esc(k); }
 function _daysSince(iso){ if(!iso) return null; return Math.floor((today0()-new Date(iso))/86400000); }
 function _isThisMonth(d){ if(!d) return false; const x=new Date(d); return !isNaN(x) && x.getMonth()===new Date().getMonth(); }
 // Days until the NEXT occurrence of a month/day (ignoring year). null if invalid.
@@ -4028,10 +4061,12 @@ async function renderCustomers(){
   const cont = document.getElementById('cust-list'); if(!cont) return;
   if (!_custLoaded){ cont.innerHTML = `<div style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</div>`; await loadCustomers(); }
   const cntEl = document.getElementById('cust-count');
+  _buildFuChannelMap();   // refresh follow-up→phone channel links for source matching
   const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
   let list = CUSTOMERS.slice();
   if (custFilter==='reorder') list = list.filter(c => { const d=_daysSince(c.last_order_at); return d!=null && d>=45; });
   else if (custFilter==='birthday') list = list.filter(c => _isThisMonth(c.birthday));
+  else if (custFilter && custFilter.startsWith('src-')) { const k=custFilter.slice(4); list = list.filter(c => customerSourceKey(c)===k); }
   else if (custFilter!=='all') list = list.filter(c => (c.tag||'regular')===custFilter);
   if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q));
   if (cntEl) cntEl.textContent = `${CUSTOMERS.length} total${list.length!==CUSTOMERS.length?` · ${list.length} shown`:''}`;
@@ -4049,7 +4084,7 @@ function customerRow(c){
     <div style="flex:1;min-width:0">
       <div style="font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(c.name||'(no name)')}
         <span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;${_custTagStyle(tag)}">${esc(tag)}</span></div>
-      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''}</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''} · ${sourceBadge(c)}</div>
     </div>
     <div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em">Last order</div><div style="font-size:11px;color:var(--c-ink)">${last}</div></div>
   </div>`;
@@ -4088,23 +4123,39 @@ function renderCustomerProfile(c, prefs, notes){
   // recent orders matched from the local list by customer name (best effort)
   const recent = ORDERS.filter(o => (o.customer||'').trim().toLowerCase() === (c.name||'').trim().toLowerCase())
     .sort((a,b)=>(b.dateObj?+b.dateObj:0)-(a.dateObj?+a.dateObj:0)).slice(0,5);
+  const ckey = _normPhone(c.phone);
+  const fuLinks = ckey ? (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(f => _normPhone(f.contact)===ckey || _normPhone(f.recipPhone)===ckey) : [];
   const money = n => n!=null ? 'RM '+Number(n).toFixed(2) : '–';
   const init = ((c.name||'?').trim().charAt(0)||'?').toUpperCase();
   const view = document.getElementById('cust-profile-view');
+  const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+  const shopLink = (c.shopify_customer_id && handle) ? `https://admin.shopify.com/store/${handle}/customers/${c.shopify_customer_id}` : '';
   view.innerHTML = `
     <button class="btn btn-ghost btn-sm" onclick="backToCustomerList()" style="margin-bottom:14px">← All customers</button>
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
       <div class="dp-cust-av" style="width:52px;height:52px;font-size:20px">${esc(init)}</div>
-      <div><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</div>
-        <div style="font-size:11px;color:var(--c-muted)">${esc(c.source||'shopify')} · added ${created}</div></div>
+      <div style="flex:1;min-width:0"><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</div>
+        <div style="font-size:11px;color:var(--c-muted)">${sourceBadge(c)} · added ${created}</div></div>
+      ${shopLink?`<a href="${shopLink}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="white-space:nowrap">↗ Shopify</a>`:''}
     </div>
 
     <div class="dp-section-ttl">Identity</div>
-    <div class="dp-fl"><div class="dp-fl-ico">📱</div><div><div class="dp-fl-val">${wa||'–'}</div><div class="dp-fl-lbl">Phone (WhatsApp)</div></div></div>
-    ${c.email?`<div class="dp-fl"><div class="dp-fl-ico">✉</div><div><div class="dp-fl-val">${esc(c.email)}</div><div class="dp-fl-lbl">Email</div></div></div>`:''}
-    <div class="fg fg-2" style="margin-top:8px">
+    <div class="fg fg-2">
+      <div class="ff" style="grid-column:1/-1"><label class="ff-l">Name</label><input id="cust-name" type="text" value="${esc(c.name||'')}"></div>
+      <div class="ff"><label class="ff-l">Phone (WhatsApp)</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
+      <div class="ff"><label class="ff-l">Email</label><input id="cust-email" type="email" value="${esc(c.email||'')}"></div>
       ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
-      <div class="ff"><label class="ff-l">Phone</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
+      <div class="ff"><label class="ff-l">Message</label><div style="padding-top:7px;font-size:12px">${wa||'–'}</div></div>
+    </div>
+
+    <div class="dp-section-ttl" style="margin-top:18px">Address</div>
+    <div class="fg fg-2">
+      <div class="ff" style="grid-column:1/-1"><label class="ff-l">Address line 1</label><input id="cust-address1" type="text" value="${esc(c.address1||'')}"></div>
+      <div class="ff" style="grid-column:1/-1"><label class="ff-l">Address line 2</label><input id="cust-address2" type="text" value="${esc(c.address2||'')}"></div>
+      <div class="ff"><label class="ff-l">City</label><input id="cust-city" type="text" value="${esc(c.city||'')}"></div>
+      <div class="ff"><label class="ff-l">State</label><input id="cust-state" type="text" value="${esc(c.state||'')}"></div>
+      <div class="ff"><label class="ff-l">Postcode</label><input id="cust-zip" type="text" value="${esc(c.zip||'')}"></div>
+      <div class="ff"><label class="ff-l">Country</label><input id="cust-country" type="text" value="${esc(c.country||'')}"></div>
     </div>
 
     <div class="dp-section-ttl" style="margin-top:18px">Key dates</div>
@@ -4132,7 +4183,7 @@ function renderCustomerProfile(c, prefs, notes){
       ${_sel('Occasion','pref-occasion_type',prefs.occasion_type,[['birthday','Birthday'],['anniversary','Anniversary'],['sympathy','Sympathy'],['celebration','Celebration'],['just because','Just because']])}
       ${_sel('Scent','pref-scent_preference',prefs.scent_preference,[['fragrant','Fragrant'],['light','Light'],['none','None']])}
     </div>
-    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveCustomerProfile('${c.id}')">Save details</button>
+    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveCustomerProfile('${c.id}')">Save details${c.shopify_customer_id?' (syncs to Shopify)':''}</button>
 
     <div class="dp-section-ttl" style="margin-top:20px">Notes</div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -4141,16 +4192,46 @@ function renderCustomerProfile(c, prefs, notes){
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">${(notes||[]).map(n=>`<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--c-ink)">${esc(n.note)}</div><div style="font-size:10px;color:var(--c-muted);margin-top:4px">${esc(n.author_name||'')} · ${n.created_at?fd(new Date(n.created_at)):''}</div></div>`).join('') || '<div style="font-size:11px;color:var(--c-muted)">No notes yet</div>'}</div>
 
-    <div class="dp-section-ttl" style="margin-top:20px">Recent orders</div>
-    ${recent.length ? recent.map(o=>`<div class="dp-fl"><div class="dp-fl-ico">🌸</div><div style="flex:1"><div class="dp-fl-val">${esc(o.name||'')} · ${esc(o.product||'')}</div><div class="dp-fl-lbl">${o.dateObj?fd(o.dateObj):(o.dueDate||'')}${o.total?' · RM '+Number(o.total).toFixed(2):''}</div></div></div>`).join('')
-      : '<div style="font-size:11px;color:var(--c-muted)">No matching orders in the current list</div>'}
+    ${fuLinks.length ? `<div class="dp-section-ttl" style="margin-top:20px">Follow-ups (${fuLinks.length})</div>
+      ${fuLinks.map(f=>`<div class="dp-fl"><div class="dp-fl-ico">${({whatsapp:'💬',instagram:'📸',facebook:'📘',shopify:'🛒',walkin:'🚶'})[f.channel]||'☎'}</div><div style="flex:1"><div class="dp-fl-val">${esc(SRC_LABELS[f.channel]||f.channel||'Other')}${f.orderNo?' · '+esc(f.orderNo):''}</div><div class="dp-fl-lbl">${esc(f.status||'pending')}${f.dueDate?' · '+esc(f.dueDate):''}</div></div></div>`).join('')}` : ''}
+
+    <div class="dp-section-ttl" style="margin-top:20px">Order history</div>
+    <div id="cust-orders">${recent.length ? recent.map(o=>_custOrderRow(o.name,o.product,o.dateObj?fd(o.dateObj):(o.dueDate||''),o.total)).join('')
+      : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
     <div style="height:30px"></div>`;
+  if (c.shopify_customer_id) loadCustomerOrders(c);   // accurate history, live from Shopify
+}
+function _custOrderRow(name, product, date, total, src){
+  return `<div class="dp-fl"><div class="dp-fl-ico">🌸</div><div style="flex:1"><div class="dp-fl-val">${esc(name||'')} · ${esc(product||'')}</div><div class="dp-fl-lbl">${esc(date||'')}${total?' · RM '+Number(total).toFixed(2):''}${src?' · '+esc(src):''}</div></div></div>`;
+}
+// Pull the customer's real order history from Shopify by customer id.
+async function loadCustomerOrders(c){
+  try {
+    const gid = `gid://shopify/Customer/${c.shopify_customer_id}`;
+    const q = `{ customer(id:"${gid}"){ orders(first:10, sortKey:CREATED_AT, reverse:true){ edges{ node{ name createdAt displayFulfillmentStatus sourceName currentTotalPriceSet{ shopMoney{ amount } } lineItems(first:5){ edges{ node{ title } } } } } } } }`;
+    const data = await shopifyGQL(q);
+    const edges = data && data.customer && data.customer.orders && data.customer.orders.edges || [];
+    const el = document.getElementById('cust-orders'); if (!el) return;
+    if (!edges.length){ el.innerHTML = '<div style="font-size:11px;color:var(--c-muted)">No orders found</div>'; return; }
+    el.innerHTML = edges.map(e=>{
+      const n=e.node;
+      const products=(n.lineItems&&n.lineItems.edges||[]).map(x=>x.node.title).join(', ');
+      const src = /draft/i.test(n.sourceName||'') ? 'Draft' : (n.sourceName ? 'Online' : '');
+      return _custOrderRow(n.name, products, n.createdAt?fd(new Date(n.createdAt)):'', n.currentTotalPriceSet&&n.currentTotalPriceSet.shopMoney&&n.currentTotalPriceSet.shopMoney.amount, src);
+    }).join('');
+  } catch(e){ /* keep the local fallback already shown */ console.warn('loadCustomerOrders', e && e.message); }
 }
 
 async function saveCustomerProfile(id){
   const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
   const g = i => document.getElementById(i)?.value.trim() || null;
-  const custData = { tag: g('cust-tag')||'regular', phone: g('cust-phone'), birthday: g('cust-birthday'), anniversary: g('cust-anniversary'), updated_at: new Date().toISOString() };
+  const custData = {
+    name: g('cust-name'), phone: g('cust-phone'), email: g('cust-email'),
+    tag: g('cust-tag')||'regular', birthday: g('cust-birthday'), anniversary: g('cust-anniversary'),
+    address1: g('cust-address1'), address2: g('cust-address2'), city: g('cust-city'),
+    state: g('cust-state'), zip: g('cust-zip'), country: g('cust-country'),
+    updated_at: new Date().toISOString(),
+  };
   const prefData = { customer_id: id, updated_at: new Date().toISOString() };
   ['colour_mood','style','favourite_flowers','avoid_flowers','usual_budget','buying_for','occasion_type','scent_preference'].forEach(f => prefData[f] = g('pref-'+f));
   try {
@@ -4160,7 +4241,38 @@ async function saveCustomerProfile(id){
     if (e2) throw e2;
     Object.assign(c, custData);   // reflect in memory
     toast('✓ Saved');
+    // Two-way: push contact + address back to Shopify (best-effort; never blocks).
+    if (c.shopify_customer_id) {
+      pushCustomerToShopify(c)
+        .then(()=> toast('✓ Synced to Shopify'))
+        .catch(e=>{ console.warn('Shopify write-back', e && e.message); toast('Saved in BloomFlow · Shopify update failed: '+(e.message||'')); });
+    }
   } catch(e){ console.error('saveCustomerProfile', e); toast('⚠ Save failed: '+(e.message||'')); }
+}
+
+// Write a BloomFlow customer's contact + address back to Shopify (write_customers).
+async function pushCustomerToShopify(c){
+  if (!c.shopify_customer_id) return;
+  const gid = `gid://shopify/Customer/${c.shopify_customer_id}`;
+  const parts = String(c.name||'').trim().split(/\s+/).filter(Boolean);
+  const input = { id: gid };
+  if (parts.length){ input.firstName = parts[0]; input.lastName = parts.slice(1).join(' '); }
+  if (c.email) input.email = c.email;
+  if (c.phone) input.phone = _e164(c.phone);
+  const res = await shopifyGQL(`mutation($i:CustomerInput!){ customerUpdate(input:$i){ customer{ id defaultAddress{ id } } userErrors{ field message } } }`, { i: input });
+  const ue = (res.customerUpdate && res.customerUpdate.userErrors) || [];
+  if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+  const addr = { address1:c.address1||null, address2:c.address2||null, city:c.city||null, province:c.state||null, zip:c.zip||null, country:c.country||null };
+  if (Object.values(addr).some(Boolean)) {
+    const addrId = res.customerUpdate.customer && res.customerUpdate.customer.defaultAddress && res.customerUpdate.customer.defaultAddress.id;
+    if (addrId) {
+      const r = await shopifyGQL(`mutation($id:ID!,$a:MailingAddressInput!){ customerAddressUpdate(addressId:$id, address:$a){ userErrors{ field message } } }`, { id: addrId, a: addr });
+      const u = (r.customerAddressUpdate && r.customerAddressUpdate.userErrors) || []; if (u.length) throw new Error(u.map(e=>e.message).join('; '));
+    } else {
+      const r = await shopifyGQL(`mutation($cid:ID!,$a:MailingAddressInput!){ customerAddressCreate(customerId:$cid, address:$a){ customerAddress{ id } userErrors{ field message } } }`, { cid: gid, a: addr });
+      const u = (r.customerAddressCreate && r.customerAddressCreate.userErrors) || []; if (u.length) throw new Error(u.map(e=>e.message).join('; '));
+    }
+  }
 }
 
 async function addCustomerNote(id){
@@ -4310,7 +4422,8 @@ async function importCustomersFromShopify(){
       const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
       const q = `{ customers(first:100${after}) {
         pageInfo { hasNextPage endCursor }
-        edges { node { id firstName lastName email phone createdAt numberOfOrders amountSpent { amount } defaultAddress { phone } } }
+        edges { node { id firstName lastName email phone createdAt numberOfOrders amountSpent { amount }
+          defaultAddress { phone address1 address2 city province zip country } } }
       } }`;
       const data = await shopifyGQL(q);
       const conn = data && data.customers; if (!conn) break;
@@ -4318,6 +4431,7 @@ async function importCustomersFromShopify(){
       for (const e of (conn.edges||[])) {
         const n = e.node; seen++;
         const phone = n.phone || (n.defaultAddress && n.defaultAddress.phone) || null;
+        const ad = n.defaultAddress || {};
         const base = {
           shopify_customer_id: String(n.id).replace(/^gid:\/\/shopify\/Customer\//,''),
           name: `${n.firstName||''} ${n.lastName||''}`.trim() || null,
@@ -4325,6 +4439,8 @@ async function importCustomersFromShopify(){
           total_orders: parseInt(n.numberOfOrders||0) || 0,
           total_spend: parseFloat(n.amountSpent && n.amountSpent.amount || 0) || 0,
           first_order_at: n.createdAt || null,
+          address1: ad.address1 || null, address2: ad.address2 || null, city: ad.city || null,
+          state: ad.province || null, zip: ad.zip || null, country: ad.country || null,
           updated_at: new Date().toISOString(),
         };
         if (phone) byPhone[phone] = { ...base, phone };        // dedupe within the batch by phone

@@ -172,7 +172,7 @@ async function handleCustomerSync(sb, order) {
     if (!phone) return;                               // no phone = can't merge
 
     const { data: existing } = await sb.from('customers')
-      .select('id, first_order_at').eq('phone', phone).maybeSingle();
+      .select('id, first_order_at, order_source').eq('phone', phone).maybeSingle();
 
     const row = {
       phone,
@@ -186,6 +186,10 @@ async function handleCustomerSync(sb, order) {
     if (c.total_spent != null)   row.total_spend  = parseFloat(c.total_spent) || 0;
     // Stamp the first order date only when we don't already have one.
     if (!existing || !existing.first_order_at) row.first_order_at = order.created_at || new Date().toISOString();
+    // Platform: online store vs draft order. If the customer has ordered via both
+    // over time, mark them 'mixed'.
+    const thisSrc = /draft/i.test(order.source_name || '') ? 'draft' : 'online';
+    row.order_source = (existing && existing.order_source && existing.order_source !== thisSrc) ? 'mixed' : thisSrc;
 
     const { error } = await sb.from('customers').upsert(row, { onConflict: 'phone' });
     if (error) console.error('CRM customer sync error:', error.message);
