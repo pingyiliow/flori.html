@@ -4313,10 +4313,21 @@ async function saveNewCustomer(){
    merge a group into one record: sum orders/spend, keep the richest fields,
    move notes, combine preferences, delete the extras. */
 function findDuplicateGroups(){
-  const map = {};
-  CUSTOMERS.forEach(c => { const k = _normPhone(c.phone); if (!k) return; (map[k] = map[k] || []).push(c); });
-  return Object.entries(map).filter(([,arr]) => arr.length > 1)
-    .map(([key, items]) => ({ key, items }))
+  // Union customers that share a normalized phone OR a Shopify customer id, so we
+  // catch both phone-format dups and same-Shopify-id dups (different phone formats).
+  const parent = {};
+  const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
+  const union = (a,b) => { parent[find(a)] = find(b); };
+  CUSTOMERS.forEach(c => parent[c.id] = c.id);
+  const byPhone = {}, bySid = {};
+  CUSTOMERS.forEach(c => {
+    const pk = _normPhone(c.phone); if (pk) { if (byPhone[pk]) union(c.id, byPhone[pk]); else byPhone[pk] = c.id; }
+    const sk = c.shopify_customer_id; if (sk) { if (bySid[sk]) union(c.id, bySid[sk]); else bySid[sk] = c.id; }
+  });
+  const groups = {};
+  CUSTOMERS.forEach(c => { const r = find(c.id); (groups[r] = groups[r] || []).push(c); });
+  return Object.values(groups).filter(arr => arr.length > 1)
+    .map(items => ({ key: _normPhone(items[0].phone) || ('id:'+items[0].shopify_customer_id), items }))
     .sort((a,b) => b.items.length - a.items.length);
 }
 function openDuplicates(){
@@ -4452,12 +4463,20 @@ async function importCustomersFromShopify(){
         if (error) throw error;
         imported += rows.length;
       }
-      // No-phone customers: merge on shopify_customer_id (phone column must allow
-      // nulls — run the ALTER if this errors). Wrapped so it can't abort the run.
+      // No-phone customers (phone column must allow nulls). shopify_customer_id is no
+      // longer unique, so we can't upsert on it — insert only the ones we don't
+      // already have, which keeps re-runs idempotent. Wrapped so it can't abort.
       if (noPhone.length) {
-        const { error: npErr } = await sb.from('customers').upsert(noPhone, { onConflict:'shopify_customer_id' });
-        if (npErr) { skipped += noPhone.length; if (!window._npWarned){ window._npWarned=true; console.warn('no-phone import skipped:', npErr.message); } }
-        else imported += noPhone.length;
+        try {
+          const ids = [...new Set(noPhone.map(r=>r.shopify_customer_id))];
+          const have = new Set();
+          const { data: ex } = await sb.from('customers').select('shopify_customer_id').in('shopify_customer_id', ids);
+          (ex||[]).forEach(r=>have.add(String(r.shopify_customer_id)));
+          const seenB = new Set();
+          const toInsert = noPhone.filter(r => { const k=String(r.shopify_customer_id); if(have.has(k)||seenB.has(k)) return false; seenB.add(k); return true; });
+          if (toInsert.length) { const { error: npErr } = await sb.from('customers').insert(toInsert); if (npErr) throw npErr; imported += toInsert.length; }
+          skipped += (noPhone.length - toInsert.length);
+        } catch(e){ skipped += noPhone.length; if (!window._npWarned){ window._npWarned=true; console.warn('no-phone import:', e.message); } }
       }
       if (stat) stat.textContent = `Imported ${imported}… (${seen} scanned)`;
       if (!conn.pageInfo || !conn.pageInfo.hasNextPage) break;
