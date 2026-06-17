@@ -1007,19 +1007,23 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
             <button class="btn btn-primary" onclick="openAddCustomer()">+ Add Customer</button>
           </div>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <input id="cust-search" type="text" placeholder="Search name, email or phone…" oninput="custPage=1;renderCustomers()"
-            style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-          <button class="btn btn-ghost" onclick="toggleCustFilterPanel()">⚙ Filter<span id="cust-filter-badge"></span></button>
+        <div id="cust-normal-view">
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input id="cust-search" type="text" placeholder="Search name, email or phone…" oninput="custPage=1;renderCustomers()"
+              style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+            <button class="btn btn-ghost" onclick="toggleCustFilterPanel()">⚙ Filter<span id="cust-filter-badge"></span></button>
+          </div>
+          <div id="cust-filter-panel" style="display:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px"></div>
+          <div style="overflow-x:auto;border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-surface)">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:780px">
+              <thead id="cust-thead"></thead>
+              <tbody id="cust-tbody"></tbody>
+            </table>
+          </div>
+          <div id="cust-pager" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px"></div>
         </div>
-        <div id="cust-filter-panel" style="display:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px"></div>
-        <div style="overflow-x:auto;border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-surface)">
-          <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:780px">
-            <thead id="cust-thead"></thead>
-            <tbody id="cust-tbody"></tbody>
-          </table>
-        </div>
-        <div id="cust-pager" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px"></div>
+        <!-- DUPLICATES VIEW -->
+        <div id="cust-dup-view" style="display:none"></div>
       </div>
       <!-- PROFILE VIEW -->
       <div id="cust-profile-view" style="display:none"></div>
@@ -3966,11 +3970,13 @@ document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEvent
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
 let CUSTOMERS = [], _custProfileId = null, _custLoaded = false;
-let custSort = { col:'last_order_at', dir:'desc' }, custPage = 1;
+let custSort = { col:'name', dir:'asc' }, custPage = 1;
 const custFilters = { segment:new Set(), source:new Set(), action:new Set() };
 const CUST_PER_PAGE = 50;
+// Name sort key: Latin/alphabetical first (a–z), CJK (Chinese) names sorted last.
+function _nameKey(c){ const n=(c.name||'').trim(); const cjk=/^[⺀-鿿豈-﫿＀-￯]/.test(n); return (cjk?'1':'0')+n.toLowerCase(); }
 const CUST_COLS = [
-  { key:'name',          label:'Customer',  val:c=>(c.name||'').toLowerCase() },
+  { key:'name',          label:'Customer',  val:_nameKey },
   { key:'source',        label:'Source',    val:c=>customerSourceKey(c) },
   { key:'email',         label:'Email',     val:c=>(c.email||'').toLowerCase() },
   { key:'phone',         label:'Phone',     val:c=>_normPhone(c.phone)||'' },
@@ -4106,6 +4112,8 @@ function custSortBy(key){
 async function renderCustomers(){
   document.getElementById('cust-profile-view').style.display='none';
   document.getElementById('cust-list-view').style.display='';
+  const dv = document.getElementById('cust-dup-view'); if (dv) dv.style.display='none';
+  const nv = document.getElementById('cust-normal-view'); if (nv) nv.style.display='';
   const tbody = document.getElementById('cust-tbody'); if(!tbody) return;
   if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
   _buildFuChannelMap();
@@ -4430,8 +4438,9 @@ function findDuplicateGroups(){
 function openDuplicates(){
   document.getElementById('cust-profile-view').style.display = 'none';
   document.getElementById('cust-list-view').style.display = '';
+  document.getElementById('cust-normal-view').style.display = 'none';   // hide the table
+  const cont = document.getElementById('cust-dup-view'); cont.style.display = '';
   const groups = findDuplicateGroups();
-  const cont = document.getElementById('cust-list');
   const cnt = document.getElementById('cust-count');
   const extra = groups.reduce((s,g)=>s+g.items.length-1,0);
   if (cnt) cnt.textContent = `${groups.length} duplicate group${groups.length===1?'':'s'} · ${extra} extra record${extra===1?'':'s'} (by WhatsApp number)`;
