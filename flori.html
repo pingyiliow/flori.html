@@ -4433,15 +4433,17 @@ async function importCustomersFromShopify(){
       const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
       const q = `{ customers(first:100${after}) {
         pageInfo { hasNextPage endCursor }
-        edges { node { id firstName lastName email phone createdAt numberOfOrders amountSpent { amount }
-          defaultAddress { phone address1 address2 city province zip country } } }
+        edges { node { id firstName lastName email phone defaultPhoneNumber { phoneNumber } createdAt numberOfOrders amountSpent { amount }
+          defaultAddress { address1 address2 city province zip country } } }
       } }`;
       const data = await shopifyGQL(q);
       const conn = data && data.customers; if (!conn) break;
       const byPhone = {}; const noPhone = [];
       for (const e of (conn.edges||[])) {
         const n = e.node; seen++;
-        const phone = n.phone || (n.defaultAddress && n.defaultAddress.phone) || null;
+        // Customer's OWN phone only — never the address phone (that's often the
+        // recipient's number on gift orders, which falsely merges different people).
+        const phone = n.phone || (n.defaultPhoneNumber && n.defaultPhoneNumber.phoneNumber) || null;
         const ad = n.defaultAddress || {};
         const base = {
           shopify_customer_id: String(n.id).replace(/^gid:\/\/shopify\/Customer\//,''),

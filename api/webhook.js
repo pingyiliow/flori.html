@@ -168,8 +168,11 @@ async function handleCustomerSync(sb, order) {
   try {
     const c = order.customer;
     if (!c) return;                                   // guest checkout — nothing to merge
-    const phone = c.phone || order.billing_address?.phone || c.default_address?.phone || null;
-    if (!phone) return;                               // no phone = can't merge
+    // Customer's OWN phone (or billing = sender). NEVER the shipping/default address
+    // phone — that's usually the recipient on a gift order and would merge the wrong
+    // people together.
+    const phone = c.phone || order.billing_address?.phone || null;
+    if (!phone) return;                               // no phone = handled by import, not here
 
     const { data: existing } = await sb.from('customers')
       .select('id, first_order_at, order_source').eq('phone', phone).maybeSingle();
