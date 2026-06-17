@@ -4294,16 +4294,23 @@ function openAddCustomer(){
 async function saveNewCustomer(){
   const name = document.getElementById('mc-name').value.trim();
   const phone = document.getElementById('mc-phone').value.trim();
-  if (!phone) { toast('Phone is required (it’s the merge key)'); return; }
-  const row = { name: name||null, phone, email: document.getElementById('mc-email').value.trim()||null,
+  if (!phone) { toast('Phone is required'); return; }
+  const fields = { name: name||null, phone, email: document.getElementById('mc-email').value.trim()||null,
     tag: document.getElementById('mc-tag').value, source:'walkin', updated_at:new Date().toISOString() };
   try {
-    const { data, error } = await sb.from('customers').upsert(row, { onConflict:'phone' }).select().single();
-    if (error) throw error;
-    closeModal('m-customer');
-    // refresh list
-    const i = CUSTOMERS.findIndex(x=>x.phone===phone); if(i>=0) CUSTOMERS[i]=data; else CUSTOMERS.unshift(data);
-    toast('✓ Customer saved'); renderCustomers();
+    // Phone is no longer a DB-unique key, so merge by matching an existing customer
+    // on the normalized number; otherwise insert a new walk-in.
+    const existing = CUSTOMERS.find(x => _normPhone(x.phone) && _normPhone(x.phone) === _normPhone(phone));
+    if (existing) {
+      const { data, error } = await sb.from('customers').update(fields).eq('id', existing.id).select().single();
+      if (error) throw error; Object.assign(existing, data);
+      toast('✓ Updated existing customer (same number)');
+    } else {
+      const { data, error } = await sb.from('customers').insert(fields).select().single();
+      if (error) throw error; CUSTOMERS.unshift(data);
+      toast('✓ Customer added');
+    }
+    closeModal('m-customer'); renderCustomers();
   } catch(e){ console.error('saveNewCustomer', e); toast('⚠ Save failed: '+(e.message||'')); }
 }
 
@@ -4438,16 +4445,21 @@ async function importCustomersFromShopify(){
       } }`;
       const data = await shopifyGQL(q);
       const conn = data && data.customers; if (!conn) break;
-      const byPhone = {}; const noPhone = [];
+      // Key on Shopify customer id (the stable identity) so a re-run CORRECTS each
+      // customer in place — including overwriting any wrong phone we captured before
+      // — instead of creating phone-keyed duplicates. Phone is now just an attribute.
+      const byId = {};
       for (const e of (conn.edges||[])) {
         const n = e.node; seen++;
-        // Customer's OWN phone only — never the address phone (that's often the
-        // recipient's number on gift orders, which falsely merges different people).
+        // Customer's OWN phone only — never the address phone (often the recipient's
+        // number on gift orders, which falsely merges different people).
         const phone = n.phone || (n.defaultPhoneNumber && n.defaultPhoneNumber.phoneNumber) || null;
         const ad = n.defaultAddress || {};
-        const base = {
-          shopify_customer_id: String(n.id).replace(/^gid:\/\/shopify\/Customer\//,''),
+        const sid = String(n.id).replace(/^gid:\/\/shopify\/Customer\//,'');
+        byId[sid] = {                                          // dedupe within the batch by Shopify id
+          shopify_customer_id: sid,
           name: `${n.firstName||''} ${n.lastName||''}`.trim() || null,
+          phone,
           email: n.email || null,
           total_orders: parseInt(n.numberOfOrders||0) || 0,
           total_spend: parseFloat(n.amountSpent && n.amountSpent.amount || 0) || 0,
@@ -4456,29 +4468,12 @@ async function importCustomersFromShopify(){
           state: ad.province || null, zip: ad.zip || null, country: ad.country || null,
           updated_at: new Date().toISOString(),
         };
-        if (phone) byPhone[phone] = { ...base, phone };        // dedupe within the batch by phone
-        else noPhone.push(base);                               // no phone → keyed by Shopify id
       }
-      const rows = Object.values(byPhone);
+      const rows = Object.values(byId);
       if (rows.length) {
-        const { error } = await sb.from('customers').upsert(rows, { onConflict:'phone' });
+        const { error } = await sb.from('customers').upsert(rows, { onConflict:'shopify_customer_id' });
         if (error) throw error;
         imported += rows.length;
-      }
-      // No-phone customers (phone column must allow nulls). shopify_customer_id is no
-      // longer unique, so we can't upsert on it — insert only the ones we don't
-      // already have, which keeps re-runs idempotent. Wrapped so it can't abort.
-      if (noPhone.length) {
-        try {
-          const ids = [...new Set(noPhone.map(r=>r.shopify_customer_id))];
-          const have = new Set();
-          const { data: ex } = await sb.from('customers').select('shopify_customer_id').in('shopify_customer_id', ids);
-          (ex||[]).forEach(r=>have.add(String(r.shopify_customer_id)));
-          const seenB = new Set();
-          const toInsert = noPhone.filter(r => { const k=String(r.shopify_customer_id); if(have.has(k)||seenB.has(k)) return false; seenB.add(k); return true; });
-          if (toInsert.length) { const { error: npErr } = await sb.from('customers').insert(toInsert); if (npErr) throw npErr; imported += toInsert.length; }
-          skipped += (noPhone.length - toInsert.length);
-        } catch(e){ skipped += noPhone.length; if (!window._npWarned){ window._npWarned=true; console.warn('no-phone import:', e.message); } }
       }
       if (stat) stat.textContent = `Imported ${imported}… (${seen} scanned)`;
       if (!conn.pageInfo || !conn.pageInfo.hasNextPage) break;
@@ -4486,7 +4481,7 @@ async function importCustomersFromShopify(){
     }
     _custLoaded = false; await loadCustomers();
     if (typeof renderCustomers === 'function' && document.getElementById('pg-customers')?.classList.contains('on')) renderCustomers();
-    if (stat) stat.textContent = `✓ Done — ${imported} imported, ${skipped} skipped (no phone), ${seen} scanned.`;
+    if (stat) stat.textContent = `✓ Done — ${imported} imported/updated, ${seen} scanned.`;
     toast(`✓ Imported ${imported} customers`);
   } catch(e){
     console.error('importCustomersFromShopify', e);

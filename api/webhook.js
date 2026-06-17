@@ -130,8 +130,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 
-  // CRM: keep the customers table in sync (merge on phone). Best-effort — a CRM
-  // failure must never fail the order webhook.
+  // CRM: keep the customers table in sync (keyed on Shopify customer id). Best-effort
+  // — a CRM failure must never fail the order webhook.
   await handleCustomerSync(sb, order);
 
   // If this order came from a BloomFlow follow-up draft, mark that follow-up
@@ -161,42 +161,37 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true, order: order.name });
 }
 
-// CRM customer sync — upsert the customers table on phone (the single merge key).
-// Preserves CRM-owned fields (tag, birthday, anniversary, source, notes, prefs)
-// by only writing the Shopify-sourced columns. first_order_at is set once.
+// CRM customer sync — upsert the customers table keyed on the Shopify customer id
+// (the stable identity). Phone is just an attribute (the customer's OWN phone, never
+// a recipient/shipping number). Preserves CRM-owned fields (tag, birthday, prefs,
+// notes) by only writing Shopify-sourced columns; first_order_at is set once.
 async function handleCustomerSync(sb, order) {
   try {
     const c = order.customer;
-    if (!c) return;                                   // guest checkout — nothing to merge
-    // Customer's OWN phone (or billing = sender). NEVER the shipping/default address
-    // phone — that's usually the recipient on a gift order and would merge the wrong
-    // people together.
-    const phone = c.phone || order.billing_address?.phone || null;
-    if (!phone) return;                               // no phone = handled by import, not here
+    if (!c || c.id == null) return;                   // need the Shopify customer id (our key)
+    const sid = String(c.id);
+    const phone = c.phone || order.billing_address?.phone || null;   // own/sender phone, not recipient
 
     const { data: existing } = await sb.from('customers')
-      .select('id, first_order_at, order_source').eq('phone', phone).maybeSingle();
+      .select('id, first_order_at, order_source').eq('shopify_customer_id', sid).maybeSingle();
 
     const row = {
-      phone,
+      shopify_customer_id: sid,
       name: `${c.first_name || ''} ${c.last_name || ''}`.trim() || null,
       email: c.email || order.email || null,
       last_order_at: order.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    if (c.id != null)            row.shopify_customer_id = String(c.id);
+    if (phone)                   row.phone = phone;   // never overwrite a phone with null
     if (c.orders_count != null)  row.total_orders = c.orders_count;
     if (c.total_spent != null)   row.total_spend  = parseFloat(c.total_spent) || 0;
-    // Stamp the first order date only when we don't already have one.
     if (!existing || !existing.first_order_at) row.first_order_at = order.created_at || new Date().toISOString();
-    // Platform: online store vs draft order. If the customer has ordered via both
-    // over time, mark them 'mixed'.
+    // Platform: online store vs draft order; 'mixed' if the customer has used both.
     const thisSrc = /draft/i.test(order.source_name || '') ? 'draft' : 'online';
     row.order_source = (existing && existing.order_source && existing.order_source !== thisSrc) ? 'mixed' : thisSrc;
 
-    const { error } = await sb.from('customers').upsert(row, { onConflict: 'phone' });
+    const { error } = await sb.from('customers').upsert(row, { onConflict: 'shopify_customer_id' });
     if (error) console.error('CRM customer sync error:', error.message);
-    else console.log(`[Webhook] CRM customer synced (${phone})`);
   } catch (e) {
     console.error('handleCustomerSync failed:', e.message);
   }
