@@ -692,6 +692,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .buy-check{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--c-border2);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;background:var(--c-surface);cursor:pointer;color:transparent}
 .buy-check.checked{background:#EDF7ED;border-color:#A5D6A7;color:#2E7D32;font-weight:700}
 .buy-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--c-bg);cursor:zoom-in}
+.cust-tr:hover{background:var(--c-bg)}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -1006,35 +1007,19 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
             <button class="btn btn-primary" onclick="openAddCustomer()">+ Add Customer</button>
           </div>
         </div>
-        <div style="display:flex;gap:8px;margin-bottom:6px">
-          <input id="cust-search" type="text" placeholder="Search name or phone…" oninput="renderCustomers()"
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input id="cust-search" type="text" placeholder="Search name, email or phone…" oninput="custPage=1;renderCustomers()"
             style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-          <select id="cust-filter-select" onchange="custFilter=this.value;renderCustomers()"
-            style="padding:11px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);cursor:pointer;max-width:200px">
-            <option value="all">All customers</option>
-            <optgroup label="Tag">
-              <option value="vip">VIP</option>
-              <option value="prospect">Prospect</option>
-              <option value="regular">Regular</option>
-              <option value="wedding">Wedding</option>
-              <option value="corporate">Corporate</option>
-            </optgroup>
-            <optgroup label="Activity">
-              <option value="reorder">No order in 45 days</option>
-              <option value="birthday">Birthday this month</option>
-            </optgroup>
-            <optgroup label="Source">
-              <option value="src-online">🛒 Online Store</option>
-              <option value="src-draft">📝 Draft order</option>
-              <option value="src-whatsapp">💬 WhatsApp</option>
-              <option value="src-instagram">📸 Instagram</option>
-              <option value="src-facebook">📘 Facebook</option>
-              <option value="src-walkin">🚶 Walk-in</option>
-              <option value="src-quiz">❓ Quiz</option>
-            </optgroup>
-          </select>
+          <button class="btn btn-ghost" onclick="toggleCustFilterPanel()">⚙ Filter<span id="cust-filter-badge"></span></button>
         </div>
-        <div id="cust-list" style="margin-top:12px;display:flex;flex-direction:column;gap:7px"></div>
+        <div id="cust-filter-panel" style="display:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px"></div>
+        <div style="overflow-x:auto;border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-surface)">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:780px">
+            <thead id="cust-thead"></thead>
+            <tbody id="cust-tbody"></tbody>
+          </table>
+        </div>
+        <div id="cust-pager" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:10px"></div>
       </div>
       <!-- PROFILE VIEW -->
       <div id="cust-profile-view" style="display:none"></div>
@@ -3980,7 +3965,20 @@ document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('cl
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
-let CUSTOMERS = [], custFilter = 'all', _custProfileId = null, _custLoaded = false;
+let CUSTOMERS = [], _custProfileId = null, _custLoaded = false;
+let custSort = { col:'last_order_at', dir:'desc' }, custPage = 1;
+const custFilters = { segment:new Set(), source:new Set(), action:new Set() };
+const CUST_PER_PAGE = 50;
+const CUST_COLS = [
+  { key:'name',          label:'Customer',  val:c=>(c.name||'').toLowerCase() },
+  { key:'source',        label:'Source',    val:c=>customerSourceKey(c) },
+  { key:'email',         label:'Email',     val:c=>(c.email||'').toLowerCase() },
+  { key:'phone',         label:'Phone',     val:c=>_normPhone(c.phone)||'' },
+  { key:'total_orders',  label:'Orders',    val:c=>c.total_orders||0,        right:true },
+  { key:'total_spend',   label:'Spent',     val:c=>Number(c.total_spend)||0, right:true },
+  { key:'last_order_at', label:'Last order',val:c=>c.last_order_at?+new Date(c.last_order_at):0, right:true },
+];
+function _fdYear(x){ if(!x) return '–'; const d=new Date(x); return isNaN(d)?'–':d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 
 async function loadCustomers(){
   if (!hasSB()) return;
@@ -4032,17 +4030,20 @@ const SRC_KEYS = ['online','draft','whatsapp','instagram','facebook','walkin','q
 //  2. else a linked follow-up channel (whatsapp/ig/fb) — the latest manual signal;
 //  3. else the Shopify order platform (online/draft); else default Online Store.
 // A draft order is therefore shown as its real channel (or "Draft"), never "shopify".
+// Returns '' (unknown) when we have no real signal — we DON'T guess "Online Store",
+// since that mislabels draft orders. A tag appears once a follow-up, a real order's
+// source, or a manual edit gives us one.
 function customerSourceKey(c){
-  if (c.source && c.source !== 'shopify') return c.source;
+  if (c.source && c.source !== 'shopify') return c.source;          // explicit / edited / walk-in / quiz
   const ch = _custFollowupChannels(c).find(x => ['whatsapp','instagram','facebook'].includes(x));
-  if (ch) return ch;
-  if (c.order_source) return c.order_source;
-  return 'online';
+  if (ch) return ch;                                                // linked follow-up channel
+  if (c.order_source) return c.order_source;                        // real Shopify order platform
+  return '';                                                        // unknown — no tag yet
 }
-function sourceBadge(c){ const k = customerSourceKey(c); return SRC_LABELS[k] || esc(k); }
-// Small coloured source pill (shown next to the customer name).
+function sourceBadge(c){ const k = customerSourceKey(c); return k ? (SRC_LABELS[k] || esc(k)) : ''; }
+// Small coloured source pill next to the customer name ('' when source unknown).
 function _srcPill(c){
-  const k = customerSourceKey(c);
+  const k = customerSourceKey(c); if (!k) return '';
   const col = ({ whatsapp:'#1FA855', instagram:'#C13584', facebook:'#1877F2', draft:'#E65100', walkin:'#6D4C41', quiz:'#1565C0' })[k] || 'var(--c-muted)';
   return `<span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap;color:${col};border-color:${col}">${SRC_LABELS[k]||esc(k)}</span>`;
 }
@@ -4084,43 +4085,97 @@ function renderCrmReminders(){
   </div>`;
 }
 
+// Multi-select filter match: within a group OR, across groups AND.
+function custMatches(c){
+  const f = custFilters;
+  if (f.segment.size && !f.segment.has(c.tag||'regular')) return false;
+  if (f.source.size && !f.source.has(customerSourceKey(c) || 'unknown')) return false;
+  if (f.action.size) {
+    let ok = false;
+    if (f.action.has('reorder'))  { const d=_daysSince(c.last_order_at); if (d!=null && d>=45) ok=true; }
+    if (f.action.has('birthday')  && _isThisMonth(c.birthday)) ok=true;
+    if (!ok) return false;
+  }
+  return true;
+}
+function custSortBy(key){
+  if (custSort.col===key) custSort.dir = custSort.dir==='asc'?'desc':'asc';
+  else { custSort.col=key; custSort.dir = ['total_orders','total_spend','last_order_at'].includes(key) ? 'desc':'asc'; }
+  custPage = 1; renderCustomers();
+}
 async function renderCustomers(){
   document.getElementById('cust-profile-view').style.display='none';
   document.getElementById('cust-list-view').style.display='';
-  const cont = document.getElementById('cust-list'); if(!cont) return;
-  if (!_custLoaded){ cont.innerHTML = `<div style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</div>`; await loadCustomers(); }
-  const cntEl = document.getElementById('cust-count');
-  _buildFuChannelMap();   // refresh follow-up→phone channel links for source matching
+  const tbody = document.getElementById('cust-tbody'); if(!tbody) return;
+  if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
+  _buildFuChannelMap();
+  // filter
   const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
-  let list = CUSTOMERS.slice();
-  if (custFilter==='reorder') list = list.filter(c => { const d=_daysSince(c.last_order_at); return d!=null && d>=45; });
-  else if (custFilter==='birthday') list = list.filter(c => _isThisMonth(c.birthday));
-  else if (custFilter && custFilter.startsWith('src-')) { const k=custFilter.slice(4); list = list.filter(c => customerSourceKey(c)===k); }
-  else if (custFilter!=='all') list = list.filter(c => (c.tag||'regular')===custFilter);
-  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q));
+  let list = CUSTOMERS.filter(custMatches);
+  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q));
+  // sort
+  const col = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[6];
+  list.sort((a,b)=>{ const va=col.val(a), vb=col.val(b); const r = va<vb?-1:va>vb?1:0; return custSort.dir==='asc'?r:-r; });
+  // count + active-filter badge
+  const cntEl = document.getElementById('cust-count');
   if (cntEl) cntEl.textContent = `${CUSTOMERS.length.toLocaleString()} total${list.length!==CUSTOMERS.length?` · ${list.length.toLocaleString()} match`:''}`;
-  if (!list.length){ cont.innerHTML = `<div class="empty" style="padding:48px 20px"><div class="empty-ico">☺</div><div class="empty-txt">${CUSTOMERS.length? 'No customers match' : 'No customers yet — import from Shopify in Settings, or tap + Add Customer'}</div></div>`; return; }
-  // Cap the DOM at a few hundred rows (the base can be 20k+); search/filter narrows.
-  const LIMIT = 300;
-  const shown = list.slice(0, LIMIT);
-  cont.innerHTML = shown.map(customerRow).join('')
-    + (list.length > LIMIT ? `<div style="padding:16px;text-align:center;font-size:11px;color:var(--c-muted)">Showing ${LIMIT} of ${list.length.toLocaleString()} — search or filter to narrow.</div>` : '');
+  const active = custFilters.segment.size + custFilters.source.size + custFilters.action.size;
+  const badge = document.getElementById('cust-filter-badge'); if (badge) badge.textContent = active ? ` (${active})` : '';
+  // headers (with sort arrows)
+  const thead = document.getElementById('cust-thead');
+  if (thead) thead.innerHTML = `<tr>${CUST_COLS.map(co=>`<th onclick="custSortBy('${co.key}')" style="text-align:${co.right?'right':'left'};padding:10px 12px;cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-muted);border-bottom:1.5px solid var(--c-border);white-space:nowrap;position:sticky;top:0;background:var(--c-bg)">${co.label}${custSort.col===co.key?(custSort.dir==='asc'?' ▲':' ▼'):''}</th>`).join('')}</tr>`;
+  // rows (paginated)
+  if (!list.length){ tbody.innerHTML = `<tr><td colspan="7" style="padding:48px;text-align:center;color:var(--c-muted)">${CUSTOMERS.length?'No customers match':'No customers yet — import from Shopify in Settings, or + Add Customer'}</td></tr>`; renderCustPager(0,1); return; }
+  const pages = Math.max(1, Math.ceil(list.length / CUST_PER_PAGE));
+  if (custPage > pages) custPage = pages; if (custPage < 1) custPage = 1;
+  const pageRows = list.slice((custPage-1)*CUST_PER_PAGE, custPage*CUST_PER_PAGE);
+  tbody.innerHTML = pageRows.map(custTableRow).join('');
+  renderCustPager(list.length, pages);
 }
-
-function customerRow(c){
-  const tag = c.tag||'regular';
-  const last = c.last_order_at ? fd(new Date(c.last_order_at)) : '–';
-  const spend = c.total_spend ? 'RM '+Number(c.total_spend).toFixed(0) : '';
-  const init = ((c.name||'?').trim().charAt(0)||'?').toUpperCase();
-  return `<div onclick="openCustomer('${c.id}')" style="display:flex;align-items:center;gap:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;cursor:pointer">
-    <div class="dp-cust-av" style="flex-shrink:0">${esc(init)}</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;flex-wrap:wrap">${esc(c.name||'(no name)')}${_srcPill(c)}
-        <span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;margin-left:6px;${_custTagStyle(tag)}">${esc(tag)}</span></div>
-      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''}</div>
-    </div>
-    <div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em">Last order</div><div style="font-size:11px;color:var(--c-ink)">${last}</div></div>
-  </div>`;
+function custTableRow(c){
+  const td = (v, extra='') => `<td style="padding:10px 12px;border-bottom:1px solid var(--c-border);${extra}">${v}</td>`;
+  const src = sourceBadge(c);
+  return `<tr onclick="openCustomer('${c.id}')" class="cust-tr" style="cursor:pointer">
+    ${td(`<span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span>`)}
+    ${td(src ? `<span style="font-size:10px;color:var(--c-ink)">${src}</span>` : '<span style="color:var(--c-border2)">–</span>')}
+    ${td(`<span style="color:var(--c-muted)">${esc(c.email||'')}</span>`)}
+    ${td(`<span style="color:var(--c-muted);white-space:nowrap">${esc(c.phone||'')}</span>`)}
+    ${td(c.total_orders||0, 'text-align:right')}
+    ${td(c.total_spend?'RM '+Number(c.total_spend).toFixed(0):'–', 'text-align:right;white-space:nowrap')}
+    ${td(`<span style="white-space:nowrap">${_fdYear(c.last_order_at)}</span>`, 'text-align:right')}
+  </tr>`;
+}
+function renderCustPager(total, pages){
+  const el = document.getElementById('cust-pager'); if(!el) return;
+  el.innerHTML = `<div style="font-size:11px;color:var(--c-muted)">${total.toLocaleString()} customer${total===1?'':'s'}</div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="btn btn-ghost btn-sm" ${custPage<=1?'disabled':''} onclick="if(custPage>1){custPage--;renderCustomers();}">‹ Prev</button>
+      <span style="font-size:11px;color:var(--c-muted)">Page ${custPage} / ${pages}</span>
+      <button class="btn btn-ghost btn-sm" ${custPage>=pages?'disabled':''} onclick="if(custPage<${pages}){custPage++;renderCustomers();}">Next ›</button>
+    </div>`;
+}
+// Multi-select filter panel (Segment / Source / Action needed).
+function toggleCustFilterPanel(){
+  const p = document.getElementById('cust-filter-panel'); if(!p) return;
+  if (p.style.display==='none'){ renderCustFilterPanel(); p.style.display=''; } else p.style.display='none';
+}
+function toggleCustFilter(group, val){
+  const set = custFilters[group]; if(!set) return;
+  if (set.has(val)) set.delete(val); else set.add(val);
+  custPage = 1; renderCustFilterPanel(); renderCustomers();
+}
+function clearCustFilters(){ custFilters.segment.clear(); custFilters.source.clear(); custFilters.action.clear(); custPage=1; renderCustFilterPanel(); renderCustomers(); }
+function renderCustFilterPanel(){
+  const p = document.getElementById('cust-filter-panel'); if(!p) return;
+  const chip = (group,val,label) => { const on=custFilters[group].has(val);
+    return `<button onclick="toggleCustFilter('${group}','${val}')" class="f-btn${on?' on':''}" style="margin:0 6px 6px 0">${on?'✓ ':''}${label}</button>`; };
+  const grp = (title, html) => `<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:6px">${title}</div><div style="display:flex;flex-wrap:wrap">${html}</div></div>`;
+  const active = custFilters.segment.size + custFilters.source.size + custFilters.action.size;
+  p.innerHTML =
+    grp('Segment', ['vip','prospect','regular','wedding','corporate'].map(t=>chip('segment',t,t[0].toUpperCase()+t.slice(1))).join('')) +
+    grp('Source', ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>chip('source',s,SRC_LABELS[s]||'— No tag')).join('')) +
+    grp('Action needed', [['reorder','No order in 45 days'],['birthday','Birthday this month']].map(([v,l])=>chip('action',v,l)).join('')) +
+    (active?`<button class="btn btn-ghost btn-sm" onclick="clearCustFilters()">Clear all (${active})</button>`:'');
 }
 
 function backToCustomerList(){ _custProfileId=null; renderCustomers(); }
@@ -4476,6 +4531,7 @@ async function importCustomersFromShopify(){
       const q = `{ customers(first:100${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id firstName lastName email phone defaultPhoneNumber { phoneNumber } createdAt numberOfOrders amountSpent { amount }
+          lastOrder { createdAt }
           defaultAddress { address1 address2 city province zip country } } }
       } }`;
       const data = await shopifyGQL(q);
@@ -4499,6 +4555,7 @@ async function importCustomersFromShopify(){
           total_orders: parseInt(n.numberOfOrders||0) || 0,
           total_spend: parseFloat(n.amountSpent && n.amountSpent.amount || 0) || 0,
           first_order_at: n.createdAt || null,
+          last_order_at: (n.lastOrder && n.lastOrder.createdAt) || null,
           address1: ad.address1 || null, address2: ad.address2 || null, city: ad.city || null,
           state: ad.province || null, zip: ad.zip || null, country: ad.country || null,
           updated_at: new Date().toISOString(),
