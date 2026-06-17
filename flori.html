@@ -693,6 +693,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .buy-check.checked{background:#EDF7ED;border-color:#A5D6A7;color:#2E7D32;font-weight:700}
 .buy-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;flex-shrink:0;background:var(--c-bg);cursor:zoom-in}
 .cust-tr:hover{background:var(--c-bg)}
+.src-dd{position:relative}
+.src-dd-btn{width:100%;display:flex;align-items:center;gap:6px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-ink);font-size:13px;cursor:pointer;text-align:left}
+.src-dd-cur{display:inline-flex;align-items:center;gap:6px}
+.src-dd-menu{display:none;position:absolute;z-index:60;top:calc(100% + 4px);left:0;right:0;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r);box-shadow:0 8px 24px rgba(77,14,19,.15);overflow:hidden}
+.src-dd-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;cursor:pointer;color:var(--c-ink)}
+.src-dd-opt:hover{background:var(--c-bg)}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -790,6 +796,9 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 </head>
 <body>
 <div class="shell">
+
+<!-- Shared Instagram brand gradient (referenced by srcIcon SVGs) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="igGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".25" stop-color="#FA7E1E"/><stop offset=".5" stop-color="#D62976"/><stop offset=".75" stop-color="#962FBF"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs></svg>
 
 <!-- ══ HEADER ═════════════════════════════════════════════════ -->
 <header class="hdr">
@@ -4027,10 +4036,37 @@ function _custFollowupChannels(c){
   const m = _fuChannelMap || _buildFuChannelMap();
   const k = _normPhone(c.phone); return (k && m[k]) ? [...m[k]] : [];
 }
-const SRC_LABELS = { online:'🛒 Online Store', shopify:'🛒 Online Store', draft:'📝 Draft order',
-  mixed:'🛒 Online + Draft', whatsapp:'💬 WhatsApp', instagram:'📸 Instagram', facebook:'📘 Facebook',
-  walkin:'🚶 Walk-in', quiz:'❓ Quiz', other:'Other' };
+const SRC_LABELS = { online:'Online Store', shopify:'Online Store', draft:'Draft order',
+  mixed:'Online + Draft', whatsapp:'WhatsApp', instagram:'Instagram', facebook:'Facebook',
+  walkin:'Walk-in', quiz:'Quiz', other:'Other' };
 const SRC_KEYS = ['online','draft','whatsapp','instagram','facebook','walkin','quiz'];
+// Brand logos for the social channels (real marks), simple glyphs for the rest.
+function srcIcon(k, s){
+  s = s || 14; const v = `width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-2px;flex-shrink:0"`;
+  if (k==='whatsapp') return `<svg ${v}><path fill="#25D366" d="M.5 23.5l1.7-6A11.4 11.4 0 1 1 12 23.4c-1.9 0-3.7-.5-5.3-1.3L.5 23.5z"/><path fill="#fff" d="M9 6.9c-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.8 2.8 4.4 3.8 2.1.9 2.6.7 3 .7.5 0 1.6-.6 1.8-1.3.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.6-.4-.3-.1-1.6-.8-1.9-.9-.2-.1-.4-.1-.6.1-.2.3-.6.9-.8 1-.1.2-.3.2-.5.1-.3-.1-1.2-.4-2.2-1.4-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.5l.4-.5c.1-.1.2-.3.2-.4 0-.2 0-.3 0-.4 0-.2-.6-1.6-.8-2.1z"/></svg>`;
+  if (k==='instagram') return `<svg ${v}><rect width="24" height="24" rx="6" fill="url(#igGrad)"/><rect x="5" y="5" width="14" height="14" rx="4.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="12" r="3.3" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="17" cy="7" r="1.1" fill="#fff"/></svg>`;
+  if (k==='facebook') return `<svg ${v}><rect width="24" height="24" rx="6" fill="#1877F2"/><path fill="#fff" d="M15.4 12.3l.4-2.6h-2.5V8c0-.7.3-1.4 1.5-1.4h1.2V4.4S15 4.2 14 4.2c-2.1 0-3.5 1.3-3.5 3.6v1.9H8.2v2.6h2.3V20h2.9v-7.7z"/></svg>`;
+  return `<span style="font-size:${s}px;line-height:1">${({online:'🛒',shopify:'🛒',draft:'📝',mixed:'🛒',walkin:'🚶',quiz:'❓',other:'•'})[k]||''}</span>`;
+}
+// Custom Source picker (native <select> can't render logos). Value lives in the
+// hidden #cust-source input that saveCustomerProfile reads.
+function _srcDropdown(cur){
+  return `<input type="hidden" id="cust-source" value="${esc(cur)}">
+    <div class="src-dd" id="cust-source-dd">
+      <button type="button" class="src-dd-btn" onclick="srcDDToggle(event)">
+        <span class="src-dd-cur">${srcIcon(cur)} ${SRC_LABELS[cur]||'Set source'}</span>
+        <span style="margin-left:auto;color:var(--c-muted)">▾</span>
+      </button>
+      <div class="src-dd-menu">${SRC_KEYS.map(k=>`<div class="src-dd-opt" onclick="srcDDPick('${k}')">${srcIcon(k)} ${SRC_LABELS[k]}</div>`).join('')}</div>
+    </div>`;
+}
+function srcDDToggle(e){ e.stopPropagation(); const m=document.querySelector('#cust-source-dd .src-dd-menu'); if(m) m.style.display = (m.style.display==='block'?'none':'block'); }
+function srcDDPick(k){
+  const inp=document.getElementById('cust-source'); if(inp) inp.value=k;
+  const cur=document.querySelector('#cust-source-dd .src-dd-cur'); if(cur) cur.innerHTML=`${srcIcon(k)} ${SRC_LABELS[k]}`;
+  const m=document.querySelector('#cust-source-dd .src-dd-menu'); if(m) m.style.display='none';
+}
+document.addEventListener('click', e=>{ const dd=document.getElementById('cust-source-dd'); if(dd && !dd.contains(e.target)){ const m=dd.querySelector('.src-dd-menu'); if(m) m.style.display='none'; } });
 // The customer's source label:
 //  1. an explicit source (admin-edited, or walk-in/quiz) wins — never overridden;
 //  2. else a linked follow-up channel (whatsapp/ig/fb) — the latest manual signal;
@@ -4046,12 +4082,12 @@ function customerSourceKey(c){
   if (c.order_source) return c.order_source;                        // real Shopify order platform
   return '';                                                        // unknown — no tag yet
 }
-function sourceBadge(c){ const k = customerSourceKey(c); return k ? (SRC_LABELS[k] || esc(k)) : ''; }
-// Small coloured source pill next to the customer name ('' when source unknown).
+// Source with its brand logo + label (used in the table cell + profile header).
+function sourceBadge(c){ const k = customerSourceKey(c); return k ? `<span style="display:inline-flex;align-items:center;gap:5px">${srcIcon(k)}${SRC_LABELS[k]||esc(k)}</span>` : ''; }
+// Small source pill next to the customer name ('' when source unknown).
 function _srcPill(c){
   const k = customerSourceKey(c); if (!k) return '';
-  const col = ({ whatsapp:'#1FA855', instagram:'#C13584', facebook:'#1877F2', draft:'#E65100', walkin:'#6D4C41', quiz:'#1565C0' })[k] || 'var(--c-muted)';
-  return `<span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap;color:${col};border-color:${col}">${SRC_LABELS[k]||esc(k)}</span>`;
+  return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:600;border:1px solid var(--c-border2);border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap;color:var(--c-muted)">${srcIcon(k,11)}${SRC_LABELS[k]||esc(k)}</span>`;
 }
 function _daysSince(iso){ if(!iso) return null; return Math.floor((today0()-new Date(iso))/86400000); }
 function _isThisMonth(d){ if(!d) return false; const x=new Date(d); return !isNaN(x) && x.getMonth()===new Date().getMonth(); }
@@ -4176,12 +4212,12 @@ function clearCustFilters(){ custFilters.segment.clear(); custFilters.source.cle
 function renderCustFilterPanel(){
   const p = document.getElementById('cust-filter-panel'); if(!p) return;
   const chip = (group,val,label) => { const on=custFilters[group].has(val);
-    return `<button onclick="toggleCustFilter('${group}','${val}')" class="f-btn${on?' on':''}" style="margin:0 6px 6px 0">${on?'✓ ':''}${label}</button>`; };
+    return `<button onclick="toggleCustFilter('${group}','${val}')" class="f-btn${on?' on':''}" style="display:inline-flex;align-items:center;gap:5px;margin:0 6px 6px 0">${on?'✓ ':''}${label}</button>`; };
   const grp = (title, html) => `<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:6px">${title}</div><div style="display:flex;flex-wrap:wrap">${html}</div></div>`;
   const active = custFilters.segment.size + custFilters.source.size + custFilters.action.size;
   p.innerHTML =
     grp('Segment', ['vip','prospect','regular','wedding','corporate'].map(t=>chip('segment',t,t[0].toUpperCase()+t.slice(1))).join('')) +
-    grp('Source', ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>chip('source',s,SRC_LABELS[s]||'— No tag')).join('')) +
+    grp('Source', ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>chip('source',s, s==='unknown'?'— No tag':srcIcon(s,12)+SRC_LABELS[s])).join('')) +
     grp('Action needed', [['reorder','No order in 45 days'],['birthday','Birthday this month']].map(([v,l])=>chip('action',v,l)).join('')) +
     (active?`<button class="btn btn-ghost btn-sm" onclick="clearCustFilters()">Clear all (${active})</button>`:'');
 }
@@ -4241,7 +4277,7 @@ function renderCustomerProfile(c, prefs, notes){
       <div class="ff"><label class="ff-l">Phone (WhatsApp)</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
       <div class="ff"><label class="ff-l">Email</label><input id="cust-email" type="email" value="${esc(c.email||'')}"></div>
       ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
-      ${_sel('Source','cust-source',customerSourceKey(c),[['online','🛒 Online Store'],['draft','📝 Draft order'],['whatsapp','💬 WhatsApp'],['instagram','📸 Instagram'],['facebook','📘 Facebook'],['walkin','🚶 Walk-in'],['quiz','❓ Quiz']])}
+      <div class="ff"><label class="ff-l">Source</label>${_srcDropdown(customerSourceKey(c)||'online')}</div>
     </div>
     <div style="font-size:10px;color:var(--c-muted);margin-top:4px">${wa?'Message: '+wa+' · ':''}Source auto-updates from a linked follow-up; edit to fix if wrong.</div>
 
