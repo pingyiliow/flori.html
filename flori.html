@@ -4364,7 +4364,7 @@ async function pushCustomerToShopify(c){
   if (Object.values(addr).some(Boolean)) {
     const addrId = res.customerUpdate.customer && res.customerUpdate.customer.defaultAddress && res.customerUpdate.customer.defaultAddress.id;
     if (addrId) {
-      const r = await shopifyGQL(`mutation($id:ID!,$a:MailingAddressInput!){ customerAddressUpdate(addressId:$id, address:$a){ userErrors{ field message } } }`, { id: addrId, a: addr });
+      const r = await shopifyGQL(`mutation($cid:ID!,$id:ID!,$a:MailingAddressInput!){ customerAddressUpdate(customerId:$cid, addressId:$id, address:$a){ userErrors{ field message } } }`, { cid: gid, id: addrId, a: addr });
       const u = (r.customerAddressUpdate && r.customerAddressUpdate.userErrors) || []; if (u.length) throw new Error(u.map(e=>e.message).join('; '));
     } else {
       const r = await shopifyGQL(`mutation($cid:ID!,$a:MailingAddressInput!){ customerAddressCreate(customerId:$cid, address:$a){ customerAddress{ id } userErrors{ field message } } }`, { cid: gid, a: addr });
