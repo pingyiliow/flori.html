@@ -1006,24 +1006,33 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
             <button class="btn btn-primary" onclick="openAddCustomer()">+ Add Customer</button>
           </div>
         </div>
-        <input id="cust-search" type="text" placeholder="Search name or phone…" oninput="renderCustomers()"
-          style="width:100%;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);margin-bottom:10px">
-        <div class="filters" id="cust-filters">
-          <button class="f-btn on" data-cf="all">All</button>
-          <button class="f-btn" data-cf="vip">VIP</button>
-          <button class="f-btn" data-cf="prospect">Prospect</button>
-          <button class="f-btn" data-cf="regular">Regular</button>
-          <button class="f-btn" data-cf="wedding">Wedding</button>
-          <button class="f-btn" data-cf="corporate">Corporate</button>
-          <button class="f-btn" data-cf="reorder">No order 45d</button>
-          <button class="f-btn" data-cf="birthday">Birthday this month</button>
-          <span style="width:1px;background:var(--c-border);margin:0 2px"></span>
-          <button class="f-btn" data-cf="src-online">🛒 Online</button>
-          <button class="f-btn" data-cf="src-draft">📝 Draft</button>
-          <button class="f-btn" data-cf="src-whatsapp">💬 WhatsApp</button>
-          <button class="f-btn" data-cf="src-instagram">📸 Instagram</button>
-          <button class="f-btn" data-cf="src-walkin">🚶 Walk-in</button>
-          <button class="f-btn" data-cf="src-quiz">❓ Quiz</button>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="cust-search" type="text" placeholder="Search name or phone…" oninput="renderCustomers()"
+            style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <select id="cust-filter-select" onchange="custFilter=this.value;renderCustomers()"
+            style="padding:11px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);cursor:pointer;max-width:200px">
+            <option value="all">All customers</option>
+            <optgroup label="Tag">
+              <option value="vip">VIP</option>
+              <option value="prospect">Prospect</option>
+              <option value="regular">Regular</option>
+              <option value="wedding">Wedding</option>
+              <option value="corporate">Corporate</option>
+            </optgroup>
+            <optgroup label="Activity">
+              <option value="reorder">No order in 45 days</option>
+              <option value="birthday">Birthday this month</option>
+            </optgroup>
+            <optgroup label="Source">
+              <option value="src-online">🛒 Online Store</option>
+              <option value="src-draft">📝 Draft order</option>
+              <option value="src-whatsapp">💬 WhatsApp</option>
+              <option value="src-instagram">📸 Instagram</option>
+              <option value="src-facebook">📘 Facebook</option>
+              <option value="src-walkin">🚶 Walk-in</option>
+              <option value="src-quiz">❓ Quiz</option>
+            </optgroup>
+          </select>
         </div>
         <div id="cust-list" style="margin-top:12px;display:flex;flex-direction:column;gap:7px"></div>
       </div>
@@ -3969,7 +3978,6 @@ document.querySelectorAll('[data-f]').forEach(btn => {
 });
 document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; renderOrders(); }); });
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
-document.querySelectorAll('#cust-filters [data-cf]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#cust-filters [data-cf]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); custFilter=btn.dataset.cf; renderCustomers(); }); });
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
 let CUSTOMERS = [], custFilter = 'all', _custProfileId = null, _custLoaded = false;
@@ -3977,9 +3985,19 @@ let CUSTOMERS = [], custFilter = 'all', _custProfileId = null, _custLoaded = fal
 async function loadCustomers(){
   if (!hasSB()) return;
   try {
-    const { data, error } = await sb.from('customers').select('*').order('last_order_at', { ascending:false, nullsFirst:false });
-    if (error) { console.error('loadCustomers', error.message); return; }
-    CUSTOMERS = data || []; _custLoaded = true;
+    // Supabase returns at most 1000 rows per request — page through with .range()
+    // so the whole customer base loads (not just the first 1000).
+    const PAGE = 1000; let from = 0, all = [];
+    while (true) {
+      const { data, error } = await sb.from('customers').select('*')
+        .order('last_order_at', { ascending:false, nullsFirst:false })
+        .range(from, from + PAGE - 1);
+      if (error) { console.error('loadCustomers', error.message); break; }
+      all = all.concat(data || []);
+      if (!data || data.length < PAGE) break;
+      from += PAGE;
+    }
+    CUSTOMERS = all; _custLoaded = true;
   } catch(e){ console.error('loadCustomers', e); }
 }
 
@@ -4005,18 +4023,29 @@ function _custFollowupChannels(c){
   const m = _fuChannelMap || _buildFuChannelMap();
   const k = _normPhone(c.phone); return (k && m[k]) ? [...m[k]] : [];
 }
-const SRC_LABELS = { online:'🛒 Online Store', draft:'📝 Draft order', mixed:'🛒 / 📝 Online + Draft',
-  whatsapp:'💬 WhatsApp', instagram:'📸 Instagram', facebook:'📘 Facebook',
-  walkin:'🚶 Walk-in', quiz:'❓ Quiz', shopify:'🛒 Shopify', other:'Other' };
-// The customer's primary source: a follow-up channel wins (most specific for
-// manually-sourced customers), else the Shopify order source, else stored source.
+const SRC_LABELS = { online:'🛒 Online Store', shopify:'🛒 Online Store', draft:'📝 Draft order',
+  mixed:'🛒 Online + Draft', whatsapp:'💬 WhatsApp', instagram:'📸 Instagram', facebook:'📘 Facebook',
+  walkin:'🚶 Walk-in', quiz:'❓ Quiz', other:'Other' };
+const SRC_KEYS = ['online','draft','whatsapp','instagram','facebook','walkin','quiz'];
+// The customer's source label:
+//  1. an explicit source (admin-edited, or walk-in/quiz) wins — never overridden;
+//  2. else a linked follow-up channel (whatsapp/ig/fb) — the latest manual signal;
+//  3. else the Shopify order platform (online/draft); else default Online Store.
+// A draft order is therefore shown as its real channel (or "Draft"), never "shopify".
 function customerSourceKey(c){
+  if (c.source && c.source !== 'shopify') return c.source;
   const ch = _custFollowupChannels(c).find(x => ['whatsapp','instagram','facebook'].includes(x));
   if (ch) return ch;
   if (c.order_source) return c.order_source;
-  return c.source || 'shopify';
+  return 'online';
 }
 function sourceBadge(c){ const k = customerSourceKey(c); return SRC_LABELS[k] || esc(k); }
+// Small coloured source pill (shown next to the customer name).
+function _srcPill(c){
+  const k = customerSourceKey(c);
+  const col = ({ whatsapp:'#1FA855', instagram:'#C13584', facebook:'#1877F2', draft:'#E65100', walkin:'#6D4C41', quiz:'#1565C0' })[k] || 'var(--c-muted)';
+  return `<span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap;color:${col};border-color:${col}">${SRC_LABELS[k]||esc(k)}</span>`;
+}
 function _daysSince(iso){ if(!iso) return null; return Math.floor((today0()-new Date(iso))/86400000); }
 function _isThisMonth(d){ if(!d) return false; const x=new Date(d); return !isNaN(x) && x.getMonth()===new Date().getMonth(); }
 // Days until the NEXT occurrence of a month/day (ignoring year). null if invalid.
@@ -4069,9 +4098,13 @@ async function renderCustomers(){
   else if (custFilter && custFilter.startsWith('src-')) { const k=custFilter.slice(4); list = list.filter(c => customerSourceKey(c)===k); }
   else if (custFilter!=='all') list = list.filter(c => (c.tag||'regular')===custFilter);
   if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q));
-  if (cntEl) cntEl.textContent = `${CUSTOMERS.length} total${list.length!==CUSTOMERS.length?` · ${list.length} shown`:''}`;
+  if (cntEl) cntEl.textContent = `${CUSTOMERS.length.toLocaleString()} total${list.length!==CUSTOMERS.length?` · ${list.length.toLocaleString()} match`:''}`;
   if (!list.length){ cont.innerHTML = `<div class="empty" style="padding:48px 20px"><div class="empty-ico">☺</div><div class="empty-txt">${CUSTOMERS.length? 'No customers match' : 'No customers yet — import from Shopify in Settings, or tap + Add Customer'}</div></div>`; return; }
-  cont.innerHTML = list.map(customerRow).join('');
+  // Cap the DOM at a few hundred rows (the base can be 20k+); search/filter narrows.
+  const LIMIT = 300;
+  const shown = list.slice(0, LIMIT);
+  cont.innerHTML = shown.map(customerRow).join('')
+    + (list.length > LIMIT ? `<div style="padding:16px;text-align:center;font-size:11px;color:var(--c-muted)">Showing ${LIMIT} of ${list.length.toLocaleString()} — search or filter to narrow.</div>` : '');
 }
 
 function customerRow(c){
@@ -4082,9 +4115,9 @@ function customerRow(c){
   return `<div onclick="openCustomer('${c.id}')" style="display:flex;align-items:center;gap:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;cursor:pointer">
     <div class="dp-cust-av" style="flex-shrink:0">${esc(init)}</div>
     <div style="flex:1;min-width:0">
-      <div style="font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;gap:6px;flex-wrap:wrap">${esc(c.name||'(no name)')}
-        <span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;${_custTagStyle(tag)}">${esc(tag)}</span></div>
-      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''} · ${sourceBadge(c)}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;flex-wrap:wrap">${esc(c.name||'(no name)')}${_srcPill(c)}
+        <span style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:3px;padding:1px 6px;margin-left:6px;${_custTagStyle(tag)}">${esc(tag)}</span></div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.phone||'')}${c.total_orders?` · ${c.total_orders} order${c.total_orders==1?'':'s'}`:''}${spend?` · ${spend}`:''}</div>
     </div>
     <div style="text-align:right;flex-shrink:0"><div style="font-size:9px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em">Last order</div><div style="font-size:11px;color:var(--c-ink)">${last}</div></div>
   </div>`;
@@ -4145,8 +4178,9 @@ function renderCustomerProfile(c, prefs, notes){
       <div class="ff"><label class="ff-l">Phone (WhatsApp)</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
       <div class="ff"><label class="ff-l">Email</label><input id="cust-email" type="email" value="${esc(c.email||'')}"></div>
       ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
-      <div class="ff"><label class="ff-l">Message</label><div style="padding-top:7px;font-size:12px">${wa||'–'}</div></div>
+      ${_sel('Source','cust-source',customerSourceKey(c),[['online','🛒 Online Store'],['draft','📝 Draft order'],['whatsapp','💬 WhatsApp'],['instagram','📸 Instagram'],['facebook','📘 Facebook'],['walkin','🚶 Walk-in'],['quiz','❓ Quiz']])}
     </div>
+    <div style="font-size:10px;color:var(--c-muted);margin-top:4px">${wa?'Message: '+wa+' · ':''}Source auto-updates from a linked follow-up; edit to fix if wrong.</div>
 
     <div class="dp-section-ttl" style="margin-top:18px">Address</div>
     <div class="fg fg-2">
@@ -4227,7 +4261,8 @@ async function saveCustomerProfile(id){
   const g = i => document.getElementById(i)?.value.trim() || null;
   const custData = {
     name: g('cust-name'), phone: g('cust-phone'), email: g('cust-email'),
-    tag: g('cust-tag')||'regular', birthday: g('cust-birthday'), anniversary: g('cust-anniversary'),
+    tag: g('cust-tag')||'regular', source: g('cust-source')||'online',
+    birthday: g('cust-birthday'), anniversary: g('cust-anniversary'),
     address1: g('cust-address1'), address2: g('cust-address2'), city: g('cust-city'),
     state: g('cust-state'), zip: g('cust-zip'), country: g('cust-country'),
     updated_at: new Date().toISOString(),
