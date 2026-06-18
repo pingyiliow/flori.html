@@ -4040,6 +4040,9 @@ const SRC_LABELS = { online:'Online Store', shopify:'Online Store', draft:'Draft
   mixed:'Online + Draft', whatsapp:'WhatsApp', instagram:'Instagram', facebook:'Facebook',
   walkin:'Walk-in', quiz:'Quiz', other:'Other' };
 const SRC_KEYS = ['online','draft','whatsapp','instagram','facebook','walkin','quiz'];
+// Tag written onto the Shopify customer to mirror the source (one at a time).
+const SRC_TAG = { online:'online-store', shopify:'online-store', draft:'draft-order',
+  whatsapp:'whatsapp', instagram:'instagram', facebook:'facebook', walkin:'walk-in', quiz:'quiz', mixed:'online-store' };
 // Brand logos for the social channels (real marks), simple glyphs for the rest.
 function srcIcon(k, s){
   s = s || 14; const v = `width="${s}" height="${s}" viewBox="0 0 24 24" style="vertical-align:-2px;flex-shrink:0"`;
@@ -4396,6 +4399,16 @@ async function pushCustomerToShopify(c){
   const res = await shopifyGQL(`mutation($i:CustomerInput!){ customerUpdate(input:$i){ customer{ id defaultAddress{ id } } userErrors{ field message } } }`, { i: input });
   const ue = (res.customerUpdate && res.customerUpdate.userErrors) || [];
   if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+  // Mirror the source as a Shopify customer tag — keep just one source tag by
+  // removing the others first. Best-effort so a tag error never blocks the save.
+  try {
+    const srcTag = SRC_TAG[customerSourceKey(c)];
+    if (srcTag) {
+      const others = [...new Set(Object.values(SRC_TAG))].filter(t => t !== srcTag);
+      if (others.length) await shopifyGQL(`mutation($id:ID!,$t:[String!]!){ tagsRemove(id:$id, tags:$t){ userErrors{ message } } }`, { id: gid, t: others });
+      await shopifyGQL(`mutation($id:ID!,$t:[String!]!){ tagsAdd(id:$id, tags:$t){ userErrors{ message } } }`, { id: gid, t: [srcTag] });
+    }
+  } catch(e){ console.warn('source tag sync', e && e.message); }
   const addr = { address1:c.address1||null, address2:c.address2||null, city:c.city||null, province:c.state||null, zip:c.zip||null, country:c.country||null };
   if (Object.values(addr).some(Boolean)) {
     const addrId = res.customerUpdate.customer && res.customerUpdate.customer.defaultAddress && res.customerUpdate.customer.defaultAddress.id;
