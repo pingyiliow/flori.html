@@ -700,13 +700,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .src-dd-opt{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px;cursor:pointer;color:var(--c-ink)}
 .src-dd-opt:hover{background:var(--c-bg)}
 .colp-hd{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:4px}
-.colp-row{display:flex;align-items:center;gap:10px;padding:7px 2px;border-bottom:1px solid var(--c-border)}
+.colp-row{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--c-border);background:var(--c-surface)}
 .colp-row:last-of-type{border-bottom:none}
-.colp-move{display:flex;flex-direction:column;gap:1px}
-.colp-arr{width:22px;height:14px;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:9px;padding:0;border-radius:4px}
-.colp-arr:hover:not(:disabled){background:var(--c-bg);color:var(--c-ink)}
-.colp-arr:disabled{opacity:.22;cursor:default}
-.colp-lbl{flex:1;font-size:12.5px;color:var(--c-ink)}
+.colp-row.dragging{box-shadow:0 6px 20px rgba(77,14,19,.18);border-radius:8px;border-bottom-color:transparent;opacity:.97}
+.colp-grip{display:flex;align-items:center;justify-content:center;color:var(--c-border2);cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding:2px;flex-shrink:0}
+.colp-grip:active,.colp-row.dragging .colp-grip{cursor:grabbing;color:var(--c-muted)}
+.colp-lbl{flex:1;font-size:12.5px;color:var(--c-ink);user-select:none;-webkit-user-select:none}
 .colp-eye{border:none;background:none;cursor:pointer;color:var(--c-ink);padding:4px;border-radius:6px;display:inline-flex;align-items:center}
 .colp-eye:hover:not(:disabled){background:var(--c-bg)}
 .colp-eye.off{color:var(--c-border2)}
@@ -4036,6 +4035,7 @@ function custVisibleCols(){
 }
 const _eyeOn  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const _eyeOff = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10 10 0 0 1 12 19c-7 0-11-7-11-7a18 18 0 0 1 5.06-5.94M9.9 4.24A9 9 0 0 1 12 4c7 0 11 7 11 7a18 18 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+const _gripSvg = `<svg width="12" height="18" viewBox="0 0 12 18" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="4" r="1.4"/><circle cx="8.5" cy="4" r="1.4"/><circle cx="3.5" cy="9" r="1.4"/><circle cx="8.5" cy="9" r="1.4"/><circle cx="3.5" cy="14" r="1.4"/><circle cx="8.5" cy="14" r="1.4"/></svg>`;
 function toggleCustColPanel(){
   const p=document.getElementById('cust-col-panel'); if(!p) return;
   if(p.style.display==='none'){ renderCustColPanel(); p.style.display=''; const f=document.getElementById('cust-filter-panel'); if(f) f.style.display='none'; }
@@ -4043,27 +4043,63 @@ function toggleCustColPanel(){
 }
 function renderCustColPanel(){
   const p=document.getElementById('cust-col-panel'); if(!p) return;
-  const hidden=new Set(custColPrefs.hidden), n=custColPrefs.order.length;
-  const rows = custColPrefs.order.map((k,idx)=>{
+  const hidden=new Set(custColPrefs.hidden);
+  const rows = custColPrefs.order.map(k=>{
     const co=CUST_COLS.find(c=>c.key===k); if(!co) return '';
     const locked = k==='name', off = hidden.has(k);
-    return `<div class="colp-row">
-      <div class="colp-move">
-        <button class="colp-arr" ${idx===0?'disabled':''} onclick="custColMove('${k}',-1)" aria-label="Move up">▲</button>
-        <button class="colp-arr" ${idx===n-1?'disabled':''} onclick="custColMove('${k}',1)" aria-label="Move down">▼</button>
-      </div>
+    return `<div class="colp-row" data-key="${k}">
+      <span class="colp-grip" title="Drag to reorder">${_gripSvg}</span>
       <span class="colp-lbl">${co.label}</span>
       <button class="colp-eye${off?' off':''}" ${locked?'disabled title="Always shown"':''} onclick="custColToggle('${k}')" aria-label="${off?'Show':'Hide'} column">${off?_eyeOff:_eyeOn}</button>
     </div>`;
   }).join('');
-  p.innerHTML = `<div class="colp-hd">Columns — drag order with ▲▼, tap the eye to hide</div>${rows}
+  p.innerHTML = `<div class="colp-hd">Columns — drag to reorder, tap the eye to hide</div>${rows}
     <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="resetCustCols()">Reset to default</button>`;
+  _bindColpDrag();
 }
-function custColMove(key,dir){
-  const o=custColPrefs.order, i=o.indexOf(key); if(i<0) return;
-  const j=i+dir; if(j<0||j>=o.length) return;
-  [o[i],o[j]]=[o[j],o[i]];
-  _saveCustColPrefs(); renderCustColPanel(); renderCustomers();
+// Drag-to-reorder columns via Pointer Events (works with mouse AND touch — native
+// HTML5 drag doesn't fire on phones). One delegated listener on the panel; the live
+// row order in the DOM is committed to custColPrefs.order on release.
+let _colpDrag = null;
+function _bindColpDrag(){
+  const panel=document.getElementById('cust-col-panel');
+  if(!panel || panel._colpBound) return;
+  panel.addEventListener('pointerdown', colpPointerDown);
+  panel._colpBound = true;
+}
+function colpPointerDown(e){
+  const grip = e.target.closest && e.target.closest('.colp-grip'); if(!grip) return;
+  const panel = document.getElementById('cust-col-panel'), row = grip.closest('.colp-row');
+  if(!panel || !row) return;
+  e.preventDefault();
+  _colpDrag = { panel, row };
+  row.classList.add('dragging');
+  try { grip.setPointerCapture(e.pointerId); } catch(_){}
+  document.addEventListener('pointermove', colpPointerMove);
+  document.addEventListener('pointerup', colpPointerUp);
+  document.addEventListener('pointercancel', colpPointerUp);
+}
+function colpPointerMove(e){
+  if(!_colpDrag) return;
+  const { panel, row } = _colpDrag, y = e.clientY;
+  const rows = [...panel.querySelectorAll('.colp-row')];
+  let before = null;
+  for (const r of rows){ if(r===row) continue; const rc=r.getBoundingClientRect(); if(y < rc.top + rc.height/2){ before=r; break; } }
+  if (before){ if (row.nextSibling!==before) panel.insertBefore(row, before); }
+  else { const last = rows.filter(r=>r!==row).pop(); if(last && last!==row && last.nextSibling!==row) panel.insertBefore(row, last.nextSibling); }
+}
+function colpPointerUp(){
+  if(!_colpDrag) return;
+  const { panel, row } = _colpDrag; _colpDrag = null;
+  row.classList.remove('dragging');
+  document.removeEventListener('pointermove', colpPointerMove);
+  document.removeEventListener('pointerup', colpPointerUp);
+  document.removeEventListener('pointercancel', colpPointerUp);
+  const newOrder = [...panel.querySelectorAll('.colp-row')].map(r=>r.dataset.key).filter(Boolean);
+  if (newOrder.length === custColPrefs.order.length && newOrder.join() !== custColPrefs.order.join()){
+    custColPrefs.order = newOrder; _saveCustColPrefs(); renderCustomers();
+  }
+  renderCustColPanel();
 }
 function custColToggle(key){
   if(key==='name') return;   // identifier column is always shown
