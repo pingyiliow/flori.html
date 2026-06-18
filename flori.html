@@ -1652,7 +1652,7 @@ async function showApp() {
   applyRoleGating();
   // Preload customers for admin/cs so the dashboard birthday/anniversary widget
   // can show on landing (also primes the Customers tab). Best-effort.
-  if (canAccess('customers')) loadCustomers().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); });
+  if (canAccess('customers')) { loadCustomers().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -1677,6 +1677,7 @@ async function showApp() {
 }
 
 async function signOut() {
+  if (_custRealtime){ try { sb.removeChannel(_custRealtime); } catch(e){} _custRealtime = null; }
   if (hasSB()) await sb.auth.signOut();
   currentUser = null;
   document.querySelector('.shell').style.display = 'none';
@@ -4014,6 +4015,45 @@ async function loadCustomers(){
   } catch(e){ console.error('loadCustomers', e); }
 }
 
+// Live customer updates — the Shopify→BloomFlow half of two-way sync. The
+// customers/create + customers/update webhooks write changes into Supabase; this
+// subscription streams those row changes straight into the open app, so a Shopify
+// edit (or another device's save) appears within a second or two with nobody
+// reloading. Admin/cs only, matching the customers-tab RLS. Subscribes once.
+let _custRealtime = null, _custRenderTimer = null;
+function subscribeCustomers(){
+  if (!hasSB() || !canAccess('customers') || _custRealtime || typeof sb.channel!=='function') return;
+  try {
+    _custRealtime = sb.channel('crm-customers')
+      .on('postgres_changes', { event:'*', schema:'public', table:'customers' }, p => {
+        try { applyCustomerChange(p); } catch(e){ console.warn('customer change apply', e && e.message); }
+      })
+      .subscribe();
+  } catch(e){ console.warn('subscribeCustomers', e && e.message); }
+}
+function applyCustomerChange(p){
+  const row = (p.new && Object.keys(p.new).length) ? p.new : p.old;
+  if (!row || row.id == null) return;
+  const i = CUSTOMERS.findIndex(c => c.id === row.id);
+  if (p.eventType === 'DELETE') {
+    if (i >= 0) CUSTOMERS.splice(i, 1);
+  } else if (i >= 0) {
+    CUSTOMERS[i] = { ...CUSTOMERS[i], ...p.new };   // merge — keep anything the delta omits
+  } else {
+    CUSTOMERS.unshift(p.new);
+  }
+  // Repaint, debounced so a burst of webhooks (e.g. a Shopify bulk edit) coalesces
+  // into one render. Never repaint while a profile is open — that would yank it out
+  // from under someone mid-edit; the in-memory row is already updated for reopen.
+  clearTimeout(_custRenderTimer);
+  _custRenderTimer = setTimeout(() => {
+    const onCust = document.getElementById('pg-customers')?.classList.contains('on');
+    const listShowing = document.getElementById('cust-list-view')?.style.display !== 'none';
+    if (onCust && listShowing) renderCustomers();
+    if (typeof renderCrmReminders === 'function') renderCrmReminders();
+  }, 400);
+}
+
 function _custTagStyle(tag){
   return ({
     vip:       'background:#FFF3E0;color:#E65100;border-color:#FFCC80',
@@ -4154,6 +4194,7 @@ async function renderCustomers(){
   const dv = document.getElementById('cust-dup-view'); if (dv) dv.style.display='none';
   const nv = document.getElementById('cust-normal-view'); if (nv) nv.style.display='';
   const tbody = document.getElementById('cust-tbody'); if(!tbody) return;
+  subscribeCustomers();   // ensure live updates are on whenever the tab is open (idempotent)
   if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
   _buildFuChannelMap();
   // filter

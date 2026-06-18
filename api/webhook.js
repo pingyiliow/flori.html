@@ -21,6 +21,14 @@ export default async function handler(req, res) {
 
   const sb = createClient(SB_URL, SB_KEY);
 
+  // Customer-topic webhooks (customers/create, customers/update, customers/delete)
+  // carry a Shopify CUSTOMER object, not an order. This is the Shopify→BloomFlow half
+  // of two-way customer sync: route them to the CRM handler and return before any of
+  // the order logic below (which would otherwise misread a customer id as an order id).
+  if (topic.startsWith('customers/')) {
+    return await handleCustomerWebhook(res, req.body, sb, topic);
+  }
+
   // Order cancelled in Shopify (orders/cancelled, or an update carrying cancelled_at):
   // it shouldn't live in BloomFlow, so remove it and stop here.
   if (topic === 'orders/cancelled' || order.cancelled_at) {
@@ -194,5 +202,65 @@ async function handleCustomerSync(sb, order) {
     if (error) console.error('CRM customer sync error:', error.message);
   } catch (e) {
     console.error('handleCustomerSync failed:', e.message);
+  }
+}
+
+// Two-way customer sync, Shopify→BloomFlow. Fired by the customers/create,
+// customers/update and customers/delete webhooks; the body is a Shopify CUSTOMER
+// object (not an order). We mirror only Shopify-OWNED fields into the customers
+// table keyed on shopify_customer_id. CRM-owned columns (tag, source, order_source,
+// birthday, anniversary, notes, preferences) are simply NOT written here, and a
+// PostgREST upsert only updates the columns present in the row — so those values are
+// preserved on conflict and there is no clobber loop with the BloomFlow→Shopify
+// write-back (pushCustomerToShopify). Always returns 200 so Shopify won't hammer
+// retries on a transient CRM error; the error is logged for us instead.
+async function handleCustomerWebhook(res, c, sb, topic) {
+  try {
+    if (!c || c.id == null) return res.status(200).json({ ok: true, skipped: 'no customer id' });
+    const sid = String(c.id);
+
+    // Deletion: drop the row so the customer disappears from BloomFlow live.
+    if (topic === 'customers/delete') {
+      const { error } = await sb.from('customers').delete().eq('shopify_customer_id', sid);
+      if (error) console.error('Customer webhook delete error:', error.message);
+      console.log(`[Webhook] ${topic} → customer ${sid} removed from BloomFlow`);
+      return res.status(200).json({ ok: true, deleted: sid });
+    }
+
+    const ad = c.default_address || (Array.isArray(c.addresses) ? c.addresses[0] : null) || {};
+    // The customer's OWN phone. On a customer webhook default_address is the
+    // customer's own saved address (not a gift recipient), so its phone is a safe
+    // fallback for the contact number.
+    const phone = c.phone || c.default_phone_number || ad.phone || null;
+
+    const row = {
+      shopify_customer_id: sid,
+      updated_at: new Date().toISOString(),
+    };
+    // Only write fields Shopify actually provides, so a sparse webhook payload can
+    // never null out a value BloomFlow already has (name/email/phone/address).
+    const nm = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+    if (nm)                      row.name         = nm;
+    if (c.email)                 row.email        = c.email;
+    if (phone)                   row.phone        = phone;
+    if (c.orders_count != null)  row.total_orders = c.orders_count;
+    if (c.total_spent != null)   row.total_spend  = parseFloat(c.total_spent) || 0;
+    if (ad.address1)             row.address1     = ad.address1;
+    if (ad.address2)             row.address2     = ad.address2;
+    if (ad.city)                 row.city         = ad.city;
+    if (ad.province)             row.state        = ad.province;
+    if (ad.zip)                  row.zip          = ad.zip;
+    if (ad.country)              row.country      = ad.country;
+
+    const { error } = await sb.from('customers').upsert(row, { onConflict: 'shopify_customer_id' });
+    if (error) {
+      console.error('Customer webhook upsert error:', error.message);
+      return res.status(200).json({ ok: false, error: error.message });
+    }
+    console.log(`[Webhook] ${topic} → customer ${sid} (${row.name || 'no name'}) synced`);
+    return res.status(200).json({ ok: true, customer: sid });
+  } catch (e) {
+    console.error('handleCustomerWebhook failed:', e.message);
+    return res.status(200).json({ ok: true, error: e.message });
   }
 }
