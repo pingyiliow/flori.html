@@ -3987,6 +3987,8 @@ const CUST_PER_PAGE = 50;
 function _nameKey(c){ const n=(c.name||'').trim(); const cjk=/^[⺀-鿿豈-﫿＀-￯]/.test(n); return (cjk?'1':'0')+n.toLowerCase(); }
 const CUST_COLS = [
   { key:'name',          label:'Customer',  val:_nameKey },
+  { key:'company',       label:'Company',   val:c=>(c.company||'').toLowerCase() },
+  { key:'owned_by',      label:'Staff',     val:c=>(c.owned_by||'').toLowerCase() },
   { key:'source',        label:'Source',    val:c=>customerSourceKey(c) },
   { key:'email',         label:'Email',     val:c=>(c.email||'').toLowerCase() },
   { key:'phone',         label:'Phone',     val:c=>_normPhone(c.phone)||'' },
@@ -4195,14 +4197,14 @@ async function renderCustomers(){
   const nv = document.getElementById('cust-normal-view'); if (nv) nv.style.display='';
   const tbody = document.getElementById('cust-tbody'); if(!tbody) return;
   subscribeCustomers();   // ensure live updates are on whenever the tab is open (idempotent)
-  if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
+  if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="9" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
   _buildFuChannelMap();
   // filter
   const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
   let list = CUSTOMERS.filter(custMatches);
-  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q));
+  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (c.company||'').toLowerCase().includes(q) || (c.owned_by||'').toLowerCase().includes(q));
   // sort
-  const col = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[6];
+  const col = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[0];
   list.sort((a,b)=>{ const va=col.val(a), vb=col.val(b); const r = va<vb?-1:va>vb?1:0; return custSort.dir==='asc'?r:-r; });
   // count + active-filter badge
   const cntEl = document.getElementById('cust-count');
@@ -4213,7 +4215,7 @@ async function renderCustomers(){
   const thead = document.getElementById('cust-thead');
   if (thead) thead.innerHTML = `<tr>${CUST_COLS.map(co=>`<th onclick="custSortBy('${co.key}')" style="text-align:${co.right?'right':'left'};padding:10px 12px;cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-muted);border-bottom:1.5px solid var(--c-border);white-space:nowrap;position:sticky;top:0;background:var(--c-bg)">${co.label}${custSort.col===co.key?(custSort.dir==='asc'?' ▲':' ▼'):''}</th>`).join('')}</tr>`;
   // rows (paginated)
-  if (!list.length){ tbody.innerHTML = `<tr><td colspan="7" style="padding:48px;text-align:center;color:var(--c-muted)">${CUSTOMERS.length?'No customers match':'No customers yet — import from Shopify in Settings, or + Add Customer'}</td></tr>`; renderCustPager(0,1); return; }
+  if (!list.length){ tbody.innerHTML = `<tr><td colspan="9" style="padding:48px;text-align:center;color:var(--c-muted)">${CUSTOMERS.length?'No customers match':'No customers yet — import from Shopify in Settings, or + Add Customer'}</td></tr>`; renderCustPager(0,1); return; }
   const pages = Math.max(1, Math.ceil(list.length / CUST_PER_PAGE));
   if (custPage > pages) custPage = pages; if (custPage < 1) custPage = 1;
   const pageRows = list.slice((custPage-1)*CUST_PER_PAGE, custPage*CUST_PER_PAGE);
@@ -4223,9 +4225,13 @@ async function renderCustomers(){
 function custTableRow(c){
   const td = (v, extra='') => `<td style="padding:10px 12px;border-bottom:1px solid var(--c-border);${extra}">${v}</td>`;
   const src = sourceBadge(c);
+  const dash = '<span style="color:var(--c-border2)">–</span>';
+  const dim = v => v ? `<span style="color:var(--c-muted)">${esc(v)}</span>` : dash;
   return `<tr onclick="openCustomer('${c.id}')" class="cust-tr" style="cursor:pointer">
     ${td(`<span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span>`)}
-    ${td(src ? `<span style="font-size:10px;color:var(--c-ink)">${src}</span>` : '<span style="color:var(--c-border2)">–</span>')}
+    ${td(dim(c.company))}
+    ${td(dim(c.owned_by))}
+    ${td(src ? `<span style="font-size:10px;color:var(--c-ink)">${src}</span>` : dash)}
     ${td(`<span style="color:var(--c-muted)">${esc(c.email||'')}</span>`)}
     ${td(`<span style="color:var(--c-muted);white-space:nowrap">${esc(c.phone||'')}</span>`)}
     ${td(c.total_orders||0, 'text-align:right')}
@@ -4322,6 +4328,8 @@ function renderCustomerProfile(c, prefs, notes){
       <div class="ff"><label class="ff-l">Email</label><input id="cust-email" type="email" value="${esc(c.email||'')}"></div>
       ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
       <div class="ff"><label class="ff-l">Source</label>${_srcDropdown(customerSourceKey(c)||'online')}</div>
+      <div class="ff"><label class="ff-l">Company</label><input id="cust-company" type="text" value="${esc(c.company||'')}" placeholder="Which company they're from"></div>
+      <div class="ff"><label class="ff-l">Whose customer</label><input id="cust-owner" type="text" value="${esc(c.owned_by||'')}" placeholder="Staff name (if ordered via staff)"></div>
     </div>
     <div style="font-size:10px;color:var(--c-muted);margin-top:4px">${wa?'Message: '+wa+' · ':''}Source auto-updates from a linked follow-up; edit to fix if wrong.</div>
 
@@ -4405,6 +4413,7 @@ async function saveCustomerProfile(id){
   const custData = {
     name: g('cust-name'), phone: g('cust-phone'), email: g('cust-email'),
     tag: g('cust-tag')||'regular', source: g('cust-source')||'online',
+    company: g('cust-company'), owned_by: g('cust-owner'),
     birthday: g('cust-birthday'), anniversary: g('cust-anniversary'),
     address1: g('cust-address1'), address2: g('cust-address2'), city: g('cust-city'),
     state: g('cust-state'), zip: g('cust-zip'), country: g('cust-country'),
