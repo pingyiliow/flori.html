@@ -4360,10 +4360,14 @@ function _quizSection(c){
   const typeLbl = c.quiz_type ? (QUIZ_TYPE_LABELS[c.quiz_type]||c.quiz_type) : '';
   const when = c.quiz_at ? fd(new Date(c.quiz_at)) : (qd.submitted_at ? fd(new Date(qd.submitted_at)) : '');
   const chips = _quizAnswerChips(qd);
+  const extra = [];
+  if (qd.birthday)    extra.push('🎂 '+esc(qd.birthday));        // free-text dates from the quiz
+  if (qd.anniversary) extra.push('💐 '+esc(qd.anniversary));
   return `<div class="dp-section-ttl" style="margin-top:20px">Quiz ${_quizPill()}</div>
     <div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px">
       <div style="font-size:12px;color:var(--c-ink)">${typeLbl?`<b>${esc(typeLbl)}</b>`:'Completed the flower quiz'}</div>
-      <div style="font-size:10px;color:var(--c-muted);margin:3px 0 ${chips?'10px':'0'}">${when?'Submitted '+esc(when):''}${qd.lang?' · '+esc(String(qd.lang).toUpperCase()):''}${qd.page?' · '+esc(qd.page):''}</div>
+      <div style="font-size:10px;color:var(--c-muted);margin:3px 0 ${(extra.length||chips)?'10px':'0'}">${when?'Submitted '+esc(when):''}${qd.lang?' · '+esc(String(qd.lang).toUpperCase()):''}${qd.page?' · '+esc(qd.page):''}</div>
+      ${extra.length?`<div style="font-size:11px;color:var(--c-ink);margin-bottom:${chips?'10px':'0'}">${extra.join(' · ')}</div>`:''}
       ${chips?`<div style="display:flex;flex-wrap:wrap">${chips}</div>`:''}
     </div>`;
 }

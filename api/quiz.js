@@ -65,8 +65,10 @@ export default async function handler(req, res) {
     const norm = normPhone(phoneRaw);
     if (!norm || norm.length < 7) return res.status(400).json({ error: 'A valid phone is required' });
 
-    const birthday    = dateOk((b.birthday || '').trim());
-    const anniversary = dateOk((b.anniversary || '').trim());
+    const birthdayRaw    = (b.birthday || '').trim();
+    const anniversaryRaw = (b.anniversary || '').trim();
+    const birthday    = dateOk(birthdayRaw);     // only populate the date columns if ISO
+    const anniversary = dateOk(anniversaryRaw);
     const suggestion  = (b.suggestion || '').trim() || null;
     const quizType    = (b.report_type || '').trim() || null;
     const answers     = b.answers != null ? b.answers : null;   // full quizAnswers (jsonb)
@@ -74,7 +76,11 @@ export default async function handler(req, res) {
     const page        = (b.source_page || '').trim() || null;
 
     const nowIso = new Date().toISOString();
-    const quizData = { type: quizType, answers, lang, page, name, email, phone: phoneRaw, submitted_at: nowIso };
+    // Keep the raw free-text birthday/anniversary/suggestion too — the landing page
+    // collects these as free text (e.g. "6月12日"), which won't fit the date columns,
+    // so we'd otherwise lose them. quiz_data preserves everything as submitted.
+    const quizData = { type: quizType, answers, lang, page, name, email, phone: phoneRaw,
+      birthday: birthdayRaw || null, anniversary: anniversaryRaw || null, suggestion, submitted_at: nowIso };
     const prefColour = joinAnswer(answers, 3);   // Q3.5 colour
     const prefStyle  = joinAnswer(answers, 2);   // Q3 style
 
