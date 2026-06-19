@@ -724,6 +724,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .ms-box{width:16px;height:16px;flex-shrink:0;border:1.5px solid var(--c-border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:#fff;background:var(--c-surface)}
 .ms-opt.on .ms-box{background:var(--c-burg);border-color:var(--c-burg)}
 .ms-opt.disabled{opacity:.4;cursor:not-allowed}
+.inner-tab{padding:5px 12px;border:none;background:none;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;border-radius:8px}
+.inner-tab.on{background:var(--c-burg-lt);color:var(--c-burg)}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -4008,7 +4010,9 @@ document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEvent
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
 let CUSTOMERS = [], _custProfileId = null, _custLoaded = false;
 let custSort = { col:'name', dir:'asc' }, custPage = 1;
-const custFilters = { segment:new Set(), source:new Set(), action:new Set() };
+let custFilterTab = 'browse';                 // 'browse' | 'campaign'
+const campSel = { days:'', minSpend:'' };     // campaign single-selects (persist across renders)
+let CUST_PREFS = null;                         // customer_id -> preferences row (lazy-loaded for Campaign)
 const CUST_PER_PAGE = 50;
 // Name sort key: Latin/alphabetical first (a–z), CJK (Chinese) names sorted last.
 function _nameKey(c){ const n=(c.name||'').trim(); const cjk=/^[⺀-鿿豈-﫿＀-￯]/.test(n); return (cjk?'1':'0')+n.toLowerCase(); }
@@ -4349,18 +4353,66 @@ function renderCrmReminders(){
 }
 
 // Multi-select filter match: within a group OR, across groups AND.
+// ── Filter / preferences option sets (shared by the filter bar AND the prefs form) ──
+const SEG_OPTS    = [['vip','VIP'],['prospect','Prospect'],['regular','Regular'],['wedding','Wedding'],['corporate','Corporate']].map(([value,label])=>({value,label}));
+const SRC_EMOJI   = {online:'🛒',draft:'📋',whatsapp:'💬',instagram:'📸',facebook:'📘',walkin:'🚶',quiz:'❓'};
+const SRC_OPTS    = ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>({value:s,label:s==='unknown'?'— No tag':((SRC_EMOJI[s]?SRC_EMOJI[s]+' ':'')+(SRC_LABELS[s]||s))}));
+const ACT_OPTS    = [{value:'reorder',label:'No order in 45 days'},{value:'birthday',label:'Birthday this month'},{value:'quiz',label:'Did quiz'}];
+const OCC_GROUPS  = [['Celebrations',['Birthday','Anniversary','Wedding','Graduation','New Baby']],['Holidays & Festivals',["Valentine's","Mother's Day","Father's Day",'Chinese New Year']],['Professional',['Corporate Events','Grand Opening','Corporate Gifting']],['Other',['Home Décor / Self','Sympathy / Hospital','Just Because']]].map(([group,opts])=>({group,options:opts.map(o=>({value:o,label:o}))}));
+const PERS_OPTS   = [['romantic','The Romantic 浪漫时刻型'],['aesthete','The Aesthete 轻盈美学型'],['professional','The Professional 专业送礼型'],['nature','The Nature Lover 自然治愈型'],['celebrator','The Celebrator 节日庆典型']].map(([value,label])=>({value,label}));
+const FLORAL_OPTS = ['Fresh bouquets','Table / vase','Preserved / artificial','Orchid arrangements','Soap flowers'].map(o=>({value:o,label:o}));
+const FREQ_OPTS   = ['Weekly or regular','Once or twice a month','Special occasions only','Occasionally'].map(o=>({value:o,label:o}));
+const STYLE_OPTS  = ['Classic romantic','Korean soft','French garden','Oriental elegance','Modern luxury'].map(o=>({value:o,label:o}));
+const COLOUR_OPTS = ['White / Cream / Champagne','Pink / Coral / Peach','Red / Burgundy','Purple / Blue-violet','Blue','Yellow / Orange','Nature / Green','Leave it to you'].map(o=>({value:o,label:o}));
+const BUYING_OPTS = ['Partner','Parent','Friend','Self','Corporate','Child'].map(o=>({value:o,label:o}));
+const VALUES_OPTS = ['Freshness & quality',"Designer's eye & originality",'Brand & presentation','Good value','Delivery & service'].map(o=>({value:o,label:o}));
+
+// Lazy-load all customer_preferences into a map (for the Campaign filter, which
+// matches on preference columns not present on the customers rows).
+async function loadCustPrefs(){
+  if (!hasSB()) return (CUST_PREFS = {});
+  try {
+    const PAGE=1000; let from=0, all=[];
+    while (true) {
+      const { data, error } = await sb.from('customer_preferences').select('*').range(from, from+PAGE-1);
+      if (error) { console.error('loadCustPrefs', error.message); break; }
+      all = all.concat(data||[]); if (!data || data.length<PAGE) break; from+=PAGE;
+    }
+    const m={}; all.forEach(p=>{ if(p.customer_id) m[p.customer_id]=p; }); CUST_PREFS=m;
+  } catch(e){ console.error('loadCustPrefs', e); CUST_PREFS={}; }
+  return CUST_PREFS;
+}
+const _arrOverlap = (arr,sel)=> !sel.length || (Array.isArray(arr) && sel.some(v=>arr.includes(v)));
+function campaignMatches(c){
+  const occ=msGet('cmp-occ'), pers=msGet('cmp-pers'), seg=msGet('cmp-seg'), floral=msGet('cmp-floral'), freq=msGet('cmp-freq');
+  const days=+campSel.days||0, minSpend=+campSel.minSpend||0;
+  if (seg.length && !seg.includes(c.tag||'regular')) return false;
+  if (days){ const d=_daysSince(c.last_order_at); if (d==null || d>days) return false; }
+  if (minSpend && (Number(c.total_spend)||0) < minSpend) return false;
+  const p=(CUST_PREFS||{})[c.id]||{};
+  if (!_arrOverlap(p.occasion, occ)) return false;
+  if (!_arrOverlap(p.floral_type, floral)) return false;
+  if (pers.length && !(p.personality_type && pers.includes(p.personality_type))) return false;
+  if (freq.length && !(p.purchase_frequency && freq.includes(p.purchase_frequency))) return false;
+  return true;
+}
 function custMatches(c){
-  const f = custFilters;
-  if (f.segment.size && !f.segment.has(c.tag||'regular')) return false;
-  if (f.source.size && !f.source.has(customerSourceKey(c) || 'unknown')) return false;
-  if (f.action.size) {
-    let ok = false;
-    if (f.action.has('reorder'))  { const d=_daysSince(c.last_order_at); if (d!=null && d>=45) ok=true; }
-    if (f.action.has('birthday')  && _isThisMonth(c.birthday)) ok=true;
-    if (f.action.has('quiz')      && c.did_quiz) ok=true;
+  if (custFilterTab==='campaign') return campaignMatches(c);
+  const seg=msGet('fb-seg'), src=msGet('fb-src'), act=msGet('fb-act');
+  if (seg.length && !seg.includes(c.tag||'regular')) return false;
+  if (src.length && !src.includes(customerSourceKey(c)||'unknown')) return false;
+  if (act.length){ let ok=false;
+    if (act.includes('reorder')){ const d=_daysSince(c.last_order_at); if (d!=null && d>=45) ok=true; }
+    if (act.includes('birthday') && _isThisMonth(c.birthday)) ok=true;
+    if (act.includes('quiz') && c.did_quiz) ok=true;
     if (!ok) return false;
   }
   return true;
+}
+function custActiveCount(){
+  let n=['fb-seg','fb-src','fb-act','cmp-occ','cmp-pers','cmp-seg','cmp-floral','cmp-freq'].reduce((a,id)=>a+msGet(id).length,0);
+  if (campSel.days) n++; if (campSel.minSpend) n++;
+  return n;
 }
 function custSortBy(key){
   if (custSort.col===key) custSort.dir = custSort.dir==='asc'?'desc':'asc';
@@ -4386,7 +4438,7 @@ async function renderCustomers(){
   // count + active-filter badge
   const cntEl = document.getElementById('cust-count');
   if (cntEl) cntEl.textContent = `${CUSTOMERS.length.toLocaleString()} total${list.length!==CUSTOMERS.length?` · ${list.length.toLocaleString()} match`:''}`;
-  const active = custFilters.segment.size + custFilters.source.size + custFilters.action.size;
+  const active = custActiveCount();
   const badge = document.getElementById('cust-filter-badge'); if (badge) badge.textContent = active ? ` (${active})` : '';
   // headers (with sort arrows)
   const thead = document.getElementById('cust-thead');
@@ -4464,28 +4516,81 @@ function renderCustPager(total, pages){
       <button class="btn btn-ghost btn-sm" ${custPage>=pages?'disabled':''} onclick="if(custPage<${pages}){custPage++;renderCustomers();}">Next ›</button>
     </div>`;
 }
-// Multi-select filter panel (Segment / Source / Action needed).
+// Filter panel — Browse + Campaign tabs, both built from the reusable multiselect.
 function toggleCustFilterPanel(){
   const p = document.getElementById('cust-filter-panel'); if(!p) return;
-  if (p.style.display==='none'){ renderCustFilterPanel(); p.style.display=''; } else p.style.display='none';
+  if (p.style.display==='none'){ renderCustFilterPanel(); p.style.display=''; const cp=document.getElementById('cust-col-panel'); if(cp)cp.style.display='none'; }
+  else p.style.display='none';
 }
-function toggleCustFilter(group, val){
-  const set = custFilters[group]; if(!set) return;
-  if (set.has(val)) set.delete(val); else set.add(val);
-  custPage = 1; renderCustFilterPanel(); renderCustomers();
+function setFilterTab(t){
+  custFilterTab=t; custPage=1;
+  if (t==='campaign' && CUST_PREFS===null){ loadCustPrefs().then(()=>{ renderCustomers(); _refreshFilterChrome(); }); }
+  renderCustFilterPanel(); renderCustomers();
 }
-function clearCustFilters(){ custFilters.segment.clear(); custFilters.source.clear(); custFilters.action.clear(); custPage=1; renderCustFilterPanel(); renderCustomers(); }
+// Picking an option re-renders the list + the panel "chrome" (clear-all, result
+// count) WITHOUT re-mounting the dropdowns — so the open menu stays open.
+function onFilterChange(){ custPage=1; renderCustomers(); _refreshFilterChrome(); }
+function _refreshFilterChrome(){
+  const cb=document.getElementById('cust-clear-btn'); if(cb) cb.style.display=custActiveCount()?'':'none';
+  const rc=document.getElementById('cmp-result'); if(rc) rc.textContent=_campResultText();
+}
+function _campResultText(){
+  const any=['cmp-occ','cmp-pers','cmp-seg','cmp-floral','cmp-freq'].some(id=>msGet(id).length)||campSel.days||campSel.minSpend;
+  if(!any) return 'Select filters to build your list';
+  const n=CUSTOMERS.filter(campaignMatches).length;
+  return `${n.toLocaleString()} customer${n===1?'':'s'} match`;
+}
+function campSelSet(key,val){ campSel[key]=val; onFilterChange(); }
+function clearCustFilters(){
+  ['fb-seg','fb-src','fb-act','cmp-occ','cmp-pers','cmp-seg','cmp-floral','cmp-freq'].forEach(id=>{ if(MSEL[id]) MSEL[id].selected.clear(); });
+  campSel.days=''; campSel.minSpend=''; custPage=1; renderCustFilterPanel(); renderCustomers();
+}
+const _waNum = phone => { const d=_normPhone(phone); return d ? (d.startsWith('0')?'60'+d.slice(1):d) : ''; };
+function copyWaBlast(){
+  const lines = CUSTOMERS.filter(campaignMatches).map(c=>{ const w=_waNum(c.phone); return w?`${(c.name||'').trim()} https://wa.me/${w}`.trim():''; }).filter(Boolean);
+  if(!lines.length){ toast('No matching customers'); return; }
+  const text=lines.join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(text):Promise.reject())
+    .then(()=>toast(`✓ Copied ${lines.length} contacts`))
+    .catch(()=>{ console.log(text); toast('Copy blocked — list logged to console'); });
+}
 function renderCustFilterPanel(){
   const p = document.getElementById('cust-filter-panel'); if(!p) return;
-  const chip = (group,val,label) => { const on=custFilters[group].has(val);
-    return `<button onclick="toggleCustFilter('${group}','${val}')" class="f-btn${on?' on':''}" style="display:inline-flex;align-items:center;gap:5px;margin:0 6px 6px 0">${on?'✓ ':''}${label}</button>`; };
-  const grp = (title, html) => `<div style="margin-bottom:8px"><div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:6px">${title}</div><div style="display:flex;flex-wrap:wrap">${html}</div></div>`;
-  const active = custFilters.segment.size + custFilters.source.size + custFilters.action.size;
-  p.innerHTML =
-    grp('Segment', ['vip','prospect','regular','wedding','corporate'].map(t=>chip('segment',t,t[0].toUpperCase()+t.slice(1))).join('')) +
-    grp('Source', ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>chip('source',s, s==='unknown'?'— No tag':srcIcon(s,12)+SRC_LABELS[s])).join('')) +
-    grp('Action needed', [['reorder','No order in 45 days'],['birthday','Birthday this month'],['quiz','Did quiz']].map(([v,l])=>chip('action',v,l)).join('')) +
-    (active?`<button class="btn btn-ghost btn-sm" onclick="clearCustFilters()">Clear all (${active})</button>`:'');
+  const active = custActiveCount();
+  const tab = (t,label)=>`<button class="inner-tab${custFilterTab===t?' on':''}" onclick="setFilterTab('${t}')">${label}</button>`;
+  const field = (label,inner)=>`<div><div class="ff-l" style="margin-bottom:4px">${label}</div>${inner}</div>`;
+  let body;
+  if (custFilterTab==='browse'){
+    body = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      ${field('Segment', msMount('fb-seg',{options:SEG_OPTS,placeholder:'All',onChange:onFilterChange}))}
+      ${field('Source', msMount('fb-src',{options:SRC_OPTS,placeholder:'All',onChange:onFilterChange}))}
+      ${field('Action needed', msMount('fb-act',{options:ACT_OPTS,placeholder:'Any',onChange:onFilterChange}))}
+    </div>`;
+  } else {
+    const selBox = (id,key,opts,val)=>`<select id="${id}" onchange="campSelSet('${key}',this.value)" style="width:100%;padding:9px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink)">${opts.map(([v,l])=>`<option value="${v}" ${String(val)===String(v)?'selected':''}>${l}</option>`).join('')}</select>`;
+    body = `<div style="font-size:11px;color:var(--c-muted);margin-bottom:10px">Build a targeted outreach list based on customer preferences.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        ${field('Occasion', msMount('cmp-occ',{grouped:true,options:OCC_GROUPS,placeholder:'All occasions',onChange:onFilterChange}))}
+        ${field('Personality type', msMount('cmp-pers',{options:PERS_OPTS,placeholder:'All',onChange:onFilterChange}))}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+        ${field('Segment', msMount('cmp-seg',{options:SEG_OPTS,placeholder:'All',onChange:onFilterChange}))}
+        ${field('Floral type', msMount('cmp-floral',{options:FLORAL_OPTS,placeholder:'All',onChange:onFilterChange}))}
+        ${field('Purchase frequency', msMount('cmp-freq',{options:FREQ_OPTS,placeholder:'All',onChange:onFilterChange}))}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+        ${field('Last ordered within', selBox('cmp-days','days',[['','Any time'],['30','Last 30 days'],['90','Last 90 days'],['180','Last 6 months'],['365','Last 1 year']],campSel.days))}
+        ${field('Min lifetime spend', selBox('cmp-spend','minSpend',[['','Any'],['100','RM 100+'],['300','RM 300+'],['500','RM 500+'],['1000','RM 1,000+']],campSel.minSpend))}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--c-border);padding-top:10px">
+        <div id="cmp-result" style="font-size:12px;color:var(--c-muted)">${_campResultText()}</div>
+        <button class="btn btn-primary btn-sm" onclick="copyWaBlast()">Copy for WhatsApp blast</button>
+      </div>`;
+  }
+  p.innerHTML = `<div style="display:flex;align-items:center;gap:6px;border-bottom:1.5px solid var(--c-border);margin-bottom:12px;padding-bottom:8px">
+      ${tab('browse','Browse')}${tab('campaign','Campaign')}
+      <button id="cust-clear-btn" class="btn btn-ghost btn-sm" style="margin-left:auto;display:${active?'':'none'}" onclick="clearCustFilters()">Clear all</button>
+    </div>${body}`;
 }
 
 function backToCustomerList(){ _custProfileId=null; renderCustomers(); }
