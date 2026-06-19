@@ -4293,6 +4293,7 @@ function custMatches(c){
     let ok = false;
     if (f.action.has('reorder'))  { const d=_daysSince(c.last_order_at); if (d!=null && d>=45) ok=true; }
     if (f.action.has('birthday')  && _isThisMonth(c.birthday)) ok=true;
+    if (f.action.has('quiz')      && c.did_quiz) ok=true;
     if (!ok) return false;
   }
   return true;
@@ -4334,13 +4335,45 @@ async function renderCustomers(){
   tbody.innerHTML = pageRows.map(custTableRow).join('');
   renderCustPager(list.length, pages);
 }
+// Quiz report types (BGF landing-page quiz) → short bilingual labels for the CRM.
+const QUIZ_TYPE_LABELS = { romantic:'Romantic · 浪漫', aesthete:'Aesthete · 美学', professional:'Professional · 专业', nature:'Nature · 自然', celebrator:'Celebrator · 庆典' };
+// Small "QUIZ" badge shown on customers who completed the landing-page quiz —
+// shown ALONGSIDE their segment/source, so a regular WhatsApp customer keeps their
+// identity and just gains this marker.
+function _quizPill(){
+  return `<span title="Completed the flower quiz" style="display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.06em;background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink);border-radius:5px;padding:1px 5px;vertical-align:1px">QUIZ</span>`;
+}
+// Flatten the stored quiz answers (quizAnswers shape: index 0 = {main,sub}, 1–6 =
+// arrays of chosen option texts) into chips for the profile.
+function _quizAnswerChips(qd){
+  const ans = qd && qd.answers; if(!ans) return '';
+  const vals = [];
+  const push = a => { if(!a) return; const list = Array.isArray(a) ? a : (a.main||[]); list.forEach(v=>{ if(v) vals.push(v); });
+    if(a && a.sub) Object.values(a.sub).forEach(arr=>(arr||[]).forEach(v=>{ if(v) vals.push(v); })); };
+  (Array.isArray(ans) ? ans : Object.values(ans)).forEach(push);
+  return vals.map(v=>`<span style="display:inline-block;font-size:10.5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:12px;padding:3px 9px;margin:0 5px 5px 0;color:var(--c-ink)">${esc(v)}</span>`).join('');
+}
+function _quizSection(c){
+  if(!c.did_quiz && !c.quiz_data) return '';
+  let qd = c.quiz_data || {};
+  if(typeof qd === 'string'){ try{ qd = JSON.parse(qd); }catch(_){ qd = {}; } }
+  const typeLbl = c.quiz_type ? (QUIZ_TYPE_LABELS[c.quiz_type]||c.quiz_type) : '';
+  const when = c.quiz_at ? fd(new Date(c.quiz_at)) : (qd.submitted_at ? fd(new Date(qd.submitted_at)) : '');
+  const chips = _quizAnswerChips(qd);
+  return `<div class="dp-section-ttl" style="margin-top:20px">Quiz ${_quizPill()}</div>
+    <div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px">
+      <div style="font-size:12px;color:var(--c-ink)">${typeLbl?`<b>${esc(typeLbl)}</b>`:'Completed the flower quiz'}</div>
+      <div style="font-size:10px;color:var(--c-muted);margin:3px 0 ${chips?'10px':'0'}">${when?'Submitted '+esc(when):''}${qd.lang?' · '+esc(String(qd.lang).toUpperCase()):''}${qd.page?' · '+esc(qd.page):''}</div>
+      ${chips?`<div style="display:flex;flex-wrap:wrap">${chips}</div>`:''}
+    </div>`;
+}
 function custTableRow(c){
   const src = sourceBadge(c);
   const dash = '<span style="color:var(--c-border2)">–</span>';
   const dim = v => v ? `<span style="color:var(--c-muted)">${esc(v)}</span>` : dash;
   // Cell HTML per column key — rendered in whatever order/visibility the user chose.
   const cell = {
-    name:         `<span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span>`,
+    name:         `<span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span>${c.did_quiz?' '+_quizPill():''}`,
     company:      dim(c.company),
     owned_by:     dim(c.owned_by),
     source:       src ? `<span style="font-size:10px;color:var(--c-ink)">${src}</span>` : dash,
@@ -4383,7 +4416,7 @@ function renderCustFilterPanel(){
   p.innerHTML =
     grp('Segment', ['vip','prospect','regular','wedding','corporate'].map(t=>chip('segment',t,t[0].toUpperCase()+t.slice(1))).join('')) +
     grp('Source', ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>chip('source',s, s==='unknown'?'— No tag':srcIcon(s,12)+SRC_LABELS[s])).join('')) +
-    grp('Action needed', [['reorder','No order in 45 days'],['birthday','Birthday this month']].map(([v,l])=>chip('action',v,l)).join('')) +
+    grp('Action needed', [['reorder','No order in 45 days'],['birthday','Birthday this month'],['quiz','Did quiz']].map(([v,l])=>chip('action',v,l)).join('')) +
     (active?`<button class="btn btn-ghost btn-sm" onclick="clearCustFilters()">Clear all (${active})</button>`:'');
 }
 
@@ -4432,7 +4465,7 @@ function renderCustomerProfile(c, prefs, notes){
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
       <div class="dp-cust-av" style="width:52px;height:52px;font-size:20px">${esc(init)}</div>
       <div style="flex:1;min-width:0"><div style="font-family:var(--f-head);font-size:22px;font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</div>
-        <div style="font-size:11px;color:var(--c-muted)">${sourceBadge(c)} · added ${created}</div></div>
+        <div style="font-size:11px;color:var(--c-muted)">${sourceBadge(c)} · added ${created}${c.did_quiz?' · '+_quizPill():''}</div></div>
       ${shopLink?`<a href="${shopLink}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="white-space:nowrap">↗ Shopify</a>`:''}
     </div>
 
@@ -4484,6 +4517,8 @@ function renderCustomerProfile(c, prefs, notes){
       ${_sel('Scent','pref-scent_preference',prefs.scent_preference,[['fragrant','Fragrant'],['light','Light'],['none','None']])}
     </div>
     <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveCustomerProfile('${c.id}')">Save details${c.shopify_customer_id?' (syncs to Shopify)':''}</button>
+
+    ${_quizSection(c)}
 
     <div class="dp-section-ttl" style="margin-top:20px">Notes</div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
