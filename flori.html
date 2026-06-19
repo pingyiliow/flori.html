@@ -710,6 +710,20 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .colp-eye:hover:not(:disabled){background:var(--c-bg)}
 .colp-eye.off{color:var(--c-border2)}
 .colp-eye:disabled{opacity:.4;cursor:default}
+/* ── Reusable multiselect dropdown (filter bar + preferences form) ── */
+.ms{position:relative}
+.ms-trigger{width:100%;display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-height:38px;padding:6px 28px 6px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-ink);font-size:12.5px;cursor:pointer;text-align:left;position:relative}
+.ms-trigger.active{border-color:var(--c-burg)}
+.ms-ph{color:var(--c-muted)}
+.ms-chip{display:inline-flex;align-items:center;background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink);border-radius:10px;padding:1px 7px;font-size:10.5px;font-weight:600;line-height:1.6;white-space:nowrap}
+.ms-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--c-muted);pointer-events:none;font-size:9px}
+.ms-menu{position:absolute;z-index:200;top:calc(100% + 4px);left:0;right:0;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r);box-shadow:0 10px 30px rgba(77,14,19,.16);max-height:220px;overflow-y:auto;padding:4px}
+.ms-group-label{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-muted);padding:8px 8px 4px}
+.ms-opt{display:flex;align-items:center;gap:8px;padding:7px 8px;font-size:12.5px;color:var(--c-ink);cursor:pointer;border-radius:6px}
+.ms-opt:hover{background:var(--c-bg)}
+.ms-box{width:16px;height:16px;flex-shrink:0;border:1.5px solid var(--c-border2);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:#fff;background:var(--c-surface)}
+.ms-opt.on .ms-box{background:var(--c-burg);border-color:var(--c-burg)}
+.ms-opt.disabled{opacity:.4;cursor:not-allowed}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -4109,6 +4123,56 @@ function custColToggle(key){
   _saveCustColPrefs(); renderCustColPanel(); renderCustomers();
 }
 function resetCustCols(){ custColPrefs=_defaultCustColPrefs(); _saveCustColPrefs(); renderCustColPanel(); renderCustomers(); }
+
+/* ── Reusable multiselect dropdown ──────────────────────────────────────────
+   Used by the customer filter bar and the preferences form. Each instance is keyed
+   by a unique id. options = flat [{value,label}] or grouped [{group,options:[…]}].
+   msMount(id,cfg) returns the HTML; state lives in MSEL[id]; events are delegated. */
+const MSEL = {};
+function msInit(id, cfg){
+  const prev = MSEL[id];
+  MSEL[id] = {
+    options: cfg.options || [],
+    grouped: !!cfg.grouped,
+    selected: new Set(cfg.selected || (prev ? [...prev.selected] : [])),
+    max: cfg.max || 0,
+    placeholder: cfg.placeholder || 'All',
+    onChange: cfg.onChange || null,
+    open: false,
+  };
+  return id;
+}
+function _msFlat(s){ return s.grouped ? s.options.flatMap(g=>g.options) : s.options; }
+function _msLabel(s,v){ const o=_msFlat(s).find(o=>o.value===v); return o?o.label:v; }
+function msGet(id){ const s=MSEL[id]; return s?[...s.selected]:[]; }
+function msSet(id,vals){ const s=MSEL[id]; if(!s)return; s.selected=new Set(vals||[]); _msPaint(id); }
+function msClear(id){ const s=MSEL[id]; if(!s)return; s.selected.clear(); _msPaint(id); }
+function _msPaint(id){ const el=document.getElementById('ms-'+id); if(el) el.innerHTML=_msInner(id); }
+function _msPaintAll(){ Object.keys(MSEL).forEach(_msPaint); }
+function _msInner(id){
+  const s=MSEL[id]; if(!s) return '';
+  const sel=[...s.selected];
+  const trig = sel.length
+    ? sel.map(v=>`<span class="ms-chip">${esc(_msLabel(s,v))}</span>`).join('')
+    : `<span class="ms-ph">${esc(s.placeholder)}</span>`;
+  const optRow = o => { const on=s.selected.has(o.value); const dis=!on && s.max && s.selected.size>=s.max;
+    return `<div class="ms-opt${on?' on':''}${dis?' disabled':''}" data-ms="${id}" data-val="${esc(o.value)}"><span class="ms-box">${on?'✓':''}</span><span>${esc(o.label)}</span></div>`; };
+  const menu = s.grouped
+    ? s.options.map(g=>`<div class="ms-group-label">${esc(g.group)}</div>${g.options.map(optRow).join('')}`).join('')
+    : s.options.map(optRow).join('');
+  return `<button type="button" class="ms-trigger${sel.length?' active':''}" data-ms-toggle="${id}">${trig}<span class="ms-arrow">▾</span></button>`
+    + `<div class="ms-menu" style="display:${s.open?'block':'none'}">${menu}${s.max?`<div class="ms-group-label" style="text-transform:none;letter-spacing:0">Pick up to ${s.max}</div>`:''}</div>`;
+}
+function msMount(id,cfg){ msInit(id,cfg); return `<div class="ms" id="ms-${id}">${_msInner(id)}</div>`; }
+function msToggle(id){ const s=MSEL[id]; if(!s)return; const wasOpen=s.open; Object.values(MSEL).forEach(x=>x.open=false); s.open=!wasOpen; _msPaintAll(); }
+function msPick(id,value){ const s=MSEL[id]; if(!s)return; if(s.selected.has(value)) s.selected.delete(value); else { if(s.max && s.selected.size>=s.max) return; s.selected.add(value); } _msPaint(id); if(s.onChange) s.onChange(id,[...s.selected]); }
+document.addEventListener('click', e=>{
+  const trig = e.target.closest('[data-ms-toggle]');
+  if(trig){ msToggle(trig.getAttribute('data-ms-toggle')); return; }
+  const opt = e.target.closest('.ms-opt[data-ms]');
+  if(opt){ if(!opt.classList.contains('disabled')) msPick(opt.getAttribute('data-ms'), opt.getAttribute('data-val')); return; }
+  if(!e.target.closest('.ms')){ let ch=false; Object.values(MSEL).forEach(s=>{ if(s.open){ s.open=false; ch=true; } }); if(ch) _msPaintAll(); }
+});
 
 async function loadCustomers(){
   if (!hasSB()) return;
