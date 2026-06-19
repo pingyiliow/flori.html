@@ -1443,8 +1443,8 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <!-- Sender -->
           <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border)">Sender (Your Customer)</div>
           <div class="ff"><label class="ff-l">Sender Name</label><input id="fu-name" type="text" placeholder="e.g. John"></div>
-          <div class="ff"><label class="ff-l">Sender Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789"></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Sender Email</label><input id="fu-email" type="email" placeholder="john@email.com"></div>
+          <div class="ff" style="position:relative"><label class="ff-l">Sender Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789" autocomplete="off" oninput="fuCustSearch('contact',this.value)"><div id="fu-cust-sug-contact" class="rcp-sug" style="display:none"></div></div>
+          <div class="ff" style="grid-column:1/-1;position:relative"><label class="ff-l">Sender Email</label><input id="fu-email" type="email" placeholder="john@email.com" autocomplete="off" oninput="fuCustSearch('email',this.value)"><div id="fu-cust-sug-email" class="rcp-sug" style="display:none"></div></div>
 
           <!-- Recipient -->
           <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border);margin-top:4px">Recipient</div>
@@ -3438,6 +3438,28 @@ function findFollowupDup(name, contact, excludeId) {
   }) || null;
 }
 
+// Follow-up: look up an existing customer by phone / email / name and fill the
+// sender fields. Searches the in-memory CUSTOMERS (loaded for admin/cs).
+function fuCustSearch(field, val){
+  const sug=document.getElementById('fu-cust-sug-'+field); if(!sug) return;
+  const q=String(val||'').trim().toLowerCase(); const nq=_normPhone(val);
+  if (q.length<3 || typeof CUSTOMERS==='undefined' || !CUSTOMERS.length){ sug.style.display='none'; sug.innerHTML=''; return; }
+  const matches = (field==='email'
+    ? CUSTOMERS.filter(c=>(c.email||'').toLowerCase().includes(q) || (c.name||'').toLowerCase().includes(q))
+    : CUSTOMERS.filter(c=>(nq && _normPhone(c.phone).includes(nq)) || (c.name||'').toLowerCase().includes(q))
+  ).slice(0,6);
+  if (!matches.length){ sug.style.display='none'; sug.innerHTML=''; return; }
+  sug.innerHTML = matches.map(c=>`<div class="rcp-sug-row" onmousedown="fuFillCust('${c.id}')"><span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span> <span style="color:var(--c-muted)">${esc(c.phone||'')}</span>${c.email?` <span style="font-size:9px;color:var(--c-muted)">· ${esc(c.email)}</span>`:''}</div>`).join('');
+  sug.style.display='block';
+}
+function fuFillCust(id){
+  const c=CUSTOMERS.find(x=>x.id===id); if(!c) return;
+  const set=(i,v)=>{ const el=document.getElementById(i); if(el && v) el.value=v; };
+  set('fu-name', c.name); set('fu-contact', c.phone); set('fu-email', c.email);
+  ['contact','email'].forEach(f=>{ const s=document.getElementById('fu-cust-sug-'+f); if(s){ s.style.display='none'; s.innerHTML=''; } });
+}
+document.addEventListener('click', e=>{ if(e.target.closest('#fu-contact')||e.target.closest('#fu-email')||e.target.closest('.rcp-sug')) return; ['contact','email'].forEach(f=>{ const s=document.getElementById('fu-cust-sug-'+f); if(s && s.style.display!=='none') s.style.display='none'; }); });
+
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast('Sender name required'); return; }
@@ -3748,13 +3770,9 @@ function renderFollowup() {
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
-  // Sort by dueDate ascending (most urgent first), undated at bottom
-  list.sort((a,b) => {
-    if (!a.dueDate && !b.dueDate) return 0;
-    if (!a.dueDate) return 1;
-    if (!b.dueDate) return -1;
-    return new Date(a.dueDate) - new Date(b.dueDate);
-  });
+  // Sort by order date (falling back to the date the entry was added), latest first.
+  const fuSortMs = f => { if (f.orderDate){ const d=pd(f.orderDate); if(d) return +d; } return f.ts||0; };
+  list.sort((a,b) => fuSortMs(b) - fuSortMs(a));
   const todayStr = tdi(today0());
   // Count how many entries share each customer (phone, else name) — flag duplicates
   const dupCounts = {};
@@ -3780,7 +3798,10 @@ function renderFollowup() {
     const rowOpacity = isCompleted ? '.45' : '1';
     const amt = f.amount && parseFloat(f.amount) > 0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–';
     // Delivery date — urgency colour (muted when completed)
-    let dateCellHtml = '–';
+    // Order/added date (the sort key) shown on top; delivery date below with urgency.
+    const ordStr = f.orderDate ? fd(pd(f.orderDate)) : (f.ts ? fd(new Date(f.ts)) : '');
+    const ordLine = ordStr ? `<div style="font-size:10px;color:var(--c-muted)">${f.orderDate?'Ordered':'Added'} ${ordStr}</div>` : '';
+    let dueHtml = '';
     if (f.dueDate) {
       const dObj = pd(f.dueDate);
       const dStr = fd(dObj);
@@ -3788,13 +3809,14 @@ function renderFollowup() {
       const isPast2  = dObj && dObj < today0();
       const color = isCompleted ? 'var(--c-muted)' : isPast2 ? 'var(--c-red)' : isToday2 ? 'var(--c-burg)' : 'var(--c-ink)';
       const weight = (isToday2 || isPast2) && !isCompleted ? '600' : '400';
-      dateCellHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">${dStr}</div>
+      dueHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">🚚 ${dStr}</div>
         ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">🕐 ${esc(f.dueTime)}</div>`:''}
         ${isPast2&&!isCompleted?'<div style="font-size:9px;color:var(--c-red);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Overdue</div>':''}
         ${isToday2&&!isCompleted?'<div style="font-size:9px;color:var(--c-burg);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Today</div>':''}`;
     } else if (f.dueTime) {
-      dateCellHtml = `<div style="font-size:10px;color:var(--c-ink)">🕐 ${esc(f.dueTime)}</div>`;
+      dueHtml = `<div style="font-size:10px;color:var(--c-ink)">🕐 ${esc(f.dueTime)}</div>`;
     }
+    const dateCellHtml = (ordLine + dueHtml) || '–';
     const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
     const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
