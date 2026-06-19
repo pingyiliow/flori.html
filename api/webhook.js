@@ -169,6 +169,20 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true, order: order.name });
 }
 
+// Collect an email onto a customer's email list (customers.emails text[]), keyed by
+// Shopify customer id, keeping the primary + all previously seen, de-duped.
+// Best-effort: no-ops if the emails column isn't there yet (SQL not run).
+async function collectEmail(sb, sid, newEmail){
+  if (!newEmail) return;
+  try {
+    const { data } = await sb.from('customers').select('email, emails').eq('shopify_customer_id', sid).maybeSingle();
+    const seen=new Set(), out=[];
+    [...(data&&data.email?[data.email]:[]), ...(data&&Array.isArray(data.emails)?data.emails:[]), newEmail]
+      .forEach(e=>{ e=(e||'').trim(); if(e){ const k=e.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(e); } } });
+    await sb.from('customers').update({ emails: out }).eq('shopify_customer_id', sid);
+  } catch (e) { console.error('email collect (emails column?):', e.message); }
+}
+
 // CRM customer sync — upsert the customers table keyed on the Shopify customer id
 // (the stable identity). Phone is just an attribute (the customer's OWN phone, never
 // a recipient/shipping number). Preserves CRM-owned fields (tag, birthday, prefs,
@@ -200,6 +214,7 @@ async function handleCustomerSync(sb, order) {
 
     const { error } = await sb.from('customers').upsert(row, { onConflict: 'shopify_customer_id' });
     if (error) console.error('CRM customer sync error:', error.message);
+    await collectEmail(sb, sid, c.email || order.email);   // keep every email this customer has used
   } catch (e) {
     console.error('handleCustomerSync failed:', e.message);
   }
@@ -257,6 +272,7 @@ async function handleCustomerWebhook(res, c, sb, topic) {
       console.error('Customer webhook upsert error:', error.message);
       return res.status(200).json({ ok: false, error: error.message });
     }
+    await collectEmail(sb, sid, c.email);                  // keep every email this customer has used
     console.log(`[Webhook] ${topic} → customer ${sid} (${row.name || 'no name'}) synced`);
     return res.status(200).json({ ok: true, customer: sid });
   } catch (e) {

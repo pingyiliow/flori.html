@@ -75,6 +75,20 @@ function q1SubList(answers){   // Q1 sub-option values (the specific occasions)
 }
 function mapVals(list, dict){ const out=[]; (list||[]).forEach(v=>{ const m=(dict[v]!==undefined)?dict[v]:v; if(m) out.push(m); }); return [...new Set(out)]; }
 
+// Collect an email onto a customer's email list (customers.emails text[]), keeping
+// the primary + all previously seen, de-duped. Best-effort: if the emails column
+// isn't there yet (SQL not run), this just no-ops without breaking the submission.
+async function collectEmail(sb, customerId, newEmail){
+  if (!newEmail) return;
+  try {
+    const { data } = await sb.from('customers').select('email, emails').eq('id', customerId).maybeSingle();
+    const seen=new Set(), out=[];
+    [...(data&&data.email?[data.email]:[]), ...(data&&Array.isArray(data.emails)?data.emails:[]), newEmail]
+      .forEach(e=>{ e=(e||'').trim(); if(e){ const k=e.toLowerCase(); if(!seen.has(k)){ seen.add(k); out.push(e); } } });
+    await sb.from('customers').update({ emails: out }).eq('id', customerId);
+  } catch (e) { console.error('quiz email collect (run the emails column SQL?):', e.message); }
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -150,6 +164,9 @@ export default async function handler(req, res) {
       if (error) throw error;
       customerId = data.id;
     }
+
+    // Collect this submission's email onto the customer (personal/work/etc all kept).
+    await collectEmail(sb, customerId, email);
 
     // Auto-fill preference columns from the quiz (best-effort; only non-empty fields,
     // so a CS-entered value is never wiped by a blank quiz answer).

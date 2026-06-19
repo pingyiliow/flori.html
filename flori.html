@@ -4646,6 +4646,28 @@ function _sel(label, id, value, opts){
   return `<div class="ff"><label class="ff-l">${label}</label><select id="${id}">${o}</select></div>`;
 }
 
+// ── Multiple emails per customer (personal / work / etc) ───────────────────
+// _custEmails holds the EXTRA emails beyond the primary (#cust-email). The full
+// list = primary + extras, stored in customers.emails (text[]).
+let _custEmails = [];
+function renderCustEmails(){
+  const el=document.getElementById('cust-emails-extra'); if(!el) return;
+  el.innerHTML = _custEmails.map((e,i)=>`<span class="ms-chip" style="margin:0 5px 4px 0">${esc(e)} <span onclick="removeCustEmail(${i})" title="Remove" style="cursor:pointer;font-weight:700;margin-left:2px">✕</span></span>`).join('');
+}
+function addCustEmail(){
+  const inp=document.getElementById('cust-email-add'); const v=(inp&&inp.value||'').trim(); if(!v) return;
+  const prim=((document.getElementById('cust-email')||{}).value||'').trim().toLowerCase(); const k=v.toLowerCase();
+  if(k!==prim && !_custEmails.some(e=>e.toLowerCase()===k)) _custEmails.push(v);
+  if(inp) inp.value=''; renderCustEmails();
+}
+function removeCustEmail(i){ _custEmails.splice(i,1); renderCustEmails(); }
+// Best-effort write of the emails list — separate from the main save so a missing
+// `emails` column (SQL not run yet) can never break saving the rest of the profile.
+async function _saveCustEmails(id, emails){
+  try { await sb.from('customers').update({ emails }).eq('id', id); }
+  catch(e){ console.warn('emails not saved (run the emails column SQL):', e && e.message); }
+}
+
 // ── Preferences form helpers + recipients editor ──────────────────────────
 let _recipients = [];
 function _parseRecipients(r){
@@ -4702,6 +4724,7 @@ function recipPhoneInput(i,val){
 
 function renderCustomerProfile(c, prefs, notes){
   _recipients = _parseRecipients(prefs.recipients);
+  _custEmails = (Array.isArray(c.emails)?c.emails:[]).filter(e => e && e.trim() && e.trim().toLowerCase() !== (c.email||'').trim().toLowerCase());
   const created = c.created_at ? fd(new Date(c.created_at)) : '–';
   const wa = c.phone ? waLink(c.phone) : '';
   // recent orders matched from the local list by customer name (best effort)
@@ -4727,7 +4750,11 @@ function renderCustomerProfile(c, prefs, notes){
     <div class="fg fg-2">
       <div class="ff" style="grid-column:1/-1"><label class="ff-l">Name</label><input id="cust-name" type="text" value="${esc(c.name||'')}"></div>
       <div class="ff"><label class="ff-l">Phone (WhatsApp)</label><input id="cust-phone" type="text" value="${esc(c.phone||'')}"></div>
-      <div class="ff"><label class="ff-l">Email</label><input id="cust-email" type="email" value="${esc(c.email||'')}"></div>
+      <div class="ff"><label class="ff-l">Email</label>
+        <input id="cust-email" type="email" value="${esc(c.email||'')}" placeholder="Primary email">
+        <div id="cust-emails-extra" style="margin-top:5px"></div>
+        <div style="display:flex;gap:5px;margin-top:4px"><input id="cust-email-add" type="email" placeholder="+ another email (work, personal…)" style="flex:1;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;background:var(--c-surface);color:var(--c-ink)" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustEmail();}"><button type="button" class="btn btn-ghost btn-sm" onclick="addCustEmail()">+</button></div>
+      </div>
       ${_sel('Tag','cust-tag',c.tag||'regular',[['regular','Regular'],['vip','VIP'],['wedding','Wedding'],['corporate','Corporate'],['prospect','Prospect']])}
       <div class="ff"><label class="ff-l">Source</label>${_srcDropdown(customerSourceKey(c)||'online')}</div>
       <div class="ff"><label class="ff-l">Company</label><input id="cust-company" type="text" value="${esc(c.company||'')}" placeholder="Which company they're from"></div>
@@ -4805,6 +4832,7 @@ function renderCustomerProfile(c, prefs, notes){
       : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
     <div style="height:30px"></div>`;
   renderRecipients();                                  // recipient blocks into #recipients-wrap
+  renderCustEmails();                                  // extra-email chips into #cust-emails-extra
   if (c.shopify_customer_id) loadCustomerOrders(c);   // accurate history, live from Shopify
 }
 function _custOrderRow(name, product, date, total, src){
@@ -4831,6 +4859,8 @@ async function loadCustomerOrders(c){
 async function saveCustomerProfile(id){
   const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
   const g = i => document.getElementById(i)?.value.trim() || null;
+  const _seenEm = new Set(), _allEmails = [];   // primary + extra emails, de-duped (case-insensitive)
+  [g('cust-email'), ..._custEmails].forEach(e=>{ e=(e||'').trim(); if(e){ const k=e.toLowerCase(); if(!_seenEm.has(k)){ _seenEm.add(k); _allEmails.push(e); } } });
   const custData = {
     name: g('cust-name'), phone: g('cust-phone'), email: g('cust-email'),
     tag: g('cust-tag')||'regular', source: g('cust-source')||'online',
@@ -4864,6 +4894,7 @@ async function saveCustomerProfile(id){
     const { error: e2 } = await sb.from('customer_preferences').upsert(prefData, { onConflict:'customer_id' });
     if (e2) throw e2;
     Object.assign(c, custData);   // reflect in memory
+    c.emails = _allEmails; _saveCustEmails(id, _allEmails);   // emails written separately (best-effort)
     if (CUST_PREFS) CUST_PREFS[id] = prefData;   // keep the Campaign-filter map fresh
     toast('✓ Saved');
     const sv=document.getElementById('pref-saved'); if(sv){ sv.style.display=''; setTimeout(()=>{ const s=document.getElementById('pref-saved'); if(s)s.style.display='none'; },2000); }
@@ -5063,6 +5094,10 @@ async function mergeCustomers(ids){
     if (otherIds.length){ const { error: de } = await sb.from('customers').delete().in('id', otherIds); if (de) throw de; }
     // reflect in memory
     Object.assign(primary, merged);
+    // Union every merged record's emails into the survivor (best-effort).
+    const _em=new Set(), _emList=[];
+    group.flatMap(c=>[c.email, ...(Array.isArray(c.emails)?c.emails:[])]).forEach(e=>{ e=(e||'').trim(); if(e){ const k=e.toLowerCase(); if(!_em.has(k)){ _em.add(k); _emList.push(e); } } });
+    primary.emails=_emList; _saveCustEmails(primary.id, _emList);
     CUSTOMERS = CUSTOMERS.filter(c => !otherIds.includes(c.id));
   } catch(e){ console.error('mergeCustomers', e); toast('⚠ Merge failed: '+(e.message||'')); throw e; }
 }
