@@ -726,6 +726,10 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .ms-opt.disabled{opacity:.4;cursor:not-allowed}
 .inner-tab{padding:5px 12px;border:none;background:none;font-size:12.5px;font-weight:600;color:var(--c-muted);cursor:pointer;border-radius:8px}
 .inner-tab.on{background:var(--c-burg-lt);color:var(--c-burg)}
+.rcp-sug{position:absolute;z-index:120;top:calc(100% + 2px);left:0;right:0;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r);box-shadow:0 10px 30px rgba(77,14,19,.16);max-height:200px;overflow-y:auto}
+.rcp-sug-row{padding:8px 10px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--c-border)}
+.rcp-sug-row:last-child{border-bottom:none}
+.rcp-sug-row:hover{background:var(--c-bg)}
 .buy-main{flex:1;min-width:0}
 .buy-name{font-size:13px;font-weight:600;color:var(--c-ink)}
 .buy-name.done{text-decoration:line-through}
@@ -4620,7 +4624,62 @@ function _sel(label, id, value, opts){
   return `<div class="ff"><label class="ff-l">${label}</label><select id="${id}">${o}</select></div>`;
 }
 
+// ── Preferences form helpers + recipients editor ──────────────────────────
+let _recipients = [];
+function _parseRecipients(r){
+  if (Array.isArray(r)) return r.slice();
+  if (typeof r === 'string'){ try { const a=JSON.parse(r); return Array.isArray(a)?a:[]; } catch(_){ return []; } }
+  return [];
+}
+function _ffLabel(t){ return `<label class="ff-l">${t}</label>`; }
+function _pfSelect(id, opts, val, ph){
+  return `<select id="${id}" style="width:100%;padding:9px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink)">`
+    + [['', ph||'—']].concat(opts.map(o=>[o.value,o.label])).map(([v,l])=>`<option value="${esc(v)}" ${String(val||'')===String(v)?'selected':''}>${esc(l)}</option>`).join('')
+    + `</select>`;
+}
+function renderRecipients(){
+  const wrap = document.getElementById('recipients-wrap'); if(!wrap) return;
+  if (!_recipients.length) _recipients.push({ name:'', phone:'', crm_customer_id:null, note:'' });
+  wrap.innerHTML = _recipients.map(recipientBlock).join('');
+}
+function recipientBlock(r, i){
+  const linked = r.crm_customer_id ? CUSTOMERS.find(x=>x.id===r.crm_customer_id) : null;
+  const card = linked ? `<div style="margin-top:8px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+      <div style="flex:1;min-width:0"><div style="font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--c-muted)">LINKED CRM</div>
+        <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(linked.name||'(no name)')}<span style="font-weight:400;color:var(--c-muted)">${linked.tag?' · '+esc(linked.tag):''} · ${linked.total_orders||0} orders</span></div></div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="openCustomer('${linked.id}')">View →</button>
+      <button type="button" onclick="recipUnlink(${i})" title="Unlink" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:13px">✕</button>
+    </div>` : '';
+  return `<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;margin-bottom:10px;position:relative;background:var(--c-surface)">
+    ${i>0?`<button type="button" onclick="removeRecipient(${i})" title="Remove" style="position:absolute;top:8px;right:8px;border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:14px">✕</button>`:''}
+    <div class="fg fg-2">
+      <div class="ff"><input value="${esc(r.name||'')}" oninput="recipSet(${i},'name',this.value)" placeholder="Name e.g. 太太 Mei..."></div>
+      <div class="ff" style="position:relative"><input value="${esc(r.phone||'')}" autocomplete="off" oninput="recipPhoneInput(${i},this.value)" placeholder="Phone number"><div id="rcp-sug-${i}" class="rcp-sug" style="display:none"></div></div>
+    </div>
+    ${card}
+    <div class="ff" style="margin-top:8px"><input value="${esc(r.note||'')}" oninput="recipSet(${i},'note',this.value)" placeholder="Note for this recipient e.g. prefers pastel, no strong scent..."></div>
+  </div>`;
+}
+function recipSet(i,k,v){ if(_recipients[i]) _recipients[i][k]=v; }
+function addRecipient(){ _recipients.push({ name:'', phone:'', crm_customer_id:null, note:'' }); renderRecipients(); }
+function removeRecipient(i){ _recipients.splice(i,1); renderRecipients(); }
+function recipUnlink(i){ if(_recipients[i]){ _recipients[i].crm_customer_id=null; renderRecipients(); } }
+function recipLink(i,id){ const c=CUSTOMERS.find(x=>x.id===id); if(!c||!_recipients[i]) return; _recipients[i].name=_recipients[i].name||c.name||''; _recipients[i].phone=c.phone||_recipients[i].phone||''; _recipients[i].crm_customer_id=c.id; renderRecipients(); }
+// Live CRM search as the user types a recipient phone (or name). Updates only the
+// suggestion box so the input keeps focus.
+function recipPhoneInput(i,val){
+  if(_recipients[i]){ _recipients[i].phone=val; _recipients[i].crm_customer_id=null; }
+  const sug=document.getElementById('rcp-sug-'+i); if(!sug) return;
+  const q=String(val||'').trim().toLowerCase(); const nq=_normPhone(val);
+  if (q.length<3){ sug.style.display='none'; sug.innerHTML=''; return; }
+  const matches = CUSTOMERS.filter(c=>(nq && _normPhone(c.phone).includes(nq)) || (c.name||'').toLowerCase().includes(q)).slice(0,6);
+  if (!matches.length){ sug.style.display='none'; sug.innerHTML=''; return; }
+  sug.innerHTML = matches.map(c=>`<div class="rcp-sug-row" onclick="recipLink(${i},'${c.id}')"><span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span> <span style="color:var(--c-muted)">${esc(c.phone||'')}</span>${c.tag?` <span style="font-size:9px;color:var(--c-muted)">· ${esc(c.tag)}</span>`:''}</div>`).join('');
+  sug.style.display='block';
+}
+
 function renderCustomerProfile(c, prefs, notes){
+  _recipients = _parseRecipients(prefs.recipients);
   const created = c.created_at ? fd(new Date(c.created_at)) : '–';
   const wa = c.phone ? waLink(c.phone) : '';
   // recent orders matched from the local list by customer name (best effort)
@@ -4680,16 +4739,32 @@ function renderCustomerProfile(c, prefs, notes){
 
     <div class="dp-section-ttl" style="margin-top:18px">Preferences</div>
     <div class="fg fg-2">
-      ${_fld('Colour / mood','pref-colour_mood',prefs.colour_mood)}
-      ${_fld('Style','pref-style',prefs.style)}
-      ${_fld('Favourite flowers','pref-favourite_flowers',prefs.favourite_flowers)}
-      ${_fld('Avoid','pref-avoid_flowers',prefs.avoid_flowers)}
-      ${_sel('Usual budget','pref-usual_budget',prefs.usual_budget,[['under100','Under RM100'],['100-200','RM100–200'],['200-300','RM200–300'],['300+','RM300+']])}
-      ${_sel('Buying for','pref-buying_for',prefs.buying_for,[['self','Self'],['partner','Partner'],['parent','Parent'],['friend','Friend'],['corporate','Corporate']])}
-      ${_sel('Occasion','pref-occasion_type',prefs.occasion_type,[['birthday','Birthday'],['anniversary','Anniversary'],['sympathy','Sympathy'],['celebration','Celebration'],['just because','Just because']])}
-      ${_sel('Scent','pref-scent_preference',prefs.scent_preference,[['fragrant','Fragrant'],['light','Light'],['none','None']])}
+      <div class="ff">${_ffLabel('Occasion')}${msMount('pf-occasion',{grouped:true,options:OCC_GROUPS,selected:prefs.occasion||[],placeholder:'Select occasions'})}</div>
+      <div class="ff">${_ffLabel('Floral type')}${msMount('pf-floral',{options:FLORAL_OPTS,selected:prefs.floral_type||[],placeholder:'Select types'})}</div>
+      <div class="ff">${_ffLabel('Style')}${msMount('pf-style',{options:STYLE_OPTS,selected:prefs.style||[],placeholder:'Select styles'})}</div>
+      <div class="ff">${_ffLabel('Colour preference')}${msMount('pf-colour',{options:COLOUR_OPTS,selected:prefs.colour_preference||[],placeholder:'Select colours'})}</div>
+      <div class="ff"><label class="ff-l">Favourite flowers</label><input id="pref-fav" type="text" value="${esc(prefs.favourite_flowers||'')}" placeholder="e.g. peonies, garden roses..."></div>
+      <div class="ff"><label class="ff-l">Avoid / Sensitivities</label><input id="pref-avoid" type="text" value="${esc(prefs.avoid_sensitivities||'')}" placeholder="e.g. lilies (allergy), strong scent..."></div>
+      <div class="ff"><label class="ff-l">Usual budget</label><input id="pref-budget" type="text" value="${esc(prefs.usual_budget||'')}" placeholder="e.g. RM 150–200..."><div style="font-size:9px;color:var(--c-muted);margin-top:3px">CS fills based on order history</div></div>
+      <div class="ff">${_ffLabel('Buying for')}${msMount('pf-buying',{options:BUYING_OPTS,selected:prefs.buying_for||[],placeholder:'Select'})}</div>
     </div>
-    <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveCustomerProfile('${c.id}')">Save details${c.shopify_customer_id?' (syncs to Shopify)':''}</button>
+    <div style="border-top:1px solid var(--c-border);margin:14px 0"></div>
+    <div class="fg fg-2">
+      <div class="ff"><label class="ff-l">Purchase frequency</label>${_pfSelect('pref-freq',FREQ_OPTS,prefs.purchase_frequency)}</div>
+      <div class="ff"><label class="ff-l">Personality type</label>${_pfSelect('pref-pers',PERS_OPTS,prefs.personality_type)}<div style="font-size:9px;color:var(--c-muted);margin-top:3px">Auto from quiz · CS can override</div></div>
+    </div>
+    <div class="ff" style="margin-top:10px">${_ffLabel('Values most (max 2)')}${msMount('pf-values',{options:VALUES_OPTS,selected:prefs.values_most||[],max:2,placeholder:'Pick up to 2'})}</div>
+    <div style="border-top:1px solid var(--c-border);margin:14px 0"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="dp-section-ttl" style="margin:0">Recipients</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addRecipient()">+ Add recipient</button>
+    </div>
+    <div id="recipients-wrap"></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="saveCustomerProfile('${c.id}')">Save details${c.shopify_customer_id?' (syncs to Shopify)':''}</button>
+      <span id="pref-saved" style="font-size:11px;color:var(--c-burg);display:none">Saved ✓</span>
+      ${prefs.last_updated_by_name?`<span style="font-size:10px;color:var(--c-muted)">Last updated: ${esc(prefs.last_updated_by_name)}${prefs.updated_at?' · '+fd(new Date(prefs.updated_at)):''}</span>`:''}
+    </div>
 
     ${_quizSection(c)}
 
@@ -4707,6 +4782,7 @@ function renderCustomerProfile(c, prefs, notes){
     <div id="cust-orders">${recent.length ? recent.map(o=>_custOrderRow(o.name,o.product,o.dateObj?fd(o.dateObj):(o.dueDate||''),o.total)).join('')
       : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
     <div style="height:30px"></div>`;
+  renderRecipients();                                  // recipient blocks into #recipients-wrap
   if (c.shopify_customer_id) loadCustomerOrders(c);   // accurate history, live from Shopify
 }
 function _custOrderRow(name, product, date, total, src){
@@ -4742,15 +4818,33 @@ async function saveCustomerProfile(id){
     state: g('cust-state'), zip: g('cust-zip'), country: g('cust-country'),
     updated_at: new Date().toISOString(),
   };
-  const prefData = { customer_id: id, updated_at: new Date().toISOString() };
-  ['colour_mood','style','favourite_flowers','avoid_flowers','usual_budget','buying_for','occasion_type','scent_preference'].forEach(f => prefData[f] = g('pref-'+f));
+  const prefData = {
+    customer_id: id,
+    occasion:          msGet('pf-occasion'),
+    floral_type:       msGet('pf-floral'),
+    style:             msGet('pf-style'),
+    colour_preference: msGet('pf-colour'),
+    buying_for:        msGet('pf-buying'),
+    values_most:       msGet('pf-values'),
+    favourite_flowers: g('pref-fav'),
+    avoid_sensitivities: g('pref-avoid'),
+    usual_budget:      g('pref-budget'),
+    purchase_frequency: g('pref-freq'),
+    personality_type:  g('pref-pers'),
+    recipients:        _recipients.filter(r => (r.name||'').trim() || (r.phone||'').trim() || (r.note||'').trim()),
+    last_updated_by:   (currentUser && currentUser.id) || null,
+    last_updated_by_name: currentUserName || (currentUser ? currentUser.email : '') || null,
+    updated_at: new Date().toISOString(),
+  };
   try {
     const { error: e1 } = await sb.from('customers').update(custData).eq('id', id);
     if (e1) throw e1;
     const { error: e2 } = await sb.from('customer_preferences').upsert(prefData, { onConflict:'customer_id' });
     if (e2) throw e2;
     Object.assign(c, custData);   // reflect in memory
+    if (CUST_PREFS) CUST_PREFS[id] = prefData;   // keep the Campaign-filter map fresh
     toast('✓ Saved');
+    const sv=document.getElementById('pref-saved'); if(sv){ sv.style.display=''; setTimeout(()=>{ const s=document.getElementById('pref-saved'); if(s)s.style.display='none'; },2000); }
     // Two-way: push contact + address back to Shopify (best-effort; never blocks).
     if (c.shopify_customer_id) {
       pushCustomerToShopify(c)
@@ -4929,10 +5023,15 @@ async function mergeCustomers(ids){
     // 2) Combine preferences into the primary's single row, filling any blanks.
     const { data: prefRows } = await sb.from('customer_preferences').select('*').in('customer_id', [primary.id, ...otherIds]);
     if (prefRows && prefRows.length){
-      const fields=['colour_mood','style','favourite_flowers','avoid_flowers','usual_budget','buying_for','occasion_type','scent_preference'];
+      const arrFields=['occasion','floral_type','style','colour_preference','buying_for','values_most'];
+      const txtFields=['favourite_flowers','avoid_sensitivities','usual_budget','purchase_frequency','personality_type'];
       const prim = prefRows.find(p=>p.customer_id===primary.id) || {};
-      const pf = { customer_id: primary.id, updated_at: new Date().toISOString() };
-      fields.forEach(f => pf[f] = prim[f] || (prefRows.map(p=>p[f]).find(v=>v!=null&&v!=='') || null));
+      const pf = { customer_id: primary.id, updated_at: new Date().toISOString(),
+        last_updated_by_name: prim.last_updated_by_name || (prefRows.map(p=>p.last_updated_by_name).find(Boolean)||null) };
+      arrFields.forEach(f=>{ const set=new Set(); prefRows.forEach(p=>(Array.isArray(p[f])?p[f]:[]).forEach(v=>{ if(v) set.add(v); })); pf[f]=[...set]; });
+      pf.values_most = (pf.values_most||[]).slice(0,2);
+      txtFields.forEach(f => pf[f] = prim[f] || (prefRows.map(p=>p[f]).find(v=>v!=null&&v!=='') || null));
+      const recs=[]; prefRows.forEach(p=>(Array.isArray(p.recipients)?p.recipients:[]).forEach(r=>recs.push(r))); pf.recipients=recs;
       await sb.from('customer_preferences').upsert(pf, { onConflict:'customer_id' });
     }
     // 3) Update the primary with the merged totals/fields.
