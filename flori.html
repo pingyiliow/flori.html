@@ -1592,9 +1592,18 @@ function hasSB() { return !!sb; }
 
 async function sbGet(table) {
   if (!hasSB()) return null;
-  const { data, error } = await sb.from(table).select('*');
-  if (error) { console.error('sbGet', table, error.message); return null; }
-  return data;
+  // PostgREST returns at most 1000 rows per request. Orders/customers run into the
+  // thousands, so page through with .range() — otherwise only the first 1000 load and
+  // the rest of the history silently never appears in the app.
+  const PAGE = 1000; let from = 0, all = [];
+  while (true) {
+    const { data, error } = await sb.from(table).select('*').range(from, from + PAGE - 1);
+    if (error) { console.error('sbGet', table, error.message); return from ? all : null; }
+    all = all.concat(data || []);
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
 }
 
 async function sbUpsert(table, rows) {
