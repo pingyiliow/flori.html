@@ -3526,6 +3526,13 @@ function toggleFUStatus(id) {
   // cycle); tapping a draft lets staff mark it completed if needed.
   const cycle = {pending:'ready', ready:'completed', draft:'completed', completed:'pending'};
   const next = cycle[f.status] || 'ready';
+  // A requested-but-not-yet-issued invoice blocks completion — the order stays in
+  // the active list until staff issues the invoice and clears the 🧾 flag. Stops an
+  // order being closed off while an invoice is still owed.
+  if (next === 'completed' && f.needInvoice) {
+    toast('🧾 Issue the invoice first, then clear the 🧾 flag to complete');
+    return;
+  }
   // Completing needs an explicit confirm + order number (prevents mis-click that
   // would otherwise drop the entry out of the All tab).
   if (next === 'completed') { openFUCompleteModal(id); return; }
@@ -3551,7 +3558,15 @@ function doCompleteFollowup() {
   toast('✓ Marked completed' + (f.orderNo ? ' · '+f.orderNo : ''));
 }
 function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
-function toggleInvoice(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.needInvoice=!f.needInvoice; saveFollowups(); renderFollowup(); toast(f&&f.needInvoice?'🧾 Invoice requested':'Invoice request cleared'); }
+function toggleInvoice(id) {
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  f.needInvoice = !f.needInvoice;
+  // Requesting an invoice on an already-completed order pulls it back to pending —
+  // it isn't truly done until the invoice is issued (then clear the 🧾 to complete).
+  if (f.needInvoice && f.status==='completed') f.status='pending';
+  saveFollowups(); renderFollowup();
+  toast(f.needInvoice ? '🧾 Invoice requested — stays pending until issued' : '✓ Invoice issued — order can be completed');
+}
 function toggleComplete(id) { toggleFUStatus(id); }
 
 /* ─── Follow-up → Shopify Draft ──────────────────────────────── */
@@ -3786,9 +3801,11 @@ function renderFollowup() {
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
-  // Sort by order date (falling back to the date the entry was added), latest first.
-  const fuSortMs = f => { if (f.orderDate){ const d=pd(f.orderDate); if(d) return +d; } return f.ts||0; };
-  list.sort((a,b) => fuSortMs(b) - fuSortMs(a));
+  // Sort by DELIVERY date — soonest delivery on top so the next thing due is first.
+  // Overdue (past) deliveries sort above today's, today above future; entries with no
+  // delivery date fall to the bottom. (Order/added date is still shown on each card.)
+  const fuSortMs = f => { if (f.dueDate){ const d=pd(f.dueDate); if(d) return +d; } return Infinity; };
+  list.sort((a,b) => fuSortMs(a) - fuSortMs(b));
   const todayStr = tdi(today0());
   // Count how many entries share each customer (phone, else name) — flag duplicates
   const dupCounts = {};
@@ -3814,7 +3831,7 @@ function renderFollowup() {
     const rowOpacity = isCompleted ? '.45' : '1';
     const amt = f.amount && parseFloat(f.amount) > 0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–';
     // Delivery date — urgency colour (muted when completed)
-    // Order/added date (the sort key) shown on top; delivery date below with urgency.
+    // Order/added date shown on top; delivery date (the sort key) below with urgency.
     const ordStr = f.orderDate ? fd(pd(f.orderDate)) : (f.ts ? fd(new Date(f.ts)) : '');
     const ordLine = ordStr ? `<div style="font-size:10px;color:var(--c-muted)">${f.orderDate?'Ordered':'Added'} ${ordStr}</div>` : '';
     let dueHtml = '';
