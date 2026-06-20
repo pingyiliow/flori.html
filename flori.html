@@ -3044,7 +3044,11 @@ function saveFollowups() {
       need_invoice: !!f.needInvoice,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
-    sbUpsert('followups', rows).catch(console.error);
+    sbUpsert('followups', rows).then(ok => {
+      // If the `staff` column hasn't been added yet, still sync everything else
+      // (drop staff) so multi-device follow-up sync never breaks.
+      if (!ok) sbUpsert('followups', rows.map(({ staff, ...r }) => r));
+    }).catch(console.error);
   }
 }
 
