@@ -4657,6 +4657,29 @@ function renderCustFilterPanel(){
 
 function backToCustomerList(){ _custProfileId=null; renderCustomers(); }
 
+// Permanently remove a customer (CRM record + its preferences/notes). Used to clear
+// out test records and accidental duplicates. Shopify-linked customers will re-import
+// on the next sync, so we warn before deleting one of those.
+async function deleteCustomer(id){
+  const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
+  const nm = c.name || c.email || c.phone || 'this customer';
+  let msg = `Delete "${nm}"?\n\nThis removes the customer, their preferences and notes. This cannot be undone.`;
+  if (c.shopify_customer_id) msg += `\n\n⚠ This customer is linked to Shopify — clicking "Sync Orders" later may re-import them. To remove for good, also delete them in Shopify.`;
+  if (!confirm(msg)) return;
+  // In-memory + repaint first so the UI responds immediately.
+  CUSTOMERS = CUSTOMERS.filter(x => x.id !== id);
+  _custProfileId = null;
+  renderCustomers();
+  // Cloud: child tables first (notes, preferences) then the customer row. Best-effort.
+  if (typeof sb !== 'undefined' && sb) {
+    try { await sb.from('customer_notes').delete().eq('customer_id', id); } catch(e){ console.warn('del notes', e); }
+    try { await sb.from('customer_preferences').delete().eq('customer_id', id); } catch(e){ console.warn('del prefs', e); }
+    const { error } = await sb.from('customers').delete().eq('id', id);
+    if (error) { toast('⚠ Cloud delete failed: '+error.message); return; }
+  }
+  toast('🗑 Customer deleted');
+}
+
 async function openCustomer(id){
   const c = CUSTOMERS.find(x=>x.id===id); if(!c) return;
   _custProfileId = id;
@@ -4866,6 +4889,9 @@ function renderCustomerProfile(c, prefs, notes){
     <div class="dp-section-ttl" style="margin-top:20px">Order history</div>
     <div id="cust-orders">${recent.length ? recent.map(o=>_custOrderRow(o.name,o.product,o.dateObj?fd(o.dateObj):(o.dueDate||''),o.total)).join('')
       : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
+
+    <div style="border-top:1px solid var(--c-border);margin:26px 0 12px"></div>
+    <button class="btn btn-sm" style="background:none;border:1.5px solid #e0a8a0;color:var(--c-red);font-size:11px;padding:7px 14px" onclick="deleteCustomer('${c.id}')">🗑 Delete this customer</button>
     <div style="height:30px"></div>`;
   renderRecipients();                                  // recipient blocks into #recipients-wrap
   renderCustEmails();                                  // extra-email chips into #cust-emails-extra
