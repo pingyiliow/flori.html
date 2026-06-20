@@ -2037,7 +2037,7 @@ async function importOrdersSince(fromISO){
   const sinceISO = fromISO;
   let cursor = null, page = 0, total = 0;
   try {
-    while (page < 120) {
+    while (page < 400) {   // 400 pages × 100 = up to 40k orders, enough for full history
       page++;
       const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
@@ -2051,14 +2051,23 @@ async function importOrdersSince(fromISO){
         catch(e){ if (/throttle/i.test(e.message) && attempt<4){ await new Promise(r=>setTimeout(r, 2500*(attempt+1))); continue; } throw e; }
       }
       const conn = data.orders;
+      const pageRows = [];
       (conn.edges||[]).map(e=>e.node).forEach(n => {
         const mapped = _mapShopifyOrder(n);
         if (mapped.cancelled) return;                // skip orders cancelled in Shopify
         if (DELETED_ORDERS.has(mapped.id)) return;   // don't re-import an order deleted in BloomFlow
         const idx = ORDERS.findIndex(o => shopId(o.id) === mapped.id);
-        if (idx !== -1) ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped); else ORDERS.push(mapped);
+        let row;
+        if (idx !== -1) { ORDERS[idx] = _applyShopifyToExisting(ORDERS[idx], mapped); row = ORDERS[idx]; }
+        else { ORDERS.push(mapped); row = mapped; }
+        pageRows.push(row);
         total++;
       });
+      // Persist each page to Supabase straight away so a long historical import
+      // (thousands of orders) survives a closed tab or a rate-limit stop — progress
+      // is banked, not lost. localStorage is written once at the end instead of every
+      // page, since re-stringifying the whole growing list each page would thrash it.
+      if (hasSB() && pageRows.length) await sbUpsert('orders', pageRows.map(_orderRow));
       if (btn) btn.textContent = 'Imported '+total+'…';
       setPill('Importing year… '+total);
       if (!conn.pageInfo?.hasNextPage) break;
