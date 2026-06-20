@@ -4035,7 +4035,7 @@ document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEvent
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
 let CUSTOMERS = [], _custProfileId = null, _custLoaded = false;
-let custSort = { col:'name', dir:'asc' }, custPage = 1;
+let custSort = { col:'updated_at', dir:'desc' }, custPage = 1;
 let custFilterTab = 'browse';                 // 'browse' | 'campaign'
 const campSel = { days:'', minSpend:'' };     // campaign single-selects (persist across renders)
 let CUST_PREFS = null;                         // customer_id -> preferences row (lazy-loaded for Campaign)
@@ -4052,6 +4052,7 @@ const CUST_COLS = [
   { key:'total_orders',  label:'Orders',    val:c=>c.total_orders||0,        right:true },
   { key:'total_spend',   label:'Spent',     val:c=>Number(c.total_spend)||0, right:true },
   { key:'last_order_at', label:'Last order',val:c=>c.last_order_at?+new Date(c.last_order_at):0, right:true },
+  { key:'updated_at',    label:'Updated',   val:c=>c.updated_at?+new Date(c.updated_at):0,       right:true },
 ];
 function _fdYear(x){ if(!x) return '–'; const d=new Date(x); return isNaN(d)?'–':d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 
@@ -4442,7 +4443,7 @@ function custActiveCount(){
 }
 function custSortBy(key){
   if (custSort.col===key) custSort.dir = custSort.dir==='asc'?'desc':'asc';
-  else { custSort.col=key; custSort.dir = ['total_orders','total_spend','last_order_at'].includes(key) ? 'desc':'asc'; }
+  else { custSort.col=key; custSort.dir = ['total_orders','total_spend','last_order_at','updated_at'].includes(key) ? 'desc':'asc'; }
   custPage = 1; renderCustomers();
 }
 async function renderCustomers(){
@@ -4528,6 +4529,7 @@ function custTableRow(c){
     total_orders: c.total_orders||0,
     total_spend:  c.total_spend?'RM '+Number(c.total_spend).toFixed(0):'–',
     last_order_at:`<span style="white-space:nowrap">${_fdYear(c.last_order_at)}</span>`,
+    updated_at:`<span style="white-space:nowrap;color:var(--c-muted)">${_fdYear(c.updated_at)}</span>`,
   };
   const cells = custVisibleCols().map(co =>
     `<td style="padding:10px 12px;border-bottom:1px solid var(--c-border);${co.right?'text-align:right;white-space:nowrap':''}">${cell[co.key]!=null?cell[co.key]:''}</td>`).join('');
