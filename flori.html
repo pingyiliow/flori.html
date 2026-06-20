@@ -4458,7 +4458,7 @@ async function renderCustomers(){
   // filter
   const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
   let list = CUSTOMERS.filter(custMatches);
-  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (c.company||'').toLowerCase().includes(q) || (c.owned_by||'').toLowerCase().includes(q));
+  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (Array.isArray(c.emails) && c.emails.some(e=>String(e||'').toLowerCase().includes(q))) || (c.company||'').toLowerCase().includes(q) || (c.owned_by||'').toLowerCase().includes(q));
   // sort
   const col = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[0];
   list.sort((a,b)=>{ const va=col.val(a), vb=col.val(b); const r = va<vb?-1:va>vb?1:0; return custSort.dir==='asc'?r:-r; });
@@ -4989,21 +4989,34 @@ async function saveNewCustomer(){
    merge a group into one record: sum orders/spend, keep the richest fields,
    move notes, combine preferences, delete the extras. */
 function findDuplicateGroups(){
-  // Union customers that share a normalized phone OR a Shopify customer id, so we
-  // catch both phone-format dups and same-Shopify-id dups (different phone formats).
+  // Union customers that share a normalized phone, a Shopify customer id, OR any
+  // email (primary or extra) — so we also catch the same person across a quiz record
+  // (has phone) and a Shopify record (has email, no phone). Each group is flagged
+  // `strong` when two of its records share a phone/Shopify-id (a reliable identity);
+  // email-only groups are surfaced for review but kept out of bulk "Merge all"
+  // (different people can share an email).
   const parent = {};
   const find = x => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
   const union = (a,b) => { parent[find(a)] = find(b); };
   CUSTOMERS.forEach(c => parent[c.id] = c.id);
-  const byPhone = {}, bySid = {};
+  const byPhone = {}, bySid = {}, byEmail = {};
+  const allEmails = c => [c.email, ...(Array.isArray(c.emails) ? c.emails : [])].map(e=>String(e||'').trim().toLowerCase()).filter(Boolean);
   CUSTOMERS.forEach(c => {
     const pk = _normPhone(c.phone); if (pk) { if (byPhone[pk]) union(c.id, byPhone[pk]); else byPhone[pk] = c.id; }
     const sk = c.shopify_customer_id; if (sk) { if (bySid[sk]) union(c.id, bySid[sk]); else bySid[sk] = c.id; }
+    allEmails(c).forEach(ek => { if (byEmail[ek]) union(c.id, byEmail[ek]); else byEmail[ek] = c.id; });
   });
   const groups = {};
   CUSTOMERS.forEach(c => { const r = find(c.id); (groups[r] = groups[r] || []).push(c); });
   return Object.values(groups).filter(arr => arr.length > 1)
-    .map(items => ({ key: _normPhone(items[0].phone) || ('id:'+items[0].shopify_customer_id), items }))
+    .map(items => {
+      const ph = {}, si = {}; let strong = false;
+      items.forEach(c => { const pk=_normPhone(c.phone); if(pk){ if(ph[pk]) strong=true; else ph[pk]=1; }
+                           const sk=c.shopify_customer_id; if(sk){ if(si[sk]) strong=true; else si[sk]=1; } });
+      const f = items[0];
+      const key = _normPhone(f.phone) || (f.shopify_customer_id?'id:'+f.shopify_customer_id:'') || allEmails(f)[0] || 'group';
+      return { key, items, strong };
+    })
     .sort((a,b) => b.items.length - a.items.length);
 }
 function openDuplicates(){
@@ -5014,20 +5027,20 @@ function openDuplicates(){
   const groups = findDuplicateGroups();
   const cnt = document.getElementById('cust-count');
   const extra = groups.reduce((s,g)=>s+g.items.length-1,0);
-  if (cnt) cnt.textContent = `${groups.length} duplicate group${groups.length===1?'':'s'} · ${extra} extra record${extra===1?'':'s'} (by WhatsApp number)`;
-  if (!groups.length){ cont.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderCustomers()" style="margin-bottom:10px">← Back to all</button><div class="empty" style="padding:40px"><div class="empty-ico">✓</div><div class="empty-txt">No WhatsApp-number duplicates 🎉</div></div>`; return; }
+  if (cnt) cnt.textContent = `${groups.length} duplicate group${groups.length===1?'':'s'} · ${extra} extra record${extra===1?'':'s'} (by WhatsApp number or email)`;
+  if (!groups.length){ cont.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderCustomers()" style="margin-bottom:10px">← Back to all</button><div class="empty" style="padding:40px"><div class="empty-ico">✓</div><div class="empty-txt">No duplicates 🎉</div></div>`; return; }
   cont.innerHTML =
     `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
        <button class="btn btn-ghost btn-sm" onclick="renderCustomers()">← Back to all</button>
-       <button class="btn btn-primary btn-sm" onclick="mergeAllDuplicates()">Merge all groups</button>
+       <button class="btn btn-primary btn-sm" onclick="mergeAllDuplicates()" title="Bulk-merges only phone/Shopify matches; review email-only ones individually">Merge all (phone/Shopify)</button>
      </div>` +
     groups.map(g => `
-      <div style="background:var(--c-surface);border:1.5px solid var(--c-dpink);border-radius:12px;padding:12px 14px;margin-bottom:8px">
+      <div style="background:var(--c-surface);border:1.5px solid ${g.strong?'var(--c-dpink)':'#FFCC80'};border-radius:12px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
-          <div style="font-size:12px;font-weight:700;color:var(--c-burg)">📱 ${esc(g.key)} · ${g.items.length} records</div>
+          <div style="font-size:12px;font-weight:700;color:var(--c-burg)">${g.strong?'📱':'✉️'} ${esc(g.key)} · ${g.items.length} records${g.strong?'':' · matched by email — review before merging'}</div>
           <button class="btn btn-primary btn-sm" onclick="confirmMergeGroup('${g.items.map(c=>c.id).join(',')}')">Merge → 1</button>
         </div>
-        ${g.items.map(c=>`<div style="font-size:12px;color:var(--c-ink);padding:5px 0;border-top:1px solid var(--c-border)">${esc(c.name||'(no name)')} <span style="color:var(--c-muted)">· ${esc(c.phone||'')} · ${c.total_orders||0} ord · RM ${Number(c.total_spend||0).toFixed(0)}${c.source?' · '+esc(c.source):''}</span></div>`).join('')}
+        ${g.items.map(c=>`<div style="font-size:12px;color:var(--c-ink);padding:5px 0;border-top:1px solid var(--c-border)">${esc(c.name||'(no name)')} <span style="color:var(--c-muted)">· ${esc(c.phone||'(no phone)')}${c.email?' · '+esc(c.email):''} · ${c.total_orders||0} ord · RM ${Number(c.total_spend||0).toFixed(0)}${c.source?' · '+esc(c.source):''}</span></div>`).join('')}
       </div>`).join('');
 }
 function confirmMergeGroup(idsStr){
@@ -5037,9 +5050,11 @@ function confirmMergeGroup(idsStr){
   mergeCustomers(ids).then(()=>openDuplicates());
 }
 async function mergeAllDuplicates(){
-  const groups = findDuplicateGroups();
-  if (!groups.length) return;
-  if (!confirm(`Merge ALL ${groups.length} duplicate groups now? Each group becomes one record (orders/spend summed, notes/preferences combined). This can't be undone.`)) return;
+  // Bulk-merge ONLY strong (phone/Shopify-id) groups — email can be shared by
+  // different people, so email-only matches must be reviewed + merged individually.
+  const groups = findDuplicateGroups().filter(g => g.strong);
+  if (!groups.length){ toast('No phone/Shopify groups to bulk-merge — merge any email-matched ones individually'); return; }
+  if (!confirm(`Merge ALL ${groups.length} phone/Shopify duplicate group${groups.length===1?'':'s'} now? Each becomes one record (orders/spend summed, notes/preferences/emails combined). Email-only matches are left for you to review. This can't be undone.`)) return;
   let done = 0; const cnt = document.getElementById('cust-count');
   for (const g of groups){
     await mergeCustomers(g.items.map(c=>c.id));
