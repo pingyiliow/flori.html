@@ -743,6 +743,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 
 /* ── Follow-up cards ──────────────────────────────────────────── */
 .fu-cards{display:flex;flex-direction:column;gap:7px}
+.fu-date-hdr{font-family:var(--f-head);font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--c-burg);background:var(--c-blush-bg);border-radius:8px;padding:5px 12px;margin-top:10px}
+.fu-date-hdr:first-child{margin-top:0}
 .fu-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-left:4px solid var(--c-blush);border-radius:12px;display:grid;grid-template-columns:1fr 132px 96px 150px 46px;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
 .fu-card:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-border2)}
 .fu-card.ready{border-left-color:var(--c-burg)}
@@ -3819,12 +3821,20 @@ function renderFollowup() {
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
-  // Sort by DELIVERY date — soonest delivery on top so the next thing due is first.
-  // Overdue (past) deliveries sort above today's, today above future; entries with no
-  // delivery date fall to the bottom. (Order/added date is still shown on each card.)
-  const fuSortMs = f => { if (f.dueDate){ const d=pd(f.dueDate); if(d) return +d; } return Infinity; };
-  list.sort((a,b) => fuSortMs(a) - fuSortMs(b));
+  // Sort by ORDER date — newest order on top. Entries are then grouped under an order-
+  // date header in the render below. Falls back to the date the entry was added when
+  // there's no order date. (Delivery date is still shown on each card.)
+  const fuSortMs = f => { if (f.orderDate){ const d=pd(f.orderDate); if(d) return +d; } return f.ts||0; };
+  list.sort((a,b) => fuSortMs(b) - fuSortMs(a));
   const todayStr = tdi(today0());
+  // Header label for an order-date group, e.g. "10 Jun 2026".
+  const _fuGroupKey = f => { const d = f.orderDate ? pd(f.orderDate) : (f.ts ? new Date(f.ts) : null); return d ? tdi(d) : 'none'; };
+  const _fuGroupLabel = f => {
+    const d = f.orderDate ? pd(f.orderDate) : (f.ts ? new Date(f.ts) : null);
+    if (!d) return 'No order date';
+    return `${f.orderDate ? 'Order date' : 'Added'}: ${d.toLocaleDateString('en-MY', {day:'numeric', month:'short', year:'numeric'})}`;
+  };
+  let _fuLastGroup = null;
   // Count how many entries share each customer (phone, else name) — flag duplicates
   const dupCounts = {};
   FOLLOWUPS.forEach(f => { const k = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(); if (k) dupCounts[k] = (dupCounts[k]||0) + 1; });
@@ -3884,7 +3894,12 @@ function renderFollowup() {
         ? 'background:var(--c-burg-lt);border-color:var(--c-burg);color:var(--c-burg)'
         : 'background:var(--c-surface);border-color:var(--c-border);color:var(--c-muted)';
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
-    return `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
+    // Order-date group header — printed once whenever the order date changes as we
+    // walk the (order-date-sorted) list, so cards sit under a dated heading.
+    const _gk = _fuGroupKey(f);
+    let _hdr = '';
+    if (_gk !== _fuLastGroup) { _fuLastGroup = _gk; _hdr = `<div class="fu-date-hdr">${esc(_fuGroupLabel(f))}</div>`; }
+    return _hdr + `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
       <div class="fu-c-main">
         <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
         ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
