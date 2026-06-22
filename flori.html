@@ -1964,11 +1964,28 @@ function shopId(raw){ return String(raw||'').replace(/^gid:\/\/shopify\/Order\//
 // app-managed data (cover/line-item photos, product/price edits, ready, designer,
 // priority, internal note, recipe, manual price/addr, delete tombstones). Used by
 // the import paths so re-importing an order can never erase a teammate's photo/edit.
+// Merge line items added in Shopify into our locally-managed copy. Existing stored
+// items keep all their local edits (names, prices, photos, ready flags); any Shopify
+// item whose title isn't already stored — and wasn't deleted locally — is appended,
+// so a product added to the order in Shopify shows up on the next sync. Matched by
+// title, since line items carry no stable id in our stored shape.
+function _mergeShopItems(stored, shop, removed){
+  stored = Array.isArray(stored) ? stored : [];
+  shop   = Array.isArray(shop)   ? shop   : [];
+  if (!shop.length) return stored;
+  const have = new Set(stored.map(i => i && i.title));
+  const gone = new Set(removed || []);
+  const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
+  return added.length ? [...stored, ...added] : stored;
+}
 function _applyShopifyToExisting(prev, m){
+  const mergedItems = (prev.lineItems && prev.lineItems.length)
+    ? _mergeShopItems(prev.lineItems, m.lineItems, prev.removedItems)
+    : m.lineItems;
   return { ...prev, ...m,
     image:        prev.image || m.image || null,
-    lineItems:    (prev.lineItems && prev.lineItems.length) ? prev.lineItems : m.lineItems,
-    product:      (prev.lineItems && prev.lineItems.length) ? (prev.product || m.product) : m.product,
+    lineItems:    mergedItems,
+    product:      (mergedItems && mergedItems.length) ? mergedItems.map(i=>i.title).join(', ') : m.product,
     ready:        prev.ready || false,
     designer:     prev.designer || null,
     priority:     prev.priority || 'normal',
@@ -2119,6 +2136,10 @@ async function syncOrders() {
     // Shopify when it has none of its own.
     const shopLineImgs = {};
     shopify.forEach(o => { shopLineImgs[o.id] = (o.lineItems||[]).map(li => ({ title: li.title, image: li.image||null })); });
+    // Snapshot the FULL fresh Shopify line items per order before the merges below
+    // replace o.lineItems with the stored copy — used to append items added in Shopify.
+    const shopLineFull = {};
+    shopify.forEach(o => { shopLineFull[o.id] = (o.lineItems||[]).slice(); });
     // Preserve ready state from previous sync. Key by canonical id so meta still
     // transfers across the one sync where ORDERS may still hold legacy gid ids.
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
@@ -2135,7 +2156,8 @@ async function syncOrders() {
         // totals, dates, customer) from Shopify. New orders (not in prevMeta) fall
         // through and use Shopify's line items as-is.
         if(pm.lineItems && pm.lineItems.length){
-          o.lineItems   = pm.lineItems;
+          // Keep the locally-edited items, but append any product added in Shopify.
+          o.lineItems   = _mergeShopItems(pm.lineItems, shopLineFull[o.id], pm.removedItems);
           o.removedItems = pm.removedItems || [];
           o.product     = o.lineItems.map(i=>i.title).join(', ');
           o.image       = pm.image || (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || o.image || null;
@@ -2173,8 +2195,10 @@ async function syncOrders() {
         ORDERS.forEach(o => {
           const r = byRemote[shopId(o.id)]; if (!r) return;   // new order not yet in DB → keep Shopify data
           if (Array.isArray(r.line_items) && r.line_items.length) {
-            o.lineItems = r.line_items;                       // names/prices/qty + per-item photos & ready
-            o.product   = r.product || o.lineItems.map(i => i.title).join(', ');
+            // Use the multi-device copy as the base (names/prices/qty + photos & ready),
+            // but still append any product just added in Shopify so it isn't lost here.
+            o.lineItems = _mergeShopItems(r.line_items, shopLineFull[shopId(o.id)], o.removedItems);
+            o.product   = o.lineItems.map(i => i.title).join(', ');
           }
           o.image        = r.image || (o.lineItems||[]).find(i => itemPhotos(i).length)?.image || null;
           o.ready        = !!r.ready;
