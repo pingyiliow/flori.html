@@ -1704,7 +1704,10 @@ async function showApp() {
   applyRoleGating();
   // Preload customers for admin/cs so the dashboard birthday/anniversary widget
   // can show on landing (also primes the Customers tab). Best-effort.
-  if (canAccess('customers')) { loadCustomers().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
+  // Don't pull the whole customer table at launch (it's ~20k rows / lots of egress).
+  // The dashboard reminder widget only needs birthday/anniversary, so fetch just those
+  // light fields; the full list loads lazily when the Customers tab is opened.
+  if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -4454,6 +4457,21 @@ document.addEventListener('click', e=>{
   if(!e.target.closest('.ms')){ let ch=false; Object.values(MSEL).forEach(s=>{ if(s.open){ s.open=false; ch=true; } }); if(ch) _msPaintAll(); }
 });
 
+// Light query for the dashboard reminder widget — just the fields it needs, so the
+// app doesn't pull every customer column at launch. Far smaller egress than loadCustomers.
+let _reminderRows = null;
+async function loadReminders(){
+  if (!hasSB() || !canAccess('customers')) return;
+  try {
+    const PAGE=1000; let from=0, all=[];
+    while (true) {
+      const { data, error } = await sb.from('customers').select('id,name,phone,birthday,anniversary').range(from, from+PAGE-1);
+      if (error) { console.warn('loadReminders', error.message); break; }
+      all = all.concat(data||[]); if (!data || data.length<PAGE) break; from+=PAGE;
+    }
+    _reminderRows = all;
+  } catch(e){ console.warn('loadReminders', e); }
+}
 async function loadCustomers(){
   if (!hasSB()) return;
   try {
@@ -4607,7 +4625,10 @@ function renderCrmReminders(){
   const el = document.getElementById('crm-reminders'); if(!el) return;
   if (!canAccess('customers')) { el.innerHTML=''; return; }
   const items=[];
-  CUSTOMERS.forEach(c=>{
+  // Use the full list once the Customers tab has loaded it; otherwise the light
+  // birthday/anniversary projection fetched at launch.
+  const src = (_custLoaded && CUSTOMERS.length) ? CUSTOMERS : (_reminderRows || []);
+  src.forEach(c=>{
     const b=_upcomingDays(c.birthday);     if(b!=null && b<=7) items.push({c, kind:'🎂 Birthday', days:b});
     const a=_upcomingDays(c.anniversary);  if(a!=null && a<=7) items.push({c, kind:'💐 Anniversary', days:a});
   });
