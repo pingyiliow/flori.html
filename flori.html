@@ -2481,10 +2481,71 @@ function loadData() {
   // don't kick off a second, unawaited loadFromSupabase that paints out of order.
 }
 
+// Map a Supabase order row → the in-memory order shape (shared by the loaders).
+function _mapDbOrder(o){
+  return {
+    id: shopId(o.id), _rawId: o.id, name: o.name, src: o.src||'shopify',
+    customer: o.customer, product: o.product,
+    lineItems: o.line_items||[], image: o.image||null,
+    total: o.total||null, currency: o.currency||'MYR',
+    dueDate: o.due_date||null, dueTime: o.due_time||null,
+    type: o.type||'delivery', fulfilled: o.fulfilled||false,
+    ready: o.ready||false, createdAt: o.created_at||null,
+    manualAddr: o.manual_addr||null, recipe: o.recipe||[],
+    designer: o.designer||null, priority: o.priority||'normal',
+    internalNote: o.internal_note||null,
+    manualPrice: o.manual_price||null, dateObj: null
+  };
+}
+// Only the recent/active slice of orders is read on launch + focus-refresh, so the
+// 5k+ historical rows aren't re-downloaded every time (big Supabase-egress saving).
+// Older fulfilled orders stay in the DB and load on demand when their date is picked.
+const _ORDER_WINDOW_DAYS = 75;
+function _orderCutoffISO(){ return new Date(today0().getTime() - _ORDER_WINDOW_DAYS*86400000).toISOString().slice(0,10); }
+async function sbGetRecentOrders(){
+  if (!hasSB()) return null;
+  const cutoff = _orderCutoffISO();
+  try {
+    let from = 0, all = [];
+    while (true) {
+      // due recently/upcoming OR still unfulfilled (any age) OR created recently
+      const { data, error } = await sb.from('orders').select('*')
+        .or(`due_date.gte.${cutoff},fulfilled.eq.false,created_at.gte.${cutoff}`)
+        .range(from, from + 999);
+      if (error) { console.warn('sbGetRecentOrders', error.message); return all.length ? all : null; }
+      all = all.concat(data || []);
+      if (!data || data.length < 1000) break;
+      from += 1000;
+    }
+    return all;
+  } catch(e){ console.warn('sbGetRecentOrders', e); return null; }
+}
+// Merge a batch of DB order rows into ORDERS (DB wins for those ids; cached older
+// orders are kept; deleted ones dropped). Used by the on-demand date loader.
+function _mergeDbOrders(rows){
+  const incoming = (rows||[]).filter(o => !DELETED_ORDERS.has(shopId(o.id))).map(_mapDbOrder);
+  if (!incoming.length) return false;
+  const merged = new Map();
+  ORDERS.forEach(o => merged.set(shopId(o.id), o));
+  incoming.forEach(o => merged.set(o.id, o));
+  ORDERS = [...merged.values()].filter(o => !DELETED_ORDERS.has(shopId(o.id)));
+  rehydrateOrders();
+  return true;
+}
+// Pull a single older date's orders on demand (when a past date outside the recent
+// window is picked) instead of loading the whole history.
+async function loadOrdersForDate(dateStr){
+  if (!hasSB() || !dateStr) return;
+  try {
+    const { data, error } = await sb.from('orders').select('*').eq('due_date', dateStr).range(0, 999);
+    if (error) { console.warn('loadOrdersForDate', error.message); return; }
+    if (_mergeDbOrders(data || [])) saveOrders();
+  } catch(e){ console.warn('loadOrdersForDate', e); }
+}
 async function loadFromSupabase(opts = {}) {
   try {
     const [orders, followups, inventory, purchases, remoteRemoved, remoteDeleted] = await Promise.all([
-      sbGet('orders'), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
+      sbGetRecentOrders(), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
     ]);
     // Order-delete tombstones (shared). Union the remote list with any local deletes
     // so a just-deleted order isn't resurrected before its tombstone has synced.
@@ -2499,19 +2560,7 @@ async function loadFromSupabase(opts = {}) {
     if (orders && orders.length) {
       const mapped = orders
         .filter(o => !DELETED_ORDERS.has(shopId(o.id)))   // skip orders deleted in BloomFlow
-        .map(o => ({
-        id: shopId(o.id), _rawId: o.id, name: o.name, src: o.src||'shopify',
-        customer: o.customer, product: o.product,
-        lineItems: o.line_items||[], image: o.image||null,
-        total: o.total||null, currency: o.currency||'MYR',
-        dueDate: o.due_date||null, dueTime: o.due_time||null,
-        type: o.type||'delivery', fulfilled: o.fulfilled||false,
-        ready: o.ready||false, createdAt: o.created_at||null,
-        manualAddr: o.manual_addr||null, recipe: o.recipe||[],
-        designer: o.designer||null, priority: o.priority||'normal',
-        internalNote: o.internal_note||null,
-        manualPrice: o.manual_price||null, dateObj: null
-      }));
+        .map(_mapDbOrder);
       // Collapse any rows that still refer to the same order under different id
       // shapes (numeric webhook row + legacy gid sync row) until the one-time
       // migrateOrderIds() dedup runs. Merge local-only fields so nothing is lost.
@@ -2520,7 +2569,12 @@ async function loadFromSupabase(opts = {}) {
         const prev = byId.get(o.id);
         byId.set(o.id, prev ? mergeOrderRows(prev, o) : o);
       }
-      ORDERS = [...byId.values()];
+      // Merge the recent DB rows over what we already hold (cache + on-demand older
+      // dates), so this recent-only read doesn't wipe older orders already loaded.
+      const merged = new Map();
+      ORDERS.forEach(o => merged.set(shopId(o.id), o));
+      byId.forEach((o, id) => merged.set(id, o));   // fresh DB rows win for their ids
+      ORDERS = [...merged.values()].filter(o => !DELETED_ORDERS.has(shopId(o.id)));
       ORDERS.forEach(o => {
         const rm = prevRemoved[o.id];
         if (!rm || !rm.length) { return; }
@@ -4243,8 +4297,11 @@ function renderCalendar() {
   grid.innerHTML=html;
 }
 
-function selectCalDay(key) {
+async function selectCalDay(key) {
   calFilter=calFilter===key?null:key;
+  // Picked a past date outside the recent window? Its orders aren't loaded — pull
+  // just that date from Supabase on demand (instead of loading the whole history).
+  if (calFilter && calFilter < _orderCutoffISO()) { await loadOrdersForDate(calFilter); }
   // A picked date overrides the status tabs; clearing it restores "Today".
   if (calFilter) {
     document.querySelectorAll('[data-f]').forEach(b=>b.classList.remove('on'));
