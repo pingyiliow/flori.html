@@ -2190,8 +2190,18 @@ async function syncOrders() {
     // fresh values from this sync; only app-managed fields are taken from Supabase.)
     if (hasSB()) {
       try {
-        const remote = await sbGet('orders');
-        const byRemote = {}; (remote||[]).forEach(r => { byRemote[shopId(r.id)] = r; });
+        // Only re-read the orders we're about to overwrite (the freshly-synced ones) —
+        // not the whole 5k+ table. This overlay just needs those orders' app-managed
+        // fields, so fetching the entire table here was pure wasted egress. Chunk the
+        // id list to keep each request small.
+        const freshIdList = shopify.map(o => o.id);
+        let remote = [];
+        for (let i = 0; i < freshIdList.length; i += 200) {
+          const chunk = freshIdList.slice(i, i + 200);
+          const { data, error } = await sb.from('orders').select('*').in('id', chunk);
+          if (!error && data) remote = remote.concat(data);
+        }
+        const byRemote = {}; remote.forEach(r => { byRemote[shopId(r.id)] = r; });
         ORDERS.forEach(o => {
           const r = byRemote[shopId(o.id)]; if (!r) return;   // new order not yet in DB → keep Shopify data
           if (Array.isArray(r.line_items) && r.line_items.length) {
@@ -6460,24 +6470,26 @@ if (document.readyState === 'loading') {
 
 // Auto-pull from Supabase when user returns to the tab/app
 let _lastRefresh = 0;
+// Auto-refresh when the app regains focus / foreground. This used to fire a FULL
+// data reload every 30s of tab-switching, which was the single biggest driver of
+// Supabase egress (each refresh re-reads the whole orders table). Throttled to once
+// every 5 minutes now — teammates' changes still arrive within a few minutes, and the
+// manual "Sync Orders" button is always there for an instant refresh.
+const _AUTO_REFRESH_MS = 300000; // 5 minutes
+function _maybeAutoRefresh() {
+  if (!hasSB() || !currentUser) return;
+  const now = Date.now();
+  if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
+  _lastRefresh = now;
+  // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
+  // single paint settles the UI, so there's no intermediate stale frame.
+  loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
+}
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && hasSB() && currentUser) {
-    const now = Date.now();
-    if (now - _lastRefresh > 30000) { // max once per 30 seconds
-      _lastRefresh = now;
-      // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
-      // single paint settles the UI, so there's no intermediate stale frame.
-      loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
-    }
-  }
+  if (document.visibilityState === 'visible') _maybeAutoRefresh();
 });
-
-// Also refresh when PWA comes back to foreground (iOS)
-window.addEventListener('pageshow', (e) => {
-  if (e.persisted && hasSB() && currentUser) {
-    loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
-  }
-});
+// Also refresh when PWA comes back to foreground (iOS) — same throttle (was unbounded).
+window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(); });
 </script>
 
 <!-- ══ ORDER DETAIL PANEL ════════════════════════════════════ -->
