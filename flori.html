@@ -627,6 +627,10 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .ocust{font-size:11px;color:var(--c-muted)}
 .ocdate{font-size:11px;font-weight:600;color:var(--c-burg);margin-top:2px}
 .onote{display:flex;align-items:center;gap:5px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 8px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.o-item-note{background:#FFF8E1;border-left:3px solid #FFD54F;padding:2px 8px;border-radius:0 4px 4px 0;font-size:10.5px;color:#5D4037;font-weight:500;margin:2px 0 2px 24px;line-height:1.35}
+.dp-item-note{background:#FFF8E1;border-left:3px solid #FFD54F;padding:4px 9px;border-radius:0 5px 5px 0;font-size:11px;color:#5D4037;font-weight:500;margin:3px 0 6px;cursor:pointer;line-height:1.4}
+.dp-item-note.empty{background:transparent;border-left-color:var(--c-border);color:var(--c-muted);font-weight:400;font-style:italic}
+.dp-item-note:hover{filter:brightness(.97)}
 .oc .price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:flex-start;justify-content:flex-end;white-space:nowrap}
 .ott{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px}
 .otime{font-size:13px;font-weight:600;color:var(--c-ink);white-space:nowrap}
@@ -2682,6 +2686,7 @@ function itemsCell(o) {
     const lines = items.map((item, idx) => {
       const qty = item.quantity > 1 ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
       const priceHtml = _priceTag(item);
+      const itemNote = item.note ? `<div class="o-item-note">⚠️ ${esc(item.note)}</div>` : '';
       if (item.image) {
         return `<div class="o-item-line" style="justify-content:space-between">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
@@ -2690,14 +2695,14 @@ function itemsCell(o) {
               onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
             <span class="o-item-title">${esc(item.title)}${qty}</span>
           </div>${priceHtml}
-        </div>`;
+        </div>${itemNote}`;
       }
       return `<div class="o-item-line" style="justify-content:space-between">
         <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
           <span class="o-item-dot">🌸</span>
           <span class="o-item-title">${esc(item.title)}${qty}</span>
         </div>${priceHtml}
-      </div>`;
+      </div>${itemNote}`;
     }).join('');
     html = `<div class="o-items">${lines}</div>`;
   }
@@ -2812,9 +2817,10 @@ function orderCard(o, item, idx) {
   else { const tot = orderTotal(o); priceTxt = tot != null ? 'RM ' + tot.toFixed(2) : ''; }
   const mobPrice = priceTxt ? `<span class="oc-mob-price">${priceTxt}</span>` : '';
 
-  // internal note (shared across the order)
-  const note = o.internalNote
-    ? `<div class="onote">⚠️ ${esc(o.internalNote.length > 70 ? o.internalNote.slice(0, 70) + '…' : o.internalNote)}</div>`
+  // Special instruction — this item's own note wins; fall back to the order-wide note.
+  const noteTxt = (item && item.note) || o.internalNote || '';
+  const note = noteTxt
+    ? `<div class="onote">⚠️ ${esc(noteTxt.length > 70 ? noteTxt.slice(0, 70) + '…' : noteTxt)}</div>`
     : '';
 
   const timeTxt = o.dueTime || '–';
@@ -2901,7 +2907,8 @@ function homeMiniCard(o, item, idx) {
     : `<div class="h-mc-thumb">🌸</div>`;
   const name = esc(isUnit ? (item.title||'–') : (o.product || ((o.lineItems&&o.lineItems[0])?o.lineItems[0].title:'') || '–'));
   const unitTag = (isUnit && o.lineItems.length>1) ? ` <span style="color:var(--c-muted);font-weight:400">${idx+1}/${o.lineItems.length}</span>` : '';
-  const note = o.internalNote ? `<div class="h-mc-note">⚠ ${esc(o.internalNote.length>42?o.internalNote.slice(0,42)+'…':o.internalNote)}</div>` : '';
+  const _noteTxt = (isUnit && item && item.note) ? item.note : (o.internalNote||'');
+  const note = _noteTxt ? `<div class="h-mc-note">⚠ ${esc(_noteTxt.length>42?_noteTxt.slice(0,42)+'…':_noteTxt)}</div>` : '';
   let badge;
   if (state==='fulfilled')   badge='<span class="h-mc-badge f">✓ Done</span>';
   else if (state==='ready')  badge='<span class="h-mc-badge r">● Ready</span>';
@@ -5541,6 +5548,7 @@ function _productRowHTML(idx, item) {
       </div>
       <button onclick="removeProductRow(${idx})" style="width:24px;height:24px;border:1.5px solid var(--c-border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);cursor:pointer;flex-shrink:0;background:transparent;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">✕</button>
     </div>
+    <input id="opnote-${idx}" type="text" placeholder="⚠️ Special instruction for THIS item (optional)" value="${esc(item.note||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:#FFFDF5;color:var(--c-ink)">
     <div id="opphotos-${idx}" class="op-photos"></div>
     <input type="file" id="opimg-${idx}" accept="image/*" multiple style="display:none" onchange="handleProductPhoto(this,${idx})">
   </div>`;
@@ -5583,7 +5591,8 @@ function _collectProductRows() {
     const price = parseFloat(document.getElementById('opprice-'+idx)?.value) || 0;
     const qty   = parseInt(document.getElementById('opqty-'+idx)?.value)   || 1;
     const imgs = (_productImages[idx] || []).filter(Boolean);
-    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, image: imgs[0]||null, images: imgs, currency:'MYR' });
+    const note = document.getElementById('opnote-'+idx)?.value.trim() || '';
+    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, note: note||null, image: imgs[0]||null, images: imgs, currency:'MYR' });
   });
   return items;
 }
@@ -5925,6 +5934,18 @@ function _persistItemPhotos(o){
   saveOrders(o); renderHome(); renderOrders();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
   toast('✓ Photos updated');
+}
+// Per-item special instruction. Stored on the line item (rides along in the
+// line_items JSON — no schema change) so each product can have its own remark.
+function editItemNote(orderId, itemIdx){
+  const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
+  const it=o.lineItems[itemIdx];
+  const val = prompt('Special instruction for "'+String(it.title||'this item').slice(0,40)+'":', it.note||'');
+  if (val===null) return;                 // cancelled
+  it.note = val.trim() || null;
+  saveOrders(o); renderHome(); renderOrders();
+  if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // refresh panel in place
+  toast(it.note ? '✓ Instruction saved' : 'Instruction cleared');
 }
 function closeZoom(){document.getElementById('zoom').classList.remove('on');}
 let _toastT;
@@ -6315,10 +6336,14 @@ function _renderDP(order, localOrder) {
       const strip = (liIdx>=0)
         ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
         : '';
+      // Per-item special instruction — tap to add/edit (only for stored line items).
+      const noteHtml = (liIdx >= 0)
+        ? `<div class="dp-item-note${li.note?'':' empty'}" onclick="editItemNote('${localOrder.id}',${liIdx})" title="Special instruction for this item">${li.note ? '⚠️ '+esc(li.note) : '＋ Add instruction'}</div>`
+        : (li.note ? `<div class="dp-item-note">⚠️ ${esc(li.note)}</div>` : '');
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
         <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
-      </div>${strip}`;
+      </div>${noteHtml}${strip}`;
     }).join('');
 
     html += `<div>
