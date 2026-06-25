@@ -1473,6 +1473,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="shopify">Shopify</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
           </div>
           <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="ff"><label class="ff-l">Delivery Fee (RM)</label><input id="fu-fee" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="ff"><label class="ff-l">Payment</label>
             <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
           </div>
@@ -2433,7 +2434,7 @@ async function loadFromSupabase(opts = {}) {
         recipPhone: f.recip_phone||'', channel: f.channel||'whatsapp',
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
-        amount: f.amount||0,
+        amount: f.amount||0, deliveryFee: f.delivery_fee||0,
         addr: f.addr||'', payment: f.payment||'pending',
         status: f.status||'pending', items: f.items||'',
         cardMsg: f.card_msg||'', remarks: f.remarks||'',
@@ -3104,7 +3105,7 @@ function saveFollowups() {
       recip_phone: f.recipPhone||null, channel: f.channel||'whatsapp',
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
-      amount: f.amount||null,
+      amount: f.amount||null, delivery_fee: f.deliveryFee||null,
       addr: f.addr||null, payment: f.payment||'pending',
       status: f.status||'pending', items: f.items||null,
       card_msg: f.cardMsg||null, remarks: f.remarks||null,
@@ -3112,9 +3113,9 @@ function saveFollowups() {
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).then(ok => {
-      // If the `staff` column hasn't been added yet, still sync everything else
-      // (drop staff) so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, ...r }) => r));
+      // If a newer column (staff / delivery_fee) hasn't been added yet, still sync
+      // everything else (drop those) so multi-device follow-up sync never breaks.
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, ...r }) => r));
     }).catch(console.error);
   }
 }
@@ -3131,7 +3132,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-items','fu-card-msg','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-raw-paste','fu-photo-b64'].forEach(id=>{
+   'fu-notes','fu-items','fu-card-msg','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -3490,6 +3491,7 @@ function editFollowup(id) {
   const dd = document.getElementById('fu-due-date');   if(dd) dd.value = f.dueDate||'';
   const dt = document.getElementById('fu-due-time');   if(dt) dt.value = f.dueTime||'';
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
+  const fe = document.getElementById('fu-fee');        if(fe) fe.value = f.deliveryFee||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
   const fiEl = document.getElementById('fu-items');    if(fiEl) fiEl.value = f.items||'';
   const fcEl = document.getElementById('fu-card-msg'); if(fcEl) fcEl.value = f.cardMsg||'';
@@ -3573,6 +3575,7 @@ function saveFollowup() {
     dueDate:    document.getElementById('fu-due-date')?.value||'',
     dueTime:    document.getElementById('fu-due-time')?.value.trim()||'',
     amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
+    deliveryFee:parseFloat(document.getElementById('fu-fee')?.value)||0,
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
     payment:    document.getElementById('fu-payment').value,
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
@@ -3822,6 +3825,11 @@ async function createShopifyDraft() {
       if (rPhone) input.shippingAddress.phone = rPhone;
     }
 
+    // Delivery fee → a shipping line on the draft (delivery orders only).
+    if (f.fulfil !== 'pickup' && parseFloat(f.deliveryFee) > 0) {
+      input.shippingLine = { title: 'Delivery', price: parseFloat(f.deliveryFee).toFixed(2) };
+    }
+
     const mutation = `mutation($input: DraftOrderInput!) { draftOrderCreate(input:$input) { draftOrder { id name invoiceUrl } userErrors { field message } } }`;
     const data = await shopifyGQL(mutation, { input });
     const ue = data.draftOrderCreate?.userErrors || [];
@@ -3917,7 +3925,8 @@ function renderFollowup() {
       const isPast2  = dObj && dObj < today0();
       const color = isCompleted ? 'var(--c-muted)' : isPast2 ? 'var(--c-red)' : isToday2 ? 'var(--c-burg)' : 'var(--c-ink)';
       const weight = (isToday2 || isPast2) && !isCompleted ? '600' : '400';
-      dueHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">🚚 ${dStr}</div>
+      const dIco = f.fulfil==='pickup' ? '🛍' : '🚚';   // self-collect vs delivery
+      dueHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">${dIco} ${dStr}</div>
         ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">🕐 ${esc(f.dueTime)}</div>`:''}
         ${isPast2&&!isCompleted?'<div style="font-size:9px;color:var(--c-red);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Overdue</div>':''}
         ${isToday2&&!isCompleted?'<div style="font-size:9px;color:var(--c-burg);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Today</div>':''}`;
@@ -3941,6 +3950,11 @@ function renderFollowup() {
         ? 'background:var(--c-burg-lt);border-color:var(--c-burg);color:var(--c-burg)'
         : 'background:var(--c-surface);border-color:var(--c-border);color:var(--c-muted)';
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
+    // Clear self-collect vs delivery sign.
+    const isPickup = f.fulfil==='pickup';
+    const fulfilBadge = `<span title="${isPickup?'Self collect':'Delivery'}" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${isPickup?'#E8F4F8':'#FFF3E0'};color:${isPickup?'#0F6B7B':'#E65100'};border:1px solid ${isPickup?'#4FC3D5':'#FFCC80'};border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${isPickup?'🛍 Self-collect':'🚚 Delivery'}</span>`;
+    const feeLine = (f.deliveryFee && parseFloat(f.deliveryFee) > 0)
+      ? `<div style="font-size:9px;color:var(--c-muted);margin-top:1px;white-space:nowrap">🚚 +RM ${parseFloat(f.deliveryFee).toFixed(2)}</div>` : '';
     // Order-date group header — printed once whenever the order date changes as we
     // walk the (order-date-sorted) list, so cards sit under a dated heading.
     const _gk = _fuGroupKey(f);
@@ -3948,13 +3962,13 @@ function renderFollowup() {
     if (_gk !== _fuLastGroup) { _fuLastGroup = _gk; _hdr = `<div class="fu-date-hdr">${esc(_fuGroupLabel(f))}</div>`; }
     return _hdr + `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
       <div class="fu-c-main">
-        <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
+        <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}${fulfilBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
         ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
         ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">👤 Staff: ${esc(f.staff)}</div>`:''}
         <div class="fu-c-items">${esc(itemsPreview)}</div>
       </div>
       <div class="fu-c-date">${dateCellHtml}</div>
-      <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}</div>
+      <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}${feeLine}</div>
       <div class="fu-c-badges">
         <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
         <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
@@ -4020,8 +4034,12 @@ function openFUDP(id) {
     [fulfil+' Date',   f.dueDate   ? fd(pd(f.dueDate))  : '–'],
     [fulfil+' Time',   f.dueTime   || '–'],
     ['Amount',         f.amount && parseFloat(f.amount)>0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–'],
-    ['Payment',        payLbl],
   ];
+  if (f.deliveryFee && parseFloat(f.deliveryFee) > 0) {
+    rows.push(['Delivery Fee', 'RM '+parseFloat(f.deliveryFee).toFixed(2)]);
+    rows.push(['Total',        'RM '+(parseFloat(f.amount||0)+parseFloat(f.deliveryFee)).toFixed(2)]);
+  }
+  rows.push(['Payment', payLbl]);
   if (f.orderNo) rows.push(['Shopify Order', f.orderNo]);
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
