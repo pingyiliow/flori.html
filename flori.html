@@ -472,6 +472,8 @@ img{display:block;max-width:100%}
 @media(max-width:860px){.hide-m{display:none}}
 
 /* ── calendar ────────────────────────────────────────────────── */
+.cal-sel{font-family:var(--f-head);font-size:13px;font-style:italic;color:var(--c-ink);background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r);padding:3px 6px;margin:0 2px;cursor:pointer;outline:none}
+.cal-sel:hover{border-color:var(--c-burg)}
 .cal-dow{text-align:center;padding:8px 2px;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);border-bottom:1px solid var(--c-border);}
 .cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-size:13px;font-weight:400;color:var(--c-muted);border-bottom:1px solid var(--c-border);border-right:1px solid var(--c-border);transition:all .12s;min-height:44px;position:relative;}
 .cal-day:hover{background:var(--c-burg-lt)}
@@ -4263,6 +4265,22 @@ function toggleCalendar() {
 }
 function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();}
 function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();}
+function calSetMonth(m){ calMonth=+m; renderCalendar(); }
+function calSetYear(y){ calYear=+y; renderCalendar(); }
+// Pull a whole month's orders on demand (when browsing an old month in the calendar),
+// once per month, so the day-dots are accurate without loading the full history.
+let _loadedMonths = new Set();
+async function loadOrdersForMonth(y, m){
+  if (!hasSB()) return;
+  const key=y+'-'+m; if(_loadedMonths.has(key)) return; _loadedMonths.add(key);
+  const start=y+'-'+String(m+1).padStart(2,'0')+'-01';
+  const end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
+  try {
+    const { data, error } = await sb.from('orders').select('*').gte('due_date',start).lte('due_date',end).range(0,999);
+    if (error){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', error.message); return; }
+    if (_mergeDbOrders(data||[])){ saveOrders(); renderCalendar(); }
+  } catch(e){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', e); }
+}
 
 function clearCalFilter() {
   calFilter=null;
@@ -4278,7 +4296,16 @@ function clearCalFilter() {
 function renderCalendar() {
   const grid=document.getElementById('cal-grid'),ttl=document.getElementById('cal-title'); if(!grid) return;
   const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  ttl.textContent=months[calMonth]+' '+calYear;
+  // Month + year dropdowns so you can jump straight to e.g. last year without
+  // clicking the ‹ arrow a dozen times.
+  const curY=new Date().getFullYear(); const years=[]; for(let y=curY-7;y<=curY+1;y++) years.push(y);
+  ttl.innerHTML =
+    `<select class="cal-sel" onclick="event.stopPropagation()" onchange="calSetMonth(this.value)">${months.map((m,i)=>`<option value="${i}"${i===calMonth?' selected':''}>${m}</option>`).join('')}</select>`+
+    `<select class="cal-sel" onclick="event.stopPropagation()" onchange="calSetYear(this.value)">${years.map(y=>`<option value="${y}"${y===calYear?' selected':''}>${y}</option>`).join('')}</select>`;
+  // Viewing a month older than the loaded recent window? Pull that month's orders so
+  // its day-dots show (loaded once per month, re-renders when ready).
+  const monthEndISO=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(new Date(calYear,calMonth+1,0).getDate()).padStart(2,'0');
+  if (typeof _orderCutoffISO==='function' && monthEndISO < _orderCutoffISO()) loadOrdersForMonth(calYear,calMonth);
   const counts={};
   ORDERS.forEach(o=>{if(!o.dateObj)return;const k=o.dateObj.getFullYear()+'-'+String(o.dateObj.getMonth()+1).padStart(2,'0')+'-'+String(o.dateObj.getDate()).padStart(2,'0');counts[k]=(counts[k]||0)+1;});
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
