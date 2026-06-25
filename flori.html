@@ -1763,6 +1763,122 @@ async function checkSession() {
 
 /* ─── Language ──────────────────────────────────────────────── */
 let LANG = localStorage.getItem('flori-lang') || 'en';
+// ── 简体中文 UI dictionary (English → 中文) ──────────────────────────
+// The sweep below matches an element's exact trimmed text (and placeholder/title/
+// aria-label) against these keys, so BOTH static HTML and JS-rendered content get
+// translated without per-element markup. Add any English phrase here to translate it.
+const I18N_ZH = {
+  // Header / nav
+  'Sync Orders':'同步订单','Operations':'操作','Admin':'管理','Stock':'库存',
+  'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','Customers':'顾客',
+  'Not yet synced':'尚未同步','Home':'主页','Orders':'订单','Follow':'跟进','CRM':'顾客',
+  // Dashboard
+  'Pending':'待处理','Ready':'已准备','Done':'已完成','Total':'总计',
+  'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
+  'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
+  // Daily Orders
+  '🏭 By Product':'🏭 按产品','+ Add Order':'+ 新增订单','Select date':'选择日期',
+  'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
+  'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
+  // Stock
+  '🌸 Inventory':'🌸 库存','🛒 To Buy':'🛒 待购买','Inventory':'库存','To Buy':'待购买',
+  'Track stems, materials & supplies':'记录花材、材料与用品','+ Add Item':'+ 新增项目',
+  'What to order this week':'本周需采购','Clear done':'清除已完成','Supplier Notes':'供应商备注',
+  // Follow-up
+  'Unpaid':'未付款','Completed':'已完成','Ready ★':'已准备 ★','+ Add Customer':'+ 新增顾客',
+  // Customers
+  '🔁 Duplicates':'🔁 重复项','Columns':'栏目','⚙ Filter':'⚙ 筛选',
+  // Settings panel
+  'Settings':'设置','Shopify Connection':'Shopify 连接','Connected':'已连接','Disconnect store':'断开店铺',
+  'Store URL':'店铺网址','Connect with Shopify':'连接 Shopify','Save token':'保存令牌',
+  'Import an Order':'导入订单','Import':'导入','Import all orders since':'导入此日期起的所有订单',
+  'Import orders':'导入订单','Customers (CRM)':'顾客 (CRM)','Import customers from Shopify':'从 Shopify 导入顾客',
+  'Account':'账户','Sign Out':'登出','Language':'语言','Keyboard Shortcuts':'键盘快捷键',
+  'Purchase List':'采购清单','Sync orders':'同步订单','Data':'数据',
+  '↓  Export all data':'↓  导出所有数据','✕  Clear all local data':'✕  清除所有本地数据','About':'关于',
+  // Modal — Add Order
+  'Customer Name':'顾客姓名','Order #':'订单编号','Due Date':'截止日期','Due Time':'截止时间',
+  'Type':'类型','Self Collect / Pickup':'自取','Delivery Address':'送货地址','Designer':'设计师',
+  '— Unassigned —':'— 未分配 —','Priority':'优先级','🟢 Normal':'🟢 普通','🟠 High':'🟠 重要','🔴 Urgent':'🔴 紧急',
+  '📝 Special Instructions (internal)':'📝 特别说明（内部）','Products':'产品','+ Add product':'+ 新增产品',
+  'Save Order':'保存订单','Cancel':'取消',
+  // Modal — Inventory
+  'Add Stock Item':'新增库存项目','Item Name':'项目名称','Category':'类别','Cut Flowers':'鲜切花',
+  'Greenery':'绿叶','Dried':'干花','Ribbons':'丝带','Vases':'花瓶','Foam':'花泥','Other':'其他',
+  'Quantity':'数量','Unit':'单位','Notes':'备注','Photo':'照片','Save Item':'保存项目','Delete':'删除',
+  // Modal — Purchase
+  'Add to Purchase List':'加入采购清单','Qty Needed':'需要数量','Urgency':'紧急程度',
+  'This Week':'本周','Stock Up':'备货','Add Item':'新增项目',
+  // Modal — Customer
+  'Add Customer':'新增顾客','Name':'姓名','Tag':'标签','Regular':'普通','VIP':'VIP','Wedding':'婚礼',
+  'Corporate':'企业','Prospect':'潜在顾客','Email':'电邮','Save Customer':'保存顾客',
+  // Modal — Follow-up draft / complete
+  '🛍 Send to Shopify Draft':'🛍 发送至 Shopify 草稿','Create Draft →':'创建草稿 →','✓ Mark as Completed':'✓ 标记为已完成',
+  'Shopify Order Number':'Shopify 订单编号','✓ Confirm Completed':'✓ 确认已完成',
+  // Modal — Follow-up
+  '📋 Paste Order Form':'📋 粘贴订单表格','✏ Manual Entry':'✏ 手动输入','Auto-fill from form':'从表格自动填写',
+  'Paste order form text here':'在此粘贴订单表格文字',
+  'Sender (Your Customer)':'下单人（你的顾客）','Sender Name':'下单人姓名','Sender Phone / WhatsApp':'下单人电话 / WhatsApp',
+  'Sender Email':'下单人电邮','Recipient':'收件人','Recipient Name':'收件人姓名','Recipient Phone':'收件人电话',
+  'Fulfilment':'交付方式','Order Date':'下单日期','Delivery / Pickup Date':'送货 / 自取日期',
+  'Delivery / Pickup Time':'送货 / 自取时间','Order Channel':'下单渠道','Amount (RM)':'金额 (RM)',
+  'Delivery Fee (RM)':'送货费 (RM)','Payment':'付款','Follow-up Status':'跟进状态','Self Collect':'自取',
+  'Walk-in':'到店','Photo (Optional)':'照片（可选）','Paid':'已付款',
+  'Ready — Add to Shopify':'已准备 — 加入 Shopify','Completed — Added in Shopify':'已完成 — 已加入 Shopify',
+  // Search placeholders
+  'Search #order or customer…':'搜索 #订单 或 顾客…',
+  'Search name, company, staff, email or phone…':'搜索姓名、公司、员工、电邮或电话…',
+  'Search products…':'搜索产品…','Add a note…':'添加备注…',
+  // Common dynamic labels (cards / badges)
+  'Follow-up ›':'跟进 ›','Ready ›':'已准备 ›','Completed ›':'已完成 ›',
+  '🚚 Delivery':'🚚 送货','🛍 Self-collect':'🛍 自取','Self-collect':'自取',
+  'Save details':'保存资料','+ Add recipient':'+ 新增收件人','+ another email':'+ 添加电邮',
+  'No entries':'暂无记录','No orders found':'未找到订单','Order date':'下单日期',
+};
+
+// Auto-translate the live DOM. Runs on language switch and (via a MutationObserver)
+// whenever new content renders, so dynamic lists/modals stay translated too. English
+// originals are stashed so switching back to English restores them exactly.
+let _i18nNodes = [], _i18nObs = null, _i18nTimer = null;
+function _i18nSchedule(){ clearTimeout(_i18nTimer); _i18nTimer = setTimeout(_i18nApply, 60); }
+function _i18nApply(){
+  if (!document.body) return;
+  if (!_i18nObs) _i18nObs = new MutationObserver(_i18nSchedule);
+  _i18nObs.disconnect();
+  try {
+    if (LANG === 'zh') {
+      if (_i18nNodes.length > 4000) _i18nNodes = _i18nNodes.filter(x => x.node && x.node.isConnected);
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = walker.nextNode())) {
+        const raw = n.nodeValue; const key = raw.trim();
+        if (!key) continue;
+        const tr = I18N_ZH[key];
+        if (tr && tr !== key) { _i18nNodes.push({ node: n, en: raw }); n.nodeValue = raw.replace(key, tr); }
+      }
+      document.body.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el => {
+        ['placeholder','title','aria-label'].forEach(a => {
+          const cur = el.getAttribute(a); if (cur == null) return;
+          const tr = I18N_ZH[cur.trim()];
+          if (tr && tr !== cur.trim() && el.getAttribute('data-i18n-'+a) === null) {
+            el.setAttribute('data-i18n-'+a, cur); el.setAttribute(a, tr);
+          }
+        });
+      });
+    } else {
+      _i18nNodes.forEach(({ node, en }) => { try { if (node) node.nodeValue = en; } catch(e){} });
+      _i18nNodes = [];
+      document.body.querySelectorAll('[data-i18n-placeholder],[data-i18n-title],[data-i18n-aria-label]').forEach(el => {
+        ['placeholder','title','aria-label'].forEach(a => {
+          const orig = el.getAttribute('data-i18n-'+a);
+          if (orig != null) { el.setAttribute(a, orig); el.removeAttribute('data-i18n-'+a); }
+        });
+      });
+    }
+  } finally {
+    if (LANG === 'zh') _i18nObs.observe(document.body, { childList:true, subtree:true, characterData:true });
+  }
+}
 function setLang(l) {
   LANG = l; localStorage.setItem('flori-lang', l);
   document.querySelectorAll('[data-en]').forEach(el => {
@@ -1772,6 +1888,7 @@ function setLang(l) {
     }
   });
   renderAll();
+  _i18nApply();   // sweep the freshly-rendered DOM
 }
 function toggleLang() { setLang(LANG === 'en' ? 'zh' : 'en'); }
 
