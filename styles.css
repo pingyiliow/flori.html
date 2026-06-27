@@ -424,7 +424,7 @@ img{display:block;max-width:100%}
 .op-photo-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
 /* Per-product photo manager in the order detail panel (view / add / delete) */
 .dp-item-photos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
-.dp-ph{position:relative;width:56px;height:56px;flex-shrink:0;cursor:grab}
+.dp-ph{position:relative;width:56px;height:56px;flex-shrink:0;cursor:grab;touch-action:pan-y}
 .dp-ph:active{cursor:grabbing}
 .dp-ph.dragging{opacity:.4}
 .dp-ph.drop-target img{outline:2px solid var(--c-burg);outline-offset:1px}
