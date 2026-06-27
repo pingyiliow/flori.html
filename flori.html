@@ -3947,6 +3947,11 @@ async function createShopifyDraft() {
   // on. The leading underscore keeps it out of the Shopify admin display, so the
   // order tags can stay clean/meaningful instead of holding a long code.
   lineItem.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
+  // Remark + card message ride ON the line item as VISIBLE properties, so they show
+  // attached to this product in Shopify (each item / add-on keeps its own), not just
+  // buried in the order note.
+  if (f.remarks) lineItem.customAttributes.push({ key:'Remark', value: f.remarks });
+  if (f.cardMsg) lineItem.customAttributes.push({ key:'Card Message', value: f.cardMsg });
 
   // Order-level attributes only (the keys syncOrders/webhook read back). Sender &
   // recipient are NOT attributes — sender becomes the Shopify customer, recipient
@@ -3958,6 +3963,10 @@ async function createShopifyDraft() {
     { key:'Order Due Time', value: '' },
     { key:'Paid By', value: '' },
   ];
+  // Also surface the card message + remark at order level so they're visible on the
+  // order summary, not only under the product line.
+  if (f.cardMsg) customAttributes.push({ key:'Card Message', value: f.cardMsg });
+  if (f.remarks) customAttributes.push({ key:'Remark', value: f.remarks });
   // Clean, useful tags: fulfilment type + delivery date (no internal codes).
   const tags = [ f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' ];
   if (f.dueDate) tags.push(_fmtDDMM(f.dueDate));
