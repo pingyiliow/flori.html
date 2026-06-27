@@ -245,7 +245,7 @@
         </div>
         <div id="cust-normal-view">
           <div style="display:flex;gap:8px;margin-bottom:8px">
-            <input id="cust-search" type="text" placeholder="Search name, company, staff, email or phone…" oninput="custPage=1;renderCustomers()"
+            <input id="cust-search" type="text" placeholder="Search name, company, staff, email or phone…" oninput="custSearchInput()"
               style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
             <button class="btn btn-ghost" onclick="toggleCustColPanel()" title="Choose, reorder & hide columns" style="white-space:nowrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg> Columns</button>
             <button class="btn btn-ghost" onclick="toggleCustFilterPanel()">⚙ Filter<span id="cust-filter-badge"></span></button>
@@ -3819,6 +3819,27 @@ async function loadReminders(){
     _reminderRows = all;
   } catch(e){ console.warn('loadReminders', e); }
 }
+// Server-side page load — fetch only the current page (50 rows) + total count,
+// ordered and (optionally) search-filtered in the database. This is the default
+// browse path so opening the Customers tab no longer downloads all ~20k rows.
+let _custTotal = 0, _custSearchTimer = null;
+const _CUST_SORTABLE = ['name','company','owned_by','email','phone','total_orders','total_spend','last_order_at','updated_at'];
+async function loadCustomerPage(){
+  if (!hasSB()) { CUSTOMERS = []; _custTotal = 0; return; }
+  try {
+    const q = (document.getElementById('cust-search')?.value||'').trim();
+    let query = sb.from('customers').select('*', { count:'exact' });
+    if (q) { const s = q.replace(/[%,()]/g,' '); query = query.or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%,company.ilike.%${s}%,owned_by.ilike.%${s}%`); }
+    const col = _CUST_SORTABLE.includes(custSort.col) ? custSort.col : 'updated_at';
+    query = query.order(col, { ascending: custSort.dir==='asc', nullsFirst:false });
+    const from = (custPage-1)*CUST_PER_PAGE;
+    const { data, count, error } = await query.range(from, from + CUST_PER_PAGE - 1);
+    if (error) { console.error('loadCustomerPage', error.message); return; }
+    CUSTOMERS = data || []; _custTotal = count || 0;
+  } catch(e){ console.error('loadCustomerPage', e); }
+}
+// Debounced search box — re-query (or re-filter) after the user stops typing.
+function custSearchInput(){ custPage = 1; clearTimeout(_custSearchTimer); _custSearchTimer = setTimeout(renderCustomers, 250); }
 async function loadCustomers(){
   if (!hasSB()) return;
   try {
@@ -4070,30 +4091,42 @@ async function renderCustomers(){
   const nv = document.getElementById('cust-normal-view'); if (nv) nv.style.display='';
   const tbody = document.getElementById('cust-tbody'); if(!tbody) return;
   subscribeCustomers();   // ensure live updates are on whenever the tab is open (idempotent)
-  if (!_custLoaded){ tbody.innerHTML = `<tr><td colspan="${custVisibleCols().length}" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`; await loadCustomers(); }
+  // Advanced filters / campaign / dedup need the WHOLE list in memory; plain browse +
+  // search does not. So: server-paged by default (cheap), full client-side only when a
+  // filter is active or the full set is already loaded (then browsing stays free).
+  const filtering = custActiveCount() > 0 || custFilterTab === 'campaign';
+  const useClient = _custLoaded || filtering;
+  tbody.innerHTML = `<tr><td colspan="${custVisibleCols().length}" style="padding:40px;text-align:center;color:var(--c-muted)">Loading…</td></tr>`;
+  if (useClient){ if(!_custLoaded) await loadCustomers(); }
+  else { await loadCustomerPage(); }
   _buildFuChannelMap();
-  // filter
-  const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
-  let list = CUSTOMERS.filter(custMatches);
-  if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (Array.isArray(c.emails) && c.emails.some(e=>String(e||'').toLowerCase().includes(q))) || (c.company||'').toLowerCase().includes(q) || (c.owned_by||'').toLowerCase().includes(q));
-  // sort
-  const col = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[0];
-  list.sort((a,b)=>{ const va=col.val(a), vb=col.val(b); const r = va<vb?-1:va>vb?1:0; return custSort.dir==='asc'?r:-r; });
-  // count + active-filter badge
-  const cntEl = document.getElementById('cust-count');
-  if (cntEl) cntEl.textContent = `${CUSTOMERS.length.toLocaleString()} total${list.length!==CUSTOMERS.length?` · ${list.length.toLocaleString()} match`:''}`;
-  const active = custActiveCount();
-  const badge = document.getElementById('cust-filter-badge'); if (badge) badge.textContent = active ? ` (${active})` : '';
   // headers (with sort arrows)
   const thead = document.getElementById('cust-thead');
   if (thead) thead.innerHTML = `<tr>${custVisibleCols().map(co=>`<th onclick="custSortBy('${co.key}')" style="text-align:${co.right?'right':'left'};padding:10px 12px;cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-muted);border-bottom:1.5px solid var(--c-border);white-space:nowrap;position:sticky;top:0;background:var(--c-bg)">${co.label}${custSort.col===co.key?(custSort.dir==='asc'?' ▲':' ▼'):''}</th>`).join('')}</tr>`;
-  // rows (paginated)
-  if (!list.length){ tbody.innerHTML = `<tr><td colspan="${custVisibleCols().length}" style="padding:48px;text-align:center;color:var(--c-muted)">${CUSTOMERS.length?'No customers match':'No customers yet — import from Shopify in Settings, or + Add Customer'}</td></tr>`; renderCustPager(0,1); return; }
-  const pages = Math.max(1, Math.ceil(list.length / CUST_PER_PAGE));
-  if (custPage > pages) custPage = pages; if (custPage < 1) custPage = 1;
-  const pageRows = list.slice((custPage-1)*CUST_PER_PAGE, custPage*CUST_PER_PAGE);
-  tbody.innerHTML = pageRows.map(custTableRow).join('');
-  renderCustPager(list.length, pages);
+  const active = custActiveCount();
+  const badge = document.getElementById('cust-filter-badge'); if (badge) badge.textContent = active ? ` (${active})` : '';
+  const cntEl = document.getElementById('cust-count');
+  let list, total, pages;
+  if (useClient){
+    // Full in-memory: filter + search + sort + slice client-side.
+    const q = (document.getElementById('cust-search')?.value||'').trim().toLowerCase();
+    list = CUSTOMERS.filter(custMatches);
+    if (q) list = list.filter(c => (c.name||'').toLowerCase().includes(q) || String(c.phone||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (Array.isArray(c.emails) && c.emails.some(e=>String(e||'').toLowerCase().includes(q))) || (c.company||'').toLowerCase().includes(q) || (c.owned_by||'').toLowerCase().includes(q));
+    const colDef = CUST_COLS.find(c=>c.key===custSort.col) || CUST_COLS[0];
+    list.sort((a,b)=>{ const va=colDef.val(a), vb=colDef.val(b); const r = va<vb?-1:va>vb?1:0; return custSort.dir==='asc'?r:-r; });
+    total = list.length; pages = Math.max(1, Math.ceil(total / CUST_PER_PAGE));
+    if (custPage > pages) custPage = pages; if (custPage < 1) custPage = 1;
+    if (cntEl) cntEl.textContent = `${CUSTOMERS.length.toLocaleString()} total${total!==CUSTOMERS.length?` · ${total.toLocaleString()} match`:''}`;
+    list = list.slice((custPage-1)*CUST_PER_PAGE, custPage*CUST_PER_PAGE);
+  } else {
+    // Server page: CUSTOMERS already holds exactly this page, sorted + searched in the DB.
+    const q = (document.getElementById('cust-search')?.value||'').trim();
+    list = CUSTOMERS; total = _custTotal; pages = Math.max(1, Math.ceil(total / CUST_PER_PAGE));
+    if (cntEl) cntEl.textContent = `${_custTotal.toLocaleString()} customer${_custTotal===1?'':'s'}${q?' matching':''}`;
+  }
+  if (!list.length){ tbody.innerHTML = `<tr><td colspan="${custVisibleCols().length}" style="padding:48px;text-align:center;color:var(--c-muted)">${total?'No customers match':'No customers yet — import from Shopify in Settings, or + Add Customer'}</td></tr>`; renderCustPager(total||0,1); return; }
+  tbody.innerHTML = list.map(custTableRow).join('');
+  renderCustPager(total, pages);
 }
 // Quiz report types (BGF landing-page quiz) → short bilingual labels for the CRM.
 const QUIZ_TYPE_LABELS = { romantic:'Romantic · 浪漫', aesthete:'Aesthete · 美学', professional:'Professional · 专业', nature:'Nature · 自然', celebrator:'Celebrator · 庆典' };
@@ -4662,11 +4695,13 @@ function findDuplicateGroups(){
     })
     .sort((a,b) => b.items.length - a.items.length);
 }
-function openDuplicates(){
+async function openDuplicates(){
   document.getElementById('cust-profile-view').style.display = 'none';
   document.getElementById('cust-list-view').style.display = '';
   document.getElementById('cust-normal-view').style.display = 'none';   // hide the table
   const cont = document.getElementById('cust-dup-view'); cont.style.display = '';
+  // The duplicate scan needs every customer — load the full list if we've only paged.
+  if (!_custLoaded) { cont.innerHTML = '<div style="padding:40px;text-align:center;color:var(--c-muted)">Loading all customers…</div>'; await loadCustomers(); }
   const groups = findDuplicateGroups();
   const cnt = document.getElementById('cust-count');
   const extra = groups.reduce((s,g)=>s+g.items.length-1,0);
