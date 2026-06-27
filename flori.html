@@ -434,6 +434,8 @@ img{display:block;max-width:100%}
 .zoom-navbtn{pointer-events:auto;width:46px;height:46px;border-radius:50%;border:none;background:rgba(0,0,0,.5);color:#fff;font-size:26px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s}
 .zoom-navbtn:hover{background:rgba(0,0,0,.8)}
 /* Per-product photo strip in the Add/Edit order form */
+.fu-item-row{border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:9px;margin-bottom:8px;background:var(--c-surface);transition:border-color .12s,background .12s}
+.fu-item-row.drag{border-color:var(--c-burg);background:var(--c-burg-lt)}
 .op-photos{display:flex;flex-wrap:wrap;gap:6px}
 .op-photo{position:relative;width:52px;height:52px;border-radius:var(--r);overflow:hidden;border:1.5px solid var(--c-border);flex-shrink:0}
 .op-photo img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1489,15 +1491,13 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
           <div class="ff" style="grid-column:1/-1">
-            <label class="ff-l">Photo (Optional)</label>
-            <div class="photo-zone" id="fu-photo-zone" style="height:80px">
-              <div class="photo-zone-icon" style="font-size:18px">📷</div>
-              <div class="photo-zone-lbl">Tap to upload order photo</div>
-              <input type="file" accept="image/*" onchange="handleFUPhoto(this)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <label class="ff-l" style="margin:0">Products / Order Items</label>
+              <span style="font-size:10px;color:var(--c-muted)">📎 each item: add photos · drag, drop or paste</span>
             </div>
+            <div id="fu-items-list" onpaste="fuItemsPaste(event)"></div>
             <input type="hidden" id="fu-photo-b64">
           </div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Products / Order Items</label><textarea id="fu-items" style="min-height:60px" placeholder="e.g. Sweet Bow Cake 6inch · RM218&#10;Delivery Fee · RM30"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">💐 Card Message</label><textarea id="fu-card-msg" style="min-height:60px" placeholder="Greeting to be written on the card…"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">🌸 Flower / Design Instructions</label><textarea id="fu-flower" style="min-height:48px" placeholder="For the florist — colours, style, flowers to use / avoid, add-ons…"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">📝 Remarks</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes…"></textarea></div>
@@ -2619,7 +2619,7 @@ async function loadFromSupabase(opts = {}) {
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
         addr: f.addr||'', payment: f.payment||'pending',
-        status: f.status||'pending', items: f.items||'',
+        status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'',
         needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
@@ -3290,15 +3290,15 @@ function saveFollowups() {
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
       addr: f.addr||null, payment: f.payment||'pending',
-      status: f.status||'pending', items: f.items||null,
+      status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null,
       need_invoice: !!f.needInvoice,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).then(ok => {
-      // If a newer column (staff / delivery_fee / flower_note) hasn't been added yet,
-      // still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, ...r }) => r));
+      // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
+      // added yet, still sync everything else so multi-device follow-up sync never breaks.
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, ...r }) => r));
     }).catch(console.error);
   }
 }
@@ -3315,7 +3315,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-items','fu-card-msg','fu-flower','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
+   'fu-notes','fu-card-msg','fu-flower','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -3323,7 +3323,7 @@ function _fuClearFields() {
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
   const fu = document.getElementById('fu-fulfil'); if(fu) fu.value='delivery';
   const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
-  const fz = document.getElementById('fu-photo-zone'); if(fz) fz.innerHTML='<div class="photo-zone-icon" style="font-size:18px">📷</div><div class="photo-zone-lbl">Tap to upload order photo</div><input type="file" accept="image/*" onchange="handleFUPhoto(this)">';
+  _fuItems = [{ name:'', images:[] }]; _fuActiveItem = 0; fuRenderItems();   // reset product rows
 }
 
 
@@ -3620,7 +3620,8 @@ function parseAndFill() {
   set('fu-recip-name',  recipName);
   set('fu-recip-phone', parsed.recipPhone);
   set('fu-addr',        parsed.addr);
-  set('fu-items',       parsed.items);
+  // Parsed product lines → item rows (one per line).
+  if (parsed.items) { _fuItems = String(parsed.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[]})); _fuItemsEnsure(); fuRenderItems(); }
   set('fu-card-msg',    parsed.cardMsg);
   set('fu-remarks',     parsed.remarks);
   if (parsed.dueDate) set('fu-due-date', parsed.dueDate);
@@ -3676,13 +3677,12 @@ function editFollowup(id) {
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const fe = document.getElementById('fu-fee');        if(fe) fe.value = f.deliveryFee||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
-  const fiEl = document.getElementById('fu-items');    if(fiEl) fiEl.value = f.items||'';
+  _fuLoadItems(f);   // rebuild the multi-item product rows (names + per-item photos)
   const fcEl = document.getElementById('fu-card-msg'); if(fcEl) fcEl.value = f.cardMsg||'';
   const flEl = document.getElementById('fu-flower');   if(flEl) flEl.value = f.flowerNote||'';
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
-  const fz = document.getElementById('fu-photo-zone'); if(fz && f.photo) fz.innerHTML = `<img src="${f.photo}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handleFUPhoto(this)">`;
   fuSwitchTab('manual');
   openModal('m-followup');
 }
@@ -3728,6 +3728,60 @@ function fuFillCust(id){
 }
 document.addEventListener('click', e=>{ if(e.target.closest('#fu-contact')||e.target.closest('#fu-email')||e.target.closest('.rcp-sug')) return; ['contact','email'].forEach(f=>{ const s=document.getElementById('fu-cust-sug-'+f); if(s && s.style.display!=='none') s.style.display='none'; }); });
 
+/* ─── Follow-up products — multiple items, each with its own photos ──────────── */
+// Each order can hold several products (main item + add-ons), each carrying its own
+// photos. Photos go through storePhoto (R2 url, base64 fallback) so they stay light.
+let _fuItems = [{ name:'', images:[] }];
+let _fuActiveItem = 0;
+function _fuItemsEnsure(){ if(!Array.isArray(_fuItems)||!_fuItems.length) _fuItems=[{name:'',images:[]}]; }
+function fuRenderItems(){
+  const c=document.getElementById('fu-items-list'); if(!c) return; _fuItemsEnsure();
+  c.innerHTML = _fuItems.map((it,i)=>_fuItemRowHTML(i,it)).join('') +
+    `<button type="button" onclick="fuAddItem()" style="margin-top:2px;font-size:12px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:600;padding:4px 0">+ Add item</button>`;
+  _fuItems.forEach((_,i)=>fuRenderItemPhotos(i));
+}
+function _fuItemRowHTML(i,it){
+  return `<div class="fu-item-row" id="furow-${i}" onfocusin="_fuActiveItem=${i}" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="fuItemDrop(event,${i})">
+    <div style="display:flex;gap:8px;align-items:flex-start">
+      <input id="funame-${i}" type="text" value="${esc(it.name||'')}" placeholder="e.g. Sweet Bow Cake 6inch · RM218" oninput="if(_fuItems[${i}])_fuItems[${i}].name=this.value" onfocus="_fuActiveItem=${i}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+      <button type="button" onclick="fuRemoveItem(${i})" title="Remove item" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0">✕</button>
+    </div>
+    <div id="fuphotos-${i}" class="op-photos" style="margin-top:7px"></div>
+    <input type="file" id="fuimg-${i}" accept="image/*" multiple style="display:none" onchange="fuItemPhotoInput(this,${i})">
+  </div>`;
+}
+function fuRenderItemPhotos(i){
+  const el=document.getElementById('fuphotos-'+i); if(!el||!_fuItems[i]) return;
+  const imgs=_fuItems[i].images||[];
+  el.innerHTML = imgs.map((s,pi)=>`<div class="op-photo"><img src="${s}" alt="" onclick="openGallery((_fuItems[${i}]||{}).images||[],${pi},'')"><button type="button" class="op-photo-x" onclick="fuRemoveItemPhoto(${i},${pi})" aria-label="Remove photo">✕</button></div>`).join('')
+    + `<button type="button" class="op-photo-add" onclick="document.getElementById('fuimg-${i}').click()" title="Add or drop photos for this item">＋<span>Photo</span></button>`;
+}
+function fuAddItem(){ _fuItemsEnsure(); _fuItems.push({name:'',images:[]}); fuRenderItems(); const el=document.getElementById('funame-'+(_fuItems.length-1)); if(el)el.focus(); }
+function fuRemoveItem(i){ _fuItems.splice(i,1); _fuItemsEnsure(); fuRenderItems(); }
+function fuRemoveItemPhoto(i,pi){ if(_fuItems[i]){ _fuItems[i].images.splice(pi,1); fuRenderItemPhotos(i); } }
+function fuItemPhotoInput(input,i){ const files=Array.from(input.files||[]); if(files.length)_fuAddItemPhotos(i,files); input.value=''; }
+function fuItemDrop(e,i){ e.preventDefault(); e.stopPropagation(); if(e.currentTarget)e.currentTarget.classList.remove('drag'); const files=Array.from((e.dataTransfer&&e.dataTransfer.files)||[]).filter(f=>/^image\//.test(f.type||'')); if(files.length)_fuAddItemPhotos(i,files); }
+function fuItemsPaste(e){
+  const cd=e.clipboardData; if(!cd) return;
+  const files=[]; for(const it of (cd.items||[])){ if(it.type&&it.type.startsWith('image/')){ const f=it.getAsFile(); if(f)files.push(f); } }
+  if(files.length){ e.preventDefault(); let i=_fuActiveItem; if(i==null||i<0||i>=_fuItems.length)i=_fuItems.length-1; _fuAddItemPhotos(i,files); }
+}
+function _fuAddItemPhotos(i,files){
+  if(!_fuItems[i])return;
+  toast(files.length>1?`Uploading ${files.length} photos…`:'Uploading photo…');
+  let pending=files.length;
+  files.forEach(f=>storePhoto(f,src=>{ (_fuItems[i].images=_fuItems[i].images||[]).push(src); if(--pending===0)fuRenderItemPhotos(i); }));
+}
+function _fuLoadItems(f){
+  if(f && Array.isArray(f.itemList) && f.itemList.length){ _fuItems=f.itemList.map(it=>({name:it.name||'',images:Array.isArray(it.images)?it.images.slice():[]})); }
+  else if(f && f.items){ _fuItems=String(f.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[]})); if(f.photo&&_fuItems[0])_fuItems[0].images=[f.photo]; }
+  else { _fuItems=[{name:'',images:[]}]; }
+  _fuItemsEnsure(); _fuActiveItem=0; fuRenderItems();
+}
+function _fuCollectItems(){
+  return _fuItems.map(it=>({name:(it.name||'').trim(),images:(it.images||[]).filter(Boolean)})).filter(it=>it.name||it.images.length);
+}
+
 function saveFollowup() {
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast('Sender name required'); return; }
@@ -3743,11 +3797,15 @@ function saveFollowup() {
   }
   const stEl = document.getElementById('fu-status');
   const prevFu = editId ? FOLLOWUPS.find(x=>x.id===editId) : null;
+  const _itemList = _fuCollectItems();
+  const _itemsText = _itemList.map(it=>it.name).filter(Boolean).join('\n');
+  const _coverPhoto = (_itemList.find(it=>it.images.length)||{}).images?.[0] || '';
   const entry = {
     id: editId||('fu-'+Date.now()), name,
     shopifyDraftId: prevFu?.shopifyDraftId || null,
     orderNo: prevFu?.orderNo || null,
-    photo: document.getElementById('fu-photo-b64')?.value||'',
+    photo: _coverPhoto,
+    itemList: _itemList,
     contact:    document.getElementById('fu-contact').value.trim(),
     email:      document.getElementById('fu-email')?.value.trim()||'',
     staff:      document.getElementById('fu-staff')?.value.trim()||'',
@@ -3763,11 +3821,11 @@ function saveFollowup() {
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
     payment:    document.getElementById('fu-payment').value,
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
-    items:      document.getElementById('fu-items')?.value.trim()||'',
+    items:      _itemsText,
     cardMsg:    document.getElementById('fu-card-msg')?.value.trim()||'',
     flowerNote: document.getElementById('fu-flower')?.value.trim()||'',
     remarks:    document.getElementById('fu-remarks')?.value.trim()||'',
-    notes:      [document.getElementById('fu-items')?.value.trim(), document.getElementById('fu-card-msg')?.value.trim(), document.getElementById('fu-flower')?.value.trim(), document.getElementById('fu-remarks')?.value.trim()].filter(Boolean).join(' | '),
+    notes:      [_itemsText, document.getElementById('fu-card-msg')?.value.trim(), document.getElementById('fu-flower')?.value.trim(), document.getElementById('fu-remarks')?.value.trim()].filter(Boolean).join(' | '),
     ts: Date.now()
   };
   if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
@@ -4238,7 +4296,13 @@ function openFUDP(id) {
   // Address
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
   // Items
-  if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
+  if (Array.isArray(f.itemList) && f.itemList.length) {
+    html += `<div><div class="fu-sec-ttl">Products / Items</div>${f.itemList.map(it=>`
+      <div style="padding:8px 0;border-bottom:1px solid var(--c-border)">
+        <div style="font-size:12px;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
+        ${(it.images&&it.images.length)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${it.images.map((s,pi)=>`<img src="${s}" alt="" onclick="openGallery(${JSON.stringify(it.images).replace(/"/g,'&quot;')},${pi},'')" style="width:54px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer">`).join('')}</div>`:''}
+      </div>`).join('')}</div>`;
+  } else if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
   // Flower / design instructions (for the florist)
   if(f.flowerNote) html += `<div><div class="fu-sec-ttl">🌸 Flower / Design Instructions</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;background:#F1F8F2;padding:10px 12px;border-radius:var(--r);border-left:3px solid #6FBF73">${esc(f.flowerNote)}</div></div>`;
   // Card message
