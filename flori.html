@@ -577,6 +577,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .designer-tag{display:inline-flex;align-items:center;gap:4px;background:var(--c-burg-lt);color:var(--c-burg);border:1px solid var(--c-dpink);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:500}
 /* ── Internal notes block ────────────────────────────────────── */
 .internal-note-block{background:#FFF8E1;border:2px solid #FFD54F;border-radius:var(--r-lg);padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.dp-instr{border-radius:var(--r-lg);padding:11px 14px;border:1.5px solid var(--c-border)}
+.dp-instr.flower{background:#F1F8F2;border-color:#BFE3C4}
+.dp-instr.card{background:var(--c-burg-lt);border-color:var(--c-dpink)}
+.dp-instr.remark{background:var(--c-surface)}
+.dp-instr-ttl{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-bottom:4px}
+.dp-instr-body{font-size:13px;line-height:1.5;color:var(--c-ink);white-space:pre-wrap}
 .internal-note-block .note-hdr{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#F57F17;display:flex;align-items:center;gap:6px}
 .internal-note-block .note-body{font-size:13px;color:#3E2723;line-height:1.6;white-space:pre-wrap;font-weight:500}
 /* ── Quick actions bar ───────────────────────────────────────── */
@@ -1492,8 +1498,9 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             <input type="hidden" id="fu-photo-b64">
           </div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Products / Order Items</label><textarea id="fu-items" style="min-height:60px" placeholder="e.g. Sweet Bow Cake 6inch · RM218&#10;Delivery Fee · RM30"></textarea></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Card Message</label><textarea id="fu-card-msg" style="min-height:60px" placeholder="Card message to be written…"></textarea></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Remarks</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Special requests, allergies, delivery instructions…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">💐 Card Message</label><textarea id="fu-card-msg" style="min-height:60px" placeholder="Greeting to be written on the card…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">🌸 Flower / Design Instructions</label><textarea id="fu-flower" style="min-height:48px" placeholder="For the florist — colours, style, flowers to use / avoid, add-ons…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">📝 Remarks</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes…"></textarea></div>
           <input type="hidden" id="fu-notes">
         </div>
       </div>
@@ -2613,7 +2620,7 @@ async function loadFromSupabase(opts = {}) {
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
         addr: f.addr||'', payment: f.payment||'pending',
         status: f.status||'pending', items: f.items||'',
-        cardMsg: f.card_msg||'', remarks: f.remarks||'',
+        cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'',
         needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
@@ -3284,14 +3291,14 @@ function saveFollowups() {
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
       addr: f.addr||null, payment: f.payment||'pending',
       status: f.status||'pending', items: f.items||null,
-      card_msg: f.cardMsg||null, remarks: f.remarks||null,
+      card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null,
       need_invoice: !!f.needInvoice,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).then(ok => {
-      // If a newer column (staff / delivery_fee) hasn't been added yet, still sync
-      // everything else (drop those) so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, ...r }) => r));
+      // If a newer column (staff / delivery_fee / flower_note) hasn't been added yet,
+      // still sync everything else so multi-device follow-up sync never breaks.
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, ...r }) => r));
     }).catch(console.error);
   }
 }
@@ -3308,7 +3315,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-items','fu-card-msg','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
+   'fu-notes','fu-items','fu-card-msg','fu-flower','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -3671,6 +3678,7 @@ function editFollowup(id) {
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
   const fiEl = document.getElementById('fu-items');    if(fiEl) fiEl.value = f.items||'';
   const fcEl = document.getElementById('fu-card-msg'); if(fcEl) fcEl.value = f.cardMsg||'';
+  const flEl = document.getElementById('fu-flower');   if(flEl) flEl.value = f.flowerNote||'';
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
@@ -3757,8 +3765,9 @@ function saveFollowup() {
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
     items:      document.getElementById('fu-items')?.value.trim()||'',
     cardMsg:    document.getElementById('fu-card-msg')?.value.trim()||'',
+    flowerNote: document.getElementById('fu-flower')?.value.trim()||'',
     remarks:    document.getElementById('fu-remarks')?.value.trim()||'',
-    notes:      [document.getElementById('fu-items')?.value.trim(), document.getElementById('fu-card-msg')?.value.trim(), document.getElementById('fu-remarks')?.value.trim()].filter(Boolean).join(' | '),
+    notes:      [document.getElementById('fu-items')?.value.trim(), document.getElementById('fu-card-msg')?.value.trim(), document.getElementById('fu-flower')?.value.trim(), document.getElementById('fu-remarks')?.value.trim()].filter(Boolean).join(' | '),
     ts: Date.now()
   };
   if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
@@ -3947,26 +3956,22 @@ async function createShopifyDraft() {
   // on. The leading underscore keeps it out of the Shopify admin display, so the
   // order tags can stay clean/meaningful instead of holding a long code.
   lineItem.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
-  // Remark + card message ride ON the line item as VISIBLE properties, so they show
-  // attached to this product in Shopify (each item / add-on keeps its own), not just
-  // buried in the order note.
-  if (f.remarks) lineItem.customAttributes.push({ key:'Remark', value: f.remarks });
-  if (f.cardMsg) lineItem.customAttributes.push({ key:'Card Message', value: f.cardMsg });
 
-  // Order-level attributes only (the keys syncOrders/webhook read back). Sender &
-  // recipient are NOT attributes — sender becomes the Shopify customer, recipient
-  // the shipping address. Date/Time/Paid By are always present (blank if unknown)
-  // so staff can fill them in during the final check in Shopify.
+  // Order-level attributes. The first four are the keys syncOrders/webhook read back.
+  // Sender & recipient are NOT attributes — sender becomes the Shopify customer,
+  // recipient the shipping address. Date/Time/Paid By are always present (blank if
+  // unknown) so staff can fill them in during the final check in Shopify.
   const customAttributes = [
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
     { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
     { key:'Order Due Time', value: '' },
     { key:'Paid By', value: '' },
   ];
-  // Also surface the card message + remark at order level so they're visible on the
-  // order summary, not only under the product line.
-  if (f.cardMsg) customAttributes.push({ key:'Card Message', value: f.cardMsg });
-  if (f.remarks) customAttributes.push({ key:'Remark', value: f.remarks });
+  // Card message + flower/design instructions + remark → VISIBLE order attributes, so
+  // they show clearly on the Shopify order and sync back into the daily-order detail.
+  if (f.cardMsg)    customAttributes.push({ key:'Card Message',       value: f.cardMsg });
+  if (f.flowerNote) customAttributes.push({ key:'Flower Instructions', value: f.flowerNote });
+  if (f.remarks)    customAttributes.push({ key:'Remark',             value: f.remarks });
   // Clean, useful tags: fulfilment type + delivery date (no internal codes).
   const tags = [ f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' ];
   if (f.dueDate) tags.push(_fmtDDMM(f.dueDate));
@@ -3981,7 +3986,7 @@ async function createShopifyDraft() {
     const input = {
       lineItems: [ lineItem ],
       customAttributes,
-      note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
+      note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.flowerNote ? 'Flowers: '+f.flowerNote : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
       tags,
     };
     if (customerId) input.purchasingEntity = { customerId };
@@ -4234,8 +4239,10 @@ function openFUDP(id) {
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
   // Items
   if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
+  // Flower / design instructions (for the florist)
+  if(f.flowerNote) html += `<div><div class="fu-sec-ttl">🌸 Flower / Design Instructions</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;background:#F1F8F2;padding:10px 12px;border-radius:var(--r);border-left:3px solid #6FBF73">${esc(f.flowerNote)}</div></div>`;
   // Card message
-  if(f.cardMsg) html += `<div><div class="fu-sec-ttl">Card Message</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;font-style:italic;background:var(--c-burg-lt);padding:10px 12px;border-radius:var(--r);border-left:3px solid var(--c-burg)">${esc(f.cardMsg)}</div></div>`;
+  if(f.cardMsg) html += `<div><div class="fu-sec-ttl">💐 Card Message</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;font-style:italic;background:var(--c-burg-lt);padding:10px 12px;border-radius:var(--r);border-left:3px solid var(--c-burg)">${esc(f.cardMsg)}</div></div>`;
   // Remarks
   if(f.photo) html += `<div><div class="fu-sec-ttl">Photo</div><img src="${f.photo}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
   if(f.remarks) html += `<div><div class="fu-sec-ttl">Remarks</div><div style="font-size:12px;line-height:1.6;color:var(--c-muted);white-space:pre-wrap">${esc(f.remarks)}</div></div>`;
@@ -6481,6 +6488,20 @@ function _renderDP(order, localOrder) {
     html += `<div class="internal-note-block">
       <div class="note-hdr">📝 Special Instructions</div>
       <div class="note-body">${esc(localOrder.internalNote)}</div>
+    </div>`;
+  }
+
+  // ── Card message / flower instructions / remark — synced from Shopify order
+  // attributes (set when the follow-up was sent to Shopify). Shown prominently so
+  // the florist has the card text + design brief without hunting through the order.
+  const _flowerIns = getAttr('Flower Instructions');
+  const _cardMsg   = getAttr('Card Message');
+  const _remark    = getAttr('Remark');
+  if (_flowerIns || _cardMsg || _remark) {
+    html += `<div style="display:flex;flex-direction:column;gap:8px">
+      ${_flowerIns?`<div class="dp-instr flower"><div class="dp-instr-ttl">🌸 Flower / Design Instructions</div><div class="dp-instr-body">${esc(_flowerIns)}</div></div>`:''}
+      ${_cardMsg?`<div class="dp-instr card"><div class="dp-instr-ttl">💐 Card Message</div><div class="dp-instr-body" style="font-style:italic">${esc(_cardMsg)}</div></div>`:''}
+      ${_remark?`<div class="dp-instr remark"><div class="dp-instr-ttl">📝 Remark</div><div class="dp-instr-body">${esc(_remark)}</div></div>`:''}
     </div>`;
   }
 
