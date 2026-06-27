@@ -1498,9 +1498,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             <div id="fu-items-list" onpaste="fuItemsPaste(event)"></div>
             <input type="hidden" id="fu-photo-b64">
           </div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">💐 Card Message</label><textarea id="fu-card-msg" style="min-height:60px" placeholder="Greeting to be written on the card…"></textarea></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">🌸 Flower / Design Instructions</label><textarea id="fu-flower" style="min-height:48px" placeholder="For the florist — colours, style, flowers to use / avoid, add-ons…"></textarea></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">📝 Remarks</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">📝 Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes for the whole order…"></textarea></div>
           <input type="hidden" id="fu-notes">
         </div>
       </div>
@@ -3315,7 +3313,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-card-msg','fu-flower','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
+   'fu-notes','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -3620,9 +3618,11 @@ function parseAndFill() {
   set('fu-recip-name',  recipName);
   set('fu-recip-phone', parsed.recipPhone);
   set('fu-addr',        parsed.addr);
-  // Parsed product lines → item rows (one per line).
-  if (parsed.items) { _fuItems = String(parsed.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[]})); _fuItemsEnsure(); fuRenderItems(); }
-  set('fu-card-msg',    parsed.cardMsg);
+  // Parsed product lines → item rows (one per line); card message → first item.
+  if (parsed.items) { _fuItems = String(parsed.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[],cardMsg:'',flowerNote:''})); }
+  _fuItemsEnsure();
+  if (parsed.cardMsg && _fuItems[0]) _fuItems[0].cardMsg = parsed.cardMsg;
+  fuRenderItems();
   set('fu-remarks',     parsed.remarks);
   if (parsed.dueDate) set('fu-due-date', parsed.dueDate);
   if (parsed.dueTime) set('fu-due-time', parsed.dueTime);
@@ -3677,9 +3677,7 @@ function editFollowup(id) {
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const fe = document.getElementById('fu-fee');        if(fe) fe.value = f.deliveryFee||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
-  _fuLoadItems(f);   // rebuild the multi-item product rows (names + per-item photos)
-  const fcEl = document.getElementById('fu-card-msg'); if(fcEl) fcEl.value = f.cardMsg||'';
-  const flEl = document.getElementById('fu-flower');   if(flEl) flEl.value = f.flowerNote||'';
+  _fuLoadItems(f);   // rebuild the multi-item product rows (names, photos, per-item card/flower)
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
@@ -3748,6 +3746,8 @@ function _fuItemRowHTML(i,it){
     </div>
     <div id="fuphotos-${i}" class="op-photos" style="margin-top:7px"></div>
     <input type="file" id="fuimg-${i}" accept="image/*" multiple style="display:none" onchange="fuItemPhotoInput(this,${i})">
+    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].cardMsg=this.value" onfocus="_fuActiveItem=${i}" placeholder="💐 Card message for this item…" style="margin-top:7px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink);resize:vertical">${esc(it.cardMsg||'')}</textarea>
+    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].flowerNote=this.value" onfocus="_fuActiveItem=${i}" placeholder="🌸 Flower / design instructions for this item…" style="margin-top:6px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid #BFE3C4;border-radius:var(--r);font-size:12px;outline:none;background:#F1F8F2;color:var(--c-ink);resize:vertical">${esc(it.flowerNote||'')}</textarea>
   </div>`;
 }
 function fuRenderItemPhotos(i){
@@ -3773,13 +3773,14 @@ function _fuAddItemPhotos(i,files){
   files.forEach(f=>storePhoto(f,src=>{ (_fuItems[i].images=_fuItems[i].images||[]).push(src); if(--pending===0)fuRenderItemPhotos(i); }));
 }
 function _fuLoadItems(f){
-  if(f && Array.isArray(f.itemList) && f.itemList.length){ _fuItems=f.itemList.map(it=>({name:it.name||'',images:Array.isArray(it.images)?it.images.slice():[]})); }
-  else if(f && f.items){ _fuItems=String(f.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[]})); if(f.photo&&_fuItems[0])_fuItems[0].images=[f.photo]; }
-  else { _fuItems=[{name:'',images:[]}]; }
+  if(f && Array.isArray(f.itemList) && f.itemList.length){ _fuItems=f.itemList.map(it=>({name:it.name||'',images:Array.isArray(it.images)?it.images.slice():[],cardMsg:it.cardMsg||'',flowerNote:it.flowerNote||''})); }
+  else if(f && f.items){ _fuItems=String(f.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[],cardMsg:'',flowerNote:''})); if(f.photo&&_fuItems[0])_fuItems[0].images=[f.photo]; if(_fuItems[0]){ _fuItems[0].cardMsg=f.cardMsg||''; _fuItems[0].flowerNote=f.flowerNote||''; } }
+  else { _fuItems=[{name:'',images:[],cardMsg:'',flowerNote:''}]; }
   _fuItemsEnsure(); _fuActiveItem=0; fuRenderItems();
 }
 function _fuCollectItems(){
-  return _fuItems.map(it=>({name:(it.name||'').trim(),images:(it.images||[]).filter(Boolean)})).filter(it=>it.name||it.images.length);
+  return _fuItems.map(it=>({name:(it.name||'').trim(),images:(it.images||[]).filter(Boolean),cardMsg:(it.cardMsg||'').trim(),flowerNote:(it.flowerNote||'').trim()}))
+                 .filter(it=>it.name||it.images.length||it.cardMsg||it.flowerNote);
 }
 
 function saveFollowup() {
@@ -3800,6 +3801,12 @@ function saveFollowup() {
   const _itemList = _fuCollectItems();
   const _itemsText = _itemList.map(it=>it.name).filter(Boolean).join('\n');
   const _coverPhoto = (_itemList.find(it=>it.images.length)||{}).images?.[0] || '';
+  // Card message + flower instructions are PER ITEM now. Aggregate them (labelled by
+  // item) into the order-level fields the Shopify draft + displays still read.
+  const _lbl = (it,v) => _itemList.length>1 && it.name ? `${it.name}: ${v}` : v;
+  const _cardAgg   = _itemList.filter(it=>it.cardMsg).map(it=>_lbl(it,it.cardMsg)).join('\n\n');
+  const _flowerAgg = _itemList.filter(it=>it.flowerNote).map(it=>_lbl(it,it.flowerNote)).join('\n\n');
+  const _remarks   = document.getElementById('fu-remarks')?.value.trim()||'';
   const entry = {
     id: editId||('fu-'+Date.now()), name,
     shopifyDraftId: prevFu?.shopifyDraftId || null,
@@ -3822,10 +3829,10 @@ function saveFollowup() {
     payment:    document.getElementById('fu-payment').value,
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
     items:      _itemsText,
-    cardMsg:    document.getElementById('fu-card-msg')?.value.trim()||'',
-    flowerNote: document.getElementById('fu-flower')?.value.trim()||'',
-    remarks:    document.getElementById('fu-remarks')?.value.trim()||'',
-    notes:      [_itemsText, document.getElementById('fu-card-msg')?.value.trim(), document.getElementById('fu-flower')?.value.trim(), document.getElementById('fu-remarks')?.value.trim()].filter(Boolean).join(' | '),
+    cardMsg:    _cardAgg,
+    flowerNote: _flowerAgg,
+    remarks:    _remarks,
+    notes:      [_itemsText, _cardAgg, _flowerAgg, _remarks].filter(Boolean).join(' | '),
     ts: Date.now()
   };
   if (editId) { const idx=FOLLOWUPS.findIndex(x=>x.id===editId); if(idx!==-1) FOLLOWUPS[idx]=entry; } else FOLLOWUPS.push(entry);
@@ -4295,18 +4302,16 @@ function openFUDP(id) {
   html += `</div>`;
   // Address
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
-  // Items
+  // Items — each with its own photos, card message and flower instructions.
   if (Array.isArray(f.itemList) && f.itemList.length) {
     html += `<div><div class="fu-sec-ttl">Products / Items</div>${f.itemList.map(it=>`
       <div style="padding:8px 0;border-bottom:1px solid var(--c-border)">
-        <div style="font-size:12px;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
         ${(it.images&&it.images.length)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${it.images.map((s,pi)=>`<img src="${s}" alt="" onclick="openGallery(${JSON.stringify(it.images).replace(/"/g,'&quot;')},${pi},'')" style="width:54px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer">`).join('')}</div>`:''}
+        ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">💐 ${esc(it.cardMsg)}</div>`:''}
+        ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">🌸 ${esc(it.flowerNote)}</div>`:''}
       </div>`).join('')}</div>`;
   } else if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
-  // Flower / design instructions (for the florist)
-  if(f.flowerNote) html += `<div><div class="fu-sec-ttl">🌸 Flower / Design Instructions</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;background:#F1F8F2;padding:10px 12px;border-radius:var(--r);border-left:3px solid #6FBF73">${esc(f.flowerNote)}</div></div>`;
-  // Card message
-  if(f.cardMsg) html += `<div><div class="fu-sec-ttl">💐 Card Message</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap;font-style:italic;background:var(--c-burg-lt);padding:10px 12px;border-radius:var(--r);border-left:3px solid var(--c-burg)">${esc(f.cardMsg)}</div></div>`;
   // Remarks
   if(f.photo) html += `<div><div class="fu-sec-ttl">Photo</div><img src="${f.photo}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
   if(f.remarks) html += `<div><div class="fu-sec-ttl">Remarks</div><div style="font-size:12px;line-height:1.6;color:var(--c-muted);white-space:pre-wrap">${esc(f.remarks)}</div></div>`;
