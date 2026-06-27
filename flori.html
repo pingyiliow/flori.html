@@ -5479,6 +5479,31 @@ function _persistItemPhotos(o){
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
   toast('✓ Photos updated');
 }
+// Drag-to-reorder a product's photos within its strip (desktop). The order of the
+// images array IS the display order; index 0 is the cover/thumbnail.
+let _dpPhDrag = null;
+function dpPhDragStart(e, itemIdx, fromIdx){
+  _dpPhDrag = { itemIdx, fromIdx };
+  try { e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', String(fromIdx)); } catch(_){}
+  if(e.currentTarget) e.currentTarget.classList.add('dragging');
+}
+function dpPhDragOver(e){ if(_dpPhDrag){ e.preventDefault(); try{e.dataTransfer.dropEffect='move';}catch(_){}; if(e.currentTarget)e.currentTarget.classList.add('drop-target'); } }
+function dpPhDragLeave(e){ if(e.currentTarget) e.currentTarget.classList.remove('drop-target'); }
+function dpPhDragEnd(){ document.querySelectorAll('.dp-ph.dragging,.dp-ph.drop-target').forEach(el=>el.classList.remove('dragging','drop-target')); _dpPhDrag=null; }
+function dpPhDrop(e, orderId, itemIdx, toIdx){
+  e.preventDefault(); e.stopPropagation();
+  if(e.currentTarget) e.currentTarget.classList.remove('drop-target');
+  const d=_dpPhDrag; _dpPhDrag=null;
+  if(!d || d.itemIdx!==itemIdx || d.fromIdx===toIdx) return;   // only within the same item
+  const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
+  const it=o.lineItems[itemIdx];
+  if(!Array.isArray(it.images)) it.images=itemPhotos(it);      // migrate single image -> array
+  if(d.fromIdx<0||d.fromIdx>=it.images.length||toIdx<0||toIdx>=it.images.length) return;
+  const [moved]=it.images.splice(d.fromIdx,1);
+  it.images.splice(toIdx,0,moved);
+  it.image=it.images[0]||null;                                  // cover = first photo
+  _persistItemPhotos(o);
+}
 // Per-item special instruction. Stored on the line item (rides along in the
 // line_items JSON — no schema change) so each product can have its own remark.
 function editItemNote(orderId, itemIdx){
@@ -5907,7 +5932,7 @@ function _renderDP(order, localOrder) {
       const liIdx = useLocal ? k : -1;
       const ph = liIdx >= 0 ? itemPhotos(li) : [];
       const strip = (liIdx>=0)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" draggable="true" ondragstart="dpPhDragStart(event,${liIdx},${pi})" ondragover="dpPhDragOver(event)" ondragleave="dpPhDragLeave(event)" ondrop="dpPhDrop(event,'${localOrder.id}',${liIdx},${pi})" ondragend="dpPhDragEnd(event)" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
         : '';
       // Per-item special instruction — tap to add/edit (only for stored line items).
       const noteHtml = (liIdx >= 0)

@@ -424,7 +424,10 @@ img{display:block;max-width:100%}
 .op-photo-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
 /* Per-product photo manager in the order detail panel (view / add / delete) */
 .dp-item-photos{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
-.dp-ph{position:relative;width:56px;height:56px;flex-shrink:0}
+.dp-ph{position:relative;width:56px;height:56px;flex-shrink:0;cursor:grab}
+.dp-ph:active{cursor:grabbing}
+.dp-ph.dragging{opacity:.4}
+.dp-ph.drop-target img{outline:2px solid var(--c-burg);outline-offset:1px}
 .dp-ph img{width:100%;height:100%;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer;display:block}
 .dp-ph-del{position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--c-surface);background:var(--c-red);color:#fff;font-size:10px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .dp-ph-add{width:56px;height:56px;border-radius:var(--r);border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);font-size:17px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1}
