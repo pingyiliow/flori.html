@@ -5773,13 +5773,28 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Card message / flower instructions / remark — synced from Shopify order
-  // attributes (set when the follow-up was sent to Shopify). Shown prominently so
-  // the florist has the card text + design brief without hunting through the order.
+  // ── Order-form details for the florist: per-item photos + card message + flower
+  // instructions, pulled from the linked follow-up (matched by order number). This is
+  // the same rich info the CS captured in the follow-up list. Falls back to the
+  // order-level Shopify attributes when no follow-up is linked (e.g. online orders).
+  const _ordNoDigits = String(order.name || localOrder.name || '').replace(/[^0-9]/g,'');
+  const _fuLink = _ordNoDigits ? (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).find(f => f.orderNo && String(f.orderNo).replace(/[^0-9]/g,'') === _ordNoDigits) : null;
   const _flowerIns = getAttr('Flower Instructions');
   const _cardMsg   = getAttr('Card Message');
   const _remark    = getAttr('Remark');
-  if (_flowerIns || _cardMsg || _remark) {
+  if (_fuLink && Array.isArray(_fuLink.itemList) && _fuLink.itemList.length) {
+    html += `<div style="border:1.5px solid var(--c-dpink);border-radius:var(--r-lg);padding:12px 14px;background:var(--c-surface)">
+      <div class="dp-instr-ttl" style="margin-bottom:6px">📋 Order Form · Per Item</div>
+      ${_fuLink.itemList.map(it=>`
+        <div style="padding:8px 0;border-bottom:1px solid var(--c-border)">
+          <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
+          ${(it.images&&it.images.length)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${it.images.map((s,pi)=>`<img src="${s}" alt="" onclick="openGallery(${JSON.stringify(it.images).replace(/"/g,'&quot;')},${pi},'')" style="width:58px;height:58px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer">`).join('')}</div>`:''}
+          ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">💐 ${esc(it.cardMsg)}</div>`:''}
+          ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">🌸 ${esc(it.flowerNote)}</div>`:''}
+        </div>`).join('')}
+      ${_fuLink.remarks?`<div class="dp-instr remark" style="margin-top:8px"><div class="dp-instr-ttl">📝 Remark (whole order)</div><div class="dp-instr-body">${esc(_fuLink.remarks)}</div></div>`:''}
+    </div>`;
+  } else if (_flowerIns || _cardMsg || _remark) {
     html += `<div style="display:flex;flex-direction:column;gap:8px">
       ${_flowerIns?`<div class="dp-instr flower"><div class="dp-instr-ttl">🌸 Flower / Design Instructions</div><div class="dp-instr-body">${esc(_flowerIns)}</div></div>`:''}
       ${_cardMsg?`<div class="dp-instr card"><div class="dp-instr-ttl">💐 Card Message</div><div class="dp-instr-body" style="font-style:italic">${esc(_cardMsg)}</div></div>`:''}
