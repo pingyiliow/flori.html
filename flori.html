@@ -3146,15 +3146,20 @@ async function searchDraftProducts() {
   _fuDraftSearchT = setTimeout(async () => {
     box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">Searching…</div>';
     try {
-      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title variants(first:1){ edges { node { id price } } } } } } }`;
+      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title variants(first:30){ edges { node { id title price } } } } } } }`;
       const data = await shopifyGQL(query);
-      const items = (data.products?.edges||[]).map(e=>{ const v=e.node.variants?.edges?.[0]?.node; return v?{id:v.id,title:e.node.title,price:v.price}:null; }).filter(Boolean);
-      if (!items.length) { box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">No products found — add a custom item below.</div>'; return; }
-      box.innerHTML = items.map(it => {
-        const t = esc(it.title), tArg = t.replace(/'/g,"\\'");
-        return `<div class="fu-draft-row" data-vid="${esc(it.id)}" onclick="selectDraftVariant('${esc(it.id)}','${tArg}','${it.price}')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 11px;border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);cursor:pointer;font-size:12px">
-          <span>${t}</span><span style="color:var(--c-muted);white-space:nowrap">RM ${parseFloat(it.price).toFixed(2)}</span>
-        </div>`;
+      const prods = (data.products?.edges||[]).map(e=>e.node).filter(p=>p.variants?.edges?.length);
+      if (!prods.length) { box.innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">No products found — add a custom item below.</div>'; return; }
+      const row = (vid, label, price, indent) => `<div class="fu-draft-row" data-vid="${esc(vid)}" onclick="selectDraftVariant('${esc(vid)}','${esc(label).replace(/'/g,"\\'")}','${price}')" style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 11px;${indent?'margin-left:12px;':''}border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:var(--r);cursor:pointer;font-size:12px">
+          <span>${esc(label)}</span><span style="color:var(--c-muted);white-space:nowrap">RM ${parseFloat(price||0).toFixed(2)}</span></div>`;
+      box.innerHTML = prods.map(p => {
+        const variants = p.variants.edges.map(v=>v.node);
+        // Single variant (the usual "Default Title") → one row using the product name.
+        if (variants.length === 1) return row(variants[0].id, p.title, variants[0].price, false);
+        // Multiple variants (sizes/colours) → product header + a selectable row per variant.
+        return `<div style="margin-bottom:4px"><div style="font-size:11px;font-weight:600;color:var(--c-ink);padding:5px 2px">${esc(p.title)}</div>${
+          variants.map(v => row(v.id, (v.title&&v.title!=='Default Title') ? v.title : p.title, v.price, true)).join('')
+        }</div>`;
       }).join('');
     } catch(e) {
       box.innerHTML = `<div style="font-size:11px;color:var(--c-red);padding:6px 2px">Search failed: ${esc(e.message||'error')}</div>`;
