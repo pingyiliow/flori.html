@@ -471,6 +471,34 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Repeat Order ══════════════════════════════════ -->
+<div id="m-repeat" class="modal">
+  <div class="mc" style="max-width:400px">
+    <div class="mc-hdr"><div class="mc-ttl">🔁 Repeat Order</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-repeat')">✕</button></div>
+    <div class="mc-body">
+      <input type="hidden" id="rep-order-id">
+      <div id="rep-summary" style="font-size:12px;color:var(--c-muted);line-height:1.5;margin-bottom:12px"></div>
+      <div class="ff"><label class="ff-l">First date</label><input id="rep-start" type="date" oninput="renderRepeatPreview()"></div>
+      <div class="fg fg-2" style="margin-top:8px">
+        <div class="ff"><label class="ff-l">Repeat every</label>
+          <select id="rep-freq" onchange="renderRepeatPreview()">
+            <option value="0">Just this date</option>
+            <option value="7">Week</option>
+            <option value="14">2 weeks</option>
+            <option value="30">Month</option>
+          </select>
+        </div>
+        <div class="ff"><label class="ff-l">Number of times</label><input id="rep-count" type="number" min="1" max="52" value="1" oninput="renderRepeatPreview()"></div>
+      </div>
+      <div id="rep-preview" style="font-size:11px;color:var(--c-ink);background:var(--c-bg);border:1px solid var(--c-border);border-radius:var(--r);padding:8px 10px;margin-top:10px;line-height:1.7"></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn btn-primary" style="flex:1" onclick="doRepeatOrder()">Create repeat orders</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-repeat')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
 <div id="m-inv" class="modal">
   <div class="mc">
@@ -5465,6 +5493,59 @@ function delOrder(id){
   if(hasSB()) sbDelete('orders', id);
   renderAll(); toast('Order deleted');
 }
+
+/* ─── Repeat / recurring order ───────────────────────────────── */
+function openRepeat(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o){ toast('Order not found'); return; }
+  document.getElementById('rep-order-id').value=id;
+  const prods=(o.lineItems&&o.lineItems.length ? o.lineItems.map(i=>i.title) : [o.product]).filter(Boolean).join(', ');
+  document.getElementById('rep-summary').innerHTML=`Duplicate <b>${esc(o.name||'')}</b>${o.customer?(' · '+esc(o.customer)):''}<br><span style="color:var(--c-muted)">${esc(prods||'')}</span>`;
+  const base = o.dueDate ? pd(o.dueDate) : new Date();
+  const start = new Date((base||new Date()).getTime() + 7*86400000);   // default: a week later
+  document.getElementById('rep-start').value=tdi(start);
+  document.getElementById('rep-freq').value='0';
+  document.getElementById('rep-count').value='1';
+  renderRepeatPreview();
+  openModal('m-repeat');
+}
+function _repDates(){
+  const sv=document.getElementById('rep-start')?.value; if(!sv) return [];
+  const start=pd(sv); if(!start) return [];
+  const freq=parseInt(document.getElementById('rep-freq').value)||0;
+  let count=parseInt(document.getElementById('rep-count').value)||1; count=Math.max(1,Math.min(52,count));
+  if(freq===0) return [start];
+  const dates=[];
+  for(let i=0;i<count;i++){
+    if(freq===30){ const d=new Date(start); d.setMonth(d.getMonth()+i); dates.push(d); }
+    else dates.push(new Date(start.getTime()+i*freq*86400000));
+  }
+  return dates;
+}
+function renderRepeatPreview(){
+  const el=document.getElementById('rep-preview'); if(!el) return;
+  const dates=_repDates();
+  el.innerHTML = dates.length ? `Will create <b>${dates.length}</b> order${dates.length>1?'s':''}:<br>${dates.map(d=>'• '+fd(d)).join('<br>')}` : 'Pick a date';
+}
+function doRepeatOrder(){
+  const id=document.getElementById('rep-order-id').value;
+  const o=ORDERS.find(x=>x.id===id); if(!o){ toast('Order not found'); return; }
+  const dates=_repDates(); if(!dates.length){ toast('Pick a date'); return; }
+  const ts=Date.now(), made=[];
+  dates.forEach((d,i)=>{
+    const copy={ ...o, _rawId:null,
+      id:'manual-'+ts+'-'+i,
+      src:'manual',
+      name:'#M-'+String(ts).slice(-5)+(dates.length>1?('-'+(i+1)):''),
+      dueDate:tdi(d), dateObj:null,
+      fulfilled:false, ready:false, orderNo:null, shopifyDraftId:null, createdAt:null,
+      lineItems:(o.lineItems||[]).map(li=>({ ...li, images:Array.isArray(li.images)?li.images.slice():li.images, ready:false }))
+    };
+    ORDERS.push(copy); made.push(copy);
+  });
+  saveOrders(made); rehydrateOrders(); renderAll();
+  closeModal('m-repeat');
+  toast(`✓ Created ${made.length} repeat order${made.length>1?'s':''}`);
+}
 function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
 function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
 function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
@@ -6157,6 +6238,9 @@ function _renderDP(order, localOrder) {
   html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
     <button onclick="closeDP();editOrder('${localOrder.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
       ✎ Edit Order
+    </button>
+    <button onclick="closeDP();openRepeat('${localOrder.id}')" title="Duplicate this order to other dates" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
+      🔁 Repeat
     </button>
     <button onclick="closeDP();delOrder('${localOrder.id}')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">
       ✕ Delete
