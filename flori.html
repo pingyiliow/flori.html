@@ -390,9 +390,29 @@
     </div>
     <div class="mc-body">
 
+      <!-- Customer (collapsed by default — tap to expand) -->
+      <div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden">
+        <button type="button" onclick="toggleOrderCust()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;background:var(--c-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--c-ink)">
+          <span>👤 <span id="o-cust-summary">Customer details</span></span>
+          <span id="o-cust-chev" style="color:var(--c-muted);font-size:11px;white-space:nowrap">▸ expand</span>
+        </button>
+        <div id="o-cust-section" style="display:none;padding:10px 14px 12px;border-top:1px solid var(--c-border)">
+          <div class="ff" style="position:relative">
+            <label class="ff-l">🔍 Find existing customer</label>
+            <input id="o-cust-search" type="text" placeholder="Search phone, email or name…" autocomplete="off" oninput="oCustSearch(this.value)">
+            <div id="o-cust-sug" class="rcp-sug" style="display:none"></div>
+          </div>
+          <div class="fg fg-2" style="margin-top:8px">
+            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
+            <div class="ff"><label class="ff-l">Phone</label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
+            <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
+            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Order info -->
       <div class="fg fg-2">
-        <div class="ff"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
         <div class="ff"><label class="ff-l">Order #</label><input id="o-num" type="text" placeholder="#manual-001"></div>
         <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
         <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
@@ -402,10 +422,6 @@
             <option value="delivery">Delivery</option>
             <option value="pickup">Self Collect / Pickup</option>
           </select>
-        </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l">Delivery Address</label>
-          <textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea>
         </div>
         <div class="ff">
           <label class="ff-l">Designer</label>
@@ -4952,14 +4968,54 @@ function closeModal(id) {
     _productRowCount=0; _productImages={};
   }
 }
+// Collapsible customer section in the Add Order modal.
+function toggleOrderCust(open){
+  const sec=document.getElementById('o-cust-section'), chev=document.getElementById('o-cust-chev'); if(!sec) return;
+  const show = open===undefined ? sec.style.display==='none' : open;
+  sec.style.display = show ? '' : 'none';
+  if(chev) chev.textContent = show ? '▾ hide' : '▸ expand';
+}
+// Find an existing customer by phone / email / name (server-side, since the list is
+// paged) and fill the order's customer fields.
+let _oCustResults=[], _oCustTimer=null;
+function oCustSearch(val){
+  const sug=document.getElementById('o-cust-sug'); if(!sug) return;
+  const q=String(val||'').trim();
+  if(q.length<3){ sug.style.display='none'; sug.innerHTML=''; return; }
+  clearTimeout(_oCustTimer);
+  _oCustTimer=setTimeout(async ()=>{
+    let rows=[];
+    try {
+      if(hasSB()){
+        const s=q.replace(/[%,()]/g,' ');
+        const { data } = await sb.from('customers').select('id,name,phone,email').or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`).limit(6);
+        rows=data||[];
+      } else {
+        const ql=q.toLowerCase();
+        rows=(typeof CUSTOMERS!=='undefined'?CUSTOMERS:[]).filter(c=>(c.name||'').toLowerCase().includes(ql)||String(c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(ql)).slice(0,6);
+      }
+    } catch(e){ console.warn('oCustSearch', e&&e.message); }
+    _oCustResults=rows;
+    if(!rows.length){ sug.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">No match — type the name to add new</div>'; sug.style.display=''; return; }
+    sug.innerHTML=rows.map((c,i)=>`<div class="rcp-sug-row" onmousedown="oCustPick(${i})"><span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span> <span style="color:var(--c-muted)">${esc(c.phone||'')}</span>${c.email?` <span style="font-size:9px;color:var(--c-muted)">· ${esc(c.email)}</span>`:''}</div>`).join('');
+    sug.style.display='';
+  }, 250);
+}
+function oCustPick(i){
+  const c=_oCustResults[i]; if(!c) return;
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v||''; };
+  set('o-cust', c.name); set('o-cust-phone', c.phone); set('o-cust-email', c.email);
+  const sum=document.getElementById('o-cust-summary'); if(sum) sum.textContent=c.name||'Customer details';
+  const sug=document.getElementById('o-cust-sug'); if(sug){ sug.style.display='none'; sug.innerHTML=''; }
+  const srch=document.getElementById('o-cust-search'); if(srch) srch.value='';
+}
+document.addEventListener('click', e=>{ if(e.target.closest('#o-cust-search')||e.target.closest('#o-cust-sug')) return; const s=document.getElementById('o-cust-sug'); if(s&&s.style.display!=='none'){ s.style.display='none'; } });
 function openAddOrder(){
-  document.getElementById('o-cust').value='';
-  document.getElementById('o-num').value='';
-  document.getElementById('o-date').value='';
-  document.getElementById('o-time').value='';
-  document.getElementById('o-addr').value='';
+  ['o-cust','o-num','o-date','o-time','o-addr','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('o-edit-id').value='';
   document.getElementById('o-modal-ttl').textContent='Add Order';
+  const sum=document.getElementById('o-cust-summary'); if(sum) sum.textContent='Customer details';
+  toggleOrderCust(false);   // start collapsed
   _productRowCount=0; _productImages={};
   document.getElementById('o-products-list').innerHTML='';
   addProductRow();
@@ -5208,7 +5264,9 @@ function saveOrder() {
     manualAddr: addrVal || null,
     designer: document.getElementById('o-designer')?.value||null,
     priority: document.getElementById('o-priority')?.value||'normal',
-    internalNote: document.getElementById('o-internal-note')?.value.trim()||null
+    internalNote: document.getElementById('o-internal-note')?.value.trim()||null,
+    custPhone: document.getElementById('o-cust-phone')?.value.trim()||null,
+    custEmail: document.getElementById('o-cust-email')?.value.trim()||null
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); closeModal('m-order');
@@ -5368,6 +5426,11 @@ function editOrder(id) {
   document.getElementById('o-modal-ttl').textContent='Edit Order';
   document.getElementById('o-edit-id').value=id;
   document.getElementById('o-cust').value=o.customer||'';
+  const cpEl=document.getElementById('o-cust-phone'); if(cpEl) cpEl.value=o.custPhone||'';
+  const ceEl=document.getElementById('o-cust-email'); if(ceEl) ceEl.value=o.custEmail||'';
+  const csEl=document.getElementById('o-cust-search'); if(csEl) csEl.value='';
+  const sumEl=document.getElementById('o-cust-summary'); if(sumEl) sumEl.textContent=o.customer||'Customer details';
+  toggleOrderCust(!!(o.customer||o.manualAddr));   // expand if there's customer info to show
   document.getElementById('o-num').value=o.name||'';
   // Convert any date format to YYYY-MM-DD for the date input
   const dueParsed = o.dueDate ? pd(o.dueDate) : null;
