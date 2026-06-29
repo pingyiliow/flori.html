@@ -2183,6 +2183,9 @@ function orderCard(o, item, idx) {
   } else {
     name = esc(o.product || (items ? items[0].title : '') || '–');
     if (items && items.length > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">+${items.length - 1}</span>`;
+    // Single product with qty > 1 — show "× N" so the florist makes the right count
+    // (otherwise RM40 for ×2 reads as one RM40 item).
+    else if (items && items.length === 1 && items[0].quantity > 1) name += ` <span style="font-weight:400;color:var(--c-muted);font-size:12px">× ${items[0].quantity}</span>`;
   }
 
   // order number (+ "n/total" when split)
