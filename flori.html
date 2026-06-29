@@ -454,6 +454,10 @@
           <span class="ff-l" style="font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted)">Products</span>
           <button onclick="addProductRow()" style="font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:500">+ Add product</button>
         </div>
+        <div style="position:relative;margin-bottom:10px">
+          <input id="o-prod-search" type="text" placeholder="🔍 Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'o')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <div id="o-prod-search-results" class="rcp-sug" style="display:none"></div>
+        </div>
         <div id="o-products-list" style="display:flex;flex-direction:column;gap:10px"></div>
       </div>
 
@@ -688,6 +692,10 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
               <label class="ff-l" style="margin:0">Products / Order Items</label>
               <span style="font-size:10px;color:var(--c-muted)">📎 each item: add photos · drag, drop or paste</span>
+            </div>
+            <div style="position:relative;margin-bottom:8px">
+              <input id="fu-prod-search" type="text" placeholder="🔍 Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'fu')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+              <div id="fu-prod-search-results" class="rcp-sug" style="display:none"></div>
             </div>
             <div id="fu-items-list" onpaste="fuItemsPaste(event)"></div>
             <input type="hidden" id="fu-photo-b64">
@@ -3167,6 +3175,43 @@ async function searchDraftProducts() {
   }, 350);
 }
 
+// Shared Shopify product search → used by Add Order ('o') and the follow-up ('fu')
+// product sections so staff can pull a real catalogue product (with its variant +
+// price) instead of typing it from scratch.
+let _shopProdT=null, _shopProdResults=[];
+function shopProdSearch(q, target){
+  const box=document.getElementById(target+'-prod-search-results'); if(!box) return;
+  q=String(q||'').trim();
+  if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
+  clearTimeout(_shopProdT);
+  _shopProdT=setTimeout(async ()=>{
+    let rows=[];
+    try {
+      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title variants(first:30){ edges { node { id title price } } } } } } }`;
+      const data = await shopifyGQL(query);
+      (data.products?.edges||[]).forEach(e=>{ const p=e.node; (p.variants?.edges||[]).forEach(ve=>{ const v=ve.node; const label=(v.title&&v.title!=='Default Title')?`${p.title} – ${v.title}`:p.title; rows.push({ label, price:v.price, variantId:v.id }); }); });
+    } catch(err){ box.innerHTML=`<div style="padding:8px 12px;font-size:11px;color:var(--c-red)">Search failed: ${esc(err.message||'error')}</div>`; box.style.display=''; return; }
+    _shopProdResults=rows;
+    if(!rows.length){ box.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">No products found — type the name to add a custom item</div>'; box.style.display=''; return; }
+    box.innerHTML=rows.map((r,i)=>`<div class="rcp-sug-row" onmousedown="shopProdPick(${i},'${target}')"><span style="color:var(--c-ink)">${esc(r.label)}</span> <span style="color:var(--c-muted);white-space:nowrap;float:right">RM ${parseFloat(r.price||0).toFixed(2)}</span></div>`).join('');
+    box.style.display='';
+  }, 300);
+}
+function shopProdPick(i, target){
+  const r=_shopProdResults[i]; if(!r) return;
+  if(target==='o'){
+    addProductRow({ title:r.label, price:r.price?String(parseFloat(r.price)):null, quantity:1 });
+  } else {
+    _fuItemsEnsure();
+    let slot=_fuItems.findIndex(it=>!(it.name||'').trim() && !(it.images&&it.images.length));
+    if(slot<0){ _fuItems.push({name:'',images:[],cardMsg:'',flowerNote:''}); slot=_fuItems.length-1; }
+    _fuItems[slot].name = r.price ? `${r.label} · RM${parseFloat(r.price).toFixed(2)}` : r.label;
+    fuRenderItems();
+  }
+  const box=document.getElementById(target+'-prod-search-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  const inp=document.getElementById(target+'-prod-search'); if(inp) inp.value='';
+}
+document.addEventListener('click', e=>{ if(e.target.closest('#o-prod-search,#o-prod-search-results,#fu-prod-search,#fu-prod-search-results')) return; ['o','fu'].forEach(t=>{ const b=document.getElementById(t+'-prod-search-results'); if(b&&b.style.display!=='none'){ b.style.display='none'; } }); });
 // Format a date as DD/MM/YYYY for Shopify (pd() reads this format back fine).
 function _fmtDDMM(s){
   const d = pd(s); if (!d) return String(s||'');
