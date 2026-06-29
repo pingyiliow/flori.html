@@ -478,19 +478,27 @@
     <div class="mc-body">
       <input type="hidden" id="rep-order-id">
       <div id="rep-summary" style="font-size:12px;color:var(--c-muted);line-height:1.5;margin-bottom:12px"></div>
-      <div class="ff"><label class="ff-l">First date</label><input id="rep-start" type="date" oninput="renderRepeatPreview()"></div>
+      <!-- Quick fill: generate a regular series, then edit/add/remove dates by hand below -->
+      <div style="font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:6px">Quick fill (optional)</div>
+      <div class="ff"><label class="ff-l">First date</label><input id="rep-start" type="date" oninput="repGenerate()"></div>
       <div class="fg fg-2" style="margin-top:8px">
         <div class="ff"><label class="ff-l">Repeat every</label>
-          <select id="rep-freq" onchange="renderRepeatPreview()">
+          <select id="rep-freq" onchange="repGenerate()">
             <option value="0">Just this date</option>
             <option value="7">Week</option>
             <option value="14">2 weeks</option>
             <option value="30">Month</option>
           </select>
         </div>
-        <div class="ff"><label class="ff-l">Number of times</label><input id="rep-count" type="number" min="1" max="52" value="1" oninput="renderRepeatPreview()"></div>
+        <div class="ff"><label class="ff-l">Number of times</label><input id="rep-count" type="number" min="1" max="52" value="1" oninput="repGenerate()"></div>
       </div>
-      <div id="rep-preview" style="font-size:11px;color:var(--c-ink);background:var(--c-bg);border:1px solid var(--c-border);border-radius:var(--r);padding:8px 10px;margin-top:10px;line-height:1.7"></div>
+      <div class="ff" style="margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label class="ff-l" style="margin:0">Dates to create</label>
+          <button type="button" onclick="repAddDate('')" style="font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:600">+ Add date</button>
+        </div>
+        <div id="rep-dates-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-primary" style="flex:1" onclick="doRepeatOrder()">Create repeat orders</button>
         <button class="btn btn-ghost" onclick="closeModal('m-repeat')">Cancel</button>
@@ -5543,26 +5551,44 @@ function openRepeat(id){
   document.getElementById('rep-start').value=tdi(start);
   document.getElementById('rep-freq').value='0';
   document.getElementById('rep-count').value='1';
-  renderRepeatPreview();
+  document.getElementById('rep-dates-list').innerHTML='';
+  repAddDate(tdi(start));   // seed one editable date
   openModal('m-repeat');
 }
-function _repDates(){
-  const sv=document.getElementById('rep-start')?.value; if(!sv) return [];
-  const start=pd(sv); if(!start) return [];
+// Quick-fill: regenerate the editable date list from the interval controls. The list
+// is the source of truth — staff can then edit any date, add, or remove rows by hand.
+function repGenerate(){
+  const sv=document.getElementById('rep-start')?.value;
+  const start = sv ? pd(sv) : null;
   const freq=parseInt(document.getElementById('rep-freq').value)||0;
   let count=parseInt(document.getElementById('rep-count').value)||1; count=Math.max(1,Math.min(52,count));
-  if(freq===0) return [start];
+  const list=document.getElementById('rep-dates-list'); if(!list) return;
+  list.innerHTML='';
+  if(!start){ repAddDate(''); return; }
   const dates=[];
-  for(let i=0;i<count;i++){
-    if(freq===30){ const d=new Date(start); d.setMonth(d.getMonth()+i); dates.push(d); }
+  const n = freq===0 ? 1 : count;
+  for(let i=0;i<n;i++){
+    if(freq===0) dates.push(start);
+    else if(freq===30){ const d=new Date(start); d.setMonth(d.getMonth()+i); dates.push(d); }
     else dates.push(new Date(start.getTime()+i*freq*86400000));
   }
-  return dates;
+  dates.forEach(d=>repAddDate(tdi(d)));
 }
-function renderRepeatPreview(){
-  const el=document.getElementById('rep-preview'); if(!el) return;
-  const dates=_repDates();
-  el.innerHTML = dates.length ? `Will create <b>${dates.length}</b> order${dates.length>1?'s':''}:<br>${dates.map(d=>'• '+fd(d)).join('<br>')}` : 'Pick a date';
+function repAddDate(val){
+  const list=document.getElementById('rep-dates-list'); if(!list) return;
+  const row=document.createElement('div');
+  row.className='rep-date-row';
+  row.style.cssText='display:flex;gap:8px;align-items:center';
+  row.innerHTML=`<input type="date" value="${val||''}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+    <button type="button" onclick="this.closest('.rep-date-row').remove()" title="Remove date" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0">✕</button>`;
+  list.appendChild(row);
+}
+function _repDates(){
+  // Read the editable date rows — manual/specific dates win over the quick-fill.
+  const inputs=[...document.querySelectorAll('#rep-dates-list .rep-date-row input[type=date]')];
+  const seen=new Set(), out=[];
+  inputs.forEach(inp=>{ const v=inp.value; if(v && !seen.has(v)){ const d=pd(v); if(d){ seen.add(v); out.push(d); } } });
+  return out.sort((a,b)=>a-b);
 }
 function doRepeatOrder(){
   const id=document.getElementById('rep-order-id').value;
