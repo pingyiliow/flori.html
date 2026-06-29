@@ -2133,6 +2133,8 @@ function orderTotal(o) {
 // the follow-up's whole-order remark.
 function _cardNotes(o, item){
   let flower = (item && item.note) || '';
+  // Whole-order (single-product) cards pass no item — read the line items' own notes.
+  if (!flower && Array.isArray(o.lineItems)) flower = o.lineItems.map(li=>li && li.note).filter(Boolean).join(' · ');
   let remark = o.internalNote || '';
   if ((!flower || !remark) && o.name){
     const num = String(o.name).replace(/[^0-9]/g,'');
