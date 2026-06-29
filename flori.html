@@ -570,6 +570,12 @@
   <div class="mc">
     <div class="mc-hdr"><div class="mc-ttl">Add Customer</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-customer')">✕</button></div>
     <div class="mc-body">
+      <div class="ff" style="position:relative;margin-bottom:10px">
+        <label class="ff-l">🔍 Find existing customer first</label>
+        <input id="mc-search" type="text" placeholder="Search phone, email or name…" autocomplete="off" oninput="mcCustSearch(this.value)">
+        <div id="mc-search-sug" class="rcp-sug" style="display:none"></div>
+        <div style="font-size:10px;color:var(--c-muted);margin-top:3px">Check here before adding — tap a result to open them instead of creating a duplicate.</div>
+      </div>
       <div class="fg fg-2">
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Name</label><input id="mc-name" type="text" placeholder="Customer name"></div>
         <div class="ff"><label class="ff-l">Phone (WhatsApp) — required</label><input id="mc-phone" type="text" placeholder="+60…"></div>
@@ -4746,12 +4752,44 @@ async function addCustomerNote(id){
 }
 
 function openAddCustomer(){
-  document.getElementById('mc-name').value='';
-  document.getElementById('mc-phone').value='';
-  document.getElementById('mc-email').value='';
+  ['mc-name','mc-phone','mc-email','mc-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('mc-tag').value='regular';
+  const sug=document.getElementById('mc-search-sug'); if(sug){ sug.style.display='none'; sug.innerHTML=''; }
   openModal('m-customer');
 }
+// Find an existing customer (phone / email / name) before adding — tapping a result
+// opens that customer so a duplicate isn't created. Server-side (the list is paged).
+let _mcResults=[], _mcTimer=null;
+function mcCustSearch(val){
+  const sug=document.getElementById('mc-search-sug'); if(!sug) return;
+  const q=String(val||'').trim();
+  if(q.length<3){ sug.style.display='none'; sug.innerHTML=''; return; }
+  clearTimeout(_mcTimer);
+  _mcTimer=setTimeout(async ()=>{
+    let rows=[];
+    try {
+      if(hasSB()){
+        const s=q.replace(/[%,()]/g,' ');
+        const { data } = await sb.from('customers').select('id,name,phone,email').or(`name.ilike.%${s}%,phone.ilike.%${s}%,email.ilike.%${s}%`).limit(6);
+        rows=data||[];
+      } else {
+        const ql=q.toLowerCase();
+        rows=(typeof CUSTOMERS!=='undefined'?CUSTOMERS:[]).filter(c=>(c.name||'').toLowerCase().includes(ql)||String(c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(ql)).slice(0,6);
+      }
+    } catch(e){ console.warn('mcCustSearch', e&&e.message); }
+    _mcResults=rows;
+    if(!rows.length){ sug.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">No match — fill the form below to add new</div>'; sug.style.display=''; return; }
+    sug.innerHTML=rows.map((c,i)=>`<div class="rcp-sug-row" onmousedown="mcCustPick(${i})"><span style="font-weight:600;color:var(--c-ink)">${esc(c.name||'(no name)')}</span> <span style="color:var(--c-muted)">${esc(c.phone||'')}</span>${c.email?` <span style="font-size:9px;color:var(--c-muted)">· ${esc(c.email)}</span>`:''}</div>`).join('');
+    sug.style.display='';
+  }, 250);
+}
+function mcCustPick(i){
+  const c=_mcResults[i]; if(!c) return;
+  closeModal('m-customer');
+  if(typeof goPage==='function') goPage('customers');
+  setTimeout(()=>{ if(typeof openCustomer==='function') openCustomer(c.id); }, 60);
+}
+document.addEventListener('click', e=>{ if(e.target.closest('#mc-search')||e.target.closest('#mc-search-sug')) return; const s=document.getElementById('mc-search-sug'); if(s&&s.style.display!=='none') s.style.display='none'; });
 async function saveNewCustomer(){
   const name = document.getElementById('mc-name').value.trim();
   const phone = document.getElementById('mc-phone').value.trim();
