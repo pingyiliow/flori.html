@@ -2127,6 +2127,23 @@ function orderTotal(o) {
   return null;
 }
 
+// Flower/design instructions + order remark for a card. Flower instructions come
+// from the line item's own note, else from the linked follow-up (matched by order
+// number) where the CS captured them per item. Remark = the order-level note, else
+// the follow-up's whole-order remark.
+function _cardNotes(o, item){
+  let flower = (item && item.note) || '';
+  let remark = o.internalNote || '';
+  if ((!flower || !remark) && o.name){
+    const num = String(o.name).replace(/[^0-9]/g,'');
+    const fu = num && typeof FOLLOWUPS!=='undefined' ? FOLLOWUPS.find(f=>f.orderNo && String(f.orderNo).replace(/[^0-9]/g,'')===num) : null;
+    if (fu){
+      if (!flower && Array.isArray(fu.itemList)) flower = fu.itemList.map(it=>it.flowerNote).filter(Boolean).join(' · ');
+      if (!remark) remark = fu.remarks || '';
+    }
+  }
+  return { flower, remark };
+}
 // orderCard(o)               → one card for the whole order (single-product)
 // orderCard(o, item, idx)    → one card for a single product of a multi-product
 //                              order, with its own per-product "ready" tick.
@@ -2179,12 +2196,12 @@ function orderCard(o, item, idx) {
   else { const tot = orderTotal(o); priceTxt = tot != null ? 'RM ' + tot.toFixed(2) : ''; }
   const mobPrice = priceTxt ? `<span class="oc-mob-price">${priceTxt}</span>` : '';
 
-  // Show BOTH: the order-wide note (shared info like timing — important on every
-  // item) and, when present, this item's own note.
+  // Flower / design instructions first (what to make), then the order remark.
   const _tr = (s,n) => s.length > n ? s.slice(0,n)+'…' : s;
+  const _cn = _cardNotes(o, item);
   let note = '';
-  if (o.internalNote)      note += `<div class="onote">⚠️ ${esc(_tr(o.internalNote,70))}</div>`;
-  if (item && item.note)   note += `<div class="onote onote-item">📌 ${esc(_tr(item.note,70))}</div>`;
+  if (_cn.flower) note += `<div class="onote">🌸 ${esc(_tr(_cn.flower,70))}</div>`;
+  if (_cn.remark) note += `<div class="onote onote-item">📝 ${esc(_tr(_cn.remark,70))}</div>`;
 
   const timeTxt = o.dueTime || '–';
   // In production mode cards are grouped by product, not date, so surface the due
