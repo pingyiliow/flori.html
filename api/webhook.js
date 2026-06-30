@@ -6,6 +6,36 @@ import { createClient } from '@supabase/supabase-js';
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
+// Parse a free-text delivery date into an ISO 'YYYY-MM-DD' string (or null).
+// Mirrors pd() in flori.html so the `due_on` date column the app filters on stays
+// consistent whether an order arrives via webhook or is saved in the app.
+const _MN = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+function parseDueOn(s) {
+  if (!s) return null;
+  s = String(s).trim();
+  const iso = (y, mo, d) => `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const yr = new Date().getFullYear();
+  let m;
+  // ISO (with or without time)
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);                       if (m) return iso(+m[1], +m[2] - 1, +m[3]);
+  // D/M/YYYY · D-M-YYYY · D.M.YYYY
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);      if (m) return iso(+m[3], +m[2] - 1, +m[1]);
+  // D/M/YY
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);      if (m) return iso(2000 + +m[3], +m[2] - 1, +m[1]);
+  // [Weekday ,] D Mon YYYY  (handles "Wed, 9 Jul 2025" and "Friday , 29 May 2026")
+  m = s.match(/(?:[A-Za-z]+\s*,?\s+)?(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (m) { const mo = _MN[m[2].toLowerCase().slice(0, 3)]; if (mo != null) return iso(+m[3], mo, +m[1]); }
+  // Mon D, YYYY
+  m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (m) { const mo = _MN[m[1].toLowerCase().slice(0, 3)]; if (mo != null) return iso(+m[3], mo, +m[2]); }
+  // D/M (no year) → current year
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})$/);                    if (m) return iso(yr, +m[2] - 1, +m[1]);
+  // D Mon (no year) → current year
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)$/);
+  if (m) { const mo = _MN[m[2].toLowerCase().slice(0, 3)]; if (mo != null) return iso(yr, mo, +m[1]); }
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
@@ -49,6 +79,11 @@ export default async function handler(req, res) {
   const dueTime = getAttr('Order Due Time') ||
                   getAttr('Translated Order Due Time') ||
                   getAttr('Delivery Time') || null;
+
+  // Parse the free-text due_date into a real ISO date for the `due_on` column, so
+  // BloomFlow can window/filter orders server-side by date (mirrors pd() in flori.html).
+  // Without this, date filters on due_date are lexical string compares and over-fetch.
+  const due_on = parseDueOn(dueDate);
 
   const typeRaw = (getAttr('Order Fulfillment Type') || getAttr('Type Of Order') || '').toLowerCase();
   const type    = /pick|collect|store pick/.test(typeRaw) ? 'pickup' : 'delivery';
@@ -115,6 +150,7 @@ export default async function handler(req, res) {
     total:       order.current_total_price || order.total_price || null,
     currency:    order.currency || 'MYR',
     due_date:    dueDate,
+    due_on,
     due_time:    dueTime,
     type,
     fulfilled,
