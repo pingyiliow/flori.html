@@ -1756,9 +1756,13 @@ function _mapDbOrder(o){
 // string-compared (any weekday-prefixed value sorts after "2026-…", so a date filter
 // on it matches ~all rows and downloads the whole table). `due_on` is derived from
 // due_date via the same pd() parser the UI trusts — see _computeDueOn / backfillDueOn.
-const _ORDER_PAST_DAYS   = 60;    // recently-delivered orders still load at launch
-const _ORDER_FUTURE_DAYS = 150;   // upcoming deliveries
-const _ORDER_PENDING_DAYS = 90;   // an *unfulfilled* order this far back still loads
+// A launch/refresh only needs TODAY plus the active backlog (unfulfilled orders).
+// Older/future dates are pulled on demand when a date or month is chosen (the calendar
+// loads its month, selectCalDay loads a single date, and the Fulfilled tab loads the
+// last 30 days). This keeps every refresh tiny.
+const _ORDER_PAST_DAYS   = 3;     // small cushion around today (fulfilled-today, timezone)
+const _ORDER_FUTURE_DAYS = 7;     // near look-ahead; future *unfulfilled* load via the pending clause
+const _ORDER_PENDING_DAYS = 45;   // an *unfulfilled* (pending/overdue) order this far back still loads
 function _dayISO(offset){ return tdi(new Date(today0().getTime() + offset*86400000)); }
 function _orderPastISO(){ return _dayISO(-_ORDER_PAST_DAYS); }
 function _orderFutureISO(){ return _dayISO(_ORDER_FUTURE_DAYS); }
@@ -3705,16 +3709,20 @@ function closeFUDP() {
 }
 
 /* ─── Calendar ───────────────────────────────────────────────── */
+// Pull the orders for the month currently shown in the calendar (once per session per
+// month). Called when the calendar is opened or the month/year is changed — this is
+// the "load older/future dates only when chosen" path.
+function _loadCalMonth(){ if (typeof loadOrdersForMonth==='function') loadOrdersForMonth(calYear, calMonth); }
 function toggleCalendar() {
   const panel=document.getElementById('cal-panel'), chevron=document.getElementById('cal-chevron');
   const isOpen=panel.style.display!=='none';
   panel.style.display=isOpen?'none':'block'; if(chevron) chevron.textContent=isOpen?'▾':'▴';
-  if(!isOpen){renderCalendar();setTimeout(()=>{const h=e=>{const p2=document.getElementById('cal-panel'),b=document.getElementById('cal-toggle-btn');if(p2&&b&&!p2.contains(e.target)&&!b.contains(e.target)){p2.style.display='none';document.getElementById('cal-chevron').textContent='▾';document.removeEventListener('click',h);}};document.addEventListener('click',h);},10);}
+  if(!isOpen){renderCalendar();_loadCalMonth();setTimeout(()=>{const h=e=>{const p2=document.getElementById('cal-panel'),b=document.getElementById('cal-toggle-btn');if(p2&&b&&!p2.contains(e.target)&&!b.contains(e.target)){p2.style.display='none';document.getElementById('cal-chevron').textContent='▾';document.removeEventListener('click',h);}};document.addEventListener('click',h);},10);}
 }
-function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();}
-function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();}
-function calSetMonth(m){ calMonth=+m; renderCalendar(); }
-function calSetYear(y){ calYear=+y; renderCalendar(); }
+function calPrev(){if(calMonth===0){calMonth=11;calYear--;}else calMonth--;renderCalendar();_loadCalMonth();}
+function calNext(){if(calMonth===11){calMonth=0;calYear++;}else calMonth++;renderCalendar();_loadCalMonth();}
+function calSetMonth(m){ calMonth=+m; renderCalendar(); _loadCalMonth(); }
+function calSetYear(y){ calYear=+y; renderCalendar(); _loadCalMonth(); }
 // Pull a whole month's orders on demand (when browsing an old month in the calendar),
 // once per month, so the day-dots are accurate without loading the full history.
 let _loadedMonths = new Set();
@@ -3752,11 +3760,9 @@ function renderCalendar() {
     `<select class="cal-sel" onclick="event.stopPropagation()" onchange="calSetYear(this.value)">${years.map(y=>`<option value="${y}"${y===calYear?' selected':''}>${y}</option>`).join('')}</select>`;
   // Viewing a month older than the loaded recent window? Pull that month's orders so
   // its day-dots show (loaded once per month, re-renders when ready).
-  const monthStartISO=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-01';
-  const monthEndISO=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(new Date(calYear,calMonth+1,0).getDate()).padStart(2,'0');
-  // Month outside the loaded window (entirely before it, or entirely after it)? Pull
-  // that month on demand so its day-dots show.
-  if (typeof _orderPastISO==='function' && (monthEndISO < _orderPastISO() || monthStartISO > _orderFutureISO())) loadOrdersForMonth(calYear,calMonth);
+  // NOTE: this only paints dots from orders already in memory. The viewed month is
+  // pulled on demand by _loadCalMonth() when the calendar is opened or navigated, so
+  // a plain refresh never loads a whole month.
   const counts={};
   ORDERS.forEach(o=>{if(!o.dateObj)return;const k=o.dateObj.getFullYear()+'-'+String(o.dateObj.getMonth()+1).padStart(2,'0')+'-'+String(o.dateObj.getDate()).padStart(2,'0');counts[k]=(counts[k]||0)+1;});
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -3806,9 +3812,23 @@ function goPage(pg) {
   if(pg==='stock'){ renderInventory(); renderPurchase(); }
 }
 document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
+// The Fulfilled tab shows the last 30 days — historical data the launch load skips.
+// Pull it on demand the first time that tab is opened (cached for the session).
+let _fulfilledLoaded = false;
+async function loadFulfilledRecent(){
+  if (!hasSB() || _fulfilledLoaded) return;
+  _fulfilledLoaded = true;
+  const from = _dayISO(-30), to = _dayISO(0);
+  try {
+    const { data, error } = await sb.from('orders').select('*').eq('fulfilled',true).gte('due_on',from).lte('due_on',to).range(0,999);
+    if (error){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', error.message); return; }
+    if (_mergeDbOrders(data||[])){ saveOrders(); renderOrders(); }
+  } catch(e){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', e); }
+}
 document.querySelectorAll('[data-f]').forEach(btn => {
   btn.addEventListener('click', () => {
     orderFilter=btn.dataset.f; calFilter=null;
+    if (orderFilter==='fulfilled') loadFulfilledRecent();
     const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
     const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
     if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';
