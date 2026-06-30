@@ -1659,7 +1659,7 @@ function _orderRow(o){
     customer: o.customer, product: o.product,
     line_items: o.lineItems||[], image: o.image||null,
     total: o.total||null, currency: o.currency||'MYR',
-    due_date: o.dueDate||null, due_time: o.dueTime||null,
+    due_date: o.dueDate||null, due_on: _computeDueOn(o.dueDate), due_time: o.dueTime||null,
     type: o.type||'delivery', fulfilled: o.fulfilled||false,
     ready: o.ready||false, created_at: o.createdAt||null,
     manual_addr: o.manualAddr||null, recipe: o.recipe||[],
@@ -1739,7 +1739,7 @@ function _mapDbOrder(o){
     customer: o.customer, product: o.product,
     lineItems: o.line_items||[], image: o.image||null,
     total: o.total||null, currency: o.currency||'MYR',
-    dueDate: o.due_date||null, dueTime: o.due_time||null,
+    dueDate: o.due_date||null, dueOn: o.due_on||null, dueTime: o.due_time||null,
     type: o.type||'delivery', fulfilled: o.fulfilled||false,
     ready: o.ready||false, createdAt: o.created_at||null,
     manualAddr: o.manual_addr||null, recipe: o.recipe||[],
@@ -1751,17 +1751,34 @@ function _mapDbOrder(o){
 // Only the recent/active slice of orders is read on launch + focus-refresh, so the
 // 5k+ historical rows aren't re-downloaded every time (big Supabase-egress saving).
 // Older fulfilled orders stay in the DB and load on demand when their date is picked.
-const _ORDER_WINDOW_DAYS = 75;
-function _orderCutoffISO(){ return new Date(today0().getTime() - _ORDER_WINDOW_DAYS*86400000).toISOString().slice(0,10); }
+// Orders are windowed on `due_on` — a real DATE column — NOT on `due_date`, which is
+// free text ("Wed, 9 Jul 2025", "Friday , 29 May 2026", "3/7/2026") and can only be
+// string-compared (any weekday-prefixed value sorts after "2026-…", so a date filter
+// on it matches ~all rows and downloads the whole table). `due_on` is derived from
+// due_date via the same pd() parser the UI trusts — see _computeDueOn / backfillDueOn.
+const _ORDER_PAST_DAYS   = 60;    // recently-delivered orders still load at launch
+const _ORDER_FUTURE_DAYS = 150;   // upcoming deliveries
+const _ORDER_PENDING_DAYS = 90;   // an *unfulfilled* order this far back still loads
+function _dayISO(offset){ return tdi(new Date(today0().getTime() + offset*86400000)); }
+function _orderPastISO(){ return _dayISO(-_ORDER_PAST_DAYS); }
+function _orderFutureISO(){ return _dayISO(_ORDER_FUTURE_DAYS); }
+// Back-compat alias (older callers used this single past cutoff).
+function _orderCutoffISO(){ return _orderPastISO(); }
+// due_date text → ISO date string (or null) using the UI's parser, so the stored
+// due_on always matches the date staff see on the card.
+function _computeDueOn(s){ const d = pd(s); return d ? tdi(d) : null; }
 async function sbGetRecentOrders(){
   if (!hasSB()) return null;
-  const cutoff = _orderCutoffISO();
+  const past = _orderPastISO(), future = _orderFutureISO(), pendingFrom = _dayISO(-_ORDER_PENDING_DAYS);
+  // due_on inside the active window, OR an unfulfilled order from the recent past,
+  // OR no parseable date yet (due_on IS NULL) — so nothing silently disappears, and
+  // this stays correct even before the one-time backfill has run.
+  const filter = `and(due_on.gte.${past},due_on.lte.${future}),and(fulfilled.eq.false,due_on.gte.${pendingFrom}),and(due_on.is.null,fulfilled.eq.false)`;
   try {
     let from = 0, all = [];
     while (true) {
-      // due recently/upcoming OR still unfulfilled (any age) OR created recently
       const { data, error } = await sb.from('orders').select('*')
-        .or(`due_date.gte.${cutoff},fulfilled.eq.false,created_at.gte.${cutoff}`)
+        .or(filter)
         .range(from, from + 999);
       if (error) { console.warn('sbGetRecentOrders', error.message); return all.length ? all : null; }
       all = all.concat(data || []);
@@ -1770,6 +1787,28 @@ async function sbGetRecentOrders(){
     }
     return all;
   } catch(e){ console.warn('sbGetRecentOrders', e); return null; }
+}
+// One-time (idempotent) backfill: compute due_on for every order from its due_date
+// text using pd(). Reads only id+due_date (tiny) and upserts due_on in chunks. Safe
+// to re-run. Call once after adding the due_on column. Returns rows written.
+async function backfillDueOn(){
+  if (!hasSB()) { console.warn('backfillDueOn: no Supabase'); return 0; }
+  let from = 0, all = [];
+  while (true) {
+    const { data, error } = await sb.from('orders').select('id,due_date').range(from, from + 999);
+    if (error) { console.error('backfillDueOn read:', error.message); return 0; }
+    all = all.concat(data || []);
+    if (!data || data.length < 1000) break; from += 1000;
+  }
+  const rows = all.map(r => ({ id: r.id, due_on: _computeDueOn(r.due_date) }));
+  let done = 0;
+  for (let i = 0; i < rows.length; i += 500) {
+    const chunk = rows.slice(i, i + 500);
+    const { error } = await sb.from('orders').upsert(chunk);
+    if (error) { console.error('backfillDueOn write:', error.message, '(stopped at', done, ')'); return done; }
+    done += chunk.length; console.log('backfillDueOn', done + '/' + rows.length);
+  }
+  console.log('backfillDueOn complete:', done, 'rows'); return done;
 }
 // Merge a batch of DB order rows into ORDERS (DB wins for those ids; cached older
 // orders are kept; deleted ones dropped). Used by the on-demand date loader.
@@ -1788,7 +1827,7 @@ function _mergeDbOrders(rows){
 async function loadOrdersForDate(dateStr){
   if (!hasSB() || !dateStr) return;
   try {
-    const { data, error } = await sb.from('orders').select('*').eq('due_date', dateStr).range(0, 999);
+    const { data, error } = await sb.from('orders').select('*').eq('due_on', dateStr).range(0, 999);
     if (error) { console.warn('loadOrdersForDate', error.message); return; }
     if (_mergeDbOrders(data || [])) saveOrders();
   } catch(e){ console.warn('loadOrdersForDate', e); }
@@ -1977,6 +2016,9 @@ if (typeof window !== 'undefined') window.migrateOrderIds = migrateOrderIds;
 function rehydrateOrders() {
   const now = today0();
   ORDERS.forEach(o => {
+    // Prefer the authoritative due_on date column when present; fall back to parsing
+    // the free-text dueDate (older cached rows, or before the backfill has run).
+    if (o.dueOn) { o.dateObj = pd(o.dueOn); return; }
     if (!o.dueDate) { o.dateObj = null; return; }
     const d = pd(o.dueDate);
     // For Shopify orders: if dateObj is in the past and there's no way to tell if it's
@@ -3682,7 +3724,7 @@ async function loadOrdersForMonth(y, m){
   const start=y+'-'+String(m+1).padStart(2,'0')+'-01';
   const end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
   try {
-    const { data, error } = await sb.from('orders').select('*').gte('due_date',start).lte('due_date',end).range(0,999);
+    const { data, error } = await sb.from('orders').select('*').gte('due_on',start).lte('due_on',end).range(0,999);
     if (error){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', error.message); return; }
     if (_mergeDbOrders(data||[])){ saveOrders(); renderCalendar(); }
   } catch(e){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', e); }
@@ -3710,8 +3752,11 @@ function renderCalendar() {
     `<select class="cal-sel" onclick="event.stopPropagation()" onchange="calSetYear(this.value)">${years.map(y=>`<option value="${y}"${y===calYear?' selected':''}>${y}</option>`).join('')}</select>`;
   // Viewing a month older than the loaded recent window? Pull that month's orders so
   // its day-dots show (loaded once per month, re-renders when ready).
+  const monthStartISO=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-01';
   const monthEndISO=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(new Date(calYear,calMonth+1,0).getDate()).padStart(2,'0');
-  if (typeof _orderCutoffISO==='function' && monthEndISO < _orderCutoffISO()) loadOrdersForMonth(calYear,calMonth);
+  // Month outside the loaded window (entirely before it, or entirely after it)? Pull
+  // that month on demand so its day-dots show.
+  if (typeof _orderPastISO==='function' && (monthEndISO < _orderPastISO() || monthStartISO > _orderFutureISO())) loadOrdersForMonth(calYear,calMonth);
   const counts={};
   ORDERS.forEach(o=>{if(!o.dateObj)return;const k=o.dateObj.getFullYear()+'-'+String(o.dateObj.getMonth()+1).padStart(2,'0')+'-'+String(o.dateObj.getDate()).padStart(2,'0');counts[k]=(counts[k]||0)+1;});
   const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -3734,7 +3779,7 @@ async function selectCalDay(key) {
   calFilter=calFilter===key?null:key;
   // Picked a past date outside the recent window? Its orders aren't loaded — pull
   // just that date from Supabase on demand (instead of loading the whole history).
-  if (calFilter && calFilter < _orderCutoffISO()) { await loadOrdersForDate(calFilter); }
+  if (calFilter && (calFilter < _orderPastISO() || calFilter > _orderFutureISO())) { await loadOrdersForDate(calFilter); }
   // A picked date overrides the status tabs; clearing it restores "Today".
   if (calFilter) {
     document.querySelectorAll('[data-f]').forEach(b=>b.classList.remove('on'));
