@@ -3953,9 +3953,12 @@ let _reminderRows = null;
 async function loadReminders(){
   if (!hasSB() || !canAccess('customers')) return;
   try {
+    // Only customers who actually have a birthday/anniversary — the widget can't use
+    // the rest, so there's no reason to download all ~20k rows on every launch.
     const PAGE=1000; let from=0, all=[];
     while (true) {
-      const { data, error } = await sb.from('customers').select('id,name,phone,birthday,anniversary').range(from, from+PAGE-1);
+      const { data, error } = await sb.from('customers').select('id,name,phone,birthday,anniversary')
+        .or('birthday.not.is.null,anniversary.not.is.null').range(from, from+PAGE-1);
       if (error) { console.warn('loadReminders', error.message); break; }
       all = all.concat(data||[]); if (!data || data.length<PAGE) break; from+=PAGE;
     }
