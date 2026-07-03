@@ -6,7 +6,7 @@
 // Uses the same env + helpers as api/notify.js (WHATSAPP_PHONE_NUMBER_ID/ACCESS_TOKEN).
 // Templates: out_for_delivery_bg, delivered_with_photo, delivered_no_photo_bg.
 
-import { toE164MY, buildTemplate, sampleOrderStatusUrl } from './notify.js';
+import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WA_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -75,14 +75,19 @@ export default async function handler(req, res) {
   const name  = q.name || 'Test';
   const orderNo = q.order || '#TEST';
 
+  // Use a real order's status-page suffix for the "View my order" button (unless &btn= given),
+  // so the test button opens an actual order status page.
+  let btnParam = q.btn;
+  if (btnParam == null) { try { btnParam = statusUrlSuffix(await sampleOrderStatusUrl()); } catch (_) {} }
+
   // Default 'both' = the two templates that are ready (out_for_delivery + delivered_with_photo).
   const jobs = [];
   if (which === 'out_for_delivery' || which === 'both' || which === 'all')
-    jobs.push(['out_for_delivery_bg', { name, orderNo }]);
+    jobs.push(['out_for_delivery_bg', { name, orderNo, btnParam }]);
   if (which === 'delivered_photo' || which === 'both' || which === 'all')
-    jobs.push(['delivered_with_photo', { orderNo, photo }]);
+    jobs.push(['delivered_with_photo', { orderNo, photo, btnParam }]);
   if (which === 'delivered_nophoto' || which === 'all')
-    jobs.push(['delivered_no_photo_bg', { name, orderNo }]);
+    jobs.push(['delivered_no_photo_bg', { name, orderNo, btnParam }]);
 
   if (!jobs.length) return res.status(400).json({ error: 'Unknown template: ' + which });
 

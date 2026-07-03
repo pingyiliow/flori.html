@@ -124,8 +124,13 @@ export function buildTemplate(to, tpl, vars) {
   }
   components.push({ type: 'body', parameters: cfg.body.map(k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) })) });
   if (cfg.urlBtnIndex != null) {
-    // URL-safe value for the dynamic {{1}} in the button URL (strip '#', spaces, etc.).
-    const btn = String(vars.btnParam || vars.orderNo || 'order').replace(/[^A-Za-z0-9._-]/g, '');
+    // The dynamic {{1}} in the button base (https://bambooflorist.com.my/{{1}}). When we
+    // have the order's status-URL suffix, pass it raw (it already contains /, ?, = and
+    // must not be mangled). Fall back to a URL-safe order number if we don't.
+    const raw = vars.btnParam != null
+      ? String(vars.btnParam)
+      : String(vars.orderNo || 'order').replace(/[^A-Za-z0-9._-]/g, '');
+    const btn = raw.replace(/\s+/g, '');   // no spaces/newlines in a URL-button param
     components.push({ type: 'button', sub_type: 'url', index: String(cfg.urlBtnIndex),
       parameters: [{ type: 'text', text: btn }] });
   }
@@ -179,6 +184,15 @@ async function shopToken(shop) {
   _tokExp = now + Math.max(60000, (j.expires_in ? j.expires_in * 1000 : 3600000) - 60000);
   return _tok;
 }
+// The order status page as a suffix under the button base (https://bambooflorist.com.my/{{1}}):
+// strip scheme+host so only the per-order path+query remains.
+export function statusUrlSuffix(order) {
+  const u = order && order.order_status_url;
+  if (!u) return null;
+  try { const p = new URL(u); return (p.pathname + p.search).replace(/^\//, ''); }
+  catch { return null; }
+}
+
 // Diagnostic: latest order's status URL, so we can shape the WhatsApp URL-button base.
 export async function sampleOrderStatusUrl() {
   const shop = normShop(process.env.SHOPIFY_SHOP);
@@ -257,8 +271,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, csFlag: 'no_customer_phone' });
   }
 
-  // 6) Choose the template.
-  const vars = { name: firstNameOf(order), orderNo };
+  // 6) Choose the template. btnParam = order status page suffix for the "View my order" button.
+  const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
   let tpl;
   if (type === 'out_for_delivery') {
     tpl = 'out_for_delivery_bg';
