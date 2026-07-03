@@ -243,12 +243,27 @@ export default async function handler(req, res) {
   // While wiring up EasyRoutes: trace every hit (structure only, no PII) so we can see
   // whether events arrive at all and which headers/topic they carry.
   if (debug) {
+    const sigR = req.headers['x-easyroutes-hmac-sha256'] || '';
+    let b64 = '', hex = '';
+    try { b64 = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('base64'); } catch (_) {}
+    try { hex = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('hex'); } catch (_) {}
+    let pk = null, sk = null, dk = null, safe = null;
+    try {
+      const p = JSON.parse(raw.toString('utf8') || '{}');
+      pk = Object.keys(p);
+      sk = p.stop ? Object.keys(p.stop) : null;
+      dk = p.data ? Object.keys(p.data) : null;
+      safe = {                                    // non-PII fields only, to fix the parser
+        status: p.status || (p.stop && p.stop.status) || (p.data && p.data.status),
+        order_id: p.order_id || p.shopify_order_id || (p.stop && (p.stop.order_id || p.stop.shopify_order_id)) || (p.data && p.data.order_id),
+      };
+    } catch (_) {}
     await logNote(sb, { status: 'debug_recv', error: JSON.stringify({
       topic: req.headers['x-easyroutes-topic'] || null,
-      hasHmac: !!req.headers['x-easyroutes-hmac-sha256'],
-      eventId: req.headers['x-easyroutes-event-id'] || null,
-      len: raw.length,
-    }).slice(0, 480) });
+      sigR: sigR.slice(0, 14), b64: b64.slice(0, 14), hex: hex.slice(0, 14),
+      b64ok: !!sigR && sigR === b64, hexok: !!sigR && sigR === hex,
+      pk, sk, dk, safe,
+    }).slice(0, 1500) });
   }
 
   // 1) Verify EasyRoutes signature over the raw body.
