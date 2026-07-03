@@ -6,7 +6,7 @@
 // Uses the same env + helpers as api/notify.js (WHATSAPP_PHONE_NUMBER_ID/ACCESS_TOKEN).
 // Templates: out_for_delivery_bg, delivered_with_photo, delivered_no_photo_bg.
 
-import { toE164MY, buildTemplate } from './notify.js';
+import { toE164MY, buildTemplate, sampleOrderStatusUrl } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WA_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -38,6 +38,12 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Bad or missing secret' });
   }
   if (!WA_PHONE_ID || !WA_TOKEN) return res.status(500).json({ error: 'WhatsApp env missing' });
+
+  // Sample mode: show a real order's status URL so we can shape the URL-button base.
+  if (q.sampleorder) {
+    try { return res.status(200).json({ order: await sampleOrderStatusUrl() }); }
+    catch (e) { return res.status(200).json({ error: e.message }); }
+  }
 
   // Inspect mode: read the real template definitions from Meta so we can match the send
   // payload exactly (named vs positional params, variable count, components).

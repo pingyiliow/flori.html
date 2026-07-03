@@ -179,6 +179,17 @@ async function shopToken(shop) {
   _tokExp = now + Math.max(60000, (j.expires_in ? j.expires_in * 1000 : 3600000) - 60000);
   return _tok;
 }
+// Diagnostic: latest order's status URL, so we can shape the WhatsApp URL-button base.
+export async function sampleOrderStatusUrl() {
+  const shop = normShop(process.env.SHOPIFY_SHOP);
+  if (!shop) throw new Error('SHOPIFY_SHOP missing');
+  const token = await shopToken(shop);
+  const r = await fetch(`https://${shop}/admin/api/2025-01/orders.json?limit=1&status=any&fields=id,name,order_status_url`,
+    { headers: { 'X-Shopify-Access-Token': token, Accept: 'application/json' } });
+  if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()).slice(0, 140));
+  const j = await r.json();
+  return (j.orders && j.orders[0]) || null;
+}
 async function fetchShopifyOrder(orderId) {
   const shop = normShop(process.env.SHOPIFY_SHOP);
   if (!shop) throw new Error('SHOPIFY_SHOP missing');
