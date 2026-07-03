@@ -39,6 +39,28 @@ export default async function handler(req, res) {
   }
   if (!WA_PHONE_ID || !WA_TOKEN) return res.status(500).json({ error: 'WhatsApp env missing' });
 
+  // Inspect mode: read the real template definitions from Meta so we can match the send
+  // payload exactly (named vs positional params, variable count, components).
+  if (q.inspect) {
+    const waba = process.env.WHATSAPP_WABA_ID;
+    if (!waba) return res.status(400).json({ error: 'Set WHATSAPP_WABA_ID env to inspect templates' });
+    const r = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${waba}/message_templates?fields=name,language,status,category,parameter_format,components&limit=50`,
+      { headers: { Authorization: `Bearer ${WA_TOKEN}` } });
+    const j = await r.json().catch(() => ({}));
+    const rows = (j && j.data) || [];
+    const slim = rows.map(t => ({
+      name: t.name, language: t.language, status: t.status,
+      parameter_format: t.parameter_format || '(positional/legacy)',
+      components: (t.components || []).map(c => ({
+        type: c.type, format: c.format,
+        text: c.text,
+        example: c.example,
+        buttons: c.buttons && c.buttons.map(b => ({ type: b.type, text: b.text })),
+      })),
+    }));
+    return res.status(200).json({ error: j && j.error, templates: slim });
+  }
+
   const to = toE164MY(q.to);
   if (!to) return res.status(400).json({ error: 'Pass ?to=<phone> (e.g. 0164129499)' });
 
