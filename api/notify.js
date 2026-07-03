@@ -120,8 +120,8 @@ const TEMPLATES = {
   out_for_delivery:     { lang: 'en', body: ['name', 'orderNo'] },
   // TEXT header {{1}}=order, body has NO variables, URL button (index 0) = order status page.
   delivered_nophoto:    { lang: 'en', header: { type: 'text', vars: ['orderNo'] }, body: [], urlBtnIndex: 0 },
-  // IMAGE header (proof photo), body {{1}}=order, URL button (index 1) = order status page.
-  delivered_with_photo: { lang: 'en', header: { type: 'image' }, body: ['orderNo'], urlBtnIndex: 1 },
+  // IMAGE header (proof photo), body {{1}}=order, URL button (index 0) = order status page.
+  _delivered_withphoto: { lang: 'en', header: { type: 'image' }, body: ['orderNo'], urlBtnIndex: 0 },
 };
 
 export function buildTemplate(to, tpl, vars) {
@@ -293,7 +293,7 @@ export default async function handler(req, res) {
     // the text-only template even when a proof photo exists.
     const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
     const photo = photoEnabled ? pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR) : null;
-    if (photo) { tpl = 'delivered_with_photo'; vars.photo = photo; }
+    if (photo) { tpl = '_delivered_withphoto'; vars.photo = photo; }
     else         tpl = 'delivered_nophoto';
   }
 

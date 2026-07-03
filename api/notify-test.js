@@ -85,7 +85,7 @@ export default async function handler(req, res) {
   if (which === 'out_for_delivery' || which === 'both' || which === 'all')
     jobs.push(['out_for_delivery', { name, orderNo, btnParam }]);
   if (which === 'delivered_photo' || which === 'both' || which === 'all')
-    jobs.push(['delivered_with_photo', { orderNo, photo, btnParam }]);
+    jobs.push(['_delivered_withphoto', { orderNo, photo, btnParam }]);
   if (which === 'delivered_nophoto' || which === 'all')
     jobs.push(['delivered_nophoto', { name, orderNo, btnParam }]);
 
