@@ -263,7 +263,15 @@ export default async function handler(req, res) {
   const type    = pickEventType(payload, req.headers['x-easyroutes-topic']);
   const orderId = pickOrderId(payload);
   if (!type || !orderId) {
-    await logNote(sb, { order_id: orderId, status: 'skip', error: `unmapped type=${type} order=${orderId}` });
+    // Capture the payload STRUCTURE (field names only, no values → no PII) so the parser
+    // can be fixed if EasyRoutes' shape differs from expectations.
+    const shape = JSON.stringify({
+      topics: [req.headers['x-easyroutes-topic'], payload && payload.topic, payload && payload.event, payload && payload.type],
+      keys: payload ? Object.keys(payload) : null,
+      stopKeys: payload && payload.stop ? Object.keys(payload.stop) : null,
+      orderKeys: payload && payload.order ? Object.keys(payload.order) : null,
+    }).slice(0, 600);
+    await logNote(sb, { order_id: orderId, status: 'skip', error: `unmapped type=${type} order=${orderId} :: ${shape}` });
     return res.status(200).json({ ok: true, skipped: 'unmapped', type, orderId });
   }
 
