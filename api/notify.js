@@ -11,11 +11,11 @@
 // order is flagged for CS instead.
 //
 // Scope (per handoff decisions): EasyRoutes-driven notifications only —
-//   out_for_delivery -> out_for_delivery_bg      (body {{1}} name, {{2}} order no)
-//   delivered + photo -> delivered_with_photo     (image header + body {{1}} order no)
-//   delivered, no photo -> delivered_no_photo_bg  (body {{1}} name, {{2}} order no)
-// All positional ("Number") variables. Template names match WhatsApp Manager exactly
-// (note: the photo one has NO _bg suffix).
+//   out_for_delivery -> out_for_delivery      (body {{1}} name, {{2}} order no; static phone button)
+//   delivered + photo -> delivered_with_photo  (image header + body {{1}} order; url button -> order status)
+//   delivered, no photo -> delivered_nophoto   (text header {{1}} order, empty body; url button -> order status)
+// All positional variables, language en. Template names/shapes match WhatsApp Manager
+// exactly (see the TEMPLATES map below).
 // order_confirmed_bg is intentionally deferred. Sending is inline (no queue). The main
 // line 60124778120 is untouched.
 
@@ -111,18 +111,26 @@ export function firstNameOf(order) {
 // button, so the send MUST include a button parameter (index = the url button's position
 // in the buttons array) or Meta returns (#131008) Required parameter is missing.
 const TEMPLATES = {
-  out_for_delivery_bg:   { lang: 'en',    body: ['name', 'orderNo'], urlBtnIndex: 1 },
-  delivered_with_photo:  { lang: 'en',    body: ['orderNo'], image: true, urlBtnIndex: 1 },
-  delivered_no_photo_bg: { lang: 'en_US', body: ['name', 'orderNo'], urlBtnIndex: 0 },
+  // Body {{1}}=name, {{2}}=order. Button is a static phone number (no send-time param).
+  out_for_delivery:     { lang: 'en', body: ['name', 'orderNo'] },
+  // TEXT header {{1}}=order, body has NO variables, URL button (index 0) = order status page.
+  delivered_nophoto:    { lang: 'en', header: { type: 'text', vars: ['orderNo'] }, body: [], urlBtnIndex: 0 },
+  // IMAGE header (proof photo), body {{1}}=order, URL button (index 1) = order status page.
+  delivered_with_photo: { lang: 'en', header: { type: 'image' }, body: ['orderNo'], urlBtnIndex: 1 },
 };
 
 export function buildTemplate(to, tpl, vars) {
   const cfg = TEMPLATES[tpl] || { lang: 'en', body: ['name', 'orderNo'] };
+  const txt = k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) });
   const components = [];
-  if (cfg.image) {
+  if (cfg.header && cfg.header.type === 'image') {
     components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
+  } else if (cfg.header && cfg.header.type === 'text') {
+    components.push({ type: 'header', parameters: cfg.header.vars.map(txt) });
   }
-  components.push({ type: 'body', parameters: cfg.body.map(k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) })) });
+  if (cfg.body && cfg.body.length) {
+    components.push({ type: 'body', parameters: cfg.body.map(txt) });
+  }
   if (cfg.urlBtnIndex != null) {
     // The dynamic {{1}} in the button base (https://bambooflorist.com.my/{{1}}). When we
     // have the order's status-URL suffix, pass it raw (it already contains /, ?, = and
@@ -130,9 +138,8 @@ export function buildTemplate(to, tpl, vars) {
     const raw = vars.btnParam != null
       ? String(vars.btnParam)
       : String(vars.orderNo || 'order').replace(/[^A-Za-z0-9._-]/g, '');
-    const btn = raw.replace(/\s+/g, '');   // no spaces/newlines in a URL-button param
     components.push({ type: 'button', sub_type: 'url', index: String(cfg.urlBtnIndex),
-      parameters: [{ type: 'text', text: btn }] });
+      parameters: [{ type: 'text', text: raw.replace(/\s+/g, '') }] });
   }
   return { messaging_product: 'whatsapp', to, type: 'template', template: { name: tpl, language: { code: cfg.lang }, components } };
 }
@@ -275,11 +282,11 @@ export default async function handler(req, res) {
   const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
   let tpl;
   if (type === 'out_for_delivery') {
-    tpl = 'out_for_delivery_bg';
+    tpl = 'out_for_delivery';
   } else {
     const photo = pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR);
     if (photo) { tpl = 'delivered_with_photo'; vars.photo = photo; }
-    else         tpl = 'delivered_no_photo_bg';
+    else         tpl = 'delivered_nophoto';
   }
 
   // 7) Send via Meta Cloud API (inline).

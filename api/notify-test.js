@@ -83,11 +83,11 @@ export default async function handler(req, res) {
   // Default 'both' = the two templates that are ready (out_for_delivery + delivered_with_photo).
   const jobs = [];
   if (which === 'out_for_delivery' || which === 'both' || which === 'all')
-    jobs.push(['out_for_delivery_bg', { name, orderNo, btnParam }]);
+    jobs.push(['out_for_delivery', { name, orderNo, btnParam }]);
   if (which === 'delivered_photo' || which === 'both' || which === 'all')
     jobs.push(['delivered_with_photo', { orderNo, photo, btnParam }]);
   if (which === 'delivered_nophoto' || which === 'all')
-    jobs.push(['delivered_no_photo_bg', { name, orderNo, btnParam }]);
+    jobs.push(['delivered_nophoto', { name, orderNo, btnParam }]);
 
   if (!jobs.length) return res.status(400).json({ error: 'Unknown template: ' + which });
 
