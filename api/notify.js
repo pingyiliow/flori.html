@@ -106,19 +106,30 @@ export function firstNameOf(order) {
 
 // Build the Meta template payload for a trigger. language 'en' (Chinese lives in the body
 // of the approved template). Variable mapping per handoff.
+// Per-template config, taken from the APPROVED definitions in WhatsApp Manager (read via
+// /api/notify-test?inspect=1). All POSITIONAL vars. Each template carries a DYNAMIC url
+// button, so the send MUST include a button parameter (index = the url button's position
+// in the buttons array) or Meta returns (#131008) Required parameter is missing.
+const TEMPLATES = {
+  out_for_delivery_bg:   { lang: 'en',    body: ['name', 'orderNo'], urlBtnIndex: 1 },
+  delivered_with_photo:  { lang: 'en',    body: ['orderNo'], image: true, urlBtnIndex: 1 },
+  delivered_no_photo_bg: { lang: 'en_US', body: ['name', 'orderNo'], urlBtnIndex: 0 },
+};
+
 export function buildTemplate(to, tpl, vars) {
-  const t = { name: tpl, language: { code: 'en' }, components: [] };
-  if (tpl === 'delivered_with_photo') {
-    // Image header (the EasyRoutes proof photo) + body {{1}} = order no. Positional
-    // ("Number") variables, so parameters are ordered with no parameter_name.
-    t.components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
-    t.components.push({ type: 'body', parameters: [{ type: 'text', text: vars.orderNo }] });
-  } else { // out_for_delivery_bg | delivered_no_photo_bg : body {{1}} name, {{2}} order no
-    t.components.push({ type: 'body', parameters: [
-      { type: 'text', text: vars.name }, { type: 'text', text: vars.orderNo },
-    ] });
+  const cfg = TEMPLATES[tpl] || { lang: 'en', body: ['name', 'orderNo'] };
+  const components = [];
+  if (cfg.image) {
+    components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
   }
-  return { messaging_product: 'whatsapp', to, type: 'template', template: t };
+  components.push({ type: 'body', parameters: cfg.body.map(k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) })) });
+  if (cfg.urlBtnIndex != null) {
+    // URL-safe value for the dynamic {{1}} in the button URL (strip '#', spaces, etc.).
+    const btn = String(vars.btnParam || vars.orderNo || 'order').replace(/[^A-Za-z0-9._-]/g, '');
+    components.push({ type: 'button', sub_type: 'url', index: String(cfg.urlBtnIndex),
+      parameters: [{ type: 'text', text: btn }] });
+  }
+  return { messaging_product: 'whatsapp', to, type: 'template', template: { name: tpl, language: { code: cfg.lang }, components } };
 }
 
 /* ─── infra helpers ───────────────────────────────────────────────────────── */
