@@ -6,6 +6,7 @@
 // Uses the same env + helpers as api/notify.js (WHATSAPP_PHONE_NUMBER_ID/ACCESS_TOKEN).
 // Templates: out_for_delivery_bg, delivered_with_photo, delivered_no_photo_bg.
 
+import { createClient } from '@supabase/supabase-js';
 import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -37,6 +38,14 @@ export default async function handler(req, res) {
   if (!process.env.NOTIFY_TEST_SECRET || q.secret !== process.env.NOTIFY_TEST_SECRET) {
     return res.status(401).json({ error: 'Bad or missing secret' });
   }
+  // Logs mode: read recent wa_notifications rows (service key, so RLS never hides them).
+  if (q.logs) {
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const { data, error } = await sb.from('wa_notifications')
+      .select('*').order('created_at', { ascending: false }).limit(Number(q.n) || 15);
+    return res.status(200).json({ error: error && error.message, rows: data || [] });
+  }
+
   if (!WA_PHONE_ID || !WA_TOKEN) return res.status(500).json({ error: 'WhatsApp env missing' });
 
   // Sample mode: show a real order's status URL so we can shape the URL-button base.
