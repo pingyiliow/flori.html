@@ -18,6 +18,11 @@
 // exactly (see the TEMPLATES map below).
 // order_confirmed_bg is intentionally deferred. Sending is inline (no queue). The main
 // line 60124778120 is untouched.
+//
+// GO-LIVE GATES (env): NOTIFY_ENABLED must be truthy to actually send — otherwise every
+// event is processed + logged (status 'dryrun') but NOTHING is sent, so the webhook can be
+// wired/verified safely. NOTIFY_PHOTO_ENABLED separately holds photo messages: while off,
+// deliveries use the text-only template even when a proof photo exists.
 
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -284,9 +289,20 @@ export default async function handler(req, res) {
   if (type === 'out_for_delivery') {
     tpl = 'out_for_delivery';
   } else {
-    const photo = pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR);
+    // Photo messages are held behind NOTIFY_PHOTO_ENABLED — until it's on, deliveries use
+    // the text-only template even when a proof photo exists.
+    const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
+    const photo = photoEnabled ? pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR) : null;
     if (photo) { tpl = 'delivered_with_photo'; vars.photo = photo; }
     else         tpl = 'delivered_nophoto';
+  }
+
+  // 6b) MASTER GO-LIVE GATE. Until NOTIFY_ENABLED is set, process + log but send nothing —
+  // lets the EasyRoutes webhook be wired and verified without messaging real customers.
+  const enabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '');
+  if (!enabled) {
+    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'dryrun' });
+    return res.status(200).json({ ok: true, dryRun: true, template: tpl, to });
   }
 
   // 7) Send via Meta Cloud API (inline).
