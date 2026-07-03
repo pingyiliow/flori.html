@@ -822,3 +822,16 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .dp-photo-zone{border:2px dashed var(--c-border2);border-radius:var(--r-lg);background:var(--c-bg);min-height:110px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer;overflow:hidden;position:relative;font-size:11px;color:var(--c-muted);line-height:1.5;transition:all .12s}
 .dp-photo-zone:hover,.dp-photo-zone.drag{border-color:var(--c-burg);background:var(--c-burg-lt);color:var(--c-burg)}
 .dp-photo-zone img{width:100%;max-height:240px;object-fit:cover;display:block}
+
+/* ── WhatsApp notification log ── */
+.wa-list{display:flex;flex-direction:column;gap:6px}
+.wa-row{display:flex;align-items:center;gap:12px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:10px 14px}
+.wa-row-main{flex:1;min-width:0}
+.wa-row-t{font-size:13px;color:var(--c-ink)}
+.wa-muted{font-size:11px;color:var(--c-muted)}
+.wa-badge{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 8px;border-radius:6px;flex-shrink:0;min-width:64px;text-align:center}
+.wa-ok{background:#EDF7ED;color:#2E7D32}
+.wa-dry{background:var(--c-bg);color:var(--c-muted);border:1px solid var(--c-border)}
+.wa-warn{background:#FFF8E1;color:#F57F17}
+.wa-err{background:#FDECEA;color:#C62828}
+.wa-empty{font-size:12px;color:var(--c-muted);padding:18px;text-align:center;background:var(--c-surface);border:1px dashed var(--c-border);border-radius:10px}

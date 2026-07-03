@@ -60,6 +60,7 @@
     <div class="nav-sep" style="margin-top:6px">Admin</div>
     <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
     <button class="nav-btn" data-pg="customers"><span class="nav-icon">☺</span><span>Customers</span></button>
+    <button class="nav-btn" data-pg="wanotify"><span class="nav-icon">✉</span><span>WhatsApp Log</span><span class="nav-badge" id="nb-wanotify" style="display:none">0</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
   </div>
@@ -231,6 +232,25 @@
     </div>
   </div>
 
+  <!-- ── WhatsApp delivery notifications log ─────────────────── -->
+  <div id="pg-wanotify" class="page">
+    <div class="pc">
+      <div class="page-hdr">
+        <div>
+          <div class="page-title">WhatsApp Log</div>
+          <div style="font-size:11px;color:var(--c-muted);margin-top:2px">Delivery notifications — sent only to the buyer's own phone (customer.phone)</div>
+        </div>
+        <button class="btn btn-ghost" onclick="renderWaNotify()">↻ Refresh</button>
+      </div>
+      <div id="wa-noflag-wrap" style="margin-bottom:22px;display:none">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-amber);margin-bottom:8px">⚠ No Phone — Needs Follow-up <span id="wa-noflag-count"></span></div>
+        <div id="wa-noflag-list" class="wa-list"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:8px">Send Log</div>
+      <div id="wa-log-list" class="wa-list"></div>
+    </div>
+  </div>
+
   <!-- ── Customers (CRM) ────────────────────────────────────── -->
   <div id="pg-customers" class="page">
     <div class="pc">
@@ -277,6 +297,7 @@
   <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
   <button class="mob-tab" data-pg="customers"><span class="mob-icon">☺</span><span>CRM</span></button>
+  <button class="mob-tab" data-pg="wanotify"><span class="mob-icon">✉</span><span>WA Log</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -806,6 +827,7 @@ const TAB_ACCESS = {
   stock:     ['admin','cs','florist'],
   followup:  ['admin','cs'],
   customers: ['admin','cs'],
+  wanotify:  ['admin','cs'],
   settings:  ['admin'],
 };
 function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || r.includes(currentUserRole); }
@@ -1025,6 +1047,10 @@ const I18N_ZH = {
   // Header / nav
   'Sync Orders':'同步订单','Operations':'操作','Admin':'管理','Stock':'库存',
   'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','Customers':'顾客',
+  'WhatsApp Log':'WhatsApp 记录','WA Log':'WA 记录','Send Log':'发送记录',
+  'Delivery notifications — sent only to the buyer\'s own phone (customer.phone)':'配送通知 — 只发给买家本人电话 (customer.phone)',
+  'Sent':'已发送','Dry-run':'试运行','No phone':'无电话','Error':'失败','Skipped':'已跳过',
+  'No notifications logged yet.':'暂无发送记录。','No notifications yet.':'暂无发送记录。',
   'Not yet synced':'尚未同步','Home':'主页','Orders':'订单','Follow':'跟进','CRM':'顾客',
   // Dashboard
   'Pending':'待处理','Ready':'已准备','Done':'已完成','Total':'总计',
@@ -3802,16 +3828,59 @@ async function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','stock','followup','customers'];
+const PAGES = ['home','orders','stock','followup','customers','wanotify'];
 function goPage(pg) {
   if(!canAccess(pg)) pg = 'home';   // role guard — bounce to dashboard if not allowed
   if(pg==='followup') renderFollowup();
   if(pg==='customers') renderCustomers();
+  if(pg==='wanotify') renderWaNotify();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   if(pg==='stock'){ renderInventory(); renderPurchase(); }
 }
 document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
+
+/* ─── WhatsApp delivery-notification log ─────────────────────── */
+// Reads wa_notifications (written by /api/notify). Surfaces the send log and the
+// "no customer phone" follow-up queue so staff can confirm notifications go to the
+// buyer only, and chase orders that had no buyer phone to notify.
+function _waTime(t){ if(!t) return ''; try{ return new Date(t).toLocaleString('en-MY',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }catch(e){ return String(t); } }
+function _waStatus(s){
+  switch(s){
+    case 'sent':    return { label:'Sent',    cls:'wa-ok'   };
+    case 'dryrun':  return { label:'Dry-run', cls:'wa-dry'  };
+    case 'cs_flag': return { label:'No phone',cls:'wa-warn' };
+    case 'error':   return { label:'Error',   cls:'wa-err'  };
+    case 'skip':    return { label:'Skipped', cls:'wa-dry'  };
+    default:        return { label:s||'—',    cls:'wa-dry'  };
+  }
+}
+async function renderWaNotify(){
+  const flagList=document.getElementById('wa-noflag-list'), logList=document.getElementById('wa-log-list');
+  if(!flagList||!logList) return;
+  if(typeof hasSB!=='function' || !hasSB()){ logList.innerHTML='<div class="wa-empty">Not connected.</div>'; return; }
+  logList.innerHTML='<div class="wa-empty">Loading…</div>';
+  let rows=[];
+  try{
+    const { data, error } = await sb.from('wa_notifications').select('*').order('created_at',{ascending:false}).limit(300);
+    if(error) throw error;
+    rows=data||[];
+  }catch(e){ logList.innerHTML='<div class="wa-empty">Could not load — '+esc(e&&e.message||String(e))+'</div>'; return; }
+
+  // No-phone follow-up queue (privacy gate hit: order had no buyer phone → nothing sent).
+  const flags=rows.filter(r=>r.status==='cs_flag');
+  const wrap=document.getElementById('wa-noflag-wrap'), cnt=document.getElementById('wa-noflag-count');
+  if(wrap) wrap.style.display=flags.length?'':'none';
+  if(cnt) cnt.textContent=flags.length?('· '+flags.length):'';
+  const nb=document.getElementById('nb-wanotify'); if(nb){ nb.textContent=flags.length; nb.style.display=flags.length?'':'none'; }
+  flagList.innerHTML=flags.map(r=>`<div class="wa-row"><div class="wa-badge wa-warn">No phone</div><div class="wa-row-main"><div class="wa-row-t"><b>${esc(r.order_no||r.order_id||'—')}</b></div><div class="wa-muted">${esc(r.error||'no customer phone')}</div></div><div class="wa-muted">${esc(_waTime(r.created_at))}</div></div>`).join('');
+
+  // Full send log.
+  logList.innerHTML = rows.length ? rows.map(r=>{
+    const st=_waStatus(r.status);
+    return `<div class="wa-row"><div class="wa-badge ${st.cls}">${esc(st.label)}</div><div class="wa-row-main"><div class="wa-row-t"><b>${esc(r.order_no||r.order_id||'—')}</b> <span class="wa-muted">${esc(r.template||'')}</span></div><div class="wa-muted">${esc(r.phone||'')}${r.error?(' · '+esc(r.error)):''}</div></div><div class="wa-muted">${esc(_waTime(r.created_at))}</div></div>`;
+  }).join('') : '<div class="wa-empty">No notifications logged yet.</div>';
+}
 // The Fulfilled tab shows the last 30 days — historical data the launch load skips.
 // Pull it on demand the first time that tab is opened (cached for the session).
 let _fulfilledLoaded = false;
