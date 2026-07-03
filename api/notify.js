@@ -236,20 +236,35 @@ export default async function handler(req, res) {
   if (!SB_URL || !SB_KEY)       return res.status(500).json({ error: 'Supabase env missing' });
   if (!WA_PHONE_ID || !WA_TOKEN) return res.status(500).json({ error: 'WhatsApp env missing' });
 
+  const sb = createClient(SB_URL, SB_KEY);
   const raw = await readRaw(req);
+  const debug = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_DEBUG || '');
+
+  // While wiring up EasyRoutes: trace every hit (structure only, no PII) so we can see
+  // whether events arrive at all and which headers/topic they carry.
+  if (debug) {
+    await logNote(sb, { status: 'debug_recv', error: JSON.stringify({
+      topic: req.headers['x-easyroutes-topic'] || null,
+      hasHmac: !!req.headers['x-easyroutes-hmac-sha256'],
+      eventId: req.headers['x-easyroutes-event-id'] || null,
+      len: raw.length,
+    }).slice(0, 480) });
+  }
 
   // 1) Verify EasyRoutes signature over the raw body.
   if (ER_SECRET) {
     const sig = req.headers['x-easyroutes-hmac-sha256'] || '';
     const digest = crypto.createHmac('sha256', ER_SECRET).update(raw).digest('base64');
-    if (!safeEq(sig, digest)) return res.status(401).json({ error: 'Bad signature' });
+    if (!safeEq(sig, digest)) {
+      // Log instead of silently 401ing, so a secret mismatch is visible in the log.
+      await logNote(sb, { status: 'hmac_fail', error: `signature mismatch; header ${sig ? 'present' : 'absent'}` });
+      return res.status(401).json({ error: 'Bad signature' });
+    }
   }
 
   let payload;
   try { payload = JSON.parse(raw.toString('utf8') || '{}'); }
   catch { return res.status(400).json({ error: 'Bad JSON' }); }
-
-  const sb = createClient(SB_URL, SB_KEY);
 
   // 2) Dedupe on the event id — insert FIRST so a retry that arrives mid-processing can't
   //    trigger a second send. A unique-violation means we've already handled this event.
