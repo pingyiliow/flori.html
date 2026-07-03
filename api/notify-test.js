@@ -55,7 +55,7 @@ export default async function handler(req, res) {
         type: c.type, format: c.format,
         text: c.text,
         example: c.example,
-        buttons: c.buttons && c.buttons.map(b => ({ type: b.type, text: b.text })),
+        buttons: c.buttons && c.buttons.map(b => ({ type: b.type, text: b.text, url: b.url, phone_number: b.phone_number, example: b.example })),
       })),
     }));
     return res.status(200).json({ error: j && j.error, templates: slim });
