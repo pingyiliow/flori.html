@@ -11,9 +11,11 @@
 // order is flagged for CS instead.
 //
 // Scope (per handoff decisions): EasyRoutes-driven notifications only —
-//   out_for_delivery -> out_for_delivery_bg
-//   delivered + photo -> delivered_with_photo_bg
-//   delivered, no photo -> delivered_no_photo_bg
+//   out_for_delivery -> out_for_delivery_bg      (body {{1}} name, {{2}} order no)
+//   delivered + photo -> delivered_with_photo     (image header + body {{1}} order no)
+//   delivered, no photo -> delivered_no_photo_bg  (body {{1}} name, {{2}} order no)
+// All positional ("Number") variables. Template names match WhatsApp Manager exactly
+// (note: the photo one has NO _bg suffix).
 // order_confirmed_bg is intentionally deferred. Sending is inline (no queue). The main
 // line 60124778120 is untouched.
 
@@ -106,10 +108,12 @@ export function firstNameOf(order) {
 // of the approved template). Variable mapping per handoff.
 export function buildTemplate(to, tpl, vars) {
   const t = { name: tpl, language: { code: 'en' }, components: [] };
-  if (tpl === 'delivered_with_photo_bg') {
+  if (tpl === 'delivered_with_photo') {
+    // Image header (the EasyRoutes proof photo) + body {{1}} = order no. Positional
+    // ("Number") variables, so parameters are ordered with no parameter_name.
     t.components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
-    t.components.push({ type: 'body', parameters: [{ type: 'text', text: vars.name }] });
-  } else { // out_for_delivery_bg | delivered_no_photo_bg : {{1}} name, {{2}} order no
+    t.components.push({ type: 'body', parameters: [{ type: 'text', text: vars.orderNo }] });
+  } else { // out_for_delivery_bg | delivered_no_photo_bg : body {{1}} name, {{2}} order no
     t.components.push({ type: 'body', parameters: [
       { type: 'text', text: vars.name }, { type: 'text', text: vars.orderNo },
     ] });
@@ -238,7 +242,7 @@ export default async function handler(req, res) {
     tpl = 'out_for_delivery_bg';
   } else {
     const photo = pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR);
-    if (photo) { tpl = 'delivered_with_photo_bg'; vars.photo = photo; }
+    if (photo) { tpl = 'delivered_with_photo'; vars.photo = photo; }
     else         tpl = 'delivered_no_photo_bg';
   }
 
