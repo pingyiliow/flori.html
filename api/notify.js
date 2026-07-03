@@ -244,9 +244,10 @@ export default async function handler(req, res) {
   // whether events arrive at all and which headers/topic they carry.
   if (debug) {
     const sigR = req.headers['x-easyroutes-hmac-sha256'] || '';
-    let b64 = '', hex = '';
+    let b64 = '', hex = '', b64d = '', hexd = '';
     try { b64 = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('base64'); } catch (_) {}
     try { hex = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('hex'); } catch (_) {}
+    try { const k = Buffer.from(ER_SECRET || '', 'base64'); b64d = crypto.createHmac('sha256', k).update(raw).digest('base64'); hexd = crypto.createHmac('sha256', k).update(raw).digest('hex'); } catch (_) {}
     let pk = null, sk = null, dk = null, safe = null;
     try {
       const p = JSON.parse(raw.toString('utf8') || '{}');
@@ -260,8 +261,9 @@ export default async function handler(req, res) {
     } catch (_) {}
     await logNote(sb, { status: 'debug_recv', error: JSON.stringify({
       topic: req.headers['x-easyroutes-topic'] || null,
-      sigR: sigR.slice(0, 14), b64: b64.slice(0, 14), hex: hex.slice(0, 14),
+      sigR: sigR.slice(0, 14),
       b64ok: !!sigR && sigR === b64, hexok: !!sigR && sigR === hex,
+      b64dok: !!sigR && sigR === b64d, hexdok: !!sigR && sigR === hexd,
       pk, sk, dk, safe,
     }).slice(0, 1500) });
   }
