@@ -216,7 +216,7 @@ export async function sampleOrderStatusUrl() {
   const j = await r.json();
   return (j.orders && j.orders[0]) || null;
 }
-async function fetchShopifyOrder(orderId) {
+export async function fetchShopifyOrder(orderId) {
   const shop = normShop(process.env.SHOPIFY_SHOP);
   if (!shop) throw new Error('SHOPIFY_SHOP missing');
   const token = await shopToken(shop);

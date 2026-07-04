@@ -7,7 +7,8 @@
 // Templates: out_for_delivery_bg, delivered_with_photo, delivered_no_photo_bg.
 
 import { createClient } from '@supabase/supabase-js';
-import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix } from './notify.js';
+import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix,
+         fetchShopifyOrder, pickPhotoUrl, firstNameOf } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WA_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -52,6 +53,51 @@ export default async function handler(req, res) {
   if (q.sampleorder) {
     try { return res.status(200).json({ order: await sampleOrderStatusUrl() }); }
     catch (e) { return res.status(200).json({ error: e.message }); }
+  }
+
+  // Simulate mode: run the live delivery logic for a real order WITHOUT the EasyRoutes
+  // webhook — show which phone/template/link it resolves (privacy gate included). Does NOT
+  // message the real customer. Pass &to=<test phone> to send a COPY to that number.
+  if (q.simulate) {
+    try {
+      const sbc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+      const arg = String(q.simulate).replace(/^#/, '');
+      let orderId = /^\d{6,}$/.test(arg) ? arg : null;   // treat long digits as a Shopify id
+      if (!orderId) {
+        const { data } = await sbc.from('orders').select('id,name').or(`name.eq.#${arg},name.eq.${arg}`).limit(1);
+        orderId = data && data[0] && data[0].id;
+      }
+      if (!orderId) return res.status(200).json({ error: 'Order not found: ' + q.simulate });
+      const order = await fetchShopifyOrder(orderId);
+      const type = q.type === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
+      const to = toE164MY(order.customer && order.customer.phone);
+
+      let tpl = null, photo = null;
+      if (to) {
+        if (type === 'out_for_delivery') tpl = 'out_for_delivery';
+        else { photo = pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR); tpl = photo ? '_delivered_withphoto' : 'delivered_nophoto'; }
+      }
+      const out = {
+        orderNo: order.name, orderId, event: type,
+        customerPhone: (order.customer && order.customer.phone) || null,
+        wouldSendTo: to || null,
+        privacyGate: to ? 'OK — buyer customer.phone present' : 'BLOCKED — no customer.phone → CS flag, nothing sent',
+        template: tpl,
+        buttonOpens: statusUrlSuffix(order) ? ('https://bambooflorist.com.my/' + statusUrlSuffix(order)) : null,
+        photoAttrFound: !!photo,
+      };
+      if (q.to && to) {
+        const dest = toE164MY(q.to);
+        const vars = { name: firstNameOf(order), orderNo: order.name, btnParam: statusUrlSuffix(order) || undefined, photo };
+        const r = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${WA_PHONE_ID}/messages`, {
+          method: 'POST', headers: { Authorization: `Bearer ${WA_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildTemplate(dest, tpl, vars)),
+        });
+        const j = await r.json().catch(() => ({}));
+        out.sentCopyTo = { to: dest, ok: r.ok, messageId: (j && j.messages && j.messages[0] && j.messages[0].id) || null, error: r.ok ? null : ((j && j.error && j.error.message) || ('HTTP ' + r.status)) };
+      }
+      return res.status(200).json(out);
+    } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
   }
 
   // Inspect mode: read the real template definitions from Meta so we can match the send
