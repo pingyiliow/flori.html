@@ -259,18 +259,17 @@ export default async function handler(req, res) {
     try {
       const p = JSON.parse(raw.toString('utf8') || '{}');
       const pl = p.payload || {};
-      const stop = pl.stop || {};
-      const ord = pl.order || stop.order || {};
+      const stops = Array.isArray(pl.stops) ? pl.stops : [];
+      const st = stops.find(s => s && s.id === p.objectId) || stops[0] || {};
+      const ord = st.order || {};
       struct = {
-        top: Object.keys(p), topic: p.topic, objectId: p.objectId,
-        payloadKeys: p.payload ? Object.keys(pl) : null,
-        stopKeys: pl.stop ? Object.keys(stop) : null,
-        orderKeys: (pl.order || stop.order) ? Object.keys(ord) : null,
-        status: pl.status || stop.status || pl.stopStatus || null,   // non-PII
+        topic: p.topic, objectId: p.objectId, nStops: stops.length,
+        stopKeys: Object.keys(st),
+        stopStatus: st.status || st.state || st.deliveryStatus || null,   // non-PII
+        orderKeys: st.order ? Object.keys(ord) : null,
         idHints: {
-          shopifyOrderId: pl.shopifyOrderId || stop.shopifyOrderId || ord.shopifyOrderId || ord.id,
-          orderId: pl.orderId || pl.order_id || stop.orderId || stop.order_id,
-          orderName: pl.orderName || stop.orderName || ord.name,
+          shopifyOrderId: st.shopifyOrderId || st.orderId || st.order_id || ord.shopifyOrderId || ord.id,
+          orderName: st.orderName || st.name || ord.name,
         },
       };
     } catch (_) {}
