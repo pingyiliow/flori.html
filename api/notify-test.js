@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       if (!orderId) return res.status(200).json({ error: 'Order not found in synced table: ' + q.simulate });
       const order = await fetchShopifyOrder(orderId);
       const type = q.type === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
-      const to = toE164MY(order.customer && order.customer.phone);
+      const to = toE164MY((order.customer && order.customer.phone) || order.phone);
 
       let tpl = null, photo = null;
       if (to) {
@@ -87,9 +87,10 @@ export default async function handler(req, res) {
         },
         customerPhone: (order.customer && order.customer.phone) || null,
         wouldSendTo: to || null,
-        privacyGate: to ? 'OK — buyer customer.phone present' : 'BLOCKED — no customer.phone → CS flag, nothing sent',
+        privacyGate: to ? 'OK — buyer phone present' : 'BLOCKED — no buyer phone → CS flag, nothing sent',
         template: tpl,
         buttonOpens: statusUrlSuffix(order) ? ('https://bambooflorist.com.my/' + statusUrlSuffix(order)) : null,
+        noteAttrs: (order.note_attributes || []).map(a => a.name),
         photoAttrFound: !!photo,
       };
       if (q.to && to) {

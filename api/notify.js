@@ -315,11 +315,14 @@ export default async function handler(req, res) {
   }
   const orderNo = (order && order.name) || ('#' + orderId);
 
-  // 5) PRIVACY GATE — customer.phone ONLY. Nothing else is ever read as a recipient.
-  const to = toE164MY(order.customer && order.customer.phone);
+  // 5) PRIVACY GATE — the BUYER's own contact only: customer.phone, else the order-level
+  // contact phone (order.phone). Both are the buyer (order.phone is the checkout contact,
+  // distinct from the delivery address). We NEVER read shipping_address.phone or
+  // billing_address.phone — those can be the gift RECIPIENT, who must never be messaged.
+  const to = toE164MY((order.customer && order.customer.phone) || order.phone);
   if (!to) {
-    await csFlag(sb, orderId, orderNo, 'no_customer_phone');
-    return res.status(200).json({ ok: true, csFlag: 'no_customer_phone' });
+    await csFlag(sb, orderId, orderNo, 'no_buyer_phone');
+    return res.status(200).json({ ok: true, csFlag: 'no_buyer_phone' });
   }
 
   // 6) Choose the template. btnParam = order status page suffix for the "View my order" button.
