@@ -25,6 +25,7 @@
 // deliveries use the text-only template even when a proof photo exists.
 
 import { createClient } from '@supabase/supabase-js';
+import { AwsClient } from 'aws4fetch';
 import crypto from 'crypto';
 
 // EasyRoutes signs the raw request body, so we must read the bytes ourselves.
@@ -163,10 +164,8 @@ export function buildTemplate(to, tpl, vars) {
   const txt = k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) });
   const components = [];
   if (cfg.header && cfg.header.type === 'image') {
-    // Prefer an uploaded Meta media id (EasyRoutes' photo URL isn't fetchable by Meta);
-    // fall back to a direct link if we somehow have a usable one.
-    const image = vars.photoMediaId ? { id: vars.photoMediaId } : { link: vars.photo };
-    components.push({ type: 'header', parameters: [{ type: 'image', image }] });
+    // vars.photo is an R2-hosted public URL (WhatsApp can fetch it); EasyRoutes' own URL isn't.
+    components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
   } else if (cfg.header && cfg.header.type === 'text') {
     components.push({ type: 'header', parameters: cfg.header.vars.map(txt) });
   }
@@ -186,26 +185,27 @@ export function buildTemplate(to, tpl, vars) {
   return { messaging_product: 'whatsapp', to, type: 'template', template: { name: tpl, language: { code: cfg.lang }, components } };
 }
 
-// WhatsApp can't fetch EasyRoutes' proof-photo URL (it 307-redirects to a ~59s-signed
-// Google Cloud link). So download the image server-side (fetch follows the redirect) and
-// upload it to Meta's media API, returning a media id for the template header. Returns null
-// on any failure so the caller can fall back to the text-only template.
-export async function uploadPhotoToMeta(imageUrl, phoneId, token) {
+// WhatsApp can't use EasyRoutes' proof-photo URL directly (it 307-redirects to a ~59s-signed
+// Google Cloud link), and a Meta-media-upload id doesn't render in this template. So download
+// the image server-side (fetch follows the redirect) and re-host it on Cloudflare R2 — a
+// stable public URL WhatsApp CAN fetch — returning that url for the image-header link. Returns
+// null on any failure so the caller falls back to the text-only template.
+export async function hostPhotoOnR2(imageUrl) {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, R2_PUBLIC_URL } = process.env;
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || !R2_PUBLIC_URL) return null;
   try {
     const img = await fetch(imageUrl);
     if (!img.ok) return null;
     const ct = (img.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
     if (!/^image\//.test(ct)) return null;
-    const buf = Buffer.from(await img.arrayBuffer());
-    const form = new FormData();
-    form.append('messaging_product', 'whatsapp');
-    form.append('type', ct);
-    form.append('file', new Blob([buf], { type: ct }), 'proof.jpg');
-    const up = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${phoneId}/media`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
-    });
-    const j = await up.json().catch(() => ({}));
-    return (j && j.id) || null;
+    const bytes = Buffer.from(await img.arrayBuffer());
+    const ext = (ct.split('/')[1] || 'jpg').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '');
+    const key = `proof/${Date.now()}-${crypto.randomBytes(5).toString('hex')}.${ext}`;
+    const client = new AwsClient({ accessKeyId: R2_ACCESS_KEY_ID, secretAccessKey: R2_SECRET_ACCESS_KEY, service: 's3', region: 'auto' });
+    const endpoint = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/${key}`;
+    const r2 = await client.fetch(endpoint, { method: 'PUT', body: bytes, headers: { 'Content-Type': ct, 'Content-Length': String(bytes.length) } });
+    if (!r2.ok) return null;
+    return `${String(R2_PUBLIC_URL).replace(/\/+$/, '')}/${key}`;
   } catch (_) { return null; }
 }
 
@@ -397,10 +397,10 @@ export default async function handler(req, res) {
     const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
     // Prefer the proof photo from the EasyRoutes stop; fall back to the order note-attribute.
     const photo = photoEnabled ? (ext.photo || pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR)) : null;
-    // Upload it to Meta (their URL isn't fetchable). On any failure, fall back to text-only.
-    const mediaId = photo ? await uploadPhotoToMeta(photo, WA_PHONE_ID, WA_TOKEN) : null;
-    if (mediaId) { tpl = '_delivered_withphoto'; vars.photoMediaId = mediaId; }
-    else           tpl = 'delivered_nophoto';
+    // Re-host on R2 (EasyRoutes' URL isn't fetchable by Meta). On any failure, fall back to text.
+    const photoLink = photo ? await hostPhotoOnR2(photo) : null;
+    if (photoLink) { tpl = '_delivered_withphoto'; vars.photo = photoLink; }
+    else             tpl = 'delivered_nophoto';
   }
 
   // 6b) SEND GATES (checked in order).

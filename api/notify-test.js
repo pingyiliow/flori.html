@@ -9,7 +9,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix,
          fetchShopifyOrder, pickPhotoUrl, firstNameOf, getAttr, isPickupOrder,
-         uploadPhotoToMeta } from './notify.js';
+         hostPhotoOnR2 } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WA_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -73,13 +73,13 @@ export default async function handler(req, res) {
       const type = q.type === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
       const to = toE164MY((order.customer && order.customer.phone) || order.phone);
 
-      let tpl = null, photo = null, photoMediaId = null;
+      let tpl = null, photo = null, photoHosted = null;
       if (to) {
         if (type === 'out_for_delivery') tpl = 'out_for_delivery';
         else {
           photo = pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR);
-          if (photo) photoMediaId = await uploadPhotoToMeta(photo, WA_PHONE_ID, WA_TOKEN);
-          tpl = photoMediaId ? '_delivered_withphoto' : 'delivered_nophoto';
+          if (photo) photoHosted = await hostPhotoOnR2(photo);
+          tpl = photoHosted ? '_delivered_withphoto' : 'delivered_nophoto';
         }
       }
       const out = {
@@ -100,11 +100,11 @@ export default async function handler(req, res) {
         noteAttrs: (order.note_attributes || []).map(a => a.name),
         photoAttrFound: !!photo,
         photoUrl: photo || null,
-        mediaUploaded: !!photoMediaId,
+        photoHostedOnR2: photoHosted || null,
       };
       if (q.to && to) {
         const dest = toE164MY(q.to);
-        const vars = { name: firstNameOf(order), orderNo: order.name, btnParam: statusUrlSuffix(order) || undefined, photo, photoMediaId };
+        const vars = { name: firstNameOf(order), orderNo: order.name, btnParam: statusUrlSuffix(order) || undefined, photo: photoHosted || photo };
         const r = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${WA_PHONE_ID}/messages`, {
           method: 'POST', headers: { Authorization: `Bearer ${WA_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify(buildTemplate(dest, tpl, vars)),
