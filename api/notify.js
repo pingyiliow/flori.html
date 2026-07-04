@@ -375,25 +375,32 @@ export default async function handler(req, res) {
     else         tpl = 'delivered_nophoto';
   }
 
-  // 6b) SEND GATES.
-  //  - NOTIFY_TEST_PHONE set → ONLY that number actually sends; every other recipient is
-  //    dry-run. Lets you self-test real sends with zero risk to customers (no NOTIFY_ENABLED
-  //    needed — trigger a test order whose buyer phone is your own).
+  // 6b) SEND GATES (checked in order).
+  //  - NOTIFY_TEST_ORDERS set (comma-sep order numbers) → ONLY those orders actually send;
+  //    everything else dry-run. Best for testing one order with different phone/recipient
+  //    combos while every real order stays protected.
+  //  - NOTIFY_TEST_PHONE set → ONLY that number sends; others dry-run.
   //  - Otherwise → NOTIFY_ENABLED must be truthy, else dry-run (log only, nothing sent).
-  const testPhone = toE164MY(process.env.NOTIFY_TEST_PHONE || '');
-  const enabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '');
-  const allow = testPhone ? (to === testPhone) : enabled;
+  const testOrders = (process.env.NOTIFY_TEST_ORDERS || '').split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+  const testPhone  = toE164MY(process.env.NOTIFY_TEST_PHONE || '');
+  const enabled    = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '');
+  const orderNum   = String(orderNo || '').replace(/^#/, '');
+  const testMode   = testOrders.length > 0 || !!testPhone;
+  let allow, gate;
+  if (testOrders.length) { allow = testOrders.includes(orderNum); gate = 'test-order'; }
+  else if (testPhone)    { allow = (to === testPhone);            gate = 'test-phone'; }
+  else                   { allow = enabled;                        gate = null; }
   if (!allow) {
     await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'dryrun',
-      error: testPhone ? 'test-gated (not test phone)' : null });
+      error: gate ? (gate + '-gated') : null });
     return res.status(200).json({ ok: true, dryRun: true, template: tpl, to });
   }
 
   // 6c) De-dupe on (order + stage) for real live sends. EasyRoutes fires STOP_STATUS_UPDATED
   //     several times per stop, so without this the customer gets duplicate WhatsApps. One
   //     send per (order, out_for_delivery) and one per (order, delivered). Skipped in
-  //     test-phone mode so the same order can be re-triggered while testing.
-  if (!testPhone) {
+  //     test mode so the same order can be re-triggered while testing.
+  if (!testMode) {
     const { error: dupStage } = await sb.from('wa_events').insert({ event_id: `${orderId}:${type}` });
     if (dupStage) {
       await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'skip', error: 'already sent: ' + type });
