@@ -94,6 +94,7 @@ export default async function handler(req, res) {
         isPickup_wouldSkip: isPickupOrder(order),
         noteAttrs: (order.note_attributes || []).map(a => a.name),
         photoAttrFound: !!photo,
+        photoUrl: photo || null,
       };
       if (q.to && to) {
         const dest = toE164MY(q.to);
