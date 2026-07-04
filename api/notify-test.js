@@ -116,6 +116,38 @@ export default async function handler(req, res) {
     } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
   }
 
+  // Photo diagnostic: fetch a real order's proof photo and show exactly what came back
+  // (final URL after redirect, content-type, size, magic bytes) + the Meta /media result.
+  if (q.diagphoto) {
+    try {
+      const sbc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+      const arg = String(q.diagphoto).replace(/^#/, '');
+      const { data } = await sbc.from('orders').select('id').or(`name.eq.#${arg},name.eq.${arg}`).limit(1);
+      const orderId = (data && data[0] && data[0].id) || (/^\d{10,}$/.test(arg) ? arg : null);
+      if (!orderId) return res.status(200).json({ error: 'order not found' });
+      const order = await fetchShopifyOrder(orderId);
+      const photoUrl = pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR);
+      if (!photoUrl) return res.status(200).json({ error: 'no photo attr on order' });
+      const img = await fetch(photoUrl);
+      const ct = img.headers.get('content-type');
+      const buf = Buffer.from(await img.arrayBuffer());
+      let meta = null;
+      if (/^image\//.test((ct || '').split(';')[0])) {
+        const form = new FormData();
+        form.append('messaging_product', 'whatsapp');
+        form.append('type', (ct || 'image/jpeg').split(';')[0].trim());
+        form.append('file', new Blob([buf], { type: ct }), 'p.jpg');
+        const up = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${WA_PHONE_ID}/media`,
+          { method: 'POST', headers: { Authorization: `Bearer ${WA_TOKEN}` }, body: form });
+        meta = await up.json().catch(() => ({}));
+      }
+      return res.status(200).json({
+        photoUrl, finalUrl: img.url, redirected: img.redirected, status: img.status,
+        contentType: ct, bytes: buf.length, magic: buf.slice(0, 4).toString('hex'), metaMedia: meta,
+      });
+    } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
+  }
+
   // Inspect mode: read the real template definitions from Meta so we can match the send
   // payload exactly (named vs positional params, variable count, components).
   if (q.inspect) {
