@@ -163,7 +163,10 @@ export function buildTemplate(to, tpl, vars) {
   const txt = k => ({ type: 'text', text: String(vars[k] == null ? '' : vars[k]) });
   const components = [];
   if (cfg.header && cfg.header.type === 'image') {
-    components.push({ type: 'header', parameters: [{ type: 'image', image: { link: vars.photo } }] });
+    // Prefer an uploaded Meta media id (EasyRoutes' photo URL isn't fetchable by Meta);
+    // fall back to a direct link if we somehow have a usable one.
+    const image = vars.photoMediaId ? { id: vars.photoMediaId } : { link: vars.photo };
+    components.push({ type: 'header', parameters: [{ type: 'image', image }] });
   } else if (cfg.header && cfg.header.type === 'text') {
     components.push({ type: 'header', parameters: cfg.header.vars.map(txt) });
   }
@@ -181,6 +184,29 @@ export function buildTemplate(to, tpl, vars) {
       parameters: [{ type: 'text', text: raw.replace(/\s+/g, '') }] });
   }
   return { messaging_product: 'whatsapp', to, type: 'template', template: { name: tpl, language: { code: cfg.lang }, components } };
+}
+
+// WhatsApp can't fetch EasyRoutes' proof-photo URL (it 307-redirects to a ~59s-signed
+// Google Cloud link). So download the image server-side (fetch follows the redirect) and
+// upload it to Meta's media API, returning a media id for the template header. Returns null
+// on any failure so the caller can fall back to the text-only template.
+export async function uploadPhotoToMeta(imageUrl, phoneId, token) {
+  try {
+    const img = await fetch(imageUrl);
+    if (!img.ok) return null;
+    const ct = (img.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    if (!/^image\//.test(ct)) return null;
+    const buf = Buffer.from(await img.arrayBuffer());
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', ct);
+    form.append('file', new Blob([buf], { type: ct }), 'proof.jpg');
+    const up = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${phoneId}/media`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+    });
+    const j = await up.json().catch(() => ({}));
+    return (j && j.id) || null;
+  } catch (_) { return null; }
 }
 
 /* ─── infra helpers ───────────────────────────────────────────────────────── */
@@ -371,8 +397,10 @@ export default async function handler(req, res) {
     const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
     // Prefer the proof photo from the EasyRoutes stop; fall back to the order note-attribute.
     const photo = photoEnabled ? (ext.photo || pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR)) : null;
-    if (photo) { tpl = '_delivered_withphoto'; vars.photo = photo; }
-    else         tpl = 'delivered_nophoto';
+    // Upload it to Meta (their URL isn't fetchable). On any failure, fall back to text-only.
+    const mediaId = photo ? await uploadPhotoToMeta(photo, WA_PHONE_ID, WA_TOKEN) : null;
+    if (mediaId) { tpl = '_delivered_withphoto'; vars.photoMediaId = mediaId; }
+    else           tpl = 'delivered_nophoto';
   }
 
   // 6b) SEND GATES (checked in order).
