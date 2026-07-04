@@ -121,6 +121,28 @@ export function isPickupOrder(order) {
   return /pick|collect/.test(t);
 }
 
+// EasyRoutes STOP_STATUS_UPDATED envelope: { objectId:<stop id>, payload:<route {stops[]}> }.
+// Find the stop that changed (matched by objectId), map its deliveryStatus to our event
+// type, and pull the Shopify order id + proof photo from the stop.
+const ER_STATUS = {
+  DELIVERED: 'delivered', DONE: 'delivered', COMPLETED: 'delivered',
+  READY_FOR_DELIVERY: 'out_for_delivery', OUT_FOR_DELIVERY: 'out_for_delivery',
+  EN_ROUTE: 'out_for_delivery', ON_THE_WAY: 'out_for_delivery', ACTIVE: 'out_for_delivery',
+};
+export function erExtract(envelope) {
+  if (!envelope || typeof envelope !== 'object') return { type: null, orderId: null };
+  const route = envelope.payload || {};
+  const stops = Array.isArray(route.stops) ? route.stops : [];
+  const stop = stops.find(s => s && s.id === envelope.objectId) || (stops.length === 1 ? stops[0] : null);
+  if (!stop) return { type: null, orderId: null };
+  const type = ER_STATUS[String(stop.deliveryStatus || '').toUpperCase()] || null;
+  const orderId = String(stop.shopifyOrderId || '').split('/').pop().replace(/\D/g, '') || null;
+  const pods = Array.isArray(stop.proofOfDeliveryPhotos) ? stop.proofOfDeliveryPhotos : [];
+  const photo = pods.map(x => typeof x === 'string' ? x : (x && (x.url || x.src || x.photoUrl || x.link)))
+                    .find(u => typeof u === 'string' && /^https?:\/\//i.test(u)) || null;
+  return { type, orderId, orderName: stop.orderName || null, status: stop.deliveryStatus || null, photo };
+}
+
 // Build the Meta template payload for a trigger. language 'en' (Chinese lives in the body
 // of the approved template). Variable mapping per handoff.
 // Per-template config, taken from the APPROVED definitions in WhatsApp Manager (read via
@@ -301,20 +323,15 @@ export default async function handler(req, res) {
     if (dupErr) return res.status(200).json({ ok: true, deduped: true });
   }
 
-  // 3) Map the event.
-  const type    = pickEventType(payload, req.headers['x-easyroutes-topic']);
-  const orderId = pickOrderId(payload);
+  // 3) Map the EasyRoutes STOP_STATUS_UPDATED event → event type + Shopify order id. Any
+  //    other status (pending, skipped, …) or a non-stop event is ignored.
+  const ext = erExtract(payload);
+  const type = ext.type;
+  const orderId = ext.orderId;
   if (!type || !orderId) {
-    // Capture the payload STRUCTURE (field names only, no values → no PII) so the parser
-    // can be fixed if EasyRoutes' shape differs from expectations.
-    const shape = JSON.stringify({
-      topics: [req.headers['x-easyroutes-topic'], payload && payload.topic, payload && payload.event, payload && payload.type],
-      keys: payload ? Object.keys(payload) : null,
-      stopKeys: payload && payload.stop ? Object.keys(payload.stop) : null,
-      orderKeys: payload && payload.order ? Object.keys(payload.order) : null,
-    }).slice(0, 600);
-    await logNote(sb, { order_id: orderId, status: 'skip', error: `unmapped type=${type} order=${orderId} :: ${shape}` });
-    return res.status(200).json({ ok: true, skipped: 'unmapped', type, orderId });
+    await logNote(sb, { order_id: orderId, status: 'skip',
+      error: `unmapped topic=${payload && payload.topic} status=${ext.status} order=${orderId}` });
+    return res.status(200).json({ ok: true, skipped: 'unmapped', status: ext.status, orderId });
   }
 
   // 4) Pull the authoritative Shopify order.
@@ -352,17 +369,36 @@ export default async function handler(req, res) {
     // Photo messages are held behind NOTIFY_PHOTO_ENABLED — until it's on, deliveries use
     // the text-only template even when a proof photo exists.
     const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
-    const photo = photoEnabled ? pickPhotoUrl(order, payload, process.env.EASYROUTES_PHOTO_ATTR) : null;
+    // Prefer the proof photo from the EasyRoutes stop; fall back to the order note-attribute.
+    const photo = photoEnabled ? (ext.photo || pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR)) : null;
     if (photo) { tpl = '_delivered_withphoto'; vars.photo = photo; }
     else         tpl = 'delivered_nophoto';
   }
 
-  // 6b) MASTER GO-LIVE GATE. Until NOTIFY_ENABLED is set, process + log but send nothing —
-  // lets the EasyRoutes webhook be wired and verified without messaging real customers.
+  // 6b) SEND GATES.
+  //  - NOTIFY_TEST_PHONE set → ONLY that number actually sends; every other recipient is
+  //    dry-run. Lets you self-test real sends with zero risk to customers (no NOTIFY_ENABLED
+  //    needed — trigger a test order whose buyer phone is your own).
+  //  - Otherwise → NOTIFY_ENABLED must be truthy, else dry-run (log only, nothing sent).
+  const testPhone = toE164MY(process.env.NOTIFY_TEST_PHONE || '');
   const enabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '');
-  if (!enabled) {
-    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'dryrun' });
+  const allow = testPhone ? (to === testPhone) : enabled;
+  if (!allow) {
+    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'dryrun',
+      error: testPhone ? 'test-gated (not test phone)' : null });
     return res.status(200).json({ ok: true, dryRun: true, template: tpl, to });
+  }
+
+  // 6c) De-dupe on (order + stage) for real live sends. EasyRoutes fires STOP_STATUS_UPDATED
+  //     several times per stop, so without this the customer gets duplicate WhatsApps. One
+  //     send per (order, out_for_delivery) and one per (order, delivered). Skipped in
+  //     test-phone mode so the same order can be re-triggered while testing.
+  if (!testPhone) {
+    const { error: dupStage } = await sb.from('wa_events').insert({ event_id: `${orderId}:${type}` });
+    if (dupStage) {
+      await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'skip', error: 'already sent: ' + type });
+      return res.status(200).json({ ok: true, deduped: type });
+    }
   }
 
   // 7) Send via Meta Cloud API (inline).
