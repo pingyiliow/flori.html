@@ -8,7 +8,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { toE164MY, buildTemplate, sampleOrderStatusUrl, statusUrlSuffix,
-         fetchShopifyOrder, pickPhotoUrl, firstNameOf } from './notify.js';
+         fetchShopifyOrder, pickPhotoUrl, firstNameOf, getAttr, isPickupOrder } from './notify.js';
 
 const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 const WA_TOKEN    = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -90,6 +90,8 @@ export default async function handler(req, res) {
         privacyGate: to ? 'OK — buyer phone present' : 'BLOCKED — no buyer phone → CS flag, nothing sent',
         template: tpl,
         buttonOpens: statusUrlSuffix(order) ? ('https://bambooflorist.com.my/' + statusUrlSuffix(order)) : null,
+        fulfillmentType: getAttr(order, 'Order Fulfillment Type') || getAttr(order, 'Type Of Order') || null,
+        isPickup_wouldSkip: isPickupOrder(order),
         noteAttrs: (order.note_attributes || []).map(a => a.name),
         photoAttrFound: !!photo,
       };

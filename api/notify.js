@@ -109,6 +109,18 @@ export function firstNameOf(order) {
   return String(c.first_name || '').trim() || 'there';
 }
 
+// Read a Shopify note_attribute by name.
+export function getAttr(order, name) {
+  const a = ((order && order.note_attributes) || []).find(x => x && String(x.name).toLowerCase() === String(name).toLowerCase());
+  return a ? a.value : '';
+}
+// Pickup / self-collect orders must NOT get the delivery templates (out for delivery /
+// delivered by driver). Mirrors the app/webhook fulfilment-type parsing.
+export function isPickupOrder(order) {
+  const t = (getAttr(order, 'Order Fulfillment Type') || getAttr(order, 'Type Of Order') || '').toLowerCase();
+  return /pick|collect/.test(t);
+}
+
 // Build the Meta template payload for a trigger. language 'en' (Chinese lives in the body
 // of the approved template). Variable mapping per handoff.
 // Per-template config, taken from the APPROVED definitions in WhatsApp Manager (read via
@@ -314,6 +326,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: false, error: 'shopify_fetch' }); // 200: logged for CS, no retry storm
   }
   const orderNo = (order && order.name) || ('#' + orderId);
+
+  // 4b) Skip pickup / self-collect orders — delivery notifications don't apply to orders
+  // the customer collects themselves.
+  if (isPickupOrder(order)) {
+    await logNote(sb, { order_id: orderId, order_no: orderNo, status: 'skip', error: 'pickup/self-collect order' });
+    return res.status(200).json({ ok: true, skipped: 'pickup' });
+  }
 
   // 5) PRIVACY GATE — the BUYER's own contact only: customer.phone, else the order-level
   // contact phone (order.phone). Both are the buyer (order.phone is the checkout contact,
