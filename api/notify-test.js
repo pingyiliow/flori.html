@@ -79,6 +79,12 @@ export default async function handler(req, res) {
       }
       const out = {
         orderNo: order.name, orderId, event: type,
+        phones: {   // diagnostic only — the live gate uses ONLY customer.phone
+          customer_phone: (order.customer && order.customer.phone) || null,
+          order_phone: order.phone || null,
+          shipping_phone: (order.shipping_address && order.shipping_address.phone) || null,
+          billing_phone: (order.billing_address && order.billing_address.phone) || null,
+        },
         customerPhone: (order.customer && order.customer.phone) || null,
         wouldSendTo: to || null,
         privacyGate: to ? 'OK — buyer customer.phone present' : 'BLOCKED — no customer.phone → CS flag, nothing sent',

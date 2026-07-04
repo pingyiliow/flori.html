@@ -221,7 +221,7 @@ export async function fetchShopifyOrder(orderId) {
   if (!shop) throw new Error('SHOPIFY_SHOP missing');
   const token = await shopToken(shop);
   const url = `https://${shop}/admin/api/2025-01/orders/${orderId}.json`
-            + `?fields=id,name,order_status_url,customer,note_attributes`;
+            + `?fields=id,name,order_status_url,customer,note_attributes,phone,shipping_address,billing_address`;
   const r = await fetch(url, { headers: { 'X-Shopify-Access-Token': token, Accept: 'application/json' } });
   if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()).slice(0, 140));
   const j = await r.json();
