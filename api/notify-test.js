@@ -62,12 +62,12 @@ export default async function handler(req, res) {
     try {
       const sbc = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
       const arg = String(q.simulate).replace(/^#/, '');
-      let orderId = /^\d{6,}$/.test(arg) ? arg : null;   // treat long digits as a Shopify id
-      if (!orderId) {
-        const { data } = await sbc.from('orders').select('id,name').or(`name.eq.#${arg},name.eq.${arg}`).limit(1);
-        orderId = data && data[0] && data[0].id;
-      }
-      if (!orderId) return res.status(200).json({ error: 'Order not found: ' + q.simulate });
+      // Resolve the order NUMBER (#118352) to its Shopify internal id via the synced table.
+      let orderId = null;
+      const { data } = await sbc.from('orders').select('id,name').or(`name.eq.#${arg},name.eq.${arg}`).limit(1);
+      orderId = data && data[0] && data[0].id;
+      if (!orderId && /^\d{10,}$/.test(arg)) orderId = arg;   // fallback: arg is itself a Shopify id
+      if (!orderId) return res.status(200).json({ error: 'Order not found in synced table: ' + q.simulate });
       const order = await fetchShopifyOrder(orderId);
       const type = q.type === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
       const to = toE164MY(order.customer && order.customer.phone);
