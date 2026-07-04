@@ -243,37 +243,36 @@ export default async function handler(req, res) {
   // While wiring up EasyRoutes: trace every hit (structure only, no PII) so we can see
   // whether events arrive at all and which headers/topic they carry.
   if (debug) {
-    const sigR = req.headers['x-easyroutes-hmac-sha256'] || '';
-    let b64 = '', hex = '', b64d = '', hexd = '';
-    try { b64 = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('base64'); } catch (_) {}
-    try { hex = crypto.createHmac('sha256', ER_SECRET || '').update(raw).digest('hex'); } catch (_) {}
-    try { const k = Buffer.from(ER_SECRET || '', 'base64'); b64d = crypto.createHmac('sha256', k).update(raw).digest('base64'); hexd = crypto.createHmac('sha256', k).update(raw).digest('hex'); } catch (_) {}
-    let pk = null, sk = null, dk = null, safe = null;
+    let struct = null;
     try {
       const p = JSON.parse(raw.toString('utf8') || '{}');
-      pk = Object.keys(p);
-      sk = p.stop ? Object.keys(p.stop) : null;
-      dk = p.data ? Object.keys(p.data) : null;
-      safe = {                                    // non-PII fields only, to fix the parser
-        status: p.status || (p.stop && p.stop.status) || (p.data && p.data.status),
-        order_id: p.order_id || p.shopify_order_id || (p.stop && (p.stop.order_id || p.stop.shopify_order_id)) || (p.data && p.data.order_id),
+      const pl = p.payload || {};
+      const stop = pl.stop || {};
+      const ord = pl.order || stop.order || {};
+      struct = {
+        top: Object.keys(p), topic: p.topic, objectId: p.objectId,
+        payloadKeys: p.payload ? Object.keys(pl) : null,
+        stopKeys: pl.stop ? Object.keys(stop) : null,
+        orderKeys: (pl.order || stop.order) ? Object.keys(ord) : null,
+        status: pl.status || stop.status || pl.stopStatus || null,   // non-PII
+        idHints: {
+          shopifyOrderId: pl.shopifyOrderId || stop.shopifyOrderId || ord.shopifyOrderId || ord.id,
+          orderId: pl.orderId || pl.order_id || stop.orderId || stop.order_id,
+          orderName: pl.orderName || stop.orderName || ord.name,
+        },
       };
     } catch (_) {}
-    await logNote(sb, { status: 'debug_recv', error: JSON.stringify({
-      topic: req.headers['x-easyroutes-topic'] || null,
-      sigR: sigR.slice(0, 14),
-      b64ok: !!sigR && sigR === b64, hexok: !!sigR && sigR === hex,
-      b64dok: !!sigR && sigR === b64d, hexdok: !!sigR && sigR === hexd,
-      pk, sk, dk, safe,
-    }).slice(0, 1500) });
+    await logNote(sb, { status: 'debug_recv', error: JSON.stringify(struct).slice(0, 1400) });
   }
 
-  // 1) Verify EasyRoutes signature over the raw body.
+  // 1) Verify EasyRoutes signature over the raw body. EasyRoutes' webhook secret is
+  // base64-encoded and signing uses the DECODED key bytes -> base64 digest (confirmed
+  // via the b64dok trace).
   if (ER_SECRET) {
     const sig = req.headers['x-easyroutes-hmac-sha256'] || '';
-    const digest = crypto.createHmac('sha256', ER_SECRET).update(raw).digest('base64');
+    const key = Buffer.from(ER_SECRET, 'base64');
+    const digest = crypto.createHmac('sha256', key).update(raw).digest('base64');
     if (!safeEq(sig, digest)) {
-      // Log instead of silently 401ing, so a secret mismatch is visible in the log.
       await logNote(sb, { status: 'hmac_fail', error: `signature mismatch; header ${sig ? 'present' : 'absent'}` });
       return res.status(401).json({ error: 'Bad signature' });
     }
