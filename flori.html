@@ -981,6 +981,7 @@ async function showApp() {
   // The dashboard reminder widget only needs birthday/anniversary, so fetch just those
   // light fields; the full list loads lazily when the Customers tab is opened.
   if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
+  subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -4178,6 +4179,50 @@ function applyCustomerChange(p){
   }, 400);
 }
 
+/* ─── Orders realtime ─────────────────────────────────────────────────────────
+   Orders previously only refreshed on tab-focus (throttled 5 min), so date changes,
+   deletes and new manual orders didn't reach other devices promptly (and a date moved
+   OUT of the recent window never re-synced). Mirror the customers live sync. Reuses
+   _mergeDbOrders (remote-wins for an id, honours DELETED_ORDERS); never calls saveOrders()
+   here, so applying a change can't echo back up to Supabase. */
+let _ordRealtime = null, _ordRenderTimer = null;
+function subscribeOrders(){
+  if (!hasSB() || _ordRealtime || typeof sb.channel!=='function') return;
+  try {
+    _ordRealtime = sb.channel('orders-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'orders' }, p => {
+        try { applyOrderChange(p); } catch(e){ console.warn('order change apply', e && e.message); }
+      })
+      .subscribe();
+  } catch(e){ console.warn('subscribeOrders', e && e.message); }
+}
+function applyOrderChange(p){
+  const row = (p.new && Object.keys(p.new).length) ? p.new : p.old;
+  if (!row || row.id == null) return;
+  const key = shopId(row.id);
+  if (p.eventType === 'DELETE'){
+    const before = ORDERS.length;
+    ORDERS = ORDERS.filter(o => shopId(o.id) !== key);
+    if (ORDERS.length === before) return;   // we weren't holding it
+    rehydrateOrders();
+  } else {
+    if (!_mergeDbOrders([p.new])) return;   // remote row wins for its id; tombstone-aware
+  }
+  // Offline cache only — must NOT call saveOrders() (that re-uploads → realtime echo loop).
+  try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o => ({...o, dateObj:undefined})))); } catch(_){}
+  clearTimeout(_ordRenderTimer);
+  _ordRenderTimer = setTimeout(() => {
+    if (typeof renderOrders==='function') renderOrders();
+    if (typeof renderCalendar==='function') renderCalendar();
+    if (typeof renderHome==='function') renderHome();
+    if (typeof updateBadge==='function') updateBadge();
+    if (_dpId && p.eventType!=='DELETE' && shopId(_dpId)===key){   // refresh open panel in place
+      const o = ORDERS.find(x => shopId(x.id)===key);
+      if (o && typeof localToDPOrder==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+    }
+  }, 400);
+}
+
 function _custTagStyle(tag){
   return ({
     vip:       'background:#FFF3E0;color:#E65100;border-color:#FFCC80',
@@ -6559,6 +6604,7 @@ let _lastRefresh = 0;
 const _AUTO_REFRESH_MS = 300000; // 5 minutes
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
+  subscribeOrders();   // re-arm the live channel on focus in case it dropped (idempotent)
   const now = Date.now();
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
