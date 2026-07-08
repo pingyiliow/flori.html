@@ -5847,6 +5847,12 @@ function editOrder(id) {
 // base64) so the detail panel degrades gracefully instead of the browser's broken-image
 // "crash" icon. Swap in via onerror.
 const _BROKEN_IMG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Crect width='72' height='72' fill='%23f0e9e3'/%3E%3Cg fill='none' stroke='%23c2ae9f' stroke-width='3'%3E%3Crect x='15' y='17' width='42' height='34' rx='3'/%3E%3Cpath d='M19 45l11-12 7 7 6-5 10 10'/%3E%3C/g%3E%3Ccircle cx='28' cy='29' r='4' fill='%23c2ae9f'/%3E%3C/svg%3E";
+// A dead added-photo (corrupt local base64) falls back to the item's real product photo
+// first, then the placeholder — so the panel still shows something meaningful.
+function _imgFallback(img, fb){
+  if (fb && img.dataset.fb!=='1' && img.getAttribute('src')!==fb){ img.dataset.fb='1'; img.src=fb; }
+  else { img.onerror=null; img.src=_BROKEN_IMG; }
+}
 function itemPhotos(it){
   if(!it) return [];
   if(Array.isArray(it.images) && it.images.length) return it.images.filter(Boolean);
@@ -6436,7 +6442,7 @@ function _renderDP(order, localOrder) {
       const liIdx = useLocal ? k : -1;
       const ph = liIdx >= 0 ? itemPhotos(li) : [];
       const strip = (liIdx>=0)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" onpointerdown="dpPhPointerDown(event,'${localOrder.id}',${liIdx},${pi})" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onerror="this.onerror=null;this.src=_BROKEN_IMG" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" onpointerdown="dpPhPointerDown(event,'${localOrder.id}',${liIdx},${pi})" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onerror="_imgFallback(this,'${String(li.image||'').replace(/'/g,"\\'")}')" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
         : '';
       // Per-item special instruction — tap to add/edit (only for stored line items).
       const noteHtml = (liIdx >= 0)
