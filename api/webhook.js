@@ -134,6 +134,15 @@ export default async function handler(req, res) {
     ? existing.line_items
     : lineItems.filter(i => !removed.has(i.title));
 
+  // BloomFlow-added photos travel as the 'BloomFlow Photos' order attribute (durable R2
+  // links). On first insert, attach them to the first line item so the daily-order card /
+  // panel show them. On update the stored line items already carry the photos, so leave them.
+  const bfPhotos = (getAttr('BloomFlow Photos') || '').split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u));
+  if (!existing && bfPhotos.length && mergedLineItems[0] && !(mergedLineItems[0].images && mergedLineItems[0].images.length)) {
+    mergedLineItems[0].images = bfPhotos;
+    if (!mergedLineItems[0].image) mergedLineItems[0].image = bfPhotos[0];
+  }
+
   const row = {
     // Canonical order id = bare numeric (Shopify REST id). The GraphQL sync in
     // flori.html (syncOrders → shopId) normalizes its gids to this same shape so
@@ -146,7 +155,7 @@ export default async function handler(req, res) {
     line_items:  mergedLineItems,
     // Cover photo is app-managed (Shopify doesn't know about uploaded photos), so
     // preserve the existing row's image on update; only derive one on first insert.
-    image:       existing ? (existing.image || null) : (mergedLineItems.find(i => i.image)?.image || null),
+    image:       existing ? (existing.image || null) : ((mergedLineItems.find(i => i.images && i.images.length)?.images[0]) || mergedLineItems.find(i => i.image)?.image || null),
     total:       order.current_total_price || order.total_price || null,
     currency:    order.currency || 'MYR',
     due_date:    dueDate,

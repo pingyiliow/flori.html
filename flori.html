@@ -1407,7 +1407,13 @@ function _mapShopifyOrder(n){
   const attrs = n.customAttributes || [];
   const ds = getDueDate(attrs);
   const lineItems = n.lineItems.edges.map(e => ({ title: e.node.title, quantity: e.node.quantity || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
-  const imgUrl = lineItems.find(i => i.image)?.image || null;
+  // BloomFlow-added photos ride along as the 'BloomFlow Photos' order attribute (durable R2
+  // links). Attach them to the first line item so the card/panel show them (itemPhotos
+  // prefers the images array over the product image).
+  const bfPhotos = String((attrs.find(a => String(a.key||'').toLowerCase()==='bloomflow photos')||{}).value || '').split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u));
+  if (bfPhotos.length && lineItems[0]) { lineItems[0].images = bfPhotos; if (!lineItems[0].image) lineItems[0].image = bfPhotos[0]; }
+  const withImgs = lineItems.find(i => i.images && i.images.length);
+  const imgUrl = (withImgs && withImgs.images[0]) || lineItems.find(i => i.image)?.image || null;
   const priceData = n.currentTotalPriceSet?.shopMoney;
   const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
   return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
@@ -3431,6 +3437,11 @@ async function createShopifyDraft() {
   if (f.cardMsg)    customAttributes.push({ key:'Card Message',       value: f.cardMsg });
   if (f.flowerNote) customAttributes.push({ key:'Flower Instructions', value: f.flowerNote });
   if (f.remarks)    customAttributes.push({ key:'Remark',             value: f.remarks });
+  // Carry the follow-up's product photos to the Shopify order as an attribute of durable R2
+  // links (not base64 — short + persistent), so they round-trip back into the daily order.
+  const _fuPhotos = [];
+  (f.itemList||[]).forEach(it => (it.images||[]).forEach(u => { if (/^https?:\/\//.test(u||'') && !_fuPhotos.includes(u)) _fuPhotos.push(u); }));
+  if (_fuPhotos.length) customAttributes.push({ key:'BloomFlow Photos', value: _fuPhotos.slice(0,12).join(' , ') });
   // Clean, useful tags: fulfilment type + delivery date (no internal codes).
   const tags = [ f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' ];
   if (f.dueDate) tags.push(_fmtDDMM(f.dueDate));
