@@ -1030,12 +1030,35 @@ async function checkSession() {
     } else {
       document.getElementById('login-screen').style.display = 'flex';
     }
+    // If the session is lost later (refresh-token expired), Supabase fires SIGNED_OUT — show
+    // the login screen so ANY role can re-sign-in (Sign Out otherwise lives only in
+    // admin-only Settings, trapping non-admin devices whose session expired mid-use).
+    try { sb.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT' && !session) _showLogin(); }); } catch(_){}
   } catch(e) {
     console.error('Session check failed:', e);
     // Fallback — show login
     document.getElementById('app-loading').style.display = 'none';
     document.getElementById('login-screen').style.display = 'flex';
   }
+}
+// Show the login screen for re-auth (works for every role, unlike the admin-only Settings
+// → Sign Out). Tears down realtime channels so they don't error on a dead session.
+function _showLogin(){
+  currentUser = null;
+  try { if (typeof _custRealtime!=='undefined' && _custRealtime){ sb.removeChannel(_custRealtime); _custRealtime=null; } } catch(_){}
+  try { if (typeof _ordRealtime!=='undefined' && _ordRealtime){ sb.removeChannel(_ordRealtime); _ordRealtime=null; } } catch(_){}
+  const shell=document.querySelector('.shell'); if(shell) shell.style.display='none';
+  const load=document.getElementById('app-loading'); if(load) load.style.display='none';
+  const ls=document.getElementById('login-screen'); if(ls){ ls.style.display='flex'; }
+}
+// A call failed with an auth error — confirm the session is really gone (Supabase refreshes
+// tokens silently) before forcing re-login, so a transient Shopify-token blip doesn't log
+// someone out. Returns true if still signed in.
+async function _ensureSignedIn(){
+  if(!hasSB()) return true;
+  try { const { data } = await sb.auth.getSession(); if (data && data.session && data.session.user){ currentUser=data.session.user; return true; } } catch(_){}
+  _showLogin();
+  return false;
 }
 
 /* ─── Language ──────────────────────────────────────────────── */
@@ -1652,7 +1675,7 @@ async function syncOrders() {
     setSBFoot(`Last sync: ${now}`);
     const sd=document.getElementById('sb-dot');if(sd)sd.style.background='#2A8C28';
     toast(`✓ Synced ${shopify.length} orders`);
-  } catch(e) { setPill('Sync failed'); toast('⚠ ' + (e.message || 'Sync failed')); }
+  } catch(e) { setPill('Sync failed'); toast('⚠ ' + (e.message || 'Sync failed')); if (/sign in|登录|401/i.test(e.message||'')) _ensureSignedIn(); }
   // Single paint for the whole refresh chain. On failure this still renders the
   // Supabase data a skipRender loadFromSupabase loaded silently just before.
   finally { renderAll(); ico.classList.remove('spin'); }
