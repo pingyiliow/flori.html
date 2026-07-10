@@ -627,7 +627,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .dp-item-note:hover{filter:brightness(.97)}
 .oc .price{padding:12px 14px;font-size:14px;font-weight:700;color:var(--c-burg);display:flex;align-items:flex-start;justify-content:flex-end;white-space:nowrap}
 .ott{padding:12px 14px;display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-start;gap:5px}
-.otime{font-size:13px;font-weight:600;color:var(--c-ink);white-space:nowrap}
+.otime{font-size:13px;font-weight:600;color:var(--c-ink);white-space:normal;text-align:right;line-height:1.3;overflow-wrap:anywhere}
 .oc .tb{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 9px;border-radius:3px;white-space:nowrap}
 .oc .tb.del{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
 .oc .tb.pu{background:#E3F2FD;color:#1565C0;border:1px solid #90CAF9}
