@@ -163,7 +163,10 @@ export function erExtract(envelope) {
   const pods = Array.isArray(stop.proofOfDeliveryPhotos) ? stop.proofOfDeliveryPhotos : [];
   const photo = pods.map(x => typeof x === 'string' ? x : (x && (x.url || x.src || x.photoUrl || x.link)))
                     .find(u => typeof u === 'string' && /^https?:\/\//i.test(u)) || null;
-  return { type, orderId, orderName: stop.orderName || null, status: stop.deliveryStatus || null, photo };
+  // Delivery time for the email's rough "Delivered at" — prefer a stop-level completion field,
+  // else the envelope's event timestamp (when the driver tapped Delivered).
+  const at = stop.deliveredAt || stop.completedAt || stop.arrivedAt || stop.updatedAt || envelope.eventTimestamp || null;
+  return { type, orderId, orderName: stop.orderName || null, status: stop.deliveryStatus || null, photo, at };
 }
 
 // Build the Meta template payload for a trigger. language 'en' (Chinese lives in the body
@@ -522,7 +525,7 @@ export default async function handler(req, res) {
   //     via the ported templates — full order summary, care tips, proof photo, status link.
   if (emailTo && await claim('email')) {
     emTried = true;
-    const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url });
+    const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url, deliveredAt: ext.at });
     const r = await sendEmailViaResend(emailTo, msg);
     if (r && typeof r === 'object') { emSent = true; emMsgId = r.id; }
     else emErr = String(r);
