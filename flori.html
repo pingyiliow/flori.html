@@ -5829,7 +5829,9 @@ function doRepeatOrder(){
       id:'manual-'+ts+'-'+i,
       src:'manual',
       name:'#M-'+String(ts).slice(-5)+(dates.length>1?('-'+(i+1)):''),
-      dueDate:tdi(d), dateObj:null,
+      dueDate:tdi(d), dueOn:tdi(d), dateObj:null,   // override BOTH — rehydrate prefers dueOn,
+                                                     // so without this every copy inherits the
+                                                     // original's date instead of the picked one
       fulfilled:false, ready:false, orderNo:null, shopifyDraftId:null, createdAt:null,
       lineItems:(o.lineItems||[]).map(li=>({ ...li, images:Array.isArray(li.images)?li.images.slice():li.images, ready:false }))
     };
