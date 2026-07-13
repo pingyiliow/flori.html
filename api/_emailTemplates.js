@@ -51,17 +51,6 @@ function attr(order, name) {
   const a = ((order && order.note_attributes) || []).find(x => x && String(x.name).toLowerCase() === String(name).toLowerCase());
   return a && a.value != null ? String(a.value) : '';
 }
-// A deliberately ROUGH delivery time from the EasyRoutes event timestamp: rounded to the
-// nearest 15 minutes with an "around" prefix, so a late driver tap doesn't read as an exact
-// claim. Returns '' if the timestamp is missing/unparseable (caller falls back to the window).
-function roughTime(iso) {
-  if (!iso) return '';
-  try {
-    const ms = 15 * 60 * 1000;
-    const r = new Date(Math.round(new Date(iso).getTime() / ms) * ms);
-    return 'around ' + r.toLocaleTimeString('en-US', { timeZone: 'Asia/Kuala_Lumpur', hour: 'numeric', minute: '2-digit', hour12: true });
-  } catch { return ''; }
-}
 function firstName(order) {
   const c = (order && order.customer) || {};
   return String(c.first_name || '').trim();
@@ -242,8 +231,6 @@ export function buildDeliveredEmail(order, opts = {}) {
   const photoLink = opts.photoLink || '';
   const dueDate = attr(order, 'Order Due Date') || fmtDate(order && order.created_at);
   const dueTime = attr(order, 'Order Due Time') || '—';
-  // "Delivered at" = the rough EasyRoutes event time when available, else the delivery window.
-  const deliveredAt = roughTime(opts.deliveredAt) || dueTime;
   const recipient = attr(order, 'recipient_name') || ((order && order.shipping_address && order.shipping_address.name) || '');
 
   const proofCard = (photoLink || statusUrl) ? `<div style="background:${C.card};border-radius:4px;padding:18px 20px;border-left:3px solid ${C.accent2};margin-top:12px;">
@@ -274,14 +261,10 @@ export function buildDeliveredEmail(order, opts = {}) {
           <p style="font-size:14px;color:${C.muted};margin:0 0 18px;line-height:1.7;">${esc(dueDate)}</p>
           <div style="background:${C.card};border-radius:4px;padding:18px 20px;border-left:3px solid ${C.brand};">
             <p style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:${C.faint};margin:0 0 14px;">Delivery confirmed</p>
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:14px;"><tr>
-              <td class="two-col-td" width="50%" valign="top" style="padding-right:10px;">
-                <p style="font-size:11px;color:${C.faint};margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Recipient</p>
-                <p style="font-size:14px;color:${C.ink};font-weight:500;margin:0;">${esc(recipient) || '—'}</p></td>
-              <td class="two-col-td" width="50%" valign="top">
-                <p style="font-size:11px;color:${C.faint};margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Delivered at</p>
-                <p style="font-size:14px;color:${C.ink};font-weight:500;margin:0;">${esc(deliveredAt)}</p></td>
-            </tr></table>
+            <div style="margin-bottom:14px;">
+              <p style="font-size:11px;color:${C.faint};margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Recipient</p>
+              <p style="font-size:14px;color:${C.ink};font-weight:500;margin:0;">${esc(recipient) || '—'}</p>
+            </div>
             <p style="font-size:11px;color:${C.faint};margin:0 0 4px;text-transform:uppercase;letter-spacing:1px;">Address</p>
             <p style="font-size:14px;color:${C.ink};margin:0;line-height:1.6;">${addressBlock(order)}</p>
           </div>
