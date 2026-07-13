@@ -13,11 +13,13 @@
 // created_at, total_price, currency, order_status_url. Emails go to the BUYER only; showing the
 // recipient's delivery details to the buyer is their own order info (safe).
 
+// Bamboo GREEN scheme (user chose green over the theme's burgundy, 2026-07-13) — matches the
+// original Liquid templates: forest green #1a3d2b buttons/accents, sage #8fbe9f, cream ground.
 const C = {
-  bg: '#F6F3EB', panel: '#ffffff', card: '#f9f5ef', border: '#e8e0d8', borderSoft: '#ede8e1',
-  ink: '#423721', body: '#5a5048', muted: '#9a8e84', faint: '#a89e94', pale: '#c8bfb0',
-  brand: '#380213', brandText: '#F6F3EB', brandSoft: '#c98fa5', brandSubtle: '#d8b8c2',
-  pill: '#e8d5db', pillInk: '#380213', accent2: '#9d5c3c', line: '#5f2a3a',
+  bg: '#f5f0eb', panel: '#ffffff', card: '#f9f5ef', border: '#e8e0d8', borderSoft: '#ede8e1',
+  ink: '#3a3028', body: '#5a5048', muted: '#9a8e84', faint: '#a89e94', pale: '#c8bfb0',
+  brand: '#1a3d2b', brandText: '#f5f0eb', brandSoft: '#8fbe9f', brandSubtle: '#8fbe9f',
+  pill: '#d4ead9', pillInk: '#1a3d2b', accent2: '#5a8f6e', line: '#2d6045',
   urgent: '#c8722a', urgentBg: '#fff8f0', urgentInk: '#a85e1a',
 };
 const FONT_HEAD = "'Instrument Serif', Georgia, 'Times New Roman', serif";
