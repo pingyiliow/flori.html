@@ -108,7 +108,9 @@ export default async function handler(req, res) {
         if (type === 'delivered') { const p = pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR); if (p) photoLink = await hostPhotoOnR2(p); }
       } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
     }
-    const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url });
+    // Demo a rough delivered time for the sample; real orders get it from the live EasyRoutes event.
+    const deliveredAt = q.order ? undefined : '2026-07-13T15:47:00+08:00';
+    const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url, deliveredAt });
     const resend = await sendEmailRaw(to, msg);
     return res.status(200).json({ source, type, to, subject: msg.subject, photoLink: photoLink || null, htmlBytes: msg.html.length, resend });
   }
