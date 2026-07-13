@@ -19,14 +19,28 @@
 // order_confirmed_bg is intentionally deferred. Sending is inline (no queue). The main
 // line 60124778120 is untouched.
 //
+// EMAIL CHANNEL: the same delivery update is ALSO sent as a theme-matched HTML email via Resend
+// (_emailTemplates.js buildOrderEmail + sendEmailViaResend) — WhatsApp and email are INDEPENDENT
+// channels, so a buyer who gave both
+// a phone and an email receives BOTH; a buyer with only one gets that one. Buyer email only
+// (order.email/customer.email, never the shipping/billing recipient). De-dupe is per (order,
+// stage, channel), so each channel fires at most once per stage. Env: RESEND_API_KEY,
+// NOTIFY_EMAIL_FROM (e.g. 'Bamboo Green Florist <noreply@bambooflorist.com.my>'),
+// NOTIFY_EMAIL_REPLYTO (e.g. sales@bambooflorist.com.my). Without RESEND_API_KEY/FROM the
+// email branch is a no-op (logged) — WhatsApp is unaffected.
+//
 // GO-LIVE GATES (env): NOTIFY_ENABLED must be truthy to actually send — otherwise every
 // event is processed + logged (status 'dryrun') but NOTHING is sent, so the webhook can be
-// wired/verified safely. NOTIFY_PHOTO_ENABLED separately holds photo messages: while off,
-// deliveries use the text-only template even when a proof photo exists.
+// wired/verified safely. NOTIFY_PHOTO_ENABLED separately holds WhatsApp photo messages: while
+// off, deliveries use the text-only template even when a proof photo exists (the email still
+// shows the photo). Email test knobs: NOTIFY_FORCE_EMAIL (skip WhatsApp, exercise the email
+// path for the listed order nos or all if truthy) + NOTIFY_TEST_EMAIL (redirect fallback
+// emails to a test address).
 
 import { createClient } from '@supabase/supabase-js';
 import { AwsClient } from 'aws4fetch';
 import crypto from 'crypto';
+import { buildOrderEmail } from './_emailTemplates.js';
 
 // EasyRoutes signs the raw request body, so we must read the bytes ourselves.
 export const config = { api: { bodyParser: false } };
@@ -108,6 +122,14 @@ export function pickPhotoUrl(order, payload, attrKeyEnv) {
 export function firstNameOf(order) {
   const c = (order && order.customer) || {};
   return String(c.first_name || '').trim() || 'there';
+}
+
+// BUYER's own email only — order.email (checkout contact) else customer.email. Same privacy
+// rule as the phone: never the shipping/billing recipient (a gift recipient must not be
+// emailed the buyer's order details). Returns '' if there's no valid buyer email.
+export function buyerEmailOf(order) {
+  const e = (order && order.email) || (order && order.customer && order.customer.email) || '';
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(e).trim()) ? String(e).trim() : '';
 }
 
 // Read a Shopify note_attribute by name.
@@ -233,6 +255,28 @@ async function csFlag(sb, orderId, orderNo, reason) {
   await logNote(sb, { order_id: orderId, order_no: orderNo, status: 'cs_flag', error: reason });
 }
 
+// Send an email via Resend (single HTTPS POST, no SDK). from/reply-to come from env
+// (NOTIFY_EMAIL_FROM / NOTIFY_EMAIL_REPLYTO). Returns { id } on success, or an error string so
+// the caller can log + CS-flag. Never throws.
+async function sendEmailViaResend(toEmail, msg) {
+  const key  = process.env.RESEND_API_KEY;
+  const from = process.env.NOTIFY_EMAIL_FROM;
+  if (!key || !from) return 'resend_not_configured';
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from, to: toEmail, subject: msg.subject, html: msg.html, text: msg.text,
+        reply_to: process.env.NOTIFY_EMAIL_REPLYTO || undefined,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return (j && (j.message || (j.error && j.error.message))) || ('HTTP ' + r.status);
+    return { id: (j && j.id) || null };
+  } catch (e) { return e.message || 'email_send_error'; }
+}
+
 // Shopify Admin token via client_credentials (same mechanism as api/query.js), cached.
 let _tok = null, _tokExp = 0, _tokShop = null;
 function normShop(s) {
@@ -281,7 +325,8 @@ export async function fetchShopifyOrder(orderId) {
   if (!shop) throw new Error('SHOPIFY_SHOP missing');
   const token = await shopToken(shop);
   const url = `https://${shop}/admin/api/2025-01/orders/${orderId}.json`
-            + `?fields=id,name,order_status_url,customer,note_attributes,phone,shipping_address,billing_address`;
+            + `?fields=id,name,email,order_status_url,customer,note_attributes,phone,shipping_address,billing_address`
+            + `,line_items,created_at,total_price,currency`;
   const r = await fetch(url, { headers: { 'X-Shopify-Access-Token': token, Accept: 'application/json' } });
   if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + (await r.text()).slice(0, 140));
   const j = await r.json();
@@ -376,85 +421,127 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: 'pickup' });
   }
 
-  // 5) PRIVACY GATE — the BUYER's own contact only: customer.phone, else the order-level
-  // contact phone (order.phone). Both are the buyer (order.phone is the checkout contact,
-  // distinct from the delivery address). We NEVER read shipping_address.phone or
-  // billing_address.phone — those can be the gift RECIPIENT, who must never be messaged.
-  const to = toE164MY((order.customer && order.customer.phone) || order.phone);
-  if (!to) {
-    await csFlag(sb, orderId, orderNo, 'no_buyer_phone');
-    return res.status(200).json({ ok: true, csFlag: 'no_buyer_phone' });
-  }
+  // 5) BUYER's own contact only. Phone: customer.phone, else the order-level contact phone
+  // (order.phone) — both the buyer (order.phone is the checkout contact, distinct from the
+  // delivery address). Email: order.email, else customer.email. We NEVER read shipping_/
+  // billing_address phone or email — those can be the gift RECIPIENT, who must never be
+  // contacted. Need at least one channel; otherwise it's a CS flag.
+  const to    = toE164MY((order.customer && order.customer.phone) || order.phone);
+  const email = buyerEmailOf(order);
 
-  // 6) Choose the template. btnParam = order status page suffix for the "View my order" button.
-  const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
-  let tpl;
-  if (type === 'out_for_delivery') {
-    tpl = 'out_for_delivery';
-  } else {
-    // Photo messages are held behind NOTIFY_PHOTO_ENABLED — until it's on, deliveries use
-    // the text-only template even when a proof photo exists.
-    const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
-    // Prefer the proof photo from the EasyRoutes stop; fall back to the order note-attribute.
-    const photo = photoEnabled ? (ext.photo || pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR)) : null;
-    // Re-host on R2 (EasyRoutes' URL isn't fetchable by Meta). On any failure, fall back to text.
-    const photoLink = photo ? await hostPhotoOnR2(photo) : null;
-    if (photoLink) { tpl = '_delivered_withphoto'; vars.photo = photoLink; }
-    else             tpl = 'delivered_nophoto';
-  }
-
-  // 6b) SEND GATES (checked in order).
-  //  - NOTIFY_TEST_ORDERS set (comma-sep order numbers) → ONLY those orders actually send;
-  //    everything else dry-run. Best for testing one order with different phone/recipient
-  //    combos while every real order stays protected.
-  //  - NOTIFY_TEST_PHONE set → ONLY that number sends; others dry-run.
+  // Test/gate env, read once.
+  //  - NOTIFY_TEST_ORDERS (comma-sep order nos) → ONLY those orders actually send; else dry-run.
+  //  - NOTIFY_TEST_PHONE → ONLY that number's WhatsApp sends; else dry-run.
+  //  - NOTIFY_TEST_EMAIL → redirect ALL emails to this address (testing only).
+  //  - NOTIFY_FORCE_EMAIL (comma-sep order nos, or truthy) → skip WhatsApp, send email only —
+  //    for safely testing the email channel on a real order.
   //  - Otherwise → NOTIFY_ENABLED must be truthy, else dry-run (log only, nothing sent).
   const testOrders = (process.env.NOTIFY_TEST_ORDERS || '').split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
   const testPhone  = toE164MY(process.env.NOTIFY_TEST_PHONE || '');
+  const testEmail  = (process.env.NOTIFY_TEST_EMAIL || '').trim();
   const enabled    = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '');
   const orderNum   = String(orderNo || '').replace(/^#/, '');
   const testMode   = testOrders.length > 0 || !!testPhone;
+  const forceEmailEnv = (process.env.NOTIFY_FORCE_EMAIL || '').trim();
+  const preferEmail = !!forceEmailEnv && (/^(1|true|yes|on)$/i.test(forceEmailEnv)
+    || forceEmailEnv.split(',').map(s => s.trim().replace(/^#/, '')).includes(orderNum));
+  const emailTo = testEmail || email;   // testEmail redirects the fallback during testing
+
+  if (!to && !emailTo) {
+    await csFlag(sb, orderId, orderNo, 'no_buyer_contact');
+    return res.status(200).json({ ok: true, csFlag: 'no_buyer_contact' });
+  }
+
+  // 6) Resolve the proof photo → stable R2 link once (delivered only); shared by the WhatsApp
+  // image template and the email. The WhatsApp *photo template* stays held behind
+  // NOTIFY_PHOTO_ENABLED; the email always shows the photo when we have one.
+  let photoLink = null;
+  if (type === 'delivered') {
+    const photo = ext.photo || pickPhotoUrl(order, {}, process.env.EASYROUTES_PHOTO_ATTR);
+    if (photo) photoLink = await hostPhotoOnR2(photo);
+  }
+
+  // 6a) WhatsApp template + vars (only when the buyer has a phone). btnParam = order status
+  // page suffix for the "View my order" button.
+  const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
+  let tpl = null;
+  if (to) {
+    if (type === 'out_for_delivery') {
+      tpl = 'out_for_delivery';
+    } else {
+      const photoEnabled = /^(1|true|yes|on)$/i.test(process.env.NOTIFY_PHOTO_ENABLED || '');
+      if (photoEnabled && photoLink) { tpl = '_delivered_withphoto'; vars.photo = photoLink; }
+      else                            tpl = 'delivered_nophoto';
+    }
+  }
+
+  // 6b) SEND GATE (applies to both channels).
   let allow, gate;
   if (testOrders.length) { allow = testOrders.includes(orderNum); gate = 'test-order'; }
   else if (testPhone)    { allow = (to === testPhone);            gate = 'test-phone'; }
   else                   { allow = enabled;                        gate = null; }
   if (!allow) {
-    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'dryrun',
-      error: gate ? (gate + '-gated') : null });
-    return res.status(200).json({ ok: true, dryRun: true, template: tpl, to });
+    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl || ('email:' + type), phone: to || emailTo,
+      status: 'dryrun', error: gate ? (gate + '-gated') : null });
+    return res.status(200).json({ ok: true, dryRun: true, template: tpl, to: to || emailTo });
   }
 
-  // 6c) De-dupe on (order + stage) for real live sends. EasyRoutes fires STOP_STATUS_UPDATED
-  //     several times per stop, so without this the customer gets duplicate WhatsApps. One
-  //     send per (order, out_for_delivery) and one per (order, delivered). Skipped in
-  //     test mode so the same order can be re-triggered while testing.
-  if (!testMode) {
-    const { error: dupStage } = await sb.from('wa_events').insert({ event_id: `${orderId}:${type}` });
-    if (dupStage) {
-      await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'skip', error: 'already sent: ' + type });
-      return res.status(200).json({ ok: true, deduped: type });
+  // 6c) De-dupe per (order, stage, CHANNEL). EasyRoutes fires STOP_STATUS_UPDATED several
+  //     times per stop, so each channel is claimed once — but WhatsApp and email are claimed
+  //     INDEPENDENTLY, so a buyer who gave both gets ONE WhatsApp *and* ONE email per stage.
+  //     Claimed BEFORE sending. Skipped in test mode so an order can be re-triggered.
+  const claim = async (ch) => {
+    if (testMode) return true;
+    const { error } = await sb.from('wa_events').insert({ event_id: `${orderId}:${type}:${ch}` });
+    return !error;                       // false => this channel already handled for this stage
+  };
+
+  // 7) Send WhatsApp AND email — both fire when the buyer provided both a phone and an email
+  //    (independent channels, not fallback). Each sends whichever detail exists.
+  let waSent = false, waErr = null, waMsgId = null, waTried = false;
+  let emSent = false, emErr = null, emMsgId = null, emTried = false;
+
+  // 7a) WhatsApp (buyer has a phone). NOTIFY_FORCE_EMAIL skips it for email-only testing.
+  if (to && tpl && !preferEmail && await claim('wa')) {
+    waTried = true;
+    try {
+      const r = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${WA_PHONE_ID}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${WA_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildTemplate(to, tpl, vars)),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) waErr = (j && j.error && j.error.message) || ('HTTP ' + r.status);
+      else { waMsgId = j && j.messages && j.messages[0] && j.messages[0].id; waSent = true; }
+    } catch (e) { waErr = e.message; }
+    if (waSent) await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, meta_message_id: waMsgId, status: 'sent' });
+    else        await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'error', error: waErr });
+  }
+
+  // 7b) Email (buyer has an email). Theme-matched HTML (Bamboo Green storefront palette/fonts)
+  //     via the ported templates — full order summary, care tips, proof photo, status link.
+  if (emailTo && await claim('email')) {
+    emTried = true;
+    const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url });
+    const r = await sendEmailViaResend(emailTo, msg);
+    if (r && typeof r === 'object') { emSent = true; emMsgId = r.id; }
+    else emErr = String(r);
+    if (emSent) await logNote(sb, { order_id: orderId, order_no: orderNo, template: 'email:' + type, phone: emailTo, meta_message_id: emMsgId, status: 'sent' });
+    else        await logNote(sb, { order_id: orderId, order_no: orderNo, template: 'email:' + type, phone: emailTo, status: 'error', error: 'email_failed: ' + emErr });
+  }
+
+  // 8) Outcome. CS-flag only if the customer ended up with NOTHING despite an attempt (a pure
+  //    de-dupe — every channel already sent earlier — is not a failure).
+  const delivered = [];
+  if (waSent) delivered.push('whatsapp');
+  if (emSent) delivered.push('email');
+  if (!delivered.length) {
+    if (waTried || emTried) {
+      const why = [waErr && 'wa:' + waErr, emErr && 'email:' + emErr].filter(Boolean).join(' | ');
+      await csFlag(sb, orderId, orderNo, 'all_channels_failed: ' + why);
+      return res.status(200).json({ ok: false, error: why || 'send_failed' });
     }
+    return res.status(200).json({ ok: true, deduped: type });   // already notified earlier
   }
-
-  // 7) Send via Meta Cloud API (inline).
-  let metaMsgId = null, sendErr = null;
-  try {
-    const r = await fetch(`https://graph.facebook.com/${GRAPH_VER}/${WA_PHONE_ID}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${WA_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildTemplate(to, tpl, vars)),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) sendErr = (j && j.error && j.error.message) || ('HTTP ' + r.status);
-    else metaMsgId = j && j.messages && j.messages[0] && j.messages[0].id;
-  } catch (e) { sendErr = e.message; }
-
-  // 8) Log / flag.
-  if (sendErr) {
-    await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, status: 'error', error: sendErr });
-    await csFlag(sb, orderId, orderNo, 'meta_send_failed: ' + sendErr);
-    return res.status(200).json({ ok: false, error: sendErr });
-  }
-  await logNote(sb, { order_id: orderId, order_no: orderNo, template: tpl, phone: to, meta_message_id: metaMsgId, status: 'sent' });
-  return res.status(200).json({ ok: true, template: tpl, messageId: metaMsgId });
+  return res.status(200).json({ ok: true, channels: delivered, whatsapp: waMsgId, email: emMsgId });
 }
