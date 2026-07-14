@@ -102,6 +102,13 @@ export default async function handler(req, res) {
     order.customer?.last_name  || '',
   ].filter(Boolean).join(' ') || 'Guest';
 
+  // Delivery address as ONE formatted line for the driver page / maps links. Keep this
+  // formatter identical to _mapShopifyOrder's in flori.html so webhook + client sync
+  // write the same string (no ping-pong updates between the two writers).
+  const ship = order.shipping_address || null;
+  const fmtAddr = s => !s ? null : [s.address1, s.address2, [s.zip, s.city].filter(Boolean).join(' '), s.province]
+    .map(x => (x || '').trim()).filter(Boolean).join(', ') || null;
+
   // A Shopify "order updated" webhook fires for many reasons (fulfilment, notes,
   // tags…). A blind upsert would wipe state the app owns — the per-product and
   // whole-order "ready" flags, locally deleted line items, designer/priority/notes
@@ -163,6 +170,11 @@ export default async function handler(req, res) {
     due_time:    dueTime,
     type,
     fulfilled,
+    // Delivery details for the driver page — Shopify-sourced, refreshed every webhook
+    // (recipient/address edits in Shopify flow through automatically).
+    recip_name:  ship?.name  || null,
+    recip_phone: ship?.phone || null,
+    address:     fmtAddr(ship),
     // Shopify-sourced fields above are refreshed; app-managed fields below are
     // preserved from the existing row (defaults only on first insert).
     ready:         existing ? existing.ready         : false,
@@ -173,6 +185,14 @@ export default async function handler(req, res) {
     priority:      existing ? existing.priority      : 'normal',
     internal_note: existing ? existing.internal_note : null,
     manual_price:  existing ? existing.manual_price  : null,
+    // Driver-mode fields are app-managed: a Shopify update webhook (payment, tags,
+    // notes…) must never wipe the day's route plan, OTW state, or proof photo.
+    lat:         existing ? (existing.lat ?? null)         : null,
+    lng:         existing ? (existing.lng ?? null)         : null,
+    otw_at:      existing ? (existing.otw_at || null)      : null,
+    route_id:    existing ? (existing.route_id || null)    : null,
+    route_seq:   existing ? (existing.route_seq ?? null)   : null,
+    proof_photo: existing ? (existing.proof_photo || null) : null,
     updated_at:  new Date().toISOString(),
   };
 

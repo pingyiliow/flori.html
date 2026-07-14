@@ -63,6 +63,8 @@
     <button class="nav-btn" data-pg="wanotify"><span class="nav-icon">✉</span><span>WhatsApp Log</span><span class="nav-badge" id="nb-wanotify" style="display:none">0</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
+    <div class="nav-sep" style="margin-top:6px" data-pg="driver">Delivery</div>
+    <button class="nav-btn" data-pg="driver"><span class="nav-icon">➤</span><span>Driver</span></button>
   </div>
   <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span><span style="font-size:8px;color:var(--c-dpink);margin-left:auto;opacity:.6">v20260606</span></div>
 </aside>
@@ -288,6 +290,11 @@
     </div>
   </div>
 
+  <!-- ══ DRIVER (delivery routes) ══ -->
+  <div id="pg-driver" class="page">
+    <div class="pc" id="driver-pc"><!-- rendered by renderDriver() --></div>
+  </div>
+
 </main>
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
@@ -298,6 +305,7 @@
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
   <button class="mob-tab" data-pg="customers"><span class="mob-icon">☺</span><span>CRM</span></button>
   <button class="mob-tab" data-pg="wanotify"><span class="mob-icon">✉</span><span>WA Log</span></button>
+  <button class="mob-tab" data-pg="driver"><span class="mob-icon">➤</span><span>Driver</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -829,6 +837,7 @@ const TAB_ACCESS = {
   customers: ['admin','cs'],
   wanotify:  ['admin','cs'],
   settings:  ['admin'],
+  driver:    ['admin','driver'],   // driver-role users see ONLY this page
 };
 function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || r.includes(currentUserRole); }
 async function getUserRole(){
@@ -982,6 +991,8 @@ async function showApp() {
   // light fields; the full list loads lazily when the Customers tab is opened.
   if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
+  subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
+  loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -1000,6 +1011,8 @@ async function showApp() {
   }
   document.getElementById('app-loading').style.display = 'none';
   renderAll();
+  // Drivers land straight on their stop list — every other page is gated away for them.
+  if (currentUserRole === 'driver') goPage('driver');
   // Auto-sync from Shopify on load so a page refresh shows current
   // fulfilment status (not just the last cached state).
   syncOrders().catch(()=>{});
@@ -1433,6 +1446,17 @@ function _applyShopifyToExisting(prev, m){
     manualAddr:   prev.manualAddr || null,
     removedItems: prev.removedItems || [],
     fulfilled:    m.fulfilled || prev.fulfilled || false,
+    // Driver-mode fields. App-managed (route plan / OTW / proof / geo) ← previous row;
+    // Shopify-sourced (recipient + address) prefer the fresh fetch, fall back to prev.
+    otwAt:        prev.otwAt || null,
+    routeId:      prev.routeId || null,
+    routeSeq:     prev.routeSeq ?? null,
+    proofPhoto:   prev.proofPhoto || null,
+    lat:          prev.lat ?? null,
+    lng:          prev.lng ?? null,
+    recipName:    m.recipName  || prev.recipName  || null,
+    recipPhone:   m.recipPhone || prev.recipPhone || null,
+    address:      m.address    || prev.address    || null,
   };
 }
 
@@ -1460,6 +1484,13 @@ function _dropSupersededManualOrders(){
     console.log('[dedup] dropped superseded manual draft(s):', dropped.join(', '));
   }
 }
+// Delivery address as ONE formatted line (driver page / maps links). Keep identical to
+// api/webhook.js's fmtAddr so the two writers produce the same string (no ping-pong).
+function _fmtShipAddr(s){
+  if (!s) return null;
+  return [s.address1, s.address2, [s.zip, s.city].filter(Boolean).join(' '), s.province]
+    .map(x => (x || '').trim()).filter(Boolean).join(', ') || null;
+}
 function _mapShopifyOrder(n){
   const attrs = n.customAttributes || [];
   const ds = getDueDate(attrs);
@@ -1478,7 +1509,8 @@ function _mapShopifyOrder(n){
   const imgUrl = (withImgs && withImgs.images[0]) || lineItems.find(i => i.image)?.image || null;
   const priceData = n.currentTotalPriceSet?.shopMoney;
   const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false };
+  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false,
+    recipName:n.shippingAddress?.name||null, recipPhone:n.shippingAddress?.phone||null, address:_fmtShipAddr(n.shippingAddress) };
 }
 
 // One-time import: pull a specific order from Shopify by its number (e.g. #121827)
@@ -1491,7 +1523,7 @@ async function importOrderByName(rawName){
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
       id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-      customer{firstName lastName} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+      customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
@@ -1535,7 +1567,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+          customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -1583,14 +1615,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -1618,7 +1650,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[]}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,lat:o.lat,lng:o.lng,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1639,6 +1671,10 @@ async function syncOrders() {
           const rm=new Set(pm.removedItems); o.lineItems=o.lineItems.filter(i=>!rm.has(i.title)||itemPhotos(i).length); o.removedItems=pm.removedItems.filter(t=>!o.lineItems.some(i=>i.title===t)); o.product=o.lineItems.map(i=>i.title).join(', '); o.image=o.lineItems.find(i=>itemPhotos(i).length)?.image||o.image||null;
         }
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
+        // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
+        // if this fetch somehow lacked them (fresh Shopify values already on o win).
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.lat=pm.lat??null; o.lng=pm.lng??null;
+        if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
     // Keep every order we already have that this fetch didn't return — the query
@@ -1692,6 +1728,18 @@ async function syncOrders() {
           o.manualPrice  = r.manual_price ?? o.manualPrice ?? null;
           o.manualAddr   = r.manual_addr  || o.manualAddr  || null;
           o.fulfilled    = o.fulfilled || !!r.fulfilled;      // keep a fulfilled state set on any device
+          // Driver-mode fields. Route assignment/sequence: DB wins (another device may
+          // have just re-planned, same as designer). otwAt/proofPhoto: forward-only merge
+          // (never regress a sent-OTW or uploaded proof). Geo: DB wins (server geocodes).
+          o.routeId      = r.route_id  || null;
+          o.routeSeq     = r.route_seq ?? null;
+          o.otwAt        = o.otwAt || r.otw_at || null;
+          o.proofPhoto   = o.proofPhoto || r.proof_photo || null;
+          o.lat          = r.lat ?? o.lat ?? null;
+          o.lng          = r.lng ?? o.lng ?? null;
+          o.recipName    = o.recipName  || r.recip_name  || null;
+          o.recipPhone   = o.recipPhone || r.recip_phone || null;
+          o.address      = o.address    || r.address     || null;
         });
       } catch (e) { console.warn('Sync merge read failed:', e && e.message); }
     }
@@ -1761,7 +1809,11 @@ function _orderRow(o){
     manual_addr: o.manualAddr||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internal_note: o.internalNote||null,
-    manual_price: o.manualPrice||null
+    manual_price: o.manualPrice||null,
+    recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
+    lat: o.lat??null, lng: o.lng??null,
+    otw_at: o.otwAt||null, route_id: o.routeId||null, route_seq: o.routeSeq??null,
+    proof_photo: o.proofPhoto||null
   };
 }
 // saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
@@ -1841,7 +1893,11 @@ function _mapDbOrder(o){
     manualAddr: o.manual_addr||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
-    manualPrice: o.manual_price||null, dateObj: null
+    manualPrice: o.manual_price||null, dateObj: null,
+    recipName: o.recip_name||null, recipPhone: o.recip_phone||null, address: o.address||null,
+    lat: o.lat??null, lng: o.lng??null,
+    otwAt: o.otw_at||null, routeId: o.route_id||null, routeSeq: o.route_seq??null,
+    proofPhoto: o.proof_photo||null
   };
 }
 // Only the recent/active slice of orders is read on launch + focus-refresh, so the
@@ -2063,6 +2119,17 @@ function mergeOrderRows(a, b){
   m.manualAddr   = a.manualAddr || b.manualAddr || null;
   m.manualPrice  = a.manualPrice ?? b.manualPrice ?? null;
   m.recipe       = [a.recipe,b.recipe].filter(r=>Array.isArray(r)&&r.length).sort((x,y)=>y.length-x.length)[0] || [];
+  // Driver-mode fields: forward-only unions so a route plan / sent-OTW / proof photo
+  // on either duplicate survives the merge.
+  m.otwAt        = a.otwAt || b.otwAt || null;
+  m.routeId      = a.routeId || b.routeId || null;
+  m.routeSeq     = a.routeSeq ?? b.routeSeq ?? null;
+  m.proofPhoto   = a.proofPhoto || b.proofPhoto || null;
+  m.recipName    = a.recipName || b.recipName || null;
+  m.recipPhone   = a.recipPhone || b.recipPhone || null;
+  m.address      = a.address || b.address || null;
+  m.lat          = a.lat ?? b.lat ?? null;
+  m.lng          = a.lng ?? b.lng ?? null;
   return m;
 }
 
@@ -2095,6 +2162,15 @@ async function migrateOrderIds({ dryRun = false } = {}) {
     merged.manual_addr   = rows.map(r=>r.manual_addr).find(Boolean) || null;
     merged.manual_price  = rows.map(r=>r.manual_price).find(v=>v!=null && v!=='') ?? null;
     merged.recipe        = rows.map(r=>r.recipe).filter(r=>Array.isArray(r)&&r.length).sort((a,b)=>b.length-a.length)[0] || [];
+    merged.otw_at        = rows.map(r=>r.otw_at).find(Boolean) || null;
+    merged.route_id      = rows.map(r=>r.route_id).find(Boolean) || null;
+    merged.route_seq     = rows.map(r=>r.route_seq).find(v=>v!=null) ?? null;
+    merged.proof_photo   = rows.map(r=>r.proof_photo).find(Boolean) || null;
+    merged.recip_name    = rows.map(r=>r.recip_name).find(Boolean) || null;
+    merged.recip_phone   = rows.map(r=>r.recip_phone).find(Boolean) || null;
+    merged.address       = rows.map(r=>r.address).find(Boolean) || null;
+    merged.lat           = rows.map(r=>r.lat).find(v=>v!=null) ?? null;
+    merged.lng           = rows.map(r=>r.lng).find(v=>v!=null) ?? null;
     toUpsert.push(merged);
     rows.forEach(r => { if (String(r.id) !== cid) toDelete.push(r.id); });
   }
@@ -2474,7 +2550,7 @@ function toggleItemReady(id, idx) {
   saveOrders(o); renderHome(); renderOrders();
 }
 
-function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); }
+function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); if (typeof renderDriver==='function') renderDriver(); }
 
 // Renders one dashboard mini-card. For a multi-product order each product is
 // passed as its own unit (item + idx) so it gets its own line, photo and tick.
@@ -3904,12 +3980,15 @@ async function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','stock','followup','customers','wanotify'];
+const PAGES = ['home','orders','stock','followup','customers','wanotify','driver'];
 function goPage(pg) {
-  if(!canAccess(pg)) pg = 'home';   // role guard — bounce to dashboard if not allowed
+  // Role guard — bounce to the dashboard if allowed, else to the driver page
+  // (driver-role users can't access 'home', so bouncing there would blank them).
+  if(!canAccess(pg)) pg = canAccess('home') ? 'home' : 'driver';
   if(pg==='followup') renderFollowup();
   if(pg==='customers') renderCustomers();
   if(pg==='wanotify') renderWaNotify();
+  if(pg==='driver') renderDriver();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   if(pg==='stock'){ renderInventory(); renderPurchase(); }
@@ -4290,12 +4369,333 @@ function applyOrderChange(p){
     if (typeof renderOrders==='function') renderOrders();
     if (typeof renderCalendar==='function') renderCalendar();
     if (typeof renderHome==='function') renderHome();
+    if (typeof renderDriver==='function') renderDriver();
     if (typeof updateBadge==='function') updateBadge();
     if (_dpId && p.eventType!=='DELETE' && shopId(_dpId)===key){   // refresh open panel in place
       const o = ORDERS.find(x => shopId(x.id)===key);
       if (o && typeof localToDPOrder==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
     }
   }, 400);
+}
+
+/* ─── Routes (driver mode) ──────────────────────────────────────────────────
+   Named delivery routes per date ("Route A · Perai — Ah Seng"). Orders join a
+   route via orders.route_id + route_seq; the route row itself carries driver,
+   start info and the driver's last known GPS. Windowed to today+tomorrow. */
+let ROUTES = [];
+let _rtRealtime = null, _rtRenderTimer = null;
+function _mapDbRoute(r){ return { id:r.id, date:r.route_date, name:r.name, driver:r.driver||null, startedAt:r.started_at||null, startedBy:r.started_by||null, lastLat:r.last_lat??null, lastLng:r.last_lng??null, lastLocAt:r.last_loc_at||null, createdAt:r.created_at||null }; }
+function _routeRow(rt){ return { id:rt.id, route_date:rt.date, name:rt.name, driver:rt.driver||null, started_at:rt.startedAt||null, started_by:rt.startedBy||null, last_lat:rt.lastLat??null, last_lng:rt.lastLng??null, last_loc_at:rt.lastLocAt||null }; }
+async function loadRoutes(){
+  if (!hasSB()) return;
+  try {
+    const t0 = today0();
+    const from = tdi(t0), to = tdi(new Date(t0.getTime() + 86400000));
+    const { data, error } = await sb.from('routes').select('*').gte('route_date', from).lte('route_date', to).order('created_at');
+    if (!error && Array.isArray(data)) ROUTES = data.map(_mapDbRoute);
+  } catch(e){ console.warn('loadRoutes', e && e.message); }
+}
+function saveRoute(rt){
+  const i = ROUTES.findIndex(r => r.id === rt.id);
+  if (i === -1) ROUTES.push(rt); else ROUTES[i] = rt;
+  if (hasSB()) sbUpsert('routes', [_routeRow(rt)]).catch(console.error);
+}
+function createRoute(name, dateISO, driver){
+  const rt = { id: (crypto.randomUUID ? crypto.randomUUID() : 'rt-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)),
+               date: dateISO, name, driver: driver||null, startedAt:null, startedBy:null, lastLat:null, lastLng:null, lastLocAt:null };
+  saveRoute(rt); return rt;
+}
+function deleteRoute(id){
+  ROUTES = ROUTES.filter(r => r.id !== id);
+  // Unassign this route's orders so they return to the unassigned pool everywhere.
+  const affected = ORDERS.filter(o => o.routeId === id);
+  affected.forEach(o => { o.routeId = null; o.routeSeq = null; });
+  if (affected.length) saveOrders(affected);
+  if (hasSB()) sbDelete('routes', id);
+}
+function subscribeRoutes(){
+  if (!hasSB() || _rtRealtime || typeof sb.channel!=='function') return;
+  try {
+    _rtRealtime = sb.channel('routes-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'routes' }, p => {
+        try {
+          const row = (p.new && Object.keys(p.new).length) ? p.new : p.old;
+          if (!row || !row.id) return;
+          if (p.eventType === 'DELETE') ROUTES = ROUTES.filter(r => r.id !== row.id);
+          else {
+            const rt = _mapDbRoute(p.new);
+            const i = ROUTES.findIndex(r => r.id === rt.id);
+            if (i === -1) ROUTES.push(rt); else ROUTES[i] = rt;
+          }
+          clearTimeout(_rtRenderTimer);
+          _rtRenderTimer = setTimeout(() => { if (typeof renderDriver==='function') renderDriver(); }, 400);
+        } catch(e){ console.warn('route change apply', e && e.message); }
+      })
+      .subscribe();
+  } catch(e){ console.warn('subscribeRoutes', e && e.message); }
+}
+
+/* ─── Driver page ───────────────────────────────────────────────────────────
+   Stop list + route planner. Admin: create routes, assign stops, see driver
+   status. Driver: own routes, Start route (buyer OTW notifications), navigate,
+   recipient WhatsApp (from the driver's own phone), Mark Delivered (existing
+   modal). Reorder = toggle + drag. */
+let _drvTab = 'today';
+const RECIP_WA_DEFAULT = 'Hello! Bamboo Green Florist 🌿 — we have a delivery for you today ({time}). Please keep your phone reachable, our driver will contact you on arrival. 您好！我们今天有花礼送达给您（{time}），请保持电话畅通，司机抵达前会与您联系。';
+let _recipWaDraft = null;   // settings override, loaded lazily
+function _drvE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('60')) return d; if(d.startsWith('0')) return '60'+d.slice(1); return '60'+d; }
+function _drvDateISO(){ const t=today0(); return _drvTab==='today' ? tdi(t) : tdi(new Date(t.getTime()+86400000)); }
+function _drvIsOnDate(o, iso){
+  if (o.dateObj) return tdi(o.dateObj) === iso;
+  return (o.dueOn || null) === iso;
+}
+function _drvStops(iso){
+  return ORDERS.filter(o => (o.type||'delivery')==='delivery' && _drvIsOnDate(o, iso));
+}
+function _drvAddr(o){ return o.address || o.manualAddr || ''; }
+function _drvStatus(o){ return o.fulfilled ? 'done' : (o.otwAt ? 'otw' : 'pending'); }
+function _drvRoutesFor(iso){
+  let rts = ROUTES.filter(r => r.date === iso);
+  if (currentUserRole === 'driver') rts = rts.filter(r => !r.driver || r.driver === currentUserName);
+  return rts;
+}
+function driverTab(t){ _drvTab = t; _drvReorderRoute = null; renderDriver(); }
+
+function navMapsLink(o){ const a=_drvAddr(o); return a ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a) : null; }
+function routeMapsLink(stops){
+  const addrs = stops.map(_drvAddr).filter(Boolean).slice(0, 10);   // Maps caps ~9 waypoints + destination
+  if (!addrs.length) return null;
+  const dest = addrs[addrs.length-1], way = addrs.slice(0,-1);
+  return 'https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(dest)
+       + (way.length ? '&waypoints='+way.map(encodeURIComponent).join('%7C') : '');
+}
+async function _loadRecipDraft(){
+  if (_recipWaDraft !== null) return;
+  try { _recipWaDraft = (await sbGetVal('recipient_wa_draft')) || RECIP_WA_DEFAULT; }
+  catch(_) { _recipWaDraft = RECIP_WA_DEFAULT; }
+}
+function recipWaLink(o){
+  const ph = _drvE164(o.recipPhone);
+  if (!ph) return null;
+  const draft = (_recipWaDraft || RECIP_WA_DEFAULT).replace(/\{time\}/g, o.dueTime || 'today');
+  return 'https://wa.me/'+ph+'?text='+encodeURIComponent(draft);
+}
+
+// ── assignment / reorder ──
+function assignStopToRoute(orderId, routeId){
+  const o = ORDERS.find(x => x.id === orderId); if (!o) return;
+  o.routeId = routeId || null;
+  if (routeId){
+    const seqs = ORDERS.filter(x => x.routeId === routeId && x.id !== o.id).map(x => x.routeSeq).filter(v => v != null);
+    o.routeSeq = (seqs.length ? Math.max(...seqs) : 0) + 1;
+  } else o.routeSeq = null;
+  saveOrders(o); renderDriver();
+}
+let _drvReorderRoute = null;   // route id currently in reorder (drag) mode
+function toggleReorder(routeId){ _drvReorderRoute = _drvReorderRoute === routeId ? null : routeId; renderDriver(); }
+let _dragEl = null, _dragRoute = null;
+function _drvDragStart(ev, orderId, routeId){
+  ev.preventDefault();
+  _dragEl = ev.currentTarget.closest('.drv-stop'); _dragRoute = routeId;
+  if (!_dragEl) return;
+  _dragEl.style.opacity = '0.55'; _dragEl.style.transform = 'scale(1.02)';
+  const move = e => {
+    const y = e.touches ? e.touches[0].clientY : e.clientY;
+    const list = _dragEl.parentElement; if (!list) return;
+    const cards = [...list.querySelectorAll('.drv-stop')].filter(c => c !== _dragEl);
+    for (const c of cards){
+      const r = c.getBoundingClientRect();
+      if (y > r.top && y < r.bottom){
+        if (y < r.top + r.height/2) list.insertBefore(_dragEl, c);
+        else list.insertBefore(_dragEl, c.nextSibling);
+        break;
+      }
+    }
+    if (e.cancelable) e.preventDefault();
+  };
+  const up = () => {
+    document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up);
+    document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up);
+    if (!_dragEl) return;
+    _dragEl.style.opacity = ''; _dragEl.style.transform = '';
+    // Persist the new visual order as routeSeq 1..n (batch write, merge-safe).
+    const list = _dragEl.parentElement;
+    const changed = [];
+    [...list.querySelectorAll('.drv-stop')].forEach((c, i) => {
+      const o = ORDERS.find(x => x.id === c.dataset.oid);
+      if (o && o.routeSeq !== i+1){ o.routeSeq = i+1; changed.push(o); }
+    });
+    if (changed.length) saveOrders(changed);
+    _dragEl = null;
+  };
+  document.addEventListener('pointermove', move, { passive:false });
+  document.addEventListener('pointerup', up);
+  document.addEventListener('touchmove', move, { passive:false });
+  document.addEventListener('touchend', up);
+}
+
+// ── route lifecycle ──
+function newRoutePrompt(){
+  const name = prompt('Route name (e.g. Route A · Perai):', 'Route ' + String.fromCharCode(65 + _drvRoutesFor(_drvDateISO()).length));
+  if (!name) return;
+  const driver = prompt('Driver name (optional — leave empty for any driver):', '') || null;
+  createRoute(name.trim(), _drvDateISO(), driver && driver.trim() ? driver.trim() : null);
+  renderDriver();
+}
+function deleteRoutePrompt(id){
+  const rt = ROUTES.find(r => r.id === id); if (!rt) return;
+  if (!confirm('Delete "'+rt.name+'"? Its stops return to Unassigned.')) return;
+  deleteRoute(id); renderDriver();
+}
+async function notifyOTW(o){
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  try {
+    const r = await fetch('/api/notify-manual', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ orderId: shopId(o.id), stage:'out_for_delivery', authToken }) });
+    return await r.json().catch(()=>({ ok:false }));
+  } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
+}
+async function startRoute(routeId){
+  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
+  const stops = _drvStops(rt.date).filter(o => o.routeId === routeId && !o.fulfilled && !o.otwAt);
+  const already = !!rt.startedAt;
+  if (!confirm((already ? 'Route already started — resend for un-notified stops?\n\n' : '') +
+      'Start "'+rt.name+'" and send "on the way" to '+stops.length+' customer'+(stops.length===1?'':'s')+'?')) return;
+  if (!already){ rt.startedAt = new Date().toISOString(); rt.startedBy = currentUserName || 'staff'; saveRoute(rt); }
+  let sent = 0, flagged = 0;
+  for (let i = 0; i < stops.length; i++){
+    const o = stops[i];
+    toast('Notifying '+(i+1)+'/'+stops.length+'…');
+    const r = await notifyOTW(o);
+    if (r && (r.ok || r.alreadySent || r.dryRun)){ o.otwAt = new Date().toISOString(); saveOrders(o); sent++; }
+    else if (r && (r.csFlag || r.skipped)){ o.otwAt = new Date().toISOString(); o._otwFlag = r.csFlag ? 'no contact' : r.skipped; saveOrders(o); flagged++; }
+    else flagged++;
+  }
+  renderDriver();
+  toast('✓ Route started · '+sent+' notified'+(flagged ? ' · '+flagged+' flagged' : ''));
+}
+async function resendOTW(orderId){
+  const o = ORDERS.find(x => x.id === orderId); if (!o) return;
+  toast('Sending…');
+  const r = await notifyOTW(o);
+  if (r && (r.ok || r.dryRun)){ o.otwAt = o.otwAt || new Date().toISOString(); saveOrders(o); toast(r.dryRun ? '✓ Dry run (test gate)' : '✓ On-the-way sent'); }
+  else if (r && r.alreadySent) toast('Already notified');
+  else if (r && r.csFlag) toast('⚠ No buyer contact — flagged');
+  else toast('⚠ Send failed — see WhatsApp Log');
+  renderDriver();
+}
+
+// ── render ──
+function _drvStopCard(o, opts){
+  const st = _drvStatus(o);
+  const addr = _drvAddr(o);
+  const nav = navMapsLink(o);
+  const wa = recipWaLink(o);
+  const tel = _drvE164(o.recipPhone);
+  const reorder = opts.reorder;
+  const pill = o.priority==='urgent'
+    ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">⚡ URGENT</span>'
+    : st==='otw' ? '<span style="background:#E3F2FD;color:#1565C0;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">ON THE WAY</span>'
+    : st==='done' ? '<span style="background:#E8F5E9;color:#2E7D32;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">✓ DELIVERED</span>' : '';
+  const seq = o.routeSeq != null ? o.routeSeq : '·';
+  const img = o.image ? '<img src="'+o.image+'" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none" onerror="this.style.display=\'none\'">' : '';
+  const note = o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 6px 6px 0;padding:5px 8px;margin-top:6px;font-size:11.5px;color:#795548">📝 '+esc2(o.internalNote)+'</div>' : '';
+  const flag = o._otwFlag ? '<div style="font-size:10.5px;color:#E65100;margin-top:4px">⚠ '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '';
+  const btn = (href, label, extra) => href
+    ? '<a href="'+href+'" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px 4px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;text-decoration:none;color:var(--c-ink);'+(extra||'')+'">'+label+'</a>'
+    : '<span style="flex:1;text-align:center;padding:9px 4px;border:1.5px dashed var(--c-border);border-radius:8px;font-size:11.5px;color:var(--c-muted)">'+label+'</span>';
+  const actions = st==='done' ? '' :
+    '<div style="display:flex;gap:6px;margin-top:8px">'
+    + btn(tel ? 'tel:+'+tel : null, '📞 Call')
+    + btn(wa, '💬 WhatsApp', 'background:#E8F5E9;border-color:#A5D6A7;color:#2E7D32')
+    + btn(nav, '🧭 Navigate')
+    + '</div>'
+    + '<div style="display:flex;gap:6px;margin-top:6px">'
+    + '<button onclick="markDelivered(\''+o.id+'\')" style="flex:2;padding:10px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">✓ Delivered + photo</button>'
+    + (st!=='otw' ? '<button onclick="resendOTW(\''+o.id+'\')" style="flex:1;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Send OTW</button>' : '')
+    + '</div>';
+  const assignSel = opts.assign
+    ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin-top:8px;width:100%;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)">'
+      + '<option value="">— add to route —</option>'
+      + _drvRoutesFor(_drvDateISO()).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('')
+      + '</select>'
+    : '';
+  const handle = reorder
+    ? '<div onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')" style="width:34px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:18px;color:var(--c-muted);user-select:none">≡</div>'
+      + '<button onclick="assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="position:absolute;top:6px;right:6px;width:22px;height:22px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted)">✕</button>'
+    : '';
+  return '<div class="drv-stop" data-oid="'+o.id+'" style="position:relative;display:flex;gap:8px;border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:8px;background:var(--c-surface);'+(st==='done'?'opacity:.55;':'')+'">'
+    + handle
+    + '<div style="width:24px;height:24px;border-radius:50%;background:'+(st==='done'?'#A5D6A7':'var(--c-burg)')+';color:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;margin-top:2px">'+seq+'</div>'
+    + '<div style="flex:1;min-width:0">'
+      + '<div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><span style="font-weight:700;font-size:13px">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+'</span>'+pill+'</div>'
+      + (addr ? '<div style="font-size:12px;color:var(--c-muted);margin-top:2px;line-height:1.45">'+esc2(addr)+'</div>' : '<div style="font-size:11px;color:#E65100;margin-top:2px">⚠ no address on order</div>')
+      + '<div style="font-size:11px;color:var(--c-muted);margin-top:3px">🕐 '+esc2(o.dueTime||'—')+' · '+esc2((o.product||'').split(',')[0])+'</div>'
+      + note + flag
+      + (reorder ? '' : actions + assignSel)
+    + '</div>'
+    + img
+  + '</div>';
+}
+function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+function renderDriver(){
+  const pc = document.getElementById('driver-pc'); if (!pc) return;
+  if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
+  _loadRecipDraft();
+  const iso = _drvDateISO();
+  const stops = _drvStops(iso);
+  const routes = _drvRoutesFor(iso);
+  const isAdmin = currentUserRole === 'admin';
+  const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
+  const tab = t => '<button onclick="driverTab(\''+t+'\')" style="padding:7px 16px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'
+    + (t==='today'?'Today':'Tomorrow')+' · '+_drvStops(t==='today'?tdi(today0()):tdi(new Date(today0().getTime()+86400000))).filter(o=>!o.fulfilled).length+'</button>';
+  let html = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
+    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+' · ':'')+iso+'</div></div>'
+    + (isAdmin ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>' : '')
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-bottom:14px">'+tab('today')+tab('tomorrow')+'</div>';
+
+  routes.forEach(rt => {
+    const rtStops = stops.filter(o => o.routeId === rt.id).sort(bySeq);
+    const pending = rtStops.filter(o => !o.fulfilled);
+    const done = rtStops.filter(o => o.fulfilled);
+    const reorder = _drvReorderRoute === rt.id;
+    const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
+    const mapsAll = routeMapsLink(pending);
+    html += '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-bg);padding:12px;margin-bottom:14px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
+        + '<div><span style="font-weight:700;font-size:14px">'+esc2(rt.name)+'</span>'
+        + (rt.driver ? '<span style="font-size:11px;color:var(--c-muted)"> · '+esc2(rt.driver)+'</span>' : '')
+        + (rt.startedAt ? '<div style="font-size:10.5px;color:#1565C0;margin-top:2px">▶ started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(rt.startedBy?' by '+esc2(rt.startedBy):'')+(seen!=null?' · 📍 seen '+seen+' min ago':'')+'</div>' : '')
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+        + (pending.length && !rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 14px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">▶ Start route</button>' : '')
+        + (pending.length && rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Resend OTW</button>' : '')
+        + (pending.length > 1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:8px 10px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-bg);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:11px;cursor:pointer">'+(reorder?'✓ Done':'⇅ Reorder')+'</button>' : '')
+        + (mapsAll ? '<a href="'+mapsAll+'" target="_blank" rel="noopener" style="padding:8px 10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;text-decoration:none;color:var(--c-ink)">🗺 Full route</a>' : '')
+        + (isAdmin && rt.lastLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+rt.lastLat+','+rt.lastLng+'" target="_blank" rel="noopener" style="padding:8px 10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;text-decoration:none;color:var(--c-ink)">📍 Locate</a>' : '')
+        + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" style="padding:8px 10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--c-muted)">🗑</button>' : '')
+        + '</div></div>'
+      + '<div class="drv-list">'
+      + (pending.length ? pending.map(o => _drvStopCard(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:8px 2px">No pending stops.</div>')
+      + '</div>'
+      + (done.length ? '<details style="margin-top:4px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">✓ Done · '+done.length+'</summary>'+done.map(o => _drvStopCard(o, {})).join('')+'</details>' : '')
+      + '</div>';
+  });
+
+  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
+  if (unassigned.length || !routes.length){
+    html += '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:12px;margin-bottom:14px">'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
+      + (unassigned.length ? unassigned.map(o => _drvStopCard(o, { assign: routes.length > 0 })).join('')
+                           : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+      + '</div>';
+  }
+  const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
+  if (doneUnrouted.length){
+    html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">✓ Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvStopCard(o, {})).join('')+'</details>';
+  }
+  pc.innerHTML = html;
 }
 
 function _custTagStyle(tag){
