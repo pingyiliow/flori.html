@@ -5782,7 +5782,7 @@ function openDeliverModal(o, verb){
     <div style="font-size:12.5px;color:var(--c-muted,#888);margin-bottom:16px">${isShopify?'Fulfils in Shopify silently — no Shopify email.':'Marks delivered on this device.'}</div>
     <div style="font-size:12px;font-weight:600;margin-bottom:6px">Proof of delivery photo <span style="color:var(--c-muted,#999);font-weight:400">(optional)</span></div>
     <div id="dmZone" style="position:relative;height:120px;border:1.5px dashed var(--c-border,#ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:16px;background-size:cover;background-position:center">
-      <span class="dmLbl" style="text-align:center"><span style="font-size:22px">📷</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap to add a photo</span></span>
+      <span class="dmLbl" style="text-align:center"><span style="font-size:22px">📷</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap, drag &amp; drop, or paste</span></span>
       <input id="dmFile" type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
     </div>
     ${canNotify ? `<label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:18px;cursor:pointer;user-select:none">
@@ -5792,14 +5792,28 @@ function openDeliverModal(o, verb){
       <button id="dmOk" style="flex:2;padding:12px;background:var(--c-burg,#1a3d2b);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Confirm ${verb}</button>
     </div></div>`;
   document.body.appendChild(ov);
-  const close = ()=>ov.remove();
+  const zone = ov.querySelector('#dmZone');
+  const applyFile = (f)=>{
+    if(!f) return;
+    if(!/^image\//.test(f.type||'')){ toast('Not an image file'); return; }
+    toast('Uploading…');
+    storePhoto(f, src=>{ photoUrl = src; zone.style.backgroundImage = `url("${src}")`; const l = zone.querySelector('.dmLbl'); if(l) l.style.display='none'; toast('✓ Photo added'); });
+  };
+  // Paste an image from the clipboard while the modal is open (Ctrl/⌘-V or right-click Paste).
+  const onPaste = e=>{
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    for (const it of items){ if(it.type && it.type.indexOf('image')===0){ const f = it.getAsFile(); if(f){ e.preventDefault(); applyFile(f); return; } } }
+  };
+  const close = ()=>{ document.removeEventListener('paste', onPaste); ov.remove(); };
   ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
   ov.querySelector('#dmCancel').onclick = close;
-  ov.querySelector('#dmFile').onchange = function(){
-    const f = this.files[0]; if(!f) return;
-    toast('Uploading…');
-    storePhoto(f, src=>{ photoUrl = src; const z = ov.querySelector('#dmZone'); z.style.backgroundImage = `url("${src}")`; const l = z.querySelector('.dmLbl'); if(l) l.style.display='none'; toast('✓ Photo added'); });
-  };
+  ov.querySelector('#dmFile').onchange = function(){ applyFile(this.files[0]); };
+  // Drag & drop — the file input overlays the zone, so drop events bubble up here; preventDefault
+  // stops the input's native handling so we upload exactly once.
+  ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor='var(--c-burg,#1a3d2b)'; }));
+  zone.addEventListener('dragleave', e=>{ e.preventDefault(); zone.style.borderColor=''; });
+  zone.addEventListener('drop', e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if(f) applyFile(f); });
+  document.addEventListener('paste', onPaste);
   ov.querySelector('#dmOk').onclick = ()=>{
     const notify = canNotify && ov.querySelector('#dmNotify').checked;
     close();
