@@ -1400,11 +1400,21 @@ function shopId(raw){ return String(raw||'').replace(/^gid:\/\/shopify\/Order\//
 function _mergeShopItems(stored, shop, removed){
   stored = Array.isArray(stored) ? stored : [];
   shop   = Array.isArray(shop)   ? shop   : [];
+  // Empty fresh list = the order wasn't in this fetch (out of window / hiccup) — never
+  // reconcile against nothing, keep what we have. The sync queries pull lineItems(first:50)
+  // so a non-empty list is the order's COMPLETE current items, safe to treat as authoritative.
   if (!shop.length) return stored;
-  const have = new Set(stored.map(i => i && i.title));
+  const shopTitles = new Set(shop.map(i => i && i.title));
   const gone = new Set(removed || []);
+  // Reconcile Shopify-side removals: a stored item no longer present in the live Shopify
+  // order was removed there, so drop it here too. EXCEPT items added/edited in the app
+  // (local:true — an app-only line item, or a product renamed in Edit Order whose title no
+  // longer matches Shopify) — those are app-managed and Shopify doesn't know them.
+  const kept = stored.filter(i => i && (shopTitles.has(i.title) || i.local === true));
+  // Append any Shopify product we're not already showing and the user hasn't tombstoned.
+  const have = new Set(kept.map(i => i.title));
   const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
-  return added.length ? [...stored, ...added] : stored;
+  return [...kept, ...added];
 }
 function _applyShopifyToExisting(prev, m){
   const mergedItems = (prev.lineItems && prev.lineItems.length)
@@ -1520,7 +1530,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+          customer{firstName lastName} lineItems(first:50){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -1568,14 +1578,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:50){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:10){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} lineItems(first:50){edges{node{title quantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -5593,7 +5603,7 @@ function _collectProductRows() {
     const qty   = parseInt(document.getElementById('opqty-'+idx)?.value)   || 1;
     const imgs = (_productImages[idx] || []).filter(Boolean);
     const note = document.getElementById('opnote-'+idx)?.value.trim() || '';
-    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, note: note||null, image: imgs[0]||null, images: imgs, currency:'MYR' });
+    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, note: note||null, image: imgs[0]||null, images: imgs, currency:'MYR', local:true });
   });
   return items;
 }
@@ -6364,7 +6374,7 @@ async function _fetchOrderDetail(id, o) {
       customer { firstName lastName phone email }
       shippingAddress { address1 address2 city province zip country phone }
       billingAddress { phone }
-      lineItems(first:10){ edges{ node{
+      lineItems(first:50){ edges{ node{
         title quantity
         originalUnitPriceSet { shopMoney { amount currencyCode } }
         originalTotalSet     { shopMoney { amount currencyCode } }
