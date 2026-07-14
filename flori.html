@@ -1426,6 +1426,30 @@ function _applyShopifyToExisting(prev, m){
   };
 }
 
+// A manual / follow-up draft that has since become a real Shopify order lingers as a
+// DUPLICATE row under the same order number — syncOrders keeps every src==='manual'
+// row unconditionally, so it never gets cleaned up once the real order arrives (e.g.
+// #122860 had a `manual-…` ghost with 1 item beside the real `shopify` row with 2).
+// Once the Shopify order exists the manual draft is superseded: drop it from the list,
+// tombstone it so it clears on every device, and delete the stale DB row. Matches by
+// normalized order number (leading # + case-insensitive). Runs after ORDERS is
+// assembled on load and sync.
+function _dropSupersededManualOrders(){
+  const norm = s => String(s||'').trim().replace(/^#/,'').toLowerCase();
+  const shopNames = new Set(ORDERS.filter(o => o.src !== 'manual' && o.name).map(o => norm(o.name)));
+  if (!shopNames.size) return;
+  const dropped = [];
+  ORDERS = ORDERS.filter(o => {
+    if (o.src === 'manual' && o.name && shopNames.has(norm(o.name))) { dropped.push(o.id); return false; }
+    return true;
+  });
+  if (dropped.length){
+    dropped.forEach(id => DELETED_ORDERS.add(shopId(id)));
+    saveDeletedOrders();
+    if (hasSB()) dropped.forEach(id => sbDelete('orders', id));
+    console.log('[dedup] dropped superseded manual draft(s):', dropped.join(', '));
+  }
+}
 function _mapShopifyOrder(n){
   const attrs = n.customAttributes || [];
   const ds = getDueDate(attrs);
@@ -1669,6 +1693,7 @@ async function syncOrders() {
       });
       if (!o.image) o.image = (o.lineItems.find(i => itemPhotos(i).length)||{}).image || null;
     });
+    _dropSupersededManualOrders();   // clear manual-draft ghosts once the real Shopify order exists
     saveOrders(); rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
@@ -1947,6 +1972,7 @@ async function loadFromSupabase(opts = {}) {
           o.removedItems = rm;
         }
       });
+      _dropSupersededManualOrders();   // clear manual-draft ghosts once the real Shopify order exists
       try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
       catch(e){ try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); } catch(_){} }
       rehydrateOrders(); changed = true;
@@ -5703,17 +5729,18 @@ function resetSwipe(row, reveal) {
   if (reveal) reveal.style.transform = 'translateX(100%)';
 }
 
-// Fulfill a Shopify order via the Admin API so the customer gets notified.
-// Queries the order's open fulfillment orders, then fulfillmentCreate with
-// notifyCustomer:true. Returns {already:true} if nothing is left to fulfill.
-async function fulfillInShopify(o){
+// Fulfill a Shopify order via the Admin API. notifyCustomer defaults to FALSE — BloomFlow's
+// own WhatsApp + email system (api/notify-manual) handles the customer notification, so Shopify
+// stays silent to avoid a duplicate email. Pass notify=true only to fall back to Shopify's own
+// email. Returns {already:true} if nothing is left to fulfill.
+async function fulfillInShopify(o, notify){
   const gid = `gid://shopify/Order/${shopId(o.id)}`;
   const foData = await shopifyGQL(`{ order(id:"${gid}"){ fulfillmentOrders(first:10){ edges{ node{ id status } } } } }`);
   const nodes = ((foData.order && foData.order.fulfillmentOrders && foData.order.fulfillmentOrders.edges) || []).map(e=>e.node);
   const open = nodes.filter(n => n.status === 'OPEN' || n.status === 'IN_PROGRESS');
   if (!open.length) return { already:true };
   const byFO = open.map(n => `{ fulfillmentOrderId: "${n.id}" }`).join(', ');
-  const res = await shopifyGQL(`mutation { fulfillmentCreate(fulfillment: { notifyCustomer: true, lineItemsByFulfillmentOrder: [${byFO}] }) { fulfillment { id status } userErrors { field message } } }`);
+  const res = await shopifyGQL(`mutation { fulfillmentCreate(fulfillment: { notifyCustomer: ${notify ? 'true' : 'false'}, lineItemsByFulfillmentOrder: [${byFO}] }) { fulfillment { id status } userErrors { field message } } }`);
   const ue = (res.fulfillmentCreate && res.fulfillmentCreate.userErrors) || [];
   if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
   return { fulfillment: res.fulfillmentCreate && res.fulfillmentCreate.fulfillment };
@@ -5723,37 +5750,91 @@ async function markDelivered(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   const verb = o.type==='pickup' ? 'Picked Up' : 'Delivered';
   if (o.fulfilled){ toast('Already '+verb.toLowerCase()); return; }
-  // Confirm first — fulfilling notifies the customer, so guard against mis-taps.
-  const confirmMsg = o.src === 'shopify'
-    ? `Mark ${o.name||'this order'} as ${verb}?\n\nThis fulfils the order in Shopify and notifies the customer.`
-    : `Mark ${o.name||'this order'} as ${verb}?`;
-  if (!confirm(confirmMsg)) return;
-  // Manual (non-Shopify) orders: just mark locally.
+  openDeliverModal(o, verb);
+}
+
+// Mark-delivered modal: optional proof-of-delivery photo + (for Shopify delivery orders) a
+// "notify customer" choice. On confirm we fulfil Shopify SILENTLY and, if chosen, send our own
+// WhatsApp + email via /api/notify-manual (with the photo). Shopify never emails → no duplicate.
+function openDeliverModal(o, verb){
+  const isShopify = o.src === 'shopify';
+  const canNotify = isShopify && o.type !== 'pickup';
+  let photoUrl = '';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = `<div style="background:var(--c-bg,#fff);border-radius:var(--r,10px);max-width:380px;width:100%;padding:20px;box-shadow:0 12px 44px rgba(0,0,0,.35)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">Mark ${o.name||'order'} as ${verb}</div>
+    <div style="font-size:12.5px;color:var(--c-muted,#888);margin-bottom:16px">${isShopify?'Fulfils in Shopify silently — no Shopify email.':'Marks delivered on this device.'}</div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px">Proof of delivery photo <span style="color:var(--c-muted,#999);font-weight:400">(optional)</span></div>
+    <div id="dmZone" style="position:relative;height:120px;border:1.5px dashed var(--c-border,#ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:16px;background-size:cover;background-position:center">
+      <span class="dmLbl" style="text-align:center"><span style="font-size:22px">📷</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap to add a photo</span></span>
+      <input id="dmFile" type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    </div>
+    ${canNotify ? `<label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:18px;cursor:pointer;user-select:none">
+      <input id="dmNotify" type="checkbox" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>` : '<div style="height:2px"></div>'}
+    <div style="display:flex;gap:10px">
+      <button id="dmCancel" style="flex:1;padding:12px;background:var(--c-card,#f0f0f0);border:1px solid var(--c-border,#ccc);border-radius:8px;font-size:14px;cursor:pointer">Cancel</button>
+      <button id="dmOk" style="flex:2;padding:12px;background:var(--c-burg,#1a3d2b);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Confirm ${verb}</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close = ()=>ov.remove();
+  ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
+  ov.querySelector('#dmCancel').onclick = close;
+  ov.querySelector('#dmFile').onchange = function(){
+    const f = this.files[0]; if(!f) return;
+    toast('Uploading…');
+    storePhoto(f, src=>{ photoUrl = src; const z = ov.querySelector('#dmZone'); z.style.backgroundImage = `url("${src}")`; const l = z.querySelector('.dmLbl'); if(l) l.style.display='none'; toast('✓ Photo added'); });
+  };
+  ov.querySelector('#dmOk').onclick = ()=>{
+    const notify = canNotify && ov.querySelector('#dmNotify').checked;
+    close();
+    confirmDeliver(o.id, photoUrl, notify, verb);
+  };
+}
+
+async function confirmDeliver(id, photoUrl, notify, verb){
+  const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  if (photoUrl) o.proofPhoto = photoUrl;
+  // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true;
-    saveOrders(o); renderHome(); renderOrders(); closeDP();
-    toast('✓ Marked as '+verb);
-    return;
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
+    toast('✓ Marked as '+verb); return;
   }
-  // Shopify orders: fulfill in Shopify first so the customer is notified.
   toast('Fulfilling in Shopify…');
   try {
-    const r = await fulfillInShopify(o);
-    o.ready=true; o.fulfilled=true;
-    saveOrders(o); renderHome(); renderOrders(); closeDP();
-    toast(r.already ? `✓ ${verb} (was already fulfilled in Shopify)` : `✓ ${verb} · customer notified`);
+    const r = await fulfillInShopify(o, false);   // silent — our own system notifies
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
+    if (notify){
+      toast('Notifying customer…');
+      const res = await notifyCustomerManual(o, photoUrl);
+      if (res && res.channels && res.channels.length) toast(`✓ ${verb} · notified (${res.channels.join(' + ')})`);
+      else if (res && res.alreadySent)                toast(`✓ ${verb} · already notified`);
+      else if (res && res.csFlag)                     toast(`✓ ${verb} · no customer contact — flagged for follow-up`);
+      else if (res && res.skipped==='pickup')         toast(`✓ ${verb}`);
+      else toast(`✓ ${verb} · sent, but notify had an issue (check WhatsApp Log)`);
+    } else {
+      toast(r.already ? `✓ ${verb} (was already fulfilled in Shopify)` : `✓ ${verb} · not notified`);
+    }
   } catch(e){
     const msg = String((e && e.message) || e);
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
-    if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway? (the customer will NOT be notified)`)){
-      o.ready=true; o.fulfilled=true;
-      saveOrders(o); renderHome(); renderOrders(); closeDP();
+    if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
+      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
-    } else {
-      toast('Cancelled');
-    }
+    } else { toast('Cancelled'); }
   }
+}
+
+// Ask our own notifier to send the customer the delivered WhatsApp + email (with the proof
+// photo). Auth = the staff Supabase session (same token shopifyGQL uses).
+async function notifyCustomerManual(o, photoUrl){
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  try {
+    const r = await fetch('/api/notify-manual', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ orderId: shopId(o.id), photoUrl: photoUrl||'', authToken }) });
+    return await r.json().catch(()=>({ ok:false }));
+  } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }
 function delOrder(id){
   if(!confirm('Delete this order? This cannot be undone.'))return;
