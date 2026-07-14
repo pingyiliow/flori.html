@@ -150,6 +150,21 @@ export default async function handler(req, res) {
     if (!mergedLineItems[0].image) mergedLineItems[0].image = bfPhotos[0];
   }
 
+  // Geocode for the driver-page map — only when a key is set AND the address is new or
+  // changed (normally ONE Google call per order, cached in lat/lng forever). A geocode
+  // failure just means no map pin; never fails the webhook.
+  const addrLine = fmtAddr(ship);
+  let geo = { lat: existing ? (existing.lat ?? null) : null, lng: existing ? (existing.lng ?? null) : null };
+  if (process.env.GOOGLE_MAPS_API_KEY && addrLine && (!existing || existing.address !== addrLine || existing.lat == null)) {
+    try {
+      const gr = await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='
+        + encodeURIComponent(addrLine) + '&region=my&components=country:MY&key=' + process.env.GOOGLE_MAPS_API_KEY);
+      const gj = await gr.json().catch(() => ({}));
+      const loc = gj && gj.results && gj.results[0] && gj.results[0].geometry && gj.results[0].geometry.location;
+      if (loc && typeof loc.lat === 'number') geo = { lat: loc.lat, lng: loc.lng };
+    } catch (_) {}
+  }
+
   const row = {
     // Canonical order id = bare numeric (Shopify REST id). The GraphQL sync in
     // flori.html (syncOrders → shopId) normalizes its gids to this same shape so
@@ -174,7 +189,7 @@ export default async function handler(req, res) {
     // (recipient/address edits in Shopify flow through automatically).
     recip_name:  ship?.name  || null,
     recip_phone: ship?.phone || null,
-    address:     fmtAddr(ship),
+    address:     addrLine,
     // Shopify-sourced fields above are refreshed; app-managed fields below are
     // preserved from the existing row (defaults only on first insert).
     ready:         existing ? existing.ready         : false,
@@ -187,8 +202,8 @@ export default async function handler(req, res) {
     manual_price:  existing ? existing.manual_price  : null,
     // Driver-mode fields are app-managed: a Shopify update webhook (payment, tags,
     // notes…) must never wipe the day's route plan, OTW state, or proof photo.
-    lat:         existing ? (existing.lat ?? null)         : null,
-    lng:         existing ? (existing.lng ?? null)         : null,
+    lat:         geo.lat,
+    lng:         geo.lng,
     otw_at:      existing ? (existing.otw_at || null)      : null,
     route_id:    existing ? (existing.route_id || null)    : null,
     route_seq:   existing ? (existing.route_seq ?? null)   : null,

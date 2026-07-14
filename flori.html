@@ -57,14 +57,12 @@
     <div class="nav-sep">Operations</div>
     <button class="nav-btn on" data-pg="home"><span class="nav-icon">◈</span><span>Dashboard</span></button>
     <button class="nav-btn" data-pg="orders"><span class="nav-icon">◫</span><span>Daily Orders</span><span class="nav-badge" id="nb-orders">0</span></button>
+    <button class="nav-btn" data-pg="driver"><span class="nav-icon">➤</span><span>Driver</span></button>
     <div class="nav-sep" style="margin-top:6px">Admin</div>
     <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
     <button class="nav-btn" data-pg="customers"><span class="nav-icon">☺</span><span>Customers</span></button>
-    <button class="nav-btn" data-pg="wanotify"><span class="nav-icon">✉</span><span>WhatsApp Log</span><span class="nav-badge" id="nb-wanotify" style="display:none">0</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
-    <div class="nav-sep" style="margin-top:6px" data-pg="driver">Delivery</div>
-    <button class="nav-btn" data-pg="driver"><span class="nav-icon">➤</span><span>Driver</span></button>
   </div>
   <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span><span style="font-size:8px;color:var(--c-dpink);margin-left:auto;opacity:.6">v20260606</span></div>
 </aside>
@@ -301,11 +299,10 @@
 <nav class="mob-nav">
   <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
   <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
-  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
+  <button class="mob-tab" data-pg="driver"><span class="mob-icon">➤</span><span>Driver</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
   <button class="mob-tab" data-pg="customers"><span class="mob-icon">☺</span><span>CRM</span></button>
-  <button class="mob-tab" data-pg="wanotify"><span class="mob-icon">✉</span><span>WA Log</span></button>
-  <button class="mob-tab" data-pg="driver"><span class="mob-icon">➤</span><span>Driver</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -348,6 +345,11 @@
         </div>
         <button class="btn btn-ghost btn-sm" onclick="saveToken()">Save token</button>
       </div>
+    </div>
+    <div data-role-gate="wanotify">
+      <div class="sp-section-ttl">WhatsApp Log</div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Delivery-notification send log and the "no phone" follow-up queue.</div>
+      <button class="btn btn-ghost" onclick="closeSP();goPage('wanotify')" style="width:100%">✉ Open WhatsApp Log<span id="nb-wanotify" style="display:none;margin-left:6px" class="nav-badge">0</span></button>
     </div>
     <div>
       <div class="sp-section-ttl">Import an Order</div>
@@ -4459,7 +4461,7 @@ function _drvRoutesFor(iso){
   if (currentUserRole === 'driver') rts = rts.filter(r => !r.driver || r.driver === currentUserName);
   return rts;
 }
-function driverTab(t){ _drvTab = t; _drvReorderRoute = null; renderDriver(); }
+function driverTab(t){ _drvTab = t; _drvReorderRoute = null; _drvDetail = null; renderDriver(); }
 
 function navMapsLink(o){ const a=_drvAddr(o); return a ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a) : null; }
 function routeMapsLink(stops){
@@ -4585,117 +4587,280 @@ async function resendOTW(orderId){
   renderDriver();
 }
 
-// ── render ──
-function _drvStopCard(o, opts){
+// ── render (map default · list · detail) ──
+let _drvView = 'map';            // 'map' | 'list'
+let _drvDetail = null;           // order id whose detail view is open
+let _drvMap = null, _geoOff = false; const _geoTried = new Set();
+const SHOP_LATLNG = [5.3457, 100.4432];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
+const DRV_C = { pending:'#D84343', otw:'#2E7BD0', done:'#2E9E6B' };
+function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null; renderDriver(); }
+function openStopDetail(id){ _drvDetail = id; renderDriver(); }
+function closeStopDetail(){ _drvDetail = null; renderDriver(); }
+// Rough "area" for the compact row: the "13700 Perai" chunk of the one-line address.
+function _drvArea(o){
+  const parts = _drvAddr(o).split(',').map(s=>s.trim()).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length-2] : (parts[0]||'');
+}
+function _drvStatusText(o){
   const st = _drvStatus(o);
-  const addr = _drvAddr(o);
-  const nav = navMapsLink(o);
-  const wa = recipWaLink(o);
-  const tel = _drvE164(o.recipPhone);
-  const reorder = opts.reorder;
-  const pill = o.priority==='urgent'
-    ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">⚡ URGENT</span>'
-    : st==='otw' ? '<span style="background:#E3F2FD;color:#1565C0;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">ON THE WAY</span>'
-    : st==='done' ? '<span style="background:#E8F5E9;color:#2E7D32;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">✓ DELIVERED</span>' : '';
+  return st==='done' ? 'delivered' : st==='otw' ? 'on the way' : 'pending';
+}
+
+// Minimal one-line stop row (list + below-map). Tap → detail. Reorder mode adds a
+// drag handle + unassign; taps are disabled while reordering.
+function _drvRow(o, opts){
+  opts = opts || {};
+  const st = _drvStatus(o);
   const seq = o.routeSeq != null ? o.routeSeq : '·';
-  const img = o.image ? '<img src="'+o.image+'" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex:none" onerror="this.style.display=\'none\'">' : '';
-  const note = o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 6px 6px 0;padding:5px 8px;margin-top:6px;font-size:11.5px;color:#795548">📝 '+esc2(o.internalNote)+'</div>' : '';
-  const flag = o._otwFlag ? '<div style="font-size:10.5px;color:#E65100;margin-top:4px">⚠ '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '';
-  const btn = (href, label, extra) => href
-    ? '<a href="'+href+'" target="_blank" rel="noopener" style="flex:1;text-align:center;padding:9px 4px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;text-decoration:none;color:var(--c-ink);'+(extra||'')+'">'+label+'</a>'
-    : '<span style="flex:1;text-align:center;padding:9px 4px;border:1.5px dashed var(--c-border);border-radius:8px;font-size:11.5px;color:var(--c-muted)">'+label+'</span>';
-  const actions = st==='done' ? '' :
-    '<div style="display:flex;gap:6px;margin-top:8px">'
-    + btn(tel ? 'tel:+'+tel : null, '📞 Call')
-    + btn(wa, '💬 WhatsApp', 'background:#E8F5E9;border-color:#A5D6A7;color:#2E7D32')
-    + btn(nav, '🧭 Navigate')
-    + '</div>'
-    + '<div style="display:flex;gap:6px;margin-top:6px">'
-    + '<button onclick="markDelivered(\''+o.id+'\')" style="flex:2;padding:10px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">✓ Delivered + photo</button>'
-    + (st!=='otw' ? '<button onclick="resendOTW(\''+o.id+'\')" style="flex:1;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Send OTW</button>' : '')
-    + '</div>';
-  const assignSel = opts.assign
-    ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin-top:8px;width:100%;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)">'
-      + '<option value="">— add to route —</option>'
-      + _drvRoutesFor(_drvDateISO()).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('')
-      + '</select>'
+  const circle = st==='done'
+    ? '<div style="width:26px;height:26px;border-radius:50%;background:'+DRV_C.done+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none">✓</div>'
+    : '<div style="width:26px;height:26px;border-radius:50%;background:'+DRV_C[st]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">'+seq+'</div>';
+  const handle = opts.reorder
+    ? '<div onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')" style="width:30px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:17px;color:var(--c-muted);user-select:none;flex:none">≡</div>'
     : '';
-  const handle = reorder
-    ? '<div onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')" style="width:34px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:18px;color:var(--c-muted);user-select:none">≡</div>'
-      + '<button onclick="assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="position:absolute;top:6px;right:6px;width:22px;height:22px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted)">✕</button>'
-    : '';
-  return '<div class="drv-stop" data-oid="'+o.id+'" style="position:relative;display:flex;gap:8px;border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:8px;background:var(--c-surface);'+(st==='done'?'opacity:.55;':'')+'">'
-    + handle
-    + '<div style="width:24px;height:24px;border-radius:50%;background:'+(st==='done'?'#A5D6A7':'var(--c-burg)')+';color:var(--c-bg);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;margin-top:2px">'+seq+'</div>'
+  const unassign = opts.reorder
+    ? '<button onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="width:26px;height:26px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted);flex:none">✕</button>'
+    : '<span style="color:var(--c-muted);font-size:14px;flex:none">›</span>';
+  const flame = o.priority==='urgent' ? ' <span title="urgent" style="color:#E65100">⚡</span>' : '';
+  return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
+    + handle + circle
     + '<div style="flex:1;min-width:0">'
-      + '<div style="display:flex;justify-content:space-between;gap:6px;align-items:center"><span style="font-weight:700;font-size:13px">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+'</span>'+pill+'</div>'
-      + (addr ? '<div style="font-size:12px;color:var(--c-muted);margin-top:2px;line-height:1.45">'+esc2(addr)+'</div>' : '<div style="font-size:11px;color:#E65100;margin-top:2px">⚠ no address on order</div>')
-      + '<div style="font-size:11px;color:var(--c-muted);margin-top:3px">🕐 '+esc2(o.dueTime||'—')+' · '+esc2((o.product||'').split(',')[0])+'</div>'
-      + note + flag
-      + (reorder ? '' : actions + assignSel)
+      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+'</div>'
+      + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o))+(o.dueTime?' · '+esc2(o.dueTime):'')+' · '+_drvStatusText(o)+'</div>'
     + '</div>'
-    + img
+    + unassign
   + '</div>';
 }
-function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// EasyRoutes-style contact row: label, name with number on the line below, and
+// small round Call + WhatsApp buttons on the right.
+function _drvContactRow(label, name, phone, waHref){
+  const tel = _drvE164(phone);
+  const round = (href, sym, title) => href
+    ? '<a href="'+href+'" target="_blank" rel="noopener" title="'+title+'" style="width:38px;height:38px;border:1.5px solid var(--c-border);border-radius:50%;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px;flex:none">'+sym+'</a>'
+    : '';
+  return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--c-border)">'
+    + '<div style="width:64px;font-size:11px;color:var(--c-muted);flex:none">'+label+'</div>'
+    + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+esc2(name||'—')+'</div>'
+    + (tel ? '<div style="font-size:12px;color:#2E7D32;margin-top:1px">+'+tel+'</div>' : '<div style="font-size:11px;color:var(--c-muted);margin-top:1px">no number</div>')
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'+round(tel?'tel:+'+tel:null,'📞','Call')+round(waHref,'💬','WhatsApp')+'</div>'
+  + '</div>';
+}
+
+function _drvDetailView(o){
+  const st = _drvStatus(o);
+  const nav = navMapsLink(o);
+  const items = (o.lineItems && o.lineItems.length)
+    ? o.lineItems.map(li => '<div style="font-size:12.5px;padding:2px 0">· '+(li.quantity||1)+' × '+esc2(li.title||'')+'</div>').join('')
+    : '<div style="font-size:12.5px">· '+esc2(o.product||'—')+'</div>';
+  const pill = o.priority==='urgent' && st!=='done'
+    ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">⚡ URGENT</span>'
+    : st==='otw' ? '<span style="background:#E3F2FD;color:#1565C0;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">ON THE WAY</span>'
+    : st==='done' ? '<span style="background:#E8F5E9;color:#2E7D32;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">✓ DELIVERED</span>' : '';
+  const img = o.image ? '<img src="'+o.image+'" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none" onerror="this.style.display=\'none\'">' : '';
+  return '<div style="max-width:560px">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+      + '<button onclick="closeStopDetail()" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);font-size:15px;cursor:pointer;flex:none">‹</button>'
+      + '<div style="flex:1"><div style="font-weight:700;font-size:15px">'+(o.routeSeq!=null?'Stop '+o.routeSeq+' · ':'')+esc2(o.name||'')+'</div>'
+      + '<div style="font-size:11px;color:var(--c-muted)">'+esc2(o.dueTime||'')+'</div></div>'
+      + pill
+    + '</div>'
+    + '<div style="display:flex;gap:10px;align-items:flex-start;border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;background:var(--c-surface);margin-bottom:10px">'
+      + '<div style="flex:1;min-width:0">'+items+'</div>' + img
+    + '</div>'
+    + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;background:var(--c-surface);margin-bottom:10px">'
+      + '<div style="font-size:11px;color:var(--c-muted);margin-bottom:3px">DELIVER TO</div>'
+      + '<div style="font-size:13px;line-height:1.55">'+ (esc2(_drvAddr(o)) || '<span style="color:#E65100">⚠ no address on order</span>') +'</div>'
+      + (nav ? '<a href="'+nav+'" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:10px;padding:11px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12.5px;text-decoration:none;color:var(--c-ink);font-weight:600">🧭 Navigate</a>' : '')
+      + (o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 6px 6px 0;padding:7px 9px;margin-top:10px;font-size:12px;color:#795548">📝 '+esc2(o.internalNote)+'</div>' : '')
+    + '</div>'
+    + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:2px 12px;background:var(--c-surface);margin-bottom:12px">'
+      + _drvContactRow('Ship to:', o.recipName || o.customer, o.recipPhone, recipWaLink(o))
+    + '</div>'
+    + (st==='done'
+        ? (o.proofPhoto ? '<img src="'+o.proofPhoto+'" style="width:100%;border-radius:10px;margin-bottom:10px" onerror="this.style.display=\'none\'">' : '')
+        : '<button onclick="markDelivered(\''+o.id+'\')" style="width:100%;padding:14px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #A5D6A7;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">✓ Mark as delivered</button>'
+          + (!o.otwAt ? '<button onclick="resendOTW(\''+o.id+'\')" style="width:100%;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--c-muted)">Send on-the-way notification</button>' : ''))
+    + (o._otwFlag ? '<div style="font-size:11px;color:#E65100;margin-top:6px">⚠ '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '')
+  + '</div>';
+}
+
+// Compact per-route header bar (shared by map + list views).
+function _drvRouteBar(rt, pending, opts){
+  opts = opts || {};
+  const isAdmin = currentUserRole === 'admin';
+  const reorder = _drvReorderRoute === rt.id;
+  const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
+  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 10px;border:1.5px solid var(--c-border);border-radius:10px;background:var(--c-bg);margin-bottom:8px">'
+    + '<div style="min-width:0"><span style="font-weight:700;font-size:13px">'+esc2(rt.name)+'</span>'
+    + (rt.driver ? '<span style="font-size:11px;color:var(--c-muted)"> · '+esc2(rt.driver)+'</span>' : '')
+    + (rt.startedAt ? '<div style="font-size:10.5px;color:#1565C0">▶ '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(rt.startedBy?' · '+esc2(rt.startedBy):'')+(seen!=null?' · 📍 '+seen+'m ago':'')+'</div>' : '')
+    + '</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
+    + (pending.length && !rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer">▶ Start</button>' : '')
+    + (pending.length && rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 9px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Resend</button>' : '')
+    + (opts.showReorder && pending.length > 1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:8px 9px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-bg);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:11px;cursor:pointer">'+(reorder?'✓ Done':'⇅ Reorder')+'</button>' : '')
+    + (isAdmin && rt.lastLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+rt.lastLat+','+rt.lastLng+'" target="_blank" rel="noopener" style="padding:8px 9px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;text-decoration:none;color:var(--c-ink)">📍</a>' : '')
+    + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" style="padding:8px 9px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--c-muted)">🗑</button>' : '')
+    + '</div></div>';
+}
+
+// ── Leaflet map (OpenStreetMap tiles — free, no key) ──
+function _ensureLeaflet(cb){
+  if (window.L) { cb(); return; }
+  if (!document.getElementById('leaflet-css')){
+    const l = document.createElement('link'); l.id='leaflet-css'; l.rel='stylesheet';
+    l.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(l);
+  }
+  if (document.getElementById('leaflet-js')){ // already loading — poll
+    const t = setInterval(()=>{ if(window.L){ clearInterval(t); cb(); } }, 120);
+    setTimeout(()=>clearInterval(t), 8000);
+    return;
+  }
+  const s = document.createElement('script'); s.id='leaflet-js';
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  s.onload = cb; document.head.appendChild(s);
+}
+function _drvPin(o){
+  const st = _drvStatus(o);
+  const seq = o.routeSeq != null ? o.routeSeq : '·';
+  const label = st==='done' ? '✓' : seq;
+  return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
+    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+DRV_C[st]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
+}
+function _drvMapInit(stops, routes){
+  const el = document.getElementById('drv-map'); if (!el) return;
+  _ensureLeaflet(() => {
+    const el2 = document.getElementById('drv-map'); if (!el2) return;   // view changed while loading
+    if (_drvMap){ try{ _drvMap.remove(); }catch(_){} _drvMap = null; }
+    _drvMap = L.map(el2, { zoomControl:true, attributionControl:false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(_drvMap);
+    const pts = [];
+    // shop marker
+    L.marker(SHOP_LATLNG, { icon: L.divIcon({ className:'', iconSize:[40,18], iconAnchor:[20,9],
+      html:'<div style="background:#0F6E56;color:#fff;border-radius:9px;font-size:10px;font-weight:600;text-align:center;line-height:18px;border:1.5px solid #fff">shop</div>' }) }).addTo(_drvMap);
+    pts.push(SHOP_LATLNG);
+    // stop pins (tap → detail)
+    stops.forEach(o => {
+      if (o.lat == null || o.lng == null) return;
+      L.marker([o.lat, o.lng], { icon: _drvPin(o) }).addTo(_drvMap)
+        .on('click', () => openStopDetail(o.id));
+      pts.push([o.lat, o.lng]);
+    });
+    // route line in stop order + driver dot
+    (routes||[]).forEach(rt => {
+      const line = stops.filter(o => o.routeId===rt.id && o.lat!=null)
+        .sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9)).map(o=>[o.lat,o.lng]);
+      if (line.length) L.polyline([SHOP_LATLNG, ...line], { color:'#2E7BD0', weight:2, dashArray:'6 5', opacity:.7 }).addTo(_drvMap);
+      if (rt.lastLat != null){
+        L.circleMarker([rt.lastLat, rt.lastLng], { radius:7, color:'#fff', weight:2, fillColor:'#2E7BD0', fillOpacity:1 }).addTo(_drvMap)
+          .bindTooltip((rt.driver||'driver') + (rt.lastLocAt ? ' · '+Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000)+'m ago' : ''));
+        pts.push([rt.lastLat, rt.lastLng]);
+      }
+    });
+    if (pts.length > 1) _drvMap.fitBounds(pts, { padding:[28,28] });
+    else _drvMap.setView(SHOP_LATLNG, 12);
+  });
+}
+
+// Geocode backfill: stops that have an address but no coordinates yet. One try per
+// order per session; the server (api/geo) needs GOOGLE_MAPS_API_KEY — without it we
+// flip _geoOff and the map shows a hint instead of pins.
+async function _geoBackfill(stops){
+  const todo = stops.filter(o => _drvAddr(o) && (o.lat == null || o.lng == null) && !_geoTried.has(o.id)).slice(0, 30);
+  if (!todo.length || _geoOff) return;
+  todo.forEach(o => _geoTried.add(o.id));
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  try {
+    const r = await fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ items: todo.map(o => ({ id:o.id, address:_drvAddr(o) })), authToken }) });
+    if (r.status === 501){ _geoOff = true; renderDriver(); return; }
+    const j = await r.json().catch(()=>({}));
+    const changed = [];
+    (j.results||[]).forEach(res => {
+      const o = ORDERS.find(x => x.id === res.id);
+      if (o && res.lat != null){ o.lat = res.lat; o.lng = res.lng; changed.push(o); }
+    });
+    if (changed.length){ saveOrders(changed); renderDriver(); }
+  } catch(e){ console.warn('geo backfill', e && e.message); }
+}
+
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
   if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
   _loadRecipDraft();
+  // Detail view
+  if (_drvDetail){
+    const o = ORDERS.find(x => x.id === _drvDetail);
+    if (o){ pc.innerHTML = _drvDetailView(o); return; }
+    _drvDetail = null;
+  }
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
   const routes = _drvRoutesFor(iso);
   const isAdmin = currentUserRole === 'admin';
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
-  const tab = t => '<button onclick="driverTab(\''+t+'\')" style="padding:7px 16px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'
+  const tab = t => '<button onclick="driverTab(\''+t+'\')" style="padding:7px 15px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'
     + (t==='today'?'Today':'Tomorrow')+' · '+_drvStops(t==='today'?tdi(today0()):tdi(new Date(today0().getTime()+86400000))).filter(o=>!o.fulfilled).length+'</button>';
+  const view = v => '<button onclick="driverView(\''+v+'\')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvView===v?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'+(v==='map'?'🗺 Map':'☰ List')+'</button>';
+
   let html = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
     + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+' · ':'')+iso+'</div></div>'
     + (isAdmin ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>' : '')
     + '</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:14px">'+tab('today')+tab('tomorrow')+'</div>';
+    + '<div style="display:flex;gap:8px;margin-bottom:10px">'+tab('today')+tab('tomorrow')+'</div>'
+    + '<div style="display:flex;gap:6px;margin-bottom:12px;max-width:560px">'+view('map')+view('list')+'</div>';
 
-  routes.forEach(rt => {
-    const rtStops = stops.filter(o => o.routeId === rt.id).sort(bySeq);
-    const pending = rtStops.filter(o => !o.fulfilled);
-    const done = rtStops.filter(o => o.fulfilled);
-    const reorder = _drvReorderRoute === rt.id;
-    const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
-    const mapsAll = routeMapsLink(pending);
-    html += '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-bg);padding:12px;margin-bottom:14px">'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
-        + '<div><span style="font-weight:700;font-size:14px">'+esc2(rt.name)+'</span>'
-        + (rt.driver ? '<span style="font-size:11px;color:var(--c-muted)"> · '+esc2(rt.driver)+'</span>' : '')
-        + (rt.startedAt ? '<div style="font-size:10.5px;color:#1565C0;margin-top:2px">▶ started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(rt.startedBy?' by '+esc2(rt.startedBy):'')+(seen!=null?' · 📍 seen '+seen+' min ago':'')+'</div>' : '')
+  const pendingAll = stops.filter(o => !o.fulfilled).sort(bySeq);
+  const doneAll = stops.filter(o => o.fulfilled);
+
+  if (_drvView === 'map'){
+    html += routes.map(rt => _drvRouteBar(rt, pendingAll.filter(o=>o.routeId===rt.id), {})).join('');
+    html += '<div id="drv-map" style="height:46vh;min-height:260px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:8px;z-index:0"></div>'
+      + '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-bottom:10px;flex-wrap:wrap">'
+        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
+        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
+        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span>'
+      + '</div>';
+    const noPin = pendingAll.filter(o => o.lat == null && _drvAddr(o)).length;
+    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">⚠ Map pins need the Google geocoding key (GOOGLE_MAPS_API_KEY) — stops still work from the list below.</div>';
+    else if (noPin) html += '<div style="font-size:11px;color:var(--c-muted);margin-bottom:8px">Locating '+noPin+' stop'+(noPin===1?'':'s')+'…</div>';
+    html += pendingAll.map(o => _drvRow(o)).join('');
+    if (doneAll.length) html += '<details style="margin-top:6px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">✓ Done · '+doneAll.length+'</summary>'+doneAll.map(o => _drvRow(o)).join('')+'</details>';
+  } else {
+    routes.forEach(rt => {
+      const rtStops = stops.filter(o => o.routeId === rt.id).sort(bySeq);
+      const pending = rtStops.filter(o => !o.fulfilled);
+      const done = rtStops.filter(o => o.fulfilled);
+      const reorder = _drvReorderRoute === rt.id;
+      html += '<div style="margin-bottom:14px">'
+        + _drvRouteBar(rt, pending, { showReorder:true })
+        + '<div class="drv-list">'
+        + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No pending stops.</div>')
         + '</div>'
-        + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
-        + (pending.length && !rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 14px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">▶ Start route</button>' : '')
-        + (pending.length && rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Resend OTW</button>' : '')
-        + (pending.length > 1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:8px 10px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-bg);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:11px;cursor:pointer">'+(reorder?'✓ Done':'⇅ Reorder')+'</button>' : '')
-        + (mapsAll ? '<a href="'+mapsAll+'" target="_blank" rel="noopener" style="padding:8px 10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;text-decoration:none;color:var(--c-ink)">🗺 Full route</a>' : '')
-        + (isAdmin && rt.lastLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+rt.lastLat+','+rt.lastLng+'" target="_blank" rel="noopener" style="padding:8px 10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;text-decoration:none;color:var(--c-ink)">📍 Locate</a>' : '')
-        + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" style="padding:8px 10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer;color:var(--c-muted)">🗑</button>' : '')
-        + '</div></div>'
-      + '<div class="drv-list">'
-      + (pending.length ? pending.map(o => _drvStopCard(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:8px 2px">No pending stops.</div>')
-      + '</div>'
-      + (done.length ? '<details style="margin-top:4px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">✓ Done · '+done.length+'</summary>'+done.map(o => _drvStopCard(o, {})).join('')+'</details>' : '')
-      + '</div>';
-  });
-
-  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
-  if (unassigned.length || !routes.length){
-    html += '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:12px;margin-bottom:14px">'
-      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
-      + (unassigned.length ? unassigned.map(o => _drvStopCard(o, { assign: routes.length > 0 })).join('')
-                           : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
-      + '</div>';
-  }
-  const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
-  if (doneUnrouted.length){
-    html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">✓ Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvStopCard(o, {})).join('')+'</details>';
+        + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">✓ Done · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')
+        + '</div>';
+    });
+    const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
+    if (unassigned.length || !routes.length){
+      html += '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
+        + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
+        + (unassigned.length ? unassigned.map(o =>
+            _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">— add to route —</option>'
+              + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
+          ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+        + '</div>';
+    }
+    const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
+    if (doneUnrouted.length) html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">✓ Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>';
   }
   pc.innerHTML = html;
+  if (_drvView === 'map'){
+    _drvMapInit(stops, routes);
+    _geoBackfill(stops);
+  }
 }
 
 function _custTagStyle(tag){
@@ -6226,13 +6391,13 @@ async function confirmDeliver(id, photoUrl, notify, verb){
   if (photoUrl) o.proofPhoto = photoUrl;
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
     toast('✓ Marked as '+verb); return;
   }
   toast('Fulfilling in Shopify…');
   try {
     const r = await fulfillInShopify(o, false);   // silent — our own system notifies
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
     if (notify){
       toast('Notifying customer…');
       const res = await notifyCustomerManual(o, photoUrl);
@@ -6249,7 +6414,7 @@ async function confirmDeliver(id, photoUrl, notify, verb){
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
-      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); closeDP();
+      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else { toast('Cancelled'); }
   }
