@@ -1,7 +1,8 @@
-// POST /api/geo  { items:[{id, address}], authToken }
-// Geocodes delivery addresses (Google Geocoding API, region-biased to Malaysia) for the
-// driver-page map pins. Staff-JWT-authed like api/query.js. Returns
-// { results:[{id, lat, lng}] } — items Google can't resolve are simply omitted.
+// POST /api/geo  — two modes, both staff-JWT-authed, both need GOOGLE_MAPS_API_KEY (else 501):
+//   geocode: { items:[{id, address}] }          → { results:[{id, lat, lng}] }  (map pins)
+//   route:   { mode:'route', origin, stops[], optimize? } → { distanceKm, durationMin, order[] }
+// Geocoding is region-biased to Malaysia; items Google can't resolve are omitted. Route mode
+// uses the Routes API computeRoutes for totals + optional shortest-distance stop ordering.
 // Without GOOGLE_MAPS_API_KEY the endpoint answers 501 and the app shows a hint
 // instead of pins (the driver page still fully works from the list).
 //
@@ -30,6 +31,47 @@ export default async function handler(req, res) {
   try { body = typeof req.body === 'object' && req.body ? req.body : JSON.parse(req.body || '{}'); } catch {}
   const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!(await verifyStaff(jwt))) return res.status(401).json({ error: 'Not authenticated' });
+
+  // ── Route mode: distance/time totals + optional waypoint optimization ──
+  // body { mode:'route', origin:{lat,lng}, stops:[{id,lat,lng}], optimize?:bool }
+  // Round trip shop → stops → shop (a driver's typical loop). Returns total distance +
+  // duration, and (when optimize) the stop ids in the shortest-distance order.
+  if (body.mode === 'route') {
+    const origin = body.origin && typeof body.origin.lat === 'number' ? body.origin : null;
+    const stops = (Array.isArray(body.stops) ? body.stops : [])
+      .filter(s => s && s.id != null && typeof s.lat === 'number' && typeof s.lng === 'number').slice(0, 25);
+    if (!origin || !stops.length) return res.status(400).json({ error: 'origin + stops required' });
+    const optimize = !!body.optimize;
+    const pt = p => ({ location: { latLng: { latitude: p.lat, longitude: p.lng } } });
+    const payload = {
+      origin: pt(origin), destination: pt(origin),
+      intermediates: stops.map(pt),
+      travelMode: 'DRIVE', optimizeWaypointOrder: optimize,
+    };
+    try {
+      const r = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': KEY,
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.optimizedIntermediateWaypointIndex',
+        },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.routes || !j.routes[0]) {
+        return res.status(200).json({ error: (j.error && j.error.message) || ('routes HTTP ' + r.status) });
+      }
+      const rt = j.routes[0];
+      const distanceKm = Math.round((rt.distanceMeters || 0) / 100) / 10;             // 1 dp
+      const durationMin = Math.round(parseInt(String(rt.duration || '0'), 10) / 60);   // "1234s" → min
+      const idx = rt.optimizedIntermediateWaypointIndex;
+      const order = (optimize && Array.isArray(idx)) ? idx.map(i => stops[i].id) : stops.map(s => s.id);
+      return res.status(200).json({ distanceKm, durationMin, order });
+    } catch (e) {
+      return res.status(200).json({ error: String(e && e.message || e) });
+    }
+  }
 
   const items = (Array.isArray(body.items) ? body.items : []).slice(0, 30)
     .filter(x => x && x.id != null && typeof x.address === 'string' && x.address.trim());

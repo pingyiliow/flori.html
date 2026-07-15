@@ -4609,12 +4609,65 @@ const DI = {
   sort:'<path d="M21 16l-4 4-4-4"/><path d="M17 20V4"/><path d="M3 8l4-4 4 4"/><path d="M7 4v16"/>',
   play:'<polygon points="5 3 19 12 5 21 5 3"/>',
   bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  back:'<polyline points="15 18 9 12 15 6"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
 };
 function di(name, size){ size=size||15; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">'+DI[name]+'</svg>'; }
 function dif(name, size){ size=size||13; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px;flex:none">'+DI[name]+'</svg>'; }
+let _drvRouteId = null;          // route id whose detail view is open
 function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null; renderDriver(); }
 function openStopDetail(id){ _drvDetail = id; renderDriver(); }
 function closeStopDetail(){ _drvDetail = null; renderDriver(); }
+function openRouteDetail(id){ _drvRouteId = id; _drvDetail = null; renderDriver(); }
+function closeRouteDetail(){ _drvRouteId = null; _drvReorderRoute = null; renderDriver(); }
+function _fmtDur(min){ if(min==null) return '—'; const h=Math.floor(min/60), mm=min%60; return h ? (h+'h'+(mm?' '+mm+'m':'')) : mm+'m'; }
+function _drvStopsForRoute(id){ return _drvStops(_drvDateISO()).filter(o=>o.routeId===id).sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9)||String(a.dueTime||'').localeCompare(String(b.dueTime||''))); }
+
+// Route distance/time via the Routes API (api/geo mode:'route'). Cached per route keyed by a
+// signature of its located stops so we only call Google when the route actually changes.
+let _routeMetrics = {};   // id -> {km, min, sig}
+async function _geoRoute(stops, optimize){
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
+  try {
+    const r = await fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mode:'route', origin:{lat:SHOP_LATLNG[0],lng:SHOP_LATLNG[1]}, stops: stops.map(o=>({id:o.id,lat:o.lat,lng:o.lng})), optimize, authToken }) });
+    if (r.status === 501){ _geoOff = true; return null; }
+    return await r.json().catch(()=>null);
+  } catch(e){ return null; }
+}
+async function _computeRouteMetrics(id){
+  const stops = _drvStopsForRoute(id).filter(o => o.lat != null && !o.fulfilled);
+  const sig = stops.map(o=>o.id).join('|');
+  if (_routeMetrics[id] && _routeMetrics[id].sig === sig) return;
+  if (stops.length < 1){ _routeMetrics[id] = { km:0, min:0, sig }; return; }
+  _routeMetrics[id] = { ..._routeMetrics[id], sig, loading:true };
+  const j = await _geoRoute(stops, false);
+  if (j && j.distanceKm != null){ _routeMetrics[id] = { km:j.distanceKm, min:j.durationMin, sig }; renderDriver(); }
+  else { _routeMetrics[id] = { km:null, min:null, sig }; }
+}
+async function optimizeRoute(id){
+  const withGeo = _drvStopsForRoute(id).filter(o => !o.fulfilled && o.lat != null);
+  if (withGeo.length < 2){ toast('Need at least 2 located stops to optimize'); return; }
+  toast('Optimizing…');
+  // Urgent stops stay pinned to the front (in their current order); optimize the rest.
+  const urgent = withGeo.filter(o => o.priority==='urgent');
+  const rest   = withGeo.filter(o => o.priority!=='urgent');
+  let orderedRest = rest;
+  if (rest.length >= 2){
+    const j = await _geoRoute(rest, true);
+    if (j && Array.isArray(j.order)) orderedRest = j.order.map(oid => rest.find(o=>o.id===oid)).filter(Boolean);
+    else if (j && j.error){ toast('⚠ Optimize failed: '+j.error); return; }
+  }
+  const finalOrder = [...urgent, ...orderedRest];
+  const changed = [];
+  finalOrder.forEach((o,i)=>{ if(o.routeSeq !== i+1){ o.routeSeq = i+1; changed.push(o); } });
+  if (changed.length) saveOrders(changed);
+  delete _routeMetrics[id];
+  renderDriver();
+  toast('✓ Route optimized');
+}
 // Rough "area" for the compact row: the "13700 Perai" chunk of the one-line address.
 function _drvArea(o){
   const parts = _drvAddr(o).split(',').map(s=>s.trim()).filter(Boolean);
@@ -4705,23 +4758,73 @@ function _drvDetailView(o){
   + '</div>';
 }
 
-// Compact per-route header bar (shared by map + list views).
-function _drvRouteBar(rt, pending, opts){
-  opts = opts || {};
+// Tappable route CARD (list + map overview). No inline Start — opens the route detail
+// (below) where Start/Reorder/Optimize live, so it can't be misclicked from the list.
+function _drvRouteCard(rt){
+  const stops = _drvStopsForRoute(rt.id);
+  const pending = stops.filter(o => !o.fulfilled);
+  const m = _routeMetrics[rt.id];
+  const metricText = (m && m.km != null) ? ' · '+m.km+' km · '+_fmtDur(m.min) : '';
+  const statusText = rt.startedAt
+    ? ' · <span style="color:#1565C0">started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>'
+    : ' · not started';
+  _computeRouteMetrics(rt.id);   // lazy — cached, only calls Google when the route changes
+  return '<div onclick="openRouteDetail(\''+rt.id+'\')" style="display:flex;align-items:center;gap:10px;border:1.5px solid var(--c-border);border-radius:10px;padding:12px;margin-bottom:8px;background:var(--c-surface);cursor:pointer">'
+    + '<div style="width:34px;height:34px;border-radius:8px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-burg);flex:none">'+di('route',18)+'</div>'
+    + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13px">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">· '+esc2(rt.driver)+'</span>':'')+'</div>'
+    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+pending.length+' stop'+(pending.length===1?'':'s')+metricText+statusText+'</div></div>'
+    + '<span style="color:var(--c-muted);font-size:16px;flex:none">›</span>'
+  + '</div>';
+}
+
+// Full route detail: back, totals (stops/km/time), route map, Start/Reorder/Optimize,
+// the stop rows, and an "add orders" section. Opened by tapping a route card.
+function _drvRouteDetail(rt){
   const isAdmin = currentUserRole === 'admin';
+  const iso = _drvDateISO();
+  const stops = _drvStopsForRoute(rt.id);
+  const pending = stops.filter(o => !o.fulfilled);
+  const done = stops.filter(o => o.fulfilled);
   const reorder = _drvReorderRoute === rt.id;
   const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
-  return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 10px;border:1.5px solid var(--c-border);border-radius:10px;background:var(--c-bg);margin-bottom:8px">'
-    + '<div style="min-width:0"><span style="font-weight:700;font-size:13px">'+esc2(rt.name)+'</span>'
-    + (rt.driver ? '<span style="font-size:11px;color:var(--c-muted)"> · '+esc2(rt.driver)+'</span>' : '')
-    + (rt.startedAt ? '<div style="font-size:10.5px;color:#1565C0">'+dif('play',9)+' '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(rt.startedBy?' · '+esc2(rt.startedBy):'')+(seen!=null?' · '+di('pin',11)+' '+seen+'m ago':'')+'</div>' : '')
-    + '</div><div style="display:flex;gap:6px;flex-wrap:wrap">'
-    + (pending.length && !rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:11.5px;font-weight:600;cursor:pointer">'+dif('play',11)+' Start</button>' : '')
-    + (pending.length && rt.startedAt ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:8px 9px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:11px;cursor:pointer">Resend</button>' : '')
-    + (opts.showReorder && pending.length > 1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:8px 9px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-bg);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:11px;cursor:pointer">'+(reorder?di('check',12)+' Done':di('sort',12)+' Reorder')+'</button>' : '')
-    + (isAdmin && rt.lastLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+rt.lastLat+','+rt.lastLng+'" target="_blank" rel="noopener" aria-label="Locate driver" style="padding:8px 10px;border:1.5px solid var(--c-border);border-radius:8px;text-decoration:none;color:var(--c-ink);display:inline-flex;align-items:center">'+di('pin',14)+'</a>' : '')
-    + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" title="Delete route" aria-label="Delete route" style="padding:8px 10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;cursor:pointer;color:var(--c-muted);display:inline-flex;align-items:center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>' : '')
-    + '</div></div>';
+  const m = _routeMetrics[rt.id];
+  const metric = (val, lbl) => '<div style="background:var(--c-bg);border-radius:8px;padding:9px;text-align:center"><div style="font-size:17px;font-weight:700;color:var(--c-ink)">'+val+'</div><div style="font-size:10px;color:var(--c-muted)">'+lbl+'</div></div>';
+  const kmVal  = m ? (m.km != null ? m.km : '—') : '…';
+  const minVal = m ? (m.min != null ? _fmtDur(m.min) : '—') : '…';
+  const canOpt = pending.filter(o=>o.lat!=null).length >= 2;
+  const unassigned = _drvStops(iso).filter(o => !o.routeId && !o.fulfilled).sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9));
+
+  return '<div style="max-width:600px">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
+      + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">'+esc2(rt.name)+'</div>'
+      + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
+      + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" aria-label="Delete route" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('trash',15)+'</button>' : '')
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
+      + metric(pending.length, 'stops') + metric(kmVal, 'distance km') + metric(minVal, 'est. time')
+    + '</div>'
+    + (pending.some(o=>o.lat!=null) ? '<div id="drv-map" style="height:34vh;min-height:200px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:10px;z-index:0"></div>' : '')
+    + (_geoOff ? '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
+    + '<div style="display:flex;gap:6px;margin-bottom:12px">'
+      + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="flex:2;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
+      + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="flex:1;padding:12px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
+      + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" style="flex:1;padding:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer">'+di('route',13)+' Optimize</button>' : '')
+    + '</div>'
+    + '<div class="drv-list">'
+    + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet — add some below.</div>')
+    + '</div>'
+    + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')
+    + '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:12px">'
+      + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
+      + (unassigned.length ? unassigned.map(o =>
+          '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
+          + '<div style="flex:1;min-width:0;font-size:12px"><span style="font-weight:600">'+esc2(o.name||'')+'</span> · '+esc2(o.recipName||o.customer||'')+'<div style="font-size:10.5px;color:var(--c-muted)">'+esc2(_drvArea(o)||'no address')+(o.dueTime?' · '+esc2(o.dueTime):'')+'</div></div>'
+          + '<button onclick="assignStopToRoute(\''+o.id+'\',\''+rt.id+'\')" style="font-size:11px;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;flex:none">Add</button>'
+          + '</div>').join('')
+        : '<div style="font-size:11.5px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+    + '</div>'
+  + '</div>';
 }
 
 // ── Leaflet map (OpenStreetMap tiles — free, no key) ──
@@ -4809,11 +4912,23 @@ function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
   if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
   _loadRecipDraft();
-  // Detail view
+  // Stop detail view
   if (_drvDetail){
     const o = ORDERS.find(x => x.id === _drvDetail);
     if (o){ pc.innerHTML = _drvDetailView(o); return; }
     _drvDetail = null;
+  }
+  // Route detail view (map + totals + stops + add-orders + Start)
+  if (_drvRouteId){
+    const rt = ROUTES.find(r => r.id === _drvRouteId);
+    if (rt){
+      pc.innerHTML = _drvRouteDetail(rt);
+      _computeRouteMetrics(rt.id);
+      const rs = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
+      if (document.getElementById('drv-map')){ _drvMapInit(rs, [rt]); _geoBackfill(rs); }
+      return;
+    }
+    _drvRouteId = null;
   }
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
@@ -4834,43 +4949,34 @@ function renderDriver(){
   const pendingAll = stops.filter(o => !o.fulfilled).sort(bySeq);
   const doneAll = stops.filter(o => o.fulfilled);
 
+  // Shared: unassigned deliveries with a quick "add to route" picker.
+  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
+  const unassignedBlock = () => (unassigned.length || !routes.length)
+    ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
+      + (unassigned.length ? unassigned.map(o =>
+          _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">— add to route —</option>'
+            + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
+        ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+      + '</div>'
+    : '';
+
   if (_drvView === 'map'){
-    html += routes.map(rt => _drvRouteBar(rt, pendingAll.filter(o=>o.routeId===rt.id), {})).join('');
-    html += '<div id="drv-map" style="height:46vh;min-height:260px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:8px;z-index:0"></div>'
+    // Overview map of every stop today; route cards + unassigned below it. Tap a card → detail.
+    html += '<div id="drv-map" style="height:44vh;min-height:240px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:8px;z-index:0"></div>'
       + '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-bottom:10px;flex-wrap:wrap">'
         + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
         + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
         + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span>'
       + '</div>';
     const noPin = pendingAll.filter(o => o.lat == null && _drvAddr(o)).length;
-    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map pins need the Google geocoding key (GOOGLE_MAPS_API_KEY) — stops still work from the list below.</div>';
+    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) — routes still work from the cards below.</div>';
     else if (noPin) html += '<div style="font-size:11px;color:var(--c-muted);margin-bottom:8px">Locating '+noPin+' stop'+(noPin===1?'':'s')+'…</div>';
-    html += pendingAll.map(o => _drvRow(o)).join('');
-    if (doneAll.length) html += '<details style="margin-top:6px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Done · '+doneAll.length+'</summary>'+doneAll.map(o => _drvRow(o)).join('')+'</details>';
+    html += routes.map(rt => _drvRouteCard(rt)).join('') + unassignedBlock();
   } else {
-    routes.forEach(rt => {
-      const rtStops = stops.filter(o => o.routeId === rt.id).sort(bySeq);
-      const pending = rtStops.filter(o => !o.fulfilled);
-      const done = rtStops.filter(o => o.fulfilled);
-      const reorder = _drvReorderRoute === rt.id;
-      html += '<div style="margin-bottom:14px">'
-        + _drvRouteBar(rt, pending, { showReorder:true })
-        + '<div class="drv-list">'
-        + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No pending stops.</div>')
-        + '</div>'
-        + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Done · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')
-        + '</div>';
-    });
-    const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
-    if (unassigned.length || !routes.length){
-      html += '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
-        + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
-        + (unassigned.length ? unassigned.map(o =>
-            _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">— add to route —</option>'
-              + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
-          ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
-        + '</div>';
-    }
+    // List: just the tappable route cards + unassigned. Stops live inside each route.
+    html += (routes.length ? routes.map(rt => _drvRouteCard(rt)).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">No routes yet'+(isAdmin?' — tap “+ New route”.':'.')+'</div>')
+      + unassignedBlock();
     const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
     if (doneUnrouted.length) html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>';
   }
