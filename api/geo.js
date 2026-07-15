@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': KEY,
-          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.optimizedIntermediateWaypointIndex',
+          'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration,routes.optimizedIntermediateWaypointIndex,routes.polyline.encodedPolyline',
         },
         body: JSON.stringify(payload),
       });
@@ -67,7 +67,8 @@ export default async function handler(req, res) {
       const durationMin = Math.round(parseInt(String(rt.duration || '0'), 10) / 60);   // "1234s" → min
       const idx = rt.optimizedIntermediateWaypointIndex;
       const order = (optimize && Array.isArray(idx)) ? idx.map(i => stops[i].id) : stops.map(s => s.id);
-      return res.status(200).json({ distanceKm, durationMin, order });
+      const polyline = (rt.polyline && rt.polyline.encodedPolyline) || null;
+      return res.status(200).json({ distanceKm, durationMin, order, polyline });
     } catch (e) {
       return res.status(200).json({ error: String(e && e.message || e) });
     }

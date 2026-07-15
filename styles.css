@@ -835,3 +835,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .wa-warn{background:#FFF8E1;color:#F57F17}
 .wa-err{background:#FDECEA;color:#C62828}
 .wa-empty{font-size:12px;color:var(--c-muted);padding:18px;text-align:center;background:var(--c-surface);border:1px dashed var(--c-border);border-radius:10px}
+
+/* ── Driver route detail: single column on mobile, two columns on desktop ── */
+.drv-rd{max-width:600px}
+.drv-rd-cols{display:flex;flex-direction:column}
+@media(min-width:900px){
+  .drv-rd{max-width:1000px}
+  .drv-rd-cols{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
+  .drv-rd-left{position:sticky;top:12px}
+}

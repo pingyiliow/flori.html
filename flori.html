@@ -346,6 +346,14 @@
         <button class="btn btn-ghost btn-sm" onclick="saveToken()">Save token</button>
       </div>
     </div>
+    <div>
+      <div class="sp-section-ttl">Delivery start point</div>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">The default origin routes measure and optimize from. Each route can still override it in Driver.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="cfg-start-lbl" style="flex:1;min-width:0;font-size:12px;color:var(--c-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">…</div>
+        <button class="btn btn-ghost btn-sm" onclick="editGlobalStart()" style="white-space:nowrap">Edit</button>
+      </div>
+    </div>
     <div data-role-gate="wanotify">
       <div class="sp-section-ttl">WhatsApp Log</div>
       <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Delivery-notification send log and the "no phone" follow-up queue.</div>
@@ -4457,8 +4465,8 @@ function applyOrderChange(p){
    start info and the driver's last known GPS. Windowed to today+tomorrow. */
 let ROUTES = [];
 let _rtRealtime = null, _rtRenderTimer = null;
-function _mapDbRoute(r){ return { id:r.id, date:r.route_date, name:r.name, driver:r.driver||null, startedAt:r.started_at||null, startedBy:r.started_by||null, lastLat:r.last_lat??null, lastLng:r.last_lng??null, lastLocAt:r.last_loc_at||null, createdAt:r.created_at||null }; }
-function _routeRow(rt){ return { id:rt.id, route_date:rt.date, name:rt.name, driver:rt.driver||null, started_at:rt.startedAt||null, started_by:rt.startedBy||null, last_lat:rt.lastLat??null, last_lng:rt.lastLng??null, last_loc_at:rt.lastLocAt||null }; }
+function _mapDbRoute(r){ return { id:r.id, date:r.route_date, name:r.name, driver:r.driver||null, startedAt:r.started_at||null, startedBy:r.started_by||null, lastLat:r.last_lat??null, lastLng:r.last_lng??null, lastLocAt:r.last_loc_at||null, startLat:r.start_lat??null, startLng:r.start_lng??null, startAddr:r.start_addr||null, createdAt:r.created_at||null }; }
+function _routeRow(rt){ return { id:rt.id, route_date:rt.date, name:rt.name, driver:rt.driver||null, started_at:rt.startedAt||null, started_by:rt.startedBy||null, last_lat:rt.lastLat??null, last_lng:rt.lastLng??null, last_loc_at:rt.lastLocAt||null, start_lat:rt.startLat??null, start_lng:rt.startLng??null, start_addr:rt.startAddr||null }; }
 async function loadRoutes(){
   if (!hasSB()) return;
   try {
@@ -4662,15 +4670,86 @@ async function resendOTW(orderId){
 let _drvView = 'list';           // 'map' | 'list' — list is the default landing
 let _drvDetail = null;           // order id whose detail view is open
 let _drvMap = null, _geoOff = false; const _geoTried = new Set();
-const SHOP_LATLNG = [5.3457, 100.4432];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
+const SHOP_LATLNG = [5.3695432, 100.4554098];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
+const SHOP_ADDR = '9, Persiaran Sunway Wellesley, Taman Sunway Wellesley, Bukit Mertajam';
 const DRV_C = { pending:'#D84343', otw:'#2E7BD0', done:'#2E9E6B' };
+
+// ── Delivery start point (origin for optimize + distance + map) ──
+// Global default lives in the settings KV (`route_origin`), defaulting to the shop; each
+// route may override it via routes.start_lat/lng/addr. _routeOrigin() resolves the two.
+let _globalOrigin = null;   // {lat,lng,label} — loaded once from the KV
+async function _loadRouteOrigin(){
+  if (!_globalOrigin){
+    try { const v = await sbGetVal('route_origin'); if (v) _globalOrigin = (typeof v === 'string') ? JSON.parse(v) : v; } catch(_){}
+    if (!_globalOrigin || _globalOrigin.lat == null) _globalOrigin = { lat:SHOP_LATLNG[0], lng:SHOP_LATLNG[1], label:SHOP_ADDR };
+  }
+  const el = document.getElementById('cfg-start-lbl'); if (el) el.textContent = _globalOrigin.label || SHOP_ADDR;
+  return _globalOrigin;
+}
+function _routeOrigin(rt){
+  if (rt && rt.startLat != null && rt.startLng != null) return { lat:rt.startLat, lng:rt.startLng, label:rt.startAddr || 'Custom start' };
+  if (_globalOrigin && _globalOrigin.lat != null) return _globalOrigin;
+  return { lat:SHOP_LATLNG[0], lng:SHOP_LATLNG[1], label:SHOP_ADDR };
+}
+// Parse a pasted Google-Maps URL (!3d<lat>!4d<lng> or @lat,lng) or a raw "lat, lng".
+function _parseLatLng(s){
+  s = String(s||'').trim();
+  let m = s.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);        // place coords in a maps URL
+  if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
+  m = s.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);                 // viewport centre in a maps URL
+  if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
+  m = s.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);          // plain "lat, lng"
+  if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
+  return null;
+}
+async function _geocodeOne(address){
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  try {
+    const r = await fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ items:[{ id:'_start', address }], authToken }) });
+    if (r.status === 501){ _geoOff = true; return null; }
+    const j = await r.json().catch(()=>({}));
+    const res = (j.results||[])[0];
+    return (res && res.lat != null) ? { lat:res.lat, lng:res.lng } : null;
+  } catch(_){ return null; }
+}
+// Resolve a pasted value (maps URL / lat,lng / address) to coords + a label.
+async function _resolveStart(inp){
+  const label = String(inp||'').trim();
+  let ll = _parseLatLng(label);
+  if (!ll){ toast('Locating…'); ll = await _geocodeOne(label); }
+  return ll ? { lat:ll.lat, lng:ll.lng, label } : null;
+}
+async function editRouteStart(routeId){
+  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
+  const inp = prompt('Start point for "'+rt.name+'".\nPaste a Google Maps link, "lat, lng", or an address.\n(Leave blank to reset to the default / shop.)', rt.startAddr || '');
+  if (inp === null) return;
+  if (!inp.trim()){ rt.startLat=null; rt.startLng=null; rt.startAddr=null; saveRoute(rt); delete _routeMetrics[rt.id]; renderDriver(); toast('Start reset to default'); return; }
+  const r = await _resolveStart(inp);
+  if (!r){ toast('⚠ Could not locate that — try a Google Maps link or lat,lng'); return; }
+  rt.startLat=r.lat; rt.startLng=r.lng; rt.startAddr=r.label; saveRoute(rt);
+  delete _routeMetrics[rt.id]; renderDriver(); toast('✓ Start point updated');
+}
+async function editGlobalStart(){
+  await _loadRouteOrigin();
+  const inp = prompt('Default delivery start point (used by every route unless it overrides).\nPaste a Google Maps link, "lat, lng", or an address.', (_globalOrigin&&_globalOrigin.label)||SHOP_ADDR);
+  if (inp === null || !inp.trim()) return;
+  const r = await _resolveStart(inp);
+  if (!r){ toast('⚠ Could not locate that'); return; }
+  _globalOrigin = r;
+  try { await sbSet('route_origin', JSON.stringify(_globalOrigin)); } catch(_){}
+  const el = document.getElementById('cfg-start-lbl'); if (el) el.textContent = r.label;
+  toast('✓ Default start updated'); if (document.getElementById('driver-pc')) renderDriver();
+}
 function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
 // (Icon system DI / di() / dif() / dot() defined near the top of the script.)
 let _drvRouteId = null;          // route id whose detail view is open
 function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null; renderDriver(); }
 function openStopDetail(id){ _drvDetail = id; renderDriver(); }
 function closeStopDetail(){ _drvDetail = null; renderDriver(); }
-function openRouteDetail(id){ _drvRouteId = id; _drvDetail = null; renderDriver(); }
+let _drvRouteTab = 'stops';   // 'stops' | 'items' — route-detail sub-view
+function openRouteDetail(id){ _drvRouteId = id; _drvDetail = null; _drvRouteTab = 'stops'; renderDriver(); }
+function driverRouteTab(t){ _drvRouteTab = t; renderDriver(); }
 function closeRouteDetail(){ _drvRouteId = null; _drvReorderRoute = null; renderDriver(); }
 function _fmtDur(min){ if(min==null) return '—'; const h=Math.floor(min/60), mm=min%60; return h ? (h+'h'+(mm?' '+mm+'m':'')) : mm+'m'; }
 function _drvStopsForRoute(id){ return _drvStops(_drvDateISO()).filter(o=>o.routeId===id).sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9)||String(a.dueTime||'').localeCompare(String(b.dueTime||''))); }
@@ -4678,11 +4757,12 @@ function _drvStopsForRoute(id){ return _drvStops(_drvDateISO()).filter(o=>o.rout
 // Route distance/time via the Routes API (api/geo mode:'route'). Cached per route keyed by a
 // signature of its located stops so we only call Google when the route actually changes.
 let _routeMetrics = {};   // id -> {km, min, sig}
-async function _geoRoute(stops, optimize){
+async function _geoRoute(stops, optimize, origin){
+  origin = origin || { lat:SHOP_LATLNG[0], lng:SHOP_LATLNG[1] };
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
   try {
     const r = await fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ mode:'route', origin:{lat:SHOP_LATLNG[0],lng:SHOP_LATLNG[1]}, stops: stops.map(o=>({id:o.id,lat:o.lat,lng:o.lng})), optimize, authToken }) });
+      body: JSON.stringify({ mode:'route', origin:{lat:origin.lat,lng:origin.lng}, stops: stops.map(o=>({id:o.id,lat:o.lat,lng:o.lng})), optimize, authToken }) });
     if (r.status === 501){ _geoOff = true; return null; }
     return await r.json().catch(()=>null);
   } catch(e){ return null; }
@@ -4691,10 +4771,10 @@ async function _computeRouteMetrics(id){
   const stops = _drvStopsForRoute(id).filter(o => o.lat != null && !o.fulfilled);
   const sig = stops.map(o=>o.id).join('|');
   if (_routeMetrics[id] && _routeMetrics[id].sig === sig) return;
-  if (stops.length < 1){ _routeMetrics[id] = { km:0, min:0, sig }; return; }
+  if (stops.length < 1){ _routeMetrics[id] = { km:null, min:null, sig }; return; }
   _routeMetrics[id] = { ..._routeMetrics[id], sig, loading:true };
-  const j = await _geoRoute(stops, false);
-  if (j && j.distanceKm != null){ _routeMetrics[id] = { km:j.distanceKm, min:j.durationMin, sig }; renderDriver(); }
+  const j = await _geoRoute(stops, false, _routeOrigin(ROUTES.find(r=>r.id===id)));
+  if (j && j.distanceKm != null){ _routeMetrics[id] = { km:j.distanceKm, min:j.durationMin, poly:j.polyline||null, sig }; renderDriver(); }
   else { _routeMetrics[id] = { km:null, min:null, sig }; }
 }
 async function optimizeRoute(id){
@@ -4706,7 +4786,7 @@ async function optimizeRoute(id){
   const rest   = withGeo.filter(o => o.priority!=='urgent');
   let orderedRest = rest;
   if (rest.length >= 2){
-    const j = await _geoRoute(rest, true);
+    const j = await _geoRoute(rest, true, _routeOrigin(ROUTES.find(r=>r.id===id)));
     if (j && Array.isArray(j.order)) orderedRest = j.order.map(oid => rest.find(o=>o.id===oid)).filter(Boolean);
     else if (j && j.error){ toast('⚠ Optimize failed: '+j.error); return; }
   }
@@ -4780,7 +4860,8 @@ function _drvDetailView(o){
     ? '<span style="background:#FFF3E0;color:#E65100;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">'+dif('bolt',10)+' URGENT</span>'
     : st==='otw' ? '<span style="background:#E3F2FD;color:#1565C0;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">ON THE WAY</span>'
     : st==='done' ? '<span style="background:#E8F5E9;color:#2E7D32;font-size:10px;padding:3px 9px;border-radius:99px;font-weight:600">'+di('check',10)+' DELIVERED</span>' : '';
-  const img = o.image ? '<img src="'+o.image+'" style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none" onerror="this.style.display=\'none\'">' : '';
+  const imgSafe = o.image ? String(o.image).replace(/'/g,"\\'") : '';
+  const img = o.image ? '<img src="'+o.image+'" onclick="openZoom(\''+imgSafe+'\',\''+esc2(o.name||'')+'\')" title="Tap to zoom" style="width:72px;height:72px;border-radius:10px;object-fit:cover;flex:none;cursor:zoom-in" onerror="this.style.display=\'none\'">' : '';
   return '<div style="max-width:560px">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
       + '<button onclick="closeStopDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'
@@ -4827,8 +4908,38 @@ function _drvRouteCard(rt){
   + '</div>';
 }
 
-// Full route detail: back, totals (stops/km/time), route map, Start/Reorder/Optimize,
-// the stop rows, and an "add orders" section. Opened by tapping a route card.
+// Combined items across a route's stops → one row per product, summed qty + which orders.
+function _drvRouteItems(rt){
+  const stops = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
+  const map = {};
+  stops.forEach(o => {
+    const items = (o.lineItems && o.lineItems.length) ? o.lineItems : [{ title:o.product||'(item)', quantity:1 }];
+    items.forEach(li => {
+      const title = String(li.title || o.product || '(item)').trim();
+      const k = title.toLowerCase();
+      if (!map[k]) map[k] = { title, qty:0, orders:new Set() };
+      map[k].qty += (li.quantity || 1);
+      if (o.name) map[k].orders.add(o.name);
+    });
+  });
+  return Object.values(map).sort((a,b) => b.qty - a.qty || a.title.localeCompare(b.title));
+}
+function _drvItemsView(rt){
+  const items = _drvRouteItems(rt);
+  if (!items.length) return '<div style="font-size:12px;color:var(--c-muted);padding:8px 2px">No items on this route yet.</div>';
+  const total = items.reduce((s,i) => s + i.qty, 0);
+  return '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden">'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-muted);padding:8px 12px;background:var(--c-bg)"><span>Product</span><span>Qty · Orders</span></div>'
+    + items.map(it => '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-top:1px solid var(--c-border);font-size:12.5px">'
+        + '<span style="min-width:0">'+esc2(it.title)+'</span>'
+        + '<span style="flex:none;text-align:right;color:var(--c-muted)"><b style="color:var(--c-ink)">×'+it.qty+'</b> · '+[...it.orders].map(esc2).join(', ')+'</span>'
+      + '</div>').join('')
+    + '<div style="padding:10px 12px;border-top:1.5px solid var(--c-border);font-size:12px;font-weight:700;display:flex;justify-content:space-between"><span>Total items to load</span><span>'+total+'</span></div>'
+  + '</div>';
+}
+
+// Full route detail: back, totals (stops/km/time), route map, editable start, Start/Reorder/
+// Optimize, a Stops|Items toggle, and an "add orders" section. Two columns on desktop.
 function _drvRouteDetail(rt){
   const isAdmin = currentUserRole === 'admin';
   const iso = _drvDateISO();
@@ -4842,37 +4953,56 @@ function _drvRouteDetail(rt){
   const kmVal  = m ? (m.km != null ? m.km : '—') : '…';
   const minVal = m ? (m.min != null ? _fmtDur(m.min) : '—') : '…';
   const canOpt = pending.filter(o=>o.lat!=null).length >= 2;
+  const optimized = pending.some(o => o.routeSeq != null);
+  const origin = _routeOrigin(rt);
   const unassigned = _drvStops(iso).filter(o => !o.routeId && !o.fulfilled).sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9));
+  const tabBtn = (t, lbl, ic) => '<button onclick="driverRouteTab(\''+t+'\')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvRouteTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'+ic+' '+lbl+'</button>';
 
-  return '<div style="max-width:600px">'
+  return '<div class="drv-rd">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
       + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
       + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">'+esc2(rt.name)+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
       + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" aria-label="Delete route" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('trash',15)+'</button>' : '')
     + '</div>'
-    + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
-      + metric(pending.length, 'stops') + metric(kmVal, 'distance km') + metric(minVal, 'est. time')
-    + '</div>'
-    + (pending.some(o=>o.lat!=null) ? '<div id="drv-map" style="height:34vh;min-height:200px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:10px;z-index:0"></div>' : '')
-    + (_geoOff ? '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
-    + '<div style="display:flex;gap:6px;margin-bottom:12px">'
-      + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="flex:2;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
-      + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="flex:1;padding:12px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
-      + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" style="flex:1;padding:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer">'+di('route',13)+' Optimize</button>' : '')
-    + '</div>'
-    + '<div class="drv-list">'
-    + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet — add some below.</div>')
-    + '</div>'
-    + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')
-    + '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:12px">'
-      + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
-      + (unassigned.length ? unassigned.map(o =>
-          '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
-          + '<div style="flex:1;min-width:0;font-size:12px"><span style="font-weight:600">'+esc2(o.name||'')+'</span> · '+esc2(o.recipName||o.customer||'')+'<div style="font-size:10.5px;color:var(--c-muted)">'+esc2(_drvArea(o)||'no address')+(o.dueTime?' · '+esc2(o.dueTime):'')+'</div></div>'
-          + '<button onclick="assignStopToRoute(\''+o.id+'\',\''+rt.id+'\')" style="font-size:11px;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;flex:none">Add</button>'
-          + '</div>').join('')
-        : '<div style="font-size:11.5px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+    + '<div class="drv-rd-cols">'
+      // ── left: totals, map, start point, actions ──
+      + '<div class="drv-rd-left">'
+        + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">'
+          + metric(pending.length, 'stops') + metric(kmVal, 'distance km') + metric(minVal, 'est. time')
+        + '</div>'
+        + '<div id="drv-map" style="height:34vh;min-height:200px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:8px;z-index:0"></div>'
+        + (_geoOff ? '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
+        + '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--c-muted);margin:2px 0 10px">'
+          + '<span style="display:inline-flex;color:#0F6E56;flex:none">'+di('pin',13)+'</span>'
+          + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Start: '+esc2(origin.label||'shop')+'</span>'
+          + (isAdmin ? '<button onclick="editRouteStart(\''+rt.id+'\')" style="font-size:10.5px;padding:3px 9px;border:1.5px solid var(--c-border);border-radius:6px;background:var(--c-surface);cursor:pointer;flex:none">Edit</button>' : '')
+        + '</div>'
+        + '<div style="display:flex;gap:6px;margin-bottom:12px">'
+          + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="flex:2;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
+          + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="flex:1;padding:12px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
+          + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" title="Sort stops the shortest way from the start point" style="flex:1;padding:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer">'+di('route',13)+' '+(optimized?'Re-optimize':'Optimize')+'</button>' : '')
+        + '</div>'
+      + '</div>'
+      // ── right: Stops | Items, list, add orders ──
+      + '<div class="drv-rd-right">'
+        + '<div style="display:flex;gap:6px;margin-bottom:10px">'+tabBtn('stops','Stops',di('list',13))+tabBtn('items','Items',di('box',13))+'</div>'
+        + (_drvRouteTab === 'items'
+            ? _drvItemsView(rt)
+            : ('<div class="drv-list">'
+                + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet — add some below.</div>')
+              + '</div>'
+              + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')))
+        + '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:12px">'
+          + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
+          + (unassigned.length ? unassigned.map(o =>
+              '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
+              + '<div style="flex:1;min-width:0;font-size:12px"><span style="font-weight:600">'+esc2(o.name||'')+'</span> · '+esc2(o.recipName||o.customer||'')+'<div style="font-size:10.5px;color:var(--c-muted)">'+esc2(_drvArea(o)||'no address')+(o.dueTime?' · '+esc2(o.dueTime):'')+'</div></div>'
+              + '<button onclick="assignStopToRoute(\''+o.id+'\',\''+rt.id+'\')" style="font-size:11px;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;flex:none">Add</button>'
+              + '</div>').join('')
+            : '<div style="font-size:11.5px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
+        + '</div>'
+      + '</div>'
     + '</div>'
   + '</div>';
 }
@@ -4901,18 +5031,34 @@ function _drvPin(o){
   return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
     html:'<div style="width:28px;height:28px;border-radius:50%;background:'+DRV_C[st]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
 }
-function _drvMapInit(stops, routes){
+// Decode a Google encoded polyline → [[lat,lng],…] for the road-following route line.
+function _decodePolyline(str){
+  if (!str) return [];
+  let index=0, lat=0, lng=0; const coords=[];
+  while (index < str.length){
+    let b, shift=0, result=0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = str.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+    coords.push([lat/1e5, lng/1e5]);
+  }
+  return coords;
+}
+function _drvMapInit(stops, routes, origin){
   const el = document.getElementById('drv-map'); if (!el) return;
+  origin = origin || SHOP_LATLNG;
   _ensureLeaflet(() => {
     const el2 = document.getElementById('drv-map'); if (!el2) return;   // view changed while loading
     if (_drvMap){ try{ _drvMap.remove(); }catch(_){} _drvMap = null; }
     _drvMap = L.map(el2, { zoomControl:true, attributionControl:false });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19 }).addTo(_drvMap);
     const pts = [];
-    // shop marker
-    L.marker(SHOP_LATLNG, { icon: L.divIcon({ className:'', iconSize:[40,18], iconAnchor:[20,9],
+    // start / shop marker
+    L.marker(origin, { icon: L.divIcon({ className:'', iconSize:[40,18], iconAnchor:[20,9],
       html:'<div style="background:#0F6E56;color:#fff;border-radius:9px;font-size:10px;font-weight:600;text-align:center;line-height:18px;border:1.5px solid #fff">shop</div>' }) }).addTo(_drvMap);
-    pts.push(SHOP_LATLNG);
+    pts.push(origin);
     // stop pins (tap → detail)
     stops.forEach(o => {
       if (o.lat == null || o.lng == null) return;
@@ -4920,11 +5066,17 @@ function _drvMapInit(stops, routes){
         .on('click', () => openStopDetail(o.id));
       pts.push([o.lat, o.lng]);
     });
-    // route line in stop order + driver dot
+    // route line (road-following polyline if we have it, else straight segments) + driver dot
     (routes||[]).forEach(rt => {
       const line = stops.filter(o => o.routeId===rt.id && o.lat!=null)
         .sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9)).map(o=>[o.lat,o.lng]);
-      if (line.length) L.polyline([SHOP_LATLNG, ...line], { color:'#2E7BD0', weight:2, dashArray:'6 5', opacity:.7 }).addTo(_drvMap);
+      const poly = (_routeMetrics[rt.id] && _routeMetrics[rt.id].poly) ? _decodePolyline(_routeMetrics[rt.id].poly) : null;
+      if (poly && poly.length > 1){
+        L.polyline(poly, { color:'#2E7BD0', weight:4, opacity:.75 }).addTo(_drvMap);
+        poly.forEach(p => pts.push(p));
+      } else if (line.length){
+        L.polyline([origin, ...line], { color:'#2E7BD0', weight:2, dashArray:'6 5', opacity:.7 }).addTo(_drvMap);
+      }
       if (rt.lastLat != null){
         L.circleMarker([rt.lastLat, rt.lastLng], { radius:7, color:'#fff', weight:2, fillColor:'#2E7BD0', fillOpacity:1 }).addTo(_drvMap)
           .bindTooltip((rt.driver||'driver') + (rt.lastLocAt ? ' · '+Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000)+'m ago' : ''));
@@ -4932,7 +5084,7 @@ function _drvMapInit(stops, routes){
       }
     });
     if (pts.length > 1) _drvMap.fitBounds(pts, { padding:[28,28] });
-    else _drvMap.setView(SHOP_LATLNG, 12);
+    else _drvMap.setView(origin, 12);
   });
 }
 
@@ -4958,10 +5110,42 @@ async function _geoBackfill(stops){
   } catch(e){ console.warn('geo backfill', e && e.message); }
 }
 
+// ── Driver GPS (auto-share while a route is active) ──────────────────────
+// Foreground-only: watchPosition pauses when the phone locks / app is backgrounded.
+// Only the route's own driver pings — an admin viewing the page is never tracked/prompted.
+let _gpsWatchId = null, _gpsLast = 0;
+function _gpsActiveRoute(){
+  if (typeof document !== 'undefined' && document.hidden) return null;
+  if (!document.getElementById('driver-pc')) return null;   // only on the driver page
+  const iso = _drvDateISO();
+  return (ROUTES||[]).find(r => r.startedAt && r.date === iso && (
+    (r.driver && currentUserName && r.driver === currentUserName) ||
+    (r.startedBy && r.startedBy === currentUserName) ||
+    (currentUserRole === 'driver' && !r.driver)
+  )) || null;
+}
+function _gpsTick(pos){
+  const rt = _gpsActiveRoute(); if (!rt){ _gpsStop(); return; }
+  const now = Date.now();
+  if (now - _gpsLast < 40000) return;                        // throttle to ~45s
+  _gpsLast = now;
+  rt.lastLat = pos.coords.latitude; rt.lastLng = pos.coords.longitude; rt.lastLocAt = new Date().toISOString();
+  saveRoute(rt);
+}
+function _gpsEnsure(){
+  if (!_gpsActiveRoute()){ _gpsStop(); return; }
+  if (_gpsWatchId != null || !navigator.geolocation) return;
+  _gpsWatchId = navigator.geolocation.watchPosition(_gpsTick, ()=>{}, { enableHighAccuracy:true, maximumAge:30000, timeout:20000 });
+}
+function _gpsStop(){ if (_gpsWatchId != null){ try{ navigator.geolocation.clearWatch(_gpsWatchId); }catch(_){} _gpsWatchId = null; } }
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', ()=>{ document.hidden ? _gpsStop() : _gpsEnsure(); });
+
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
   if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
   _loadRecipDraft();
+  _loadRouteOrigin();
+  _gpsEnsure();          // (re)assess driver GPS sharing on every driver render
   // Stop detail view
   if (_drvDetail){
     const o = ORDERS.find(x => x.id === _drvDetail);
@@ -4975,7 +5159,9 @@ function renderDriver(){
       pc.innerHTML = _drvRouteDetail(rt);
       _computeRouteMetrics(rt.id);
       const rs = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
-      if (document.getElementById('drv-map')){ _drvMapInit(rs, [rt]); _geoBackfill(rs); }
+      _geoBackfill(rs);   // always try to locate stops — the map only appears once they have coords
+      const _org = _routeOrigin(rt);
+      if (document.getElementById('drv-map')){ _drvMapInit(rs, [rt], [_org.lat, _org.lng]); }
       return;
     }
     _drvRouteId = null;
@@ -5024,15 +5210,17 @@ function renderDriver(){
     else if (noPin) html += '<div style="font-size:11px;color:var(--c-muted);margin-bottom:8px">Locating '+noPin+' stop'+(noPin===1?'':'s')+'…</div>';
     html += routes.map(rt => _drvRouteCard(rt)).join('') + unassignedBlock();
   } else {
-    // List: just the tappable route cards + unassigned. Stops live inside each route.
+    // List: an overview map preview, then the tappable route cards + unassigned.
+    html += '<div id="drv-map" style="height:30vh;min-height:180px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:12px;z-index:0"></div>';
+    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) — routes still work from the cards below.</div>';
     html += (routes.length ? routes.map(rt => _drvRouteCard(rt)).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">No routes yet'+(isAdmin?' — tap “+ New route”.':'.')+'</div>')
       + unassignedBlock();
     const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
     if (doneUnrouted.length) html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>';
   }
   pc.innerHTML = html;
-  if (_drvView === 'map'){
-    _drvMapInit(stops, routes);
+  if (document.getElementById('drv-map')){
+    _drvMapInit(stops, routes, _globalOrigin ? [_globalOrigin.lat, _globalOrigin.lng] : SHOP_LATLNG);
     _geoBackfill(stops);
   }
 }
@@ -6041,6 +6229,7 @@ async function importCustomersFromShopify(){
 function openSP() {
   if (!canAccess('settings')) { toast('Settings is admin-only'); return; }
   updateConnectedUI();
+  _loadRouteOrigin();   // populate the "Delivery start point" label
   const emailEl = document.getElementById('sp-user-email');
   if (emailEl) emailEl.textContent = currentUser ? currentUser.email : 'Not signed in';
   const fromEl = document.getElementById('import-from-date');
