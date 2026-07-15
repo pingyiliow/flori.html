@@ -4965,24 +4965,26 @@ function _drvRouteDetail(rt){
       + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
       + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" aria-label="Delete route" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('trash',15)+'</button>' : '')
     + '</div>'
-    // map (prominent, top)
-    + '<div id="drv-map" style="height:300px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:10px;z-index:0"></div>'
+    // map (prominent, full width)
+    + '<div id="drv-map" style="height:360px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:12px;z-index:0"></div>'
     + (_geoOff ? '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
-    // compact stat row
-    + '<div style="display:flex;gap:8px;margin-bottom:10px">'
-      + metric(pending.length, pending.length===1?'stop':'stops') + metric(kmVal, 'km') + metric(minVal, 'est. time')
-    + '</div>'
-    // start point
-    + '<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--c-muted);margin:0 0 12px">'
-      + '<span style="display:inline-flex;color:#0F6E56;flex:none">'+di('pin',13)+'</span>'
-      + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Start: '+esc2(origin.label||'shop')+'</span>'
-      + (isAdmin ? '<button onclick="editRouteStart(\''+rt.id+'\')" style="font-size:10.5px;padding:3px 9px;border:1.5px solid var(--c-border);border-radius:6px;background:var(--c-surface);cursor:pointer;flex:none">Edit</button>' : '')
-    + '</div>'
-    // actions
-    + '<div style="display:flex;gap:8px;margin-bottom:16px">'
-      + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="flex:2;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
-      + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="flex:1;padding:12px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
-      + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" title="Sort stops the shortest way from the start point" style="flex:1;padding:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer">'+di('route',13)+' '+(optimized?'Re-optimize':'Optimize')+'</button>' : '')
+    // toolbar: inline stats · start point · actions (right)
+    + '<div style="display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin-bottom:16px">'
+      + '<div style="display:flex;gap:22px;align-items:baseline;flex:none">'
+        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+pending.length+'</b> '+(pending.length===1?'stop':'stops')+'</span>'
+        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+kmVal+'</b> km</span>'
+        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+minVal+'</b> est. time</span>'
+      + '</div>'
+      + '<div style="flex:1;min-width:170px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--c-muted)">'
+        + '<span style="display:inline-flex;color:#0F6E56;flex:none">'+di('pin',13)+'</span>'
+        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Start: '+esc2(origin.label||'shop')+'</span>'
+        + (isAdmin ? '<button onclick="editRouteStart(\''+rt.id+'\')" style="font-size:10.5px;padding:3px 9px;border:1.5px solid var(--c-border);border-radius:6px;background:var(--c-surface);cursor:pointer;flex:none">Edit</button>' : '')
+      + '</div>'
+      + '<div style="display:flex;gap:8px;flex:none;margin-left:auto">'
+        + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:11px 20px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
+        + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:11px 14px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
+        + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" title="Sort stops the shortest way from the start point" style="padding:11px 14px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap">'+di('route',13)+' '+(optimized?'Re-optimize':'Optimize')+'</button>' : '')
+      + '</div>'
     + '</div>'
     // tabs
     + '<div style="display:flex;gap:6px;margin-bottom:12px">'+tabBtn('stops','Stops',di('list',13))+tabBtn('items','Items',di('box',13))+'</div>'

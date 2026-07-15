@@ -836,5 +836,5 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .wa-err{background:#FDECEA;color:#C62828}
 .wa-empty{font-size:12px;color:var(--c-muted);padding:18px;text-align:center;background:var(--c-surface);border:1px dashed var(--c-border);border-radius:10px}
 
-/* ── Driver route detail: centered single column ── */
-.drv-rd{max-width:760px;margin:0 auto}
+/* ── Driver route detail: fills the page like the rest of the app ── */
+.drv-rd{width:100%;max-width:1500px;margin-left:auto;margin-right:auto}
