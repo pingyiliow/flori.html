@@ -1,6 +1,6 @@
-// POST /api/notify-manual  { orderId, photoUrl?, authToken }
-// Staff-initiated DELIVERED notification from the BloomFlow app — when staff hit "Mark
-// Delivered" and choose to notify the customer (optionally with a proof photo they uploaded).
+// POST /api/notify-manual  { orderId, stage?, photoUrl?, authToken }
+// Staff-initiated notification from the BloomFlow app. stage='delivered' (default): "Mark
+// Delivered" with optional proof photo. stage='out_for_delivery': driver-mode Start Route.
 // Sends the SAME WhatsApp + email as the EasyRoutes path (api/notify.js), buyer contact ONLY,
 // deduped per (order, delivered, channel) so it can never double with an EasyRoutes event that
 // already fired. This is the manual counterpart to the webhook — out_for_delivery stays
@@ -75,8 +75,11 @@ export default async function handler(req, res) {
 
   const orderId = String(body.orderId || '').split('/').pop().replace(/\D/g, '');
   if (!orderId) return res.status(400).json({ error: 'orderId required' });
-  const type = 'delivered';
-  const photoIn = (typeof body.photoUrl === 'string' && /^https?:\/\//i.test(body.photoUrl)) ? body.photoUrl : null;
+  // Stage: 'delivered' (default, the original manual flow) or 'out_for_delivery'
+  // (driver taps Start Route). OTW uses the approved out_for_delivery template —
+  // body {{1}}=name {{2}}=order no, static phone button, no photo, no URL param.
+  const type = body.stage === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
+  const photoIn = type === 'delivered' && (typeof body.photoUrl === 'string' && /^https?:\/\//i.test(body.photoUrl)) ? body.photoUrl : null;
 
   const sb = createClient(SB_URL, SB_KEY);
 
@@ -101,13 +104,29 @@ export default async function handler(req, res) {
   let photoLink = null;
   if (photoIn) photoLink = isPublicR2(photoIn) ? photoIn : ((await hostPhotoOnR2(photoIn)) || photoIn);
 
-  // One notification per (order, delivered, channel) across BOTH the webhook and this manual
-  // path — claim BEFORE sending. If EasyRoutes already sent, the claim fails → skip (no double).
+  // TEST GATE for batch safety (Start Route can hit many orders): when NOTIFY_TEST_ORDERS
+  // or NOTIFY_TEST_PHONE is set, ONLY matching orders/phones actually send — everything
+  // else logs 'dryrun'. Unset (normal ops) = no gate; an authenticated staff click is the
+  // authorization. Mirrors the gate in notify.js.
+  const testOrders = (process.env.NOTIFY_TEST_ORDERS || '').split(',').map(s => s.trim().replace(/^#/, '')).filter(Boolean);
+  const testPhone  = toE164MY(process.env.NOTIFY_TEST_PHONE || '');
+  if (testOrders.length || testPhone) {
+    const orderNum = String(orderNo || '').replace(/^#/, '');
+    const allowed = testOrders.length ? testOrders.includes(orderNum) : (to === testPhone);
+    if (!allowed) {
+      await logNote(sb, { order_id: orderId, order_no: orderNo, template: type, phone: to || email, status: 'dryrun', error: 'test-gated (manual)' });
+      return res.status(200).json({ ok: true, dryRun: true, orderNo });
+    }
+  }
+
+  // One notification per (order, stage, channel) across BOTH the EasyRoutes webhook and this
+  // manual path — claim BEFORE sending. If the webhook already sent, the claim fails → skip.
   const claim = async (ch) => { const { error } = await sb.from('wa_events').insert({ event_id: `${orderId}:${type}:${ch}` }); return !error; };
 
   const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
-  const tpl = photoLink ? '_delivered_withphoto' : 'delivered_nophoto';
-  if (photoLink) vars.photo = photoLink;
+  let tpl;
+  if (type === 'out_for_delivery') tpl = 'out_for_delivery';
+  else { tpl = photoLink ? '_delivered_withphoto' : 'delivered_nophoto'; if (photoLink) vars.photo = photoLink; }
 
   let waSent = false, waErr = null, waId = null, waDup = false;
   let emSent = false, emErr = null, emId = null, emDup = false;
