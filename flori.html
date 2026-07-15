@@ -44,10 +44,10 @@
   <div id="hdr-pill" class="hdr-pill"></div>
   <div class="hdr-actions">
     <button class="sync-btn" id="sync-btn" onclick="refreshAll()" aria-label="Sync orders">
-      <span id="sync-ico" style="display:inline-block">⟳</span>
+      <span id="sync-ico" style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span>
       <span class="hide-m">Sync Orders</span>
     </button>
-    <button class="hdr-btn" data-role-gate="settings" onclick="openSP()" title="Settings" aria-label="Settings">⚙</button>
+    <button class="hdr-btn" data-role-gate="settings" onclick="openSP()" title="Settings" aria-label="Settings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
   </div>
 </header>
 
@@ -55,14 +55,14 @@
 <aside class="sidebar">
   <div>
     <div class="nav-sep">Operations</div>
-    <button class="nav-btn on" data-pg="home"><span class="nav-icon">◈</span><span>Dashboard</span></button>
-    <button class="nav-btn" data-pg="orders"><span class="nav-icon">◫</span><span>Daily Orders</span><span class="nav-badge" id="nb-orders">0</span></button>
-    <button class="nav-btn" data-pg="driver"><span class="nav-icon">➤</span><span>Driver</span></button>
+    <button class="nav-btn on" data-pg="home"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span>Dashboard</span></button>
+    <button class="nav-btn" data-pg="orders"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span><span>Daily Orders</span><span class="nav-badge" id="nb-orders">0</span></button>
+    <button class="nav-btn" data-pg="driver"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><span>Driver</span></button>
     <div class="nav-sep" style="margin-top:6px">Admin</div>
-    <button class="nav-btn" data-pg="followup"><span class="nav-icon">☎</span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
-    <button class="nav-btn" data-pg="customers"><span class="nav-icon">☺</span><span>Customers</span></button>
+    <button class="nav-btn" data-pg="followup"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
+    <button class="nav-btn" data-pg="customers"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Customers</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
-    <button class="nav-btn" data-pg="stock"><span class="nav-icon">◉</span><span>Stock</span></button>
+    <button class="nav-btn" data-pg="stock"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span><span>Stock</span></button>
   </div>
   <div class="sidebar-foot" id="sb-foot"><span class="sidebar-foot-dot" id="sb-dot"></span><span id="sb-foot-txt">Not yet synced</span><span style="font-size:8px;color:var(--c-dpink);margin-left:auto;opacity:.6">v20260606</span></div>
 </aside>
@@ -112,7 +112,7 @@
         </div>
         <div class="btn-row">
           <input id="order-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
-          <button class="btn btn-ghost" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making">🏭 By Product</button>
+          <button class="btn btn-ghost" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> By Product</button>
           <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
         </div>
       </div>
@@ -121,7 +121,7 @@
       <div style="position:relative">
       <button id="cal-toggle-btn" onclick="toggleCalendar()"
         style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s">
-        <span style="font-size:15px">📅</span>
+        <span style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
         <span id="cal-selected-lbl" style="font-style:italic;font-family:var(--f-head)"></span>
         <span id="cal-btn-label">Select date</span>
         <span id="cal-chevron" style="font-size:10px;opacity:.5">▾</span>
@@ -177,8 +177,8 @@
     <div class="pc">
       <!-- Tab switcher -->
       <div class="stock-tabs">
-        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')">🌸 Inventory</button>
-        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')">🛒 To Buy</button>
+        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Inventory</button>
+        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> To Buy</button>
       </div>
 
       <!-- Inventory pane -->
@@ -224,7 +224,7 @@
       <div class="filters" id="fu-filters">
         <button class="f-btn on" data-fu="all">All</button>
         <button class="f-btn" data-fu="followup-pending">Follow-up</button>
-        <button class="f-btn" data-fu="ready-pending">Ready ★</button>
+        <button class="f-btn" data-fu="ready-pending">Ready <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
         <button class="f-btn" data-fu="payment-pending">Unpaid</button>
         <button class="f-btn" data-fu="completed">Completed</button>
       </div>
@@ -240,10 +240,10 @@
           <div class="page-title">WhatsApp Log</div>
           <div style="font-size:11px;color:var(--c-muted);margin-top:2px">Delivery notifications — sent only to the buyer's own phone (customer.phone)</div>
         </div>
-        <button class="btn btn-ghost" onclick="renderWaNotify()">↻ Refresh</button>
+        <button class="btn btn-ghost" onclick="renderWaNotify()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Refresh</button>
       </div>
       <div id="wa-noflag-wrap" style="margin-bottom:22px;display:none">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-amber);margin-bottom:8px">⚠ No Phone — Needs Follow-up <span id="wa-noflag-count"></span></div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-amber);margin-bottom:8px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> No Phone — Needs Follow-up <span id="wa-noflag-count"></span></div>
         <div id="wa-noflag-list" class="wa-list"></div>
       </div>
       <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:8px">Send Log</div>
@@ -259,7 +259,7 @@
         <div class="page-hdr">
           <div><div class="page-title">Customers</div><div id="cust-count" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div>
           <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost" onclick="openDuplicates()" title="Find customers with the same WhatsApp number">🔁 Duplicates</button>
+            <button class="btn btn-ghost" onclick="openDuplicates()" title="Find customers with the same WhatsApp number"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicates</button>
             <button class="btn btn-primary" onclick="openAddCustomer()">+ Add Customer</button>
           </div>
         </div>
@@ -268,7 +268,7 @@
             <input id="cust-search" type="text" placeholder="Search name, company, staff, email or phone…" oninput="custSearchInput()"
               style="flex:1;padding:11px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
             <button class="btn btn-ghost" onclick="toggleCustColPanel()" title="Choose, reorder & hide columns" style="white-space:nowrap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg> Columns</button>
-            <button class="btn btn-ghost" onclick="toggleCustFilterPanel()">⚙ Filter<span id="cust-filter-badge"></span></button>
+            <button class="btn btn-ghost" onclick="toggleCustFilterPanel()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filter<span id="cust-filter-badge"></span></button>
           </div>
           <div id="cust-col-panel" style="display:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px"></div>
           <div id="cust-filter-panel" style="display:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:8px"></div>
@@ -297,12 +297,12 @@
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
 <nav class="mob-nav">
-  <button class="mob-tab on" data-pg="home"><span class="mob-icon">◈</span><span>Home</span></button>
-  <button class="mob-tab" data-pg="orders"><span class="mob-icon">◫</span><span>Orders</span></button>
-  <button class="mob-tab" data-pg="driver"><span class="mob-icon">➤</span><span>Driver</span></button>
-  <button class="mob-tab" data-pg="followup"><span class="mob-icon">☎</span><span>Follow</span></button>
-  <button class="mob-tab" data-pg="customers"><span class="mob-icon">☺</span><span>CRM</span></button>
-  <button class="mob-tab" data-pg="stock"><span class="mob-icon">◉</span><span>Stock</span></button>
+  <button class="mob-tab on" data-pg="home"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span>Home</span></button>
+  <button class="mob-tab" data-pg="orders"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span><span>Orders</span></button>
+  <button class="mob-tab" data-pg="driver"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><span>Driver</span></button>
+  <button class="mob-tab" data-pg="followup"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Follow</span></button>
+  <button class="mob-tab" data-pg="customers"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>CRM</span></button>
+  <button class="mob-tab" data-pg="stock"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span><span>Stock</span></button>
 </nav>
 
 </div><!-- .shell -->
@@ -312,14 +312,14 @@
 <div class="sp" id="sp">
   <div class="sp-hdr">
     <div class="sp-ttl">Settings</div>
-    <button class="sp-x" aria-label="Close" onclick="closeSP()">✕</button>
+    <button class="sp-x" aria-label="Close" onclick="closeSP()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="sp-body">
     <div>
       <div class="sp-section-ttl">Shopify Connection</div>
       <div id="cfg-connected" style="display:none;flex-direction:column;gap:10px">
         <div style="font-size:12px;background:var(--c-sage-bg);border:1px solid var(--c-sage);border-radius:var(--r);padding:10px;color:var(--c-forest);display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">✓</span>
+          <span style="display:inline-flex"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
           <div><div style="font-weight:600">Connected</div><div id="cfg-shop-label" style="font-size:11px;opacity:.8"></div></div>
         </div>
         <button class="btn btn-ghost" onclick="disconnectShopify()">Disconnect store</button>
@@ -331,7 +331,7 @@
           <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
         </div>
         <button class="btn btn-primary" onclick="connectShopify()" style="gap:10px">
-          <span style="font-size:18px">🛍</span><span>Connect with Shopify</span>
+          <span style="display:inline-flex"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></span><span>Connect with Shopify</span>
         </button>
         <div class="sp-status" id="cfg-st"></div>
         <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
@@ -349,7 +349,7 @@
     <div data-role-gate="wanotify">
       <div class="sp-section-ttl">WhatsApp Log</div>
       <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Delivery-notification send log and the "no phone" follow-up queue.</div>
-      <button class="btn btn-ghost" onclick="closeSP();goPage('wanotify')" style="width:100%">✉ Open WhatsApp Log<span id="nb-wanotify" style="display:none;margin-left:6px" class="nav-badge">0</span></button>
+      <button class="btn btn-ghost" onclick="closeSP();goPage('wanotify')" style="width:100%"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg> Open WhatsApp Log<span id="nb-wanotify" style="display:none;margin-left:6px" class="nav-badge">0</span></button>
     </div>
     <div>
       <div class="sp-section-ttl">Import an Order</div>
@@ -399,8 +399,8 @@
     <div>
       <div class="sp-section-ttl">Data</div>
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-ghost" onclick="exportData()">↓  Export all data</button>
-        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()">✕  Clear all local data</button>
+        <button class="btn btn-ghost" onclick="exportData()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>  Export all data</button>
+        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>  Clear all local data</button>
       </div>
     </div>
     <div>
@@ -417,19 +417,19 @@
   <div class="mc" style="max-width:580px">
     <div class="mc-hdr">
       <div class="mc-ttl" id="o-modal-ttl">Add Order</div>
-      <button class="mc-x" aria-label="Close" onclick="closeModal('m-order')">✕</button>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-order')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
 
       <!-- Customer (collapsed by default — tap to expand) -->
       <div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden">
         <button type="button" onclick="toggleOrderCust()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;background:var(--c-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--c-ink)">
-          <span>👤 <span id="o-cust-summary">Customer details</span></span>
+          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="o-cust-summary">Customer details</span></span>
           <span id="o-cust-chev" style="color:var(--c-muted);font-size:11px;white-space:nowrap">▸ expand</span>
         </button>
         <div id="o-cust-section" style="display:none;padding:10px 14px 12px;border-top:1px solid var(--c-border)">
           <div class="ff" style="position:relative">
-            <label class="ff-l">🔍 Find existing customer</label>
+            <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find existing customer</label>
             <input id="o-cust-search" type="text" placeholder="Search phone, email or name…" autocomplete="off" oninput="oCustSearch(this.value)">
             <div id="o-cust-sug" class="rcp-sug" style="display:none"></div>
           </div>
@@ -458,23 +458,23 @@
           <label class="ff-l">Designer</label>
           <select id="o-designer">
             <option value="">— Unassigned —</option>
-            <option value="Madeleine">👩 Madeleine</option>
-            <option value="Audrey">👩 Audrey</option>
-            <option value="Amanda">👩 Amanda</option>
-            <option value="Apple">👩 Apple</option>
-            <option value="Fang Ler">👩 Fang Ler</option>
+            <option value="Madeleine">Madeleine</option>
+            <option value="Audrey">Audrey</option>
+            <option value="Amanda">Amanda</option>
+            <option value="Apple">Apple</option>
+            <option value="Fang Ler">Fang Ler</option>
           </select>
         </div>
         <div class="ff">
           <label class="ff-l">Priority</label>
           <select id="o-priority">
-            <option value="normal">🟢 Normal</option>
-            <option value="high">🟠 High</option>
-            <option value="urgent">🔴 Urgent</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
           </select>
         </div>
         <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l">📝 Special Instructions (internal)</label>
+          <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Special Instructions (internal)</label>
           <textarea id="o-internal-note" style="min-height:70px;border:2px solid #FFD54F;background:#FFF8E1" placeholder="e.g. Customer wants pink theme, use white Korean paper, no lilies…"></textarea>
         </div>
       </div>
@@ -486,7 +486,7 @@
           <button onclick="addProductRow()" style="font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:500">+ Add product</button>
         </div>
         <div style="position:relative;margin-bottom:10px">
-          <input id="o-prod-search" type="text" placeholder="🔍 Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'o')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <input id="o-prod-search" type="text" placeholder="Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'o')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
           <div id="o-prod-search-results" class="rcp-sug" style="display:none"></div>
         </div>
         <div id="o-products-list" style="display:flex;flex-direction:column;gap:10px"></div>
@@ -505,7 +505,7 @@
 <!-- ══ MODAL — Repeat Order ══════════════════════════════════ -->
 <div id="m-repeat" class="modal">
   <div class="mc" style="max-width:400px">
-    <div class="mc-hdr"><div class="mc-ttl">🔁 Repeat Order</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-repeat')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Repeat Order</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-repeat')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="rep-order-id">
       <div id="rep-summary" style="font-size:12px;color:var(--c-muted);line-height:1.5;margin-bottom:12px"></div>
@@ -541,7 +541,7 @@
 <!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
 <div id="m-inv" class="modal">
   <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl" id="m-inv-ttl">Add Stock Item</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-inv')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl" id="m-inv-ttl">Add Stock Item</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-inv')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="i-edit-id">
       <div class="fg fg-2">
@@ -559,7 +559,7 @@
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
           <div class="photo-zone" id="i-photo-zone" style="min-height:90px">
-            <div class="photo-zone-icon" style="font-size:20px">📷</div>
+            <div class="photo-zone-icon" style="color:var(--c-muted)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
             <div class="photo-zone-lbl">Tap to add a photo</div>
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'i-photo-zone','i-photo')">
           </div>
@@ -577,7 +577,7 @@
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl" id="p-modal-ttl">Add to Purchase List</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-pur')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl" id="p-modal-ttl">Add to Purchase List</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-pur')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="p-edit-id">
       <div class="fg fg-2">
@@ -590,7 +590,7 @@
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="p-photo">
           <div class="photo-zone" id="p-photo-zone" style="min-height:90px">
-            <div class="photo-zone-icon" style="font-size:20px">📷</div>
+            <div class="photo-zone-icon" style="color:var(--c-muted)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
             <div class="photo-zone-lbl">Tap to add a photo</div>
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'p-photo-zone','p-photo')">
           </div>
@@ -607,10 +607,10 @@
 <!-- ══ MODAL — Add Customer (CRM) ════════════════════════════ -->
 <div id="m-customer" class="modal">
   <div class="mc">
-    <div class="mc-hdr"><div class="mc-ttl">Add Customer</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-customer')">✕</button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Add Customer</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-customer')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <div class="ff" style="position:relative;margin-bottom:10px">
-        <label class="ff-l">🔍 Find existing customer first</label>
+        <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find existing customer first</label>
         <input id="mc-search" type="text" placeholder="Search phone, email or name…" autocomplete="off" oninput="mcCustSearch(this.value)">
         <div id="mc-search-sug" class="rcp-sug" style="display:none"></div>
         <div style="font-size:10px;color:var(--c-muted);margin-top:3px">Check here before adding — tap a result to open them instead of creating a duplicate.</div>
@@ -636,8 +636,8 @@
 <div id="m-fu-draft" class="modal">
   <div class="mc" style="max-width:480px">
     <div class="mc-hdr">
-      <div class="mc-ttl">🛍 Send to Shopify Draft</div>
-      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-draft')">✕</button>
+      <div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Send to Shopify Draft</div>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-draft')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
       <input type="hidden" id="fu-draft-id">
@@ -667,8 +667,8 @@
 <div id="m-fu-complete" class="modal">
   <div class="mc" style="max-width:400px">
     <div class="mc-hdr">
-      <div class="mc-ttl">✓ Mark as Completed</div>
-      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-complete')">✕</button>
+      <div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg> Mark as Completed</div>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-complete')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
       <input type="hidden" id="fu-complete-id">
@@ -682,7 +682,7 @@
       </div>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button onclick="closeModal('m-fu-complete')" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer">Cancel</button>
-        <button onclick="doCompleteFollowup()" style="flex:2;padding:11px;border:none;border-radius:var(--r);font-size:13px;font-weight:600;color:#fff;background:var(--c-sage);cursor:pointer">✓ Confirm Completed</button>
+        <button onclick="doCompleteFollowup()" style="flex:2;padding:11px;border:none;border-radius:var(--r);font-size:13px;font-weight:600;color:#fff;background:var(--c-sage);cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg> Confirm Completed</button>
       </div>
     </div>
   </div>
@@ -692,7 +692,7 @@
   <div class="mc" style="max-width:580px">
     <div class="mc-hdr">
       <div class="mc-ttl" id="fu-modal-ttl">Add Customer</div>
-      <button class="mc-x" aria-label="Close" onclick="closeModal('m-followup')">✕</button>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-followup')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
       <input type="hidden" id="fu-edit-id">
@@ -700,10 +700,10 @@
       <!-- Tab switcher -->
       <div id="fu-tabs" style="display:flex;gap:0;border:1.5px solid var(--c-border);border-radius:var(--r);overflow:hidden;flex-shrink:0">
         <button id="fu-tab-paste" onclick="fuSwitchTab('paste')" style="flex:1;padding:8px;font-size:11px;font-weight:500;background:var(--c-burg);color:var(--c-bg);border:none;cursor:pointer;transition:all .12s;letter-spacing:.04em">
-          📋 Paste Order Form
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Paste Order Form
         </button>
         <button id="fu-tab-manual" onclick="fuSwitchTab('manual')" style="flex:1;padding:8px;font-size:11px;font-weight:500;background:var(--c-surface);color:var(--c-muted);border:none;cursor:pointer;transition:all .12s;letter-spacing:.04em">
-          ✏ Manual Entry
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg> Manual Entry
         </button>
       </div>
 
@@ -721,7 +721,7 @@ Item: Bouquet · RM158
 Address: 12 Jalan Bunga, Penang"></textarea>
         </div>
         <button class="btn btn-primary" style="width:100%;justify-content:center;gap:8px" onclick="parseAndFill()">
-          <span style="font-size:15px">⚡</span> Auto-fill from form
+          <span style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span> Auto-fill from form
         </button>
         <div id="fu-parse-result" style="display:none;font-size:11px;padding:8px 12px;border-radius:var(--r);background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;line-height:1.6"></div>
       </div>
@@ -764,16 +764,16 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <div class="ff" style="grid-column:1/-1">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
               <label class="ff-l" style="margin:0">Products / Order Items</label>
-              <span style="font-size:10px;color:var(--c-muted)">📎 each item: add photos · drag, drop or paste</span>
+              <span style="font-size:10px;color:var(--c-muted)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> each item: add photos · drag, drop or paste</span>
             </div>
             <div style="position:relative;margin-bottom:8px">
-              <input id="fu-prod-search" type="text" placeholder="🔍 Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'fu')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+              <input id="fu-prod-search" type="text" placeholder="Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'fu')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
               <div id="fu-prod-search-results" class="rcp-sug" style="display:none"></div>
             </div>
             <div id="fu-items-list" onpaste="fuItemsPaste(event)"></div>
             <input type="hidden" id="fu-photo-b64">
           </div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">📝 Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes for the whole order…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes for the whole order…"></textarea></div>
           <input type="hidden" id="fu-notes">
         </div>
       </div>
@@ -795,7 +795,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
       <div style="font-family:var(--f-head);font-size:18px;font-weight:600;color:var(--c-bg)" id="fu-dp-name">Customer</div>
       <div style="font-size:11px;color:var(--c-dpink);margin-top:3px" id="fu-dp-sub"></div>
     </div>
-    <button class="sp-x" aria-label="Close" onclick="closeFUDP()">✕</button>
+    <button class="sp-x" aria-label="Close" onclick="closeFUDP()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="fu-dp-body" id="fu-dp-body"></div>
 </div>
@@ -811,7 +811,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
     <button class="zoom-navbtn" onclick="galStep(-1,event)" aria-label="Previous photo">‹</button>
     <button class="zoom-navbtn" onclick="galStep(1,event)" aria-label="Next photo">›</button>
   </div>
-  <button class="zoom-close" onclick="closeZoom()" aria-label="Close image">✕</button>
+  <button class="zoom-close" onclick="closeZoom()" aria-label="Close image"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
 </div>
 
 <!-- ══ TOAST ════════════════════════════════════════════════ -->
@@ -825,6 +825,77 @@ const _SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 let sb = null;
 let currentUser = null;
+
+/* ─── Icon system ────────────────────────────────────────────────
+   Monochrome line icons (Feather/Lucide paths) replacing emoji for a
+   consistent, professional look that renders identically on every device.
+   Defined up top so const initializers (INV_CAT, quick actions, …) can call
+   di()/dif() too. di()=outline, dif()=filled, dot()=status circle. */
+const DI = {
+  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
+  chat:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  whatsapp:'<path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.27.86 5.83 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.24-8.25 8.24a8.2 8.2 0 0 1-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm-4.6 4.44c-.15 0-.4.06-.6.28-.2.22-.79.77-.79 1.88s.81 2.18.92 2.33c.11.15 1.58 2.42 3.86 3.39.54.23.96.37 1.29.48.54.17 1.03.15 1.42.09.43-.06 1.34-.55 1.53-1.08.19-.53.19-.98.13-1.08-.06-.09-.2-.15-.43-.26-.22-.11-1.34-.66-1.55-.74-.21-.08-.36-.11-.5.11-.15.22-.58.73-.71.88-.13.15-.26.17-.48.06-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.69-1.66-.18-.43-.36-.37-.5-.38-.13-.01-.28-.01-.42-.01z"/>',
+  nav:'<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+  note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
+  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  check:'<polyline points="20 6 9 17 4 12"/>',
+  warn:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  sort:'<path d="M21 16l-4 4-4-4"/><path d="M17 20V4"/><path d="M3 8l4-4 4 4"/><path d="M7 4v16"/>',
+  play:'<polygon points="5 3 19 12 5 21 5 3"/>',
+  bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+  route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  back:'<polyline points="15 18 9 12 15 6"/>',
+  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  close:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  copy:'<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  sync:'<polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>',
+  home:'<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  grid:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+  users:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  user:'<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  box:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  calendar:'<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  factory:'<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/>',
+  search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+  edit:'<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+  clip:'<path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>',
+  receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/>',
+  truck:'<rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>',
+  cart:'<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>',
+  bag:'<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  cake:'<path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><line x1="2" y1="21" x2="22" y2="21"/><line x1="7" y1="8" x2="7" y2="11"/><line x1="12" y1="8" x2="12" y2="11"/><line x1="17" y1="8" x2="17" y2="11"/><line x1="7" y1="4" x2="7" y2="4.01"/><line x1="12" y1="4" x2="12" y2="4.01"/><line x1="17" y1="4" x2="17" y2="4.01"/>',
+  flower:'<circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 6a3 3 0 1 1 3 3M12 6a3 3 0 1 0-3 3M9 8a3 3 0 1 0 3 3M15 8a3 3 0 1 1-3 3"/><path d="M12 22c4.2 0 7-1.7 7-5-4.2 0-7 1.7-7 5z"/><path d="M12 22c-4.2 0-7-1.7-7-5 4.2 0 7 1.7 7 5z"/>',
+  leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>',
+  wheat:'<path d="M2 22 16 8"/><path d="M12 8c0-2.2 1.8-4 4-4 0 2.2-1.8 4-4 4z"/><path d="M8 12c0-2.2 1.8-4 4-4 0 2.2-1.8 4-4 4z"/><path d="M12 8c0-2.2-1.8-4-4-4 0 2.2 1.8 4 4 4z"/>',
+  gift:'<polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>',
+  vase:'<path d="M8 3h8v2a4 4 0 0 1-1 2.5A6 6 0 0 1 18 12c0 4-3 9-6 9s-6-5-6-9a6 6 0 0 1 3-4.5A4 4 0 0 1 8 5z"/>',
+  mail:'<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  sun:'<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>',
+  moon:'<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+  phone2:'<rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>',
+  help:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  msg:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  walk:'<circle cx="12" cy="4" r="1.6"/><path d="M12 7v6"/><path d="m8 9 4 1.2 4-1.2"/><path d="m9.2 20 2.8-7 2.8 7"/>',
+  clipboard:'<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  sparkle:'<path d="M12 2l2.2 6.5L21 11l-6.8 2.5L12 20l-2.2-6.5L3 11l6.8-2.5z"/>',
+  fb:'<path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>',
+};
+function di(name, size){ size=size||15; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">'+(DI[name]||'')+'</svg>'; }
+function dif(name, size){ size=size||13; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px;flex:none">'+(DI[name]||'')+'</svg>'; }
+function dot(color, size){ size=size||10; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="vertical-align:-1px;flex:none"><circle cx="12" cy="12" r="10" fill="'+color+'"/></svg>'; }
+// Missing-image fallbacks (used from <img onerror>) — replace the broken image with a
+// muted flower glyph instead of an emoji, keeping the surrounding markup intact.
+function imgFlower(el){ try { const p = el && el.parentElement; if (p) p.innerHTML = '<span style="display:inline-flex;align-items:center;justify-content:center;color:var(--c-dpink);opacity:.55">'+di('flower',20)+'</span>'; } catch(_){} }
+function imgItemDot(el){ try { el.outerHTML = '<span class="o-item-dot" style="display:inline-flex;color:var(--c-dpink);opacity:.55">'+di('flower',12)+'</span>'; } catch(_){} }
 
 /* ─── Roles (CRM) ────────────────────────────────────────────────
    Role lives in the Supabase `profiles` table (admin | cs | florist).
@@ -1096,17 +1167,17 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  '🏭 By Product':'🏭 按产品','+ Add Order':'+ 新增订单','Select date':'选择日期',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
-  '🌸 Inventory':'🌸 库存','🛒 To Buy':'🛒 待购买','Inventory':'库存','To Buy':'待购买',
+  'Inventory':'库存','To Buy':'待购买',
   'Track stems, materials & supplies':'记录花材、材料与用品','+ Add Item':'+ 新增项目',
   'What to order this week':'本周需采购','Clear done':'清除已完成','Supplier Notes':'供应商备注',
   // Follow-up
-  'Unpaid':'未付款','Completed':'已完成','Ready ★':'已准备 ★','+ Add Customer':'+ 新增顾客',
+  'Unpaid':'未付款','Completed':'已完成','+ Add Customer':'+ 新增顾客',
   // Customers
-  '🔁 Duplicates':'🔁 重复项','Columns':'栏目','⚙ Filter':'⚙ 筛选',
+  'Duplicates':'重复项','Columns':'栏目','Filter':'筛选',
   // Settings panel
   'Settings':'设置','Shopify Connection':'Shopify 连接','Connected':'已连接','Disconnect store':'断开店铺',
   'Store URL':'店铺网址','Connect with Shopify':'连接 Shopify','Save token':'保存令牌',
@@ -1114,12 +1185,12 @@ const I18N_ZH = {
   'Import orders':'导入订单','Customers (CRM)':'顾客 (CRM)','Import customers from Shopify':'从 Shopify 导入顾客',
   'Account':'账户','Sign Out':'登出','Language':'语言','Keyboard Shortcuts':'键盘快捷键',
   'Purchase List':'采购清单','Sync orders':'同步订单','Data':'数据',
-  '↓  Export all data':'↓  导出所有数据','✕  Clear all local data':'✕  清除所有本地数据','About':'关于',
+  'Export all data':'导出所有数据','Clear all local data':'清除所有本地数据','About':'关于',
   // Modal — Add Order
   'Customer Name':'顾客姓名','Order #':'订单编号','Due Date':'截止日期','Due Time':'截止时间',
   'Type':'类型','Self Collect / Pickup':'自取','Delivery Address':'送货地址','Designer':'设计师',
-  '— Unassigned —':'— 未分配 —','Priority':'优先级','🟢 Normal':'🟢 普通','🟠 High':'🟠 重要','🔴 Urgent':'🔴 紧急',
-  '📝 Special Instructions (internal)':'📝 特别说明（内部）','Products':'产品','+ Add product':'+ 新增产品',
+  '— Unassigned —':'— 未分配 —','Priority':'优先级','Normal':'普通','High':'重要','Urgent':'紧急',
+  'Special Instructions (internal)':'特别说明（内部）','Products':'产品','+ Add product':'+ 新增产品',
   'Save Order':'保存订单','Cancel':'取消',
   // Modal — Inventory
   'Add Stock Item':'新增库存项目','Item Name':'项目名称','Category':'类别','Cut Flowers':'鲜切花',
@@ -1132,10 +1203,10 @@ const I18N_ZH = {
   'Add Customer':'新增顾客','Name':'姓名','Tag':'标签','Regular':'普通','VIP':'VIP','Wedding':'婚礼',
   'Corporate':'企业','Prospect':'潜在顾客','Email':'电邮','Save Customer':'保存顾客',
   // Modal — Follow-up draft / complete
-  '🛍 Send to Shopify Draft':'🛍 发送至 Shopify 草稿','Create Draft →':'创建草稿 →','✓ Mark as Completed':'✓ 标记为已完成',
-  'Shopify Order Number':'Shopify 订单编号','✓ Confirm Completed':'✓ 确认已完成',
+  'Send to Shopify Draft':'发送至 Shopify 草稿','Create Draft →':'创建草稿 →','Mark as Completed':'标记为已完成',
+  'Shopify Order Number':'Shopify 订单编号','Confirm Completed':'确认已完成',
   // Modal — Follow-up
-  '📋 Paste Order Form':'📋 粘贴订单表格','✏ Manual Entry':'✏ 手动输入','Auto-fill from form':'从表格自动填写',
+  'Paste Order Form':'粘贴订单表格','Manual Entry':'手动输入','Auto-fill from form':'从表格自动填写',
   'Paste order form text here':'在此粘贴订单表格文字',
   'Sender (Your Customer)':'下单人（你的顾客）','Sender Name':'下单人姓名','Sender Phone / WhatsApp':'下单人电话 / WhatsApp',
   'Sender Email':'下单人电邮','Recipient':'收件人','Recipient Name':'收件人姓名','Recipient Phone':'收件人电话',
@@ -1150,7 +1221,7 @@ const I18N_ZH = {
   'Search products…':'搜索产品…','Add a note…':'添加备注…',
   // Common dynamic labels (cards / badges)
   'Follow-up ›':'跟进 ›','Ready ›':'已准备 ›','Completed ›':'已完成 ›',
-  '🚚 Delivery':'🚚 送货','🛍 Self-collect':'🛍 自取','Self-collect':'自取',
+  'Self-collect':'自取',
   'Save details':'保存资料','+ Add recipient':'+ 新增收件人','+ another email':'+ 添加电邮',
   'No entries':'暂无记录','No orders found':'未找到订单','Order date':'下单日期',
 };
@@ -2214,7 +2285,7 @@ let prodMode = false;   // Production mode: group the orders list by product, no
 function toggleProdMode(){
   prodMode = !prodMode;
   const b = document.getElementById('prod-mode-btn');
-  if (b){ b.classList.toggle('btn-primary', prodMode); b.classList.toggle('btn-ghost', !prodMode); b.textContent = prodMode ? '📅 By Date' : '🏭 By Product'; }
+  if (b){ b.classList.toggle('btn-primary', prodMode); b.classList.toggle('btn-ghost', !prodMode); b.innerHTML = prodMode ? di('calendar',14)+' By Date' : di('factory',14)+' By Product'; }
   renderOrders();
 }
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
@@ -2222,14 +2293,14 @@ let fuFilter = 'all';
 
 function priorityBadge(o) {
   const p = o.priority || 'normal';
-  if (p === 'urgent') return '<span class="pri-urgent">🔴 Urgent</span>';
-  if (p === 'high')   return '<span class="pri-high">🟠 High</span>';
+  if (p === 'urgent') return '<span class="pri-urgent">'+dot('#D84343',9)+' Urgent</span>';
+  if (p === 'high')   return '<span class="pri-high">'+dot('#E8A13A',9)+' High</span>';
   return '';  // normal — no badge (clean)
 }
 
 function designerTag(o) {
   if (!o.designer) return '';
-  return `<span class="designer-tag">👤 ${esc(o.designer)}</span>`;
+  return `<span class="designer-tag">${di('user',12)}${esc(o.designer)}</span>`;
 }
 
 function orderState(o) {
@@ -2304,8 +2375,8 @@ function sortedOrders(list) {
 function thumbCell(o) {
   const items = o.lineItems && o.lineItems.length ? o.lineItems : null;
   const src = (items ? items.find(i => i.image)?.image : null) || o.image || null;
-  if (src) { const safe=src.replace(/'/g,"\\'"); return `<div class="o-thumb"><img src="${src}" alt="" onclick="event.stopPropagation();zoomOrder('${o.id}','${safe}',event)" loading="lazy" onerror="this.parentElement.innerHTML='🌸'"></div>`; }
-  return `<div class="o-thumb ph">🌸</div>`;
+  if (src) { const safe=src.replace(/'/g,"\\'"); return `<div class="o-thumb"><img src="${src}" alt="" onclick="event.stopPropagation();zoomOrder('${o.id}','${safe}',event)" loading="lazy" onerror="imgFlower(this)"></div>`; }
+  return `<div class="o-thumb ph"><span style="color:var(--c-dpink);opacity:.5;display:inline-flex">${di('flower',22)}</span></div>`;
 }
 
 function _priceTag(item) {
@@ -2335,20 +2406,20 @@ function itemsCell(o) {
     const lines = items.map((item, idx) => {
       const qty = item.quantity > 1 ? `<span class="o-item-qty">× ${item.quantity}</span>` : '';
       const priceHtml = _priceTag(item);
-      const itemNote = item.note ? `<div class="o-item-note">⚠️ ${esc(item.note)}</div>` : '';
+      const itemNote = item.note ? `<div class="o-item-note">${di('warn',11)} ${esc(item.note)}</div>` : '';
       if (item.image) {
         return `<div class="o-item-line" style="justify-content:space-between">
           <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
             <img class="o-item-mini" src="${item.image}" loading="lazy" alt=""
               onclick="event.stopPropagation();zoomItem('${o.id}',${idx},0,event)"
-              onerror="this.outerHTML='<span class=\\'o-item-dot\\'>🌸</span>'">
+              onerror="imgItemDot(this)">
             <span class="o-item-title">${esc(item.title)}${qty}</span>
           </div>${priceHtml}
         </div>${itemNote}`;
       }
       return `<div class="o-item-line" style="justify-content:space-between">
         <div style="display:flex;align-items:center;gap:7px;min-width:0;flex:1">
-          <span class="o-item-dot">🌸</span>
+          <span class="o-item-dot" style="color:var(--c-dpink);opacity:.55">${di('flower',14)}</span>
           <span class="o-item-title">${esc(item.title)}${qty}</span>
         </div>${priceHtml}
       </div>${itemNote}`;
@@ -2361,7 +2432,7 @@ function itemsCell(o) {
   if (o.internalNote) {
     const preview = o.internalNote.length > 60 ? o.internalNote.slice(0,60)+'…' : o.internalNote;
     html += `<div style="display:flex;align-items:baseline;gap:5px;margin-top:4px;background:#FFF8E1;border-left:3px solid #FFD54F;padding:3px 7px;border-radius:0 4px 4px 0">
-      <span style="font-size:11px;flex-shrink:0">⚠️</span>
+      <span style="flex-shrink:0;display:inline-flex;color:#E65100">${di('warn',12)}</span>
       <span style="font-size:11px;color:#5D4037;font-weight:500;line-height:1.4">${esc(preview)}</span>
     </div>`;
   }
@@ -2374,7 +2445,7 @@ function tagRow(o) {
     ? `<span class="tag tag-pu">${zh?'自取':'Pickup'}</span>`
     : `<span class="tag tag-de">${zh?'送货':'Delivery'}</span>`;
   let stateTag = '';
-  if (o.fulfilled)      stateTag = `<span class="state-badge state-fulfilled">✓ ${zh?'已完成':'Fulfilled'}</span>`;
+  if (o.fulfilled)      stateTag = `<span class="state-badge state-fulfilled">${di('check',11)} ${zh?'已完成':'Fulfilled'}</span>`;
   else if (o.ready)     stateTag = `<span class="state-badge state-ready">● ${zh?'已准备':'Ready'}</span>`;
   else                  stateTag = `<span class="state-badge state-pending">${zh?'待准备':'Pending'}</span>`;
   const manualTag = o.src==='manual' ? ` <span class="tag tag-manual">${zh?'手动':'Manual'}</span>` : '';
@@ -2386,11 +2457,11 @@ function tagRow(o) {
 function actionBtns(id) {
   const o = ORDERS.find(x=>x.id===id); if (!o) return '';
   if (o.fulfilled) {
-    return `<button class="tick-btn is-fulfilled" title="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</button>`;
+    return `<button class="tick-btn is-fulfilled" title="Fulfilled in Shopify" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   }
   const isReady = o.ready;
   const title = isReady ? 'Mark as Pending' : 'Mark as Ready';
-  return `<button class="tick-btn ${isReady?'is-ready':''}" onclick="event.stopPropagation();toggleReady('${id}')" title="${title}">✓</button>`;
+  return `<button class="tick-btn ${isReady?'is-ready':''}" onclick="event.stopPropagation();toggleReady('${id}')" title="${title}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
 }
 
 function orderRow(o, showDate=true) {
@@ -2461,8 +2532,8 @@ function orderCard(o, item, idx) {
     // A split product opens that product's photos; a whole-order card opens every
     // photo on the order — both swipeable when there's more than one.
     const onZoom = multi ? `zoomItem('${o.id}',${idx},0,event)` : `zoomOrder('${o.id}','${safe}',event)`;
-    ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onZoom}" onerror="this.parentElement.textContent='🌸'"></div>`;
-  } else ph = `<div class="ph">🌸</div>`;
+    ph = `<div class="ph"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onZoom}" onerror="imgFlower(this)"></div>`;
+  } else ph = `<div class="ph"><span style="color:var(--c-dpink);opacity:.5;display:inline-flex">${di('flower',26)}</span></div>`;
 
   // product name
   let name;
@@ -2492,8 +2563,8 @@ function orderCard(o, item, idx) {
   const _tr = (s,n) => s.length > n ? s.slice(0,n)+'…' : s;
   const _cn = _cardNotes(o, item);
   let note = '';
-  if (_cn.flower) note += `<div class="onote">🌸 ${esc(_tr(_cn.flower,70))}</div>`;
-  if (_cn.remark) note += `<div class="onote onote-item">📝 ${esc(_tr(_cn.remark,70))}</div>`;
+  if (_cn.flower) note += `<div class="onote">${di('flower',12)} ${esc(_tr(_cn.flower,70))}</div>`;
+  if (_cn.remark) note += `<div class="onote onote-item">${di('note',12)} ${esc(_tr(_cn.remark,70))}</div>`;
 
   const timeTxt = o.dueTime || '–';
   // In production mode cards are grouped by product, not date, so surface the due
@@ -2503,29 +2574,29 @@ function orderCard(o, item, idx) {
     ? ((o.dateObj ? fd(o.dateObj) : (o.dueDate || '')) + (o.dueTime ? ' · ' + o.dueTime : ''))
     : '';
   const prodDateLine = prodDateTxt
-    ? `<div class="ocdate">📅 ${esc(prodDateTxt)}</div>`
+    ? `<div class="ocdate">${di('calendar',12)} ${esc(prodDateTxt)}</div>`
     : '';
   const typeTag = o.type === 'pickup'
     ? `<span class="tb pu">${zh ? '自取' : 'Pickup'}</span>`
     : `<span class="tb del">${zh ? '送货' : 'Delivery'}</span>`;
 
   let priBadge = '';
-  if (!o.fulfilled && o.priority === 'urgent')    priBadge = `<span class="sb urg">🔴 ${zh ? '紧急' : 'Urgent'}</span>`;
-  else if (!o.fulfilled && o.priority === 'high') priBadge = `<span class="sb high">🟠 ${zh ? '重要' : 'High'}</span>`;
+  if (!o.fulfilled && o.priority === 'urgent')    priBadge = `<span class="sb urg">${dot('#D84343',9)} ${zh ? '紧急' : 'Urgent'}</span>`;
+  else if (!o.fulfilled && o.priority === 'high') priBadge = `<span class="sb high">${dot('#E8A13A',9)} ${zh ? '重要' : 'High'}</span>`;
   let stateBadge;
-  if (state === 'fulfilled')  stateBadge = `<span class="sb ful">✓ ${zh ? '已完成' : 'Fulfilled'}</span>`;
+  if (state === 'fulfilled')  stateBadge = `<span class="sb ful">${di('check',11)} ${zh ? '已完成' : 'Fulfilled'}</span>`;
   else if (state === 'ready') stateBadge = `<span class="sb rdy">● ${zh ? '已准备' : 'Ready'}</span>`;
   else                        stateBadge = `<span class="sb pend">${zh ? '待准备' : 'Pending'}</span>`;
-  const desTag = o.designer ? `<span class="des">👤 ${esc(o.designer)}</span>` : '';
+  const desTag = o.designer ? `<span class="des">${di('user',12)}${esc(o.designer)}</span>` : '';
 
   // tick — per product when split, whole order otherwise
   let tick;
   if (o.fulfilled) {
-    tick = `<button type="button" class="tick f" title="Fulfilled in Shopify" aria-label="Fulfilled in Shopify" onclick="event.stopPropagation()">✓</button>`;
+    tick = `<button type="button" class="tick f" title="Fulfilled in Shopify" aria-label="Fulfilled in Shopify" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   } else if (multi) {
-    tick = `<button type="button" class="tick ${itemReady ? 'r' : ''}" aria-label="${itemReady ? 'Mark product pending' : 'Mark product ready'}" title="${itemReady ? 'Mark product pending' : 'Mark product ready'}" onclick="event.stopPropagation();toggleItemReady('${o.id}',${idx})">✓</button>`;
+    tick = `<button type="button" class="tick ${itemReady ? 'r' : ''}" aria-label="${itemReady ? 'Mark product pending' : 'Mark product ready'}" title="${itemReady ? 'Mark product pending' : 'Mark product ready'}" onclick="event.stopPropagation();toggleItemReady('${o.id}',${idx})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   } else {
-    tick = `<button type="button" class="tick ${o.ready ? 'r' : ''}" aria-label="${o.ready ? 'Mark as pending' : 'Mark as ready'}" title="${o.ready ? 'Mark as Pending' : 'Mark as Ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')">✓</button>`;
+    tick = `<button type="button" class="tick ${o.ready ? 'r' : ''}" aria-label="${o.ready ? 'Mark as pending' : 'Mark as ready'}" title="${o.ready ? 'Mark as Pending' : 'Mark as Ready'}" onclick="event.stopPropagation();toggleReady('${o.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   }
 
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
@@ -2575,23 +2646,23 @@ function homeMiniCard(o, item, idx) {
     : `zoomOrder('${o.id}','${(imgSrc||'').replace(/'/g,"\\'")}',event)`;
   const count = photos.length>1 ? `<span class="h-mc-imgcount">⧉ ${photos.length}</span>` : '';
   const thumb = imgSrc
-    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="this.parentElement.textContent='🌸'">${count}</div>`
-    : `<div class="h-mc-thumb">🌸</div>`;
+    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="imgFlower(this)">${count}</div>`
+    : `<div class="h-mc-thumb"><span style="color:var(--c-dpink);opacity:.5;display:inline-flex">${di('flower',20)}</span></div>`;
   const name = esc(isUnit ? (item.title||'–') : (o.product || ((o.lineItems&&o.lineItems[0])?o.lineItems[0].title:'') || '–'));
   const unitTag = (isUnit && o.lineItems.length>1) ? ` <span style="color:var(--c-muted);font-weight:400">${idx+1}/${o.lineItems.length}</span>` : '';
   // Order-wide note (shared, shown on every item) + this item's own note when present.
   const _trm = (s,n) => s.length>n ? s.slice(0,n)+'…' : s;
   let note = '';
-  if (o.internalNote)             note += `<div class="h-mc-note">⚠ ${esc(_trm(o.internalNote,42))}</div>`;
-  if (isUnit && item && item.note) note += `<div class="h-mc-note h-mc-note-item">📌 ${esc(_trm(item.note,42))}</div>`;
+  if (o.internalNote)             note += `<div class="h-mc-note">${di('warn',11)} ${esc(_trm(o.internalNote,42))}</div>`;
+  if (isUnit && item && item.note) note += `<div class="h-mc-note h-mc-note-item">${di('flag',11)} ${esc(_trm(item.note,42))}</div>`;
   let badge;
-  if (state==='fulfilled')   badge='<span class="h-mc-badge f">✓ Done</span>';
+  if (state==='fulfilled')   badge='<span class="h-mc-badge f">'+di('check',11)+' Done</span>';
   else if (state==='ready')  badge='<span class="h-mc-badge r">● Ready</span>';
-  else                       badge='<span class="h-mc-badge p">'+(o.priority==='urgent'?'🔴 Urgent':'Pending')+'</span>';
+  else                       badge='<span class="h-mc-badge p">'+(o.priority==='urgent'?dot('#D84343',9)+' Urgent':'Pending')+'</span>';
   const tickAction = isUnit ? `toggleItemReady('${o.id}',${idx})` : `toggleReady('${o.id}')`;
   const tick = o.fulfilled
-    ? `<button type="button" class="h-mc-tick f" aria-label="Fulfilled" onclick="event.stopPropagation()">✓</button>`
-    : `<button type="button" class="h-mc-tick ${ready?'r':''}" aria-label="${ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();${tickAction}">✓</button>`;
+    ? `<button type="button" class="h-mc-tick f" aria-label="Fulfilled" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`
+    : `<button type="button" class="h-mc-tick ${ready?'r':''}" aria-label="${ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();${tickAction}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     ${thumb}
     <div class="h-mc-body"><div class="h-mc-name">${name}${unitTag}</div><div class="h-mc-meta">${esc(o.name||'')}${o.customer?' · '+esc(o.customer):''}</div>${note}</div>
@@ -2618,7 +2689,7 @@ function renderHome() {
   document.getElementById('s-de').textContent    = fulfilledT.length;
   // Hero — time-based greeting + date
   const now=new Date(), h=now.getHours();
-  const greet = h<12 ? 'Good morning 🌸' : h<18 ? 'Good afternoon ☀️' : 'Good evening 🌙';
+  const greet = h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
   document.getElementById('h-day').textContent = now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('h-greet').textContent = greet;
   document.getElementById('h-sub').textContent = 'Bamboo Green · '+todayO.length+' order'+(todayO.length===1?'':'s')+' today';
@@ -2627,10 +2698,10 @@ function renderHome() {
   const fuPending = (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').length;
   const lowStock = (typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>(i.qty||0)<=(typeof INV_LOW!=='undefined'?INV_LOW:5)).length;
   const qa = [];
-  if (urgentT.length) qa.push(`<button class="h-qa urgent" onclick="goPage('orders')"><span class="h-qa-ico">🔴</span><div><div class="h-qa-lbl">${urgentT.length} Urgent</div><div class="h-qa-sub">Needs attention</div></div></button>`);
-  qa.push(`<button class="h-qa" onclick="openAddOrder()"><span class="h-qa-ico">➕</span><div><div class="h-qa-lbl">Add Order</div><div class="h-qa-sub">Walk-in / WA</div></div></button>`);
-  qa.push(`<button class="h-qa" onclick="goPage('followup')"><span class="h-qa-ico">📋</span><div><div class="h-qa-lbl">Follow-up</div><div class="h-qa-sub">${fuPending} pending</div></div></button>`);
-  qa.push(`<button class="h-qa" onclick="goPage('stock')"><span class="h-qa-ico">🌸</span><div><div class="h-qa-lbl">Stock</div><div class="h-qa-sub">${lowStock?lowStock+' low':'In stock'}</div></div></button>`);
+  if (urgentT.length) qa.push(`<button class="h-qa urgent" onclick="goPage('orders')"><span class="h-qa-ico" style="color:#D84343">${di('warn',22)}</span><div><div class="h-qa-lbl">${urgentT.length} Urgent</div><div class="h-qa-sub">Needs attention</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="openAddOrder()"><span class="h-qa-ico">${di('plus',22)}</span><div><div class="h-qa-lbl">Add Order</div><div class="h-qa-sub">Walk-in / WA</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="goPage('followup')"><span class="h-qa-ico">${di('clipboard',22)}</span><div><div class="h-qa-lbl">Follow-up</div><div class="h-qa-sub">${fuPending} pending</div></div></button>`);
+  qa.push(`<button class="h-qa" onclick="goPage('stock')"><span class="h-qa-ico">${di('box',22)}</span><div><div class="h-qa-lbl">Stock</div><div class="h-qa-sub">${lowStock?lowStock+' low':'In stock'}</div></div></button>`);
   document.getElementById('h-quick').innerHTML = qa.join('');
   // Today's schedule — mini cards. Multi-product orders are expanded into one
   // card per product (own line, photo and ready tick); single-product unchanged.
@@ -2640,7 +2711,7 @@ function renderHome() {
     if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push(homeMiniCard(o, it, idx)));
     else units.push(homeMiniCard(o));
   });
-  document.getElementById('home-list').innerHTML = units.length ? units.join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">🌸</div><div class="empty-txt">No orders today</div></div>`;
+  document.getElementById('home-list').innerHTML = units.length ? units.join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">${di('flower',34)}</div><div class="empty-txt">No orders today</div></div>`;
   // Follow-up alert
   const fw=document.getElementById('h-fualert-wrap');
   if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
@@ -2656,7 +2727,7 @@ function renderOrders() {
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
   if (!list.length) {
-    tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">◫</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
+    tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('grid',34)}</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
   }
   // Expand multi-product orders into one display unit per product so each can
@@ -2686,7 +2757,7 @@ function renderOrders() {
     const isGrpLate = !prodMode && g.d && isPast(g.d);
     let lbl='–';
     if (prodMode) {
-      lbl = `🏭 ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
+      lbl = `${di('factory',13)} ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
     } else if (g.d) {
       if (isPast(g.d)) lbl = 'Overdue · ' + fd(g.d);
       else if (isToday(g.d)) lbl = 'Today · ' + fd(g.d);
@@ -2715,12 +2786,12 @@ function switchStockTab(tab) {
   document.getElementById('stock-tab-pur').classList.toggle('on', !isInv);
 }
 
-const INV_CAT = {cut:'🌹 Cut Flowers',green:'🍃 Greenery',dried:'🌾 Dried Flowers',ribbon:'🎀 Ribbons & Wrapping',vase:'🏺 Vases & Containers',foam:'🧱 Floral Foam',other:'📦 Other'};
+const INV_CAT = {cut:di('flower',14)+' Cut Flowers',green:di('leaf',14)+' Greenery',dried:di('wheat',14)+' Dried Flowers',ribbon:di('gift',14)+' Ribbons & Wrapping',vase:di('vase',14)+' Vases & Containers',foam:di('box',14)+' Floral Foam',other:di('box',14)+' Other'};
 const INV_LOW = 5; // qty at or below this is flagged low-stock
 
 function renderInventory() {
   const cont = document.getElementById('inv-body');
-  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">◉</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
+  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   const byCat = {};
   INVENTORY.forEach(i => { (byCat[i.cat]=byCat[i.cat]||[]).push(i); });
   const order = ['cut','green','dried','ribbon','vase','foam','other'];
@@ -2744,7 +2815,7 @@ function renderInventory() {
 function renderPurchase() {
   const URG = {today:{l:'Today',c:'today'},week:{l:'This week',c:'week'},stock:{l:'Stock up',c:'stock'}};
   const cont = document.getElementById('pur-body');
-  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">✦</div><div class="empty-txt">Nothing to buy — tap + Add Item</div></div>`; return; }
+  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">${di('sparkle',34)}</div><div class="empty-txt">Nothing to buy — tap + Add Item</div></div>`; return; }
   const ord={today:0,week:1,stock:2};
   const sorted = [...PURCHASES].sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((ord[a.urg]??2)-(ord[b.urg]??2)));
   cont.innerHTML = sorted.map(p => {
@@ -2752,11 +2823,11 @@ function renderPurchase() {
     const sub = [p.qty, p.notes].filter(Boolean).join(' · ');
     const thumb = p.photo ? `<img class="buy-thumb" src="${esc(p.photo)}" alt="" onclick="openZoom('${String(p.photo).replace(/'/g,"\\'")}','')">` : '';
     return `<div class="buy-item ${p.done?'done':''}">
-      <button type="button" class="buy-check ${p.done?'checked':''}" role="checkbox" aria-checked="${p.done?'true':'false'}" aria-label="Mark ${esc(p.name)} bought" onclick="togglePur('${p.id}')">${p.done?'✓':''}</button>
+      <button type="button" class="buy-check ${p.done?'checked':''}" role="checkbox" aria-checked="${p.done?'true':'false'}" aria-label="Mark ${esc(p.name)} bought" onclick="togglePur('${p.id}')">${p.done?di('check',12):''}</button>
       ${thumb}
       <div class="buy-main" style="cursor:pointer" onclick="editPur('${p.id}')" title="Tap to edit"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
       <span class="buy-urg ${u.c}">${u.l}</span>
-      <button class="buy-del" onclick="delPur('${p.id}')">✕</button>
+      <button class="buy-del" onclick="delPur('${p.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>`;
   }).join('');
 }
@@ -3136,7 +3207,7 @@ function parseAndFill() {
 
   const resultEl = document.getElementById('fu-parse-result');
   resultEl.style.display = '';
-  resultEl.innerHTML = '<strong>✓ Filled ' + found.length + ' fields</strong><br>' + found.join(' · ');
+  resultEl.innerHTML = '<strong>'+di('check',13)+' Filled ' + found.length + ' fields</strong><br>' + found.join(' · ');
 
   // Add a "Review & Edit" button to the result — don't auto-switch
   resultEl.innerHTML += '<br><button onclick="fuSwitchTab(\'manual\')" style="margin-top:8px;padding:6px 14px;border:1.5px solid var(--c-sage);background:transparent;border-radius:var(--r);font-size:11px;font-weight:500;color:var(--c-sage);cursor:pointer">→ Review & Edit filled fields</button>';
@@ -3242,19 +3313,19 @@ function _fuItemRowHTML(i,it){
   return `<div class="fu-item-row" id="furow-${i}" onfocusin="_fuActiveItem=${i}" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="fuItemDrop(event,${i})">
     <div style="display:flex;gap:8px;align-items:flex-start">
       <input id="funame-${i}" type="text" value="${esc(it.name||'')}" placeholder="e.g. Sweet Bow Cake 6inch · RM218" oninput="if(_fuItems[${i}])_fuItems[${i}].name=this.value" onfocus="_fuActiveItem=${i}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-      <button type="button" onclick="fuRemoveItem(${i})" title="Remove item" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0">✕</button>
+      <button type="button" onclick="fuRemoveItem(${i})" title="Remove item" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div id="fuphotos-${i}" class="op-photos" style="margin-top:7px"></div>
     <input type="file" id="fuimg-${i}" accept="image/*" multiple style="display:none" onchange="fuItemPhotoInput(this,${i})">
-    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].cardMsg=this.value" onfocus="_fuActiveItem=${i}" placeholder="💐 Card message for this item…" style="margin-top:7px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink);resize:vertical">${esc(it.cardMsg||'')}</textarea>
-    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].flowerNote=this.value" onfocus="_fuActiveItem=${i}" placeholder="🌸 Flower / design instructions for this item…" style="margin-top:6px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid #BFE3C4;border-radius:var(--r);font-size:12px;outline:none;background:#F1F8F2;color:var(--c-ink);resize:vertical">${esc(it.flowerNote||'')}</textarea>
+    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].cardMsg=this.value" onfocus="_fuActiveItem=${i}" placeholder="Card message for this item…" style="margin-top:7px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink);resize:vertical">${esc(it.cardMsg||'')}</textarea>
+    <textarea oninput="if(_fuItems[${i}])_fuItems[${i}].flowerNote=this.value" onfocus="_fuActiveItem=${i}" placeholder="Flower / design instructions for this item…" style="margin-top:6px;width:100%;min-height:36px;padding:6px 9px;border:1.5px solid #BFE3C4;border-radius:var(--r);font-size:12px;outline:none;background:#F1F8F2;color:var(--c-ink);resize:vertical">${esc(it.flowerNote||'')}</textarea>
   </div>`;
 }
 function fuRenderItemPhotos(i){
   const el=document.getElementById('fuphotos-'+i); if(!el||!_fuItems[i]) return;
   const imgs=_fuItems[i].images||[];
-  el.innerHTML = imgs.map((s,pi)=>`<div class="op-photo"><img src="${s}" alt="" onclick="openGallery((_fuItems[${i}]||{}).images||[],${pi},'')"><button type="button" class="op-photo-x" onclick="fuRemoveItemPhoto(${i},${pi})" aria-label="Remove photo">✕</button></div>`).join('')
-    + `<button type="button" class="op-photo-add" onclick="document.getElementById('fuimg-${i}').click()" title="Add or drop photos for this item">＋<span>Photo</span></button>`;
+  el.innerHTML = imgs.map((s,pi)=>`<div class="op-photo"><img src="${s}" alt="" onclick="openGallery((_fuItems[${i}]||{}).images||[],${pi},'')"><button type="button" class="op-photo-x" onclick="fuRemoveItemPhoto(${i},${pi})" aria-label="Remove photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')
+    + `<button type="button" class="op-photo-add" onclick="document.getElementById('fuimg-${i}').click()" title="Add or drop photos for this item">${di('plus',13)}<span>Photo</span></button>`;
 }
 function fuAddItem(){ _fuItemsEnsure(); _fuItems.push({name:'',images:[]}); fuRenderItems(); const el=document.getElementById('funame-'+(_fuItems.length-1)); if(el)el.focus(); }
 function fuRemoveItem(i){ _fuItems.splice(i,1); _fuItemsEnsure(); fuRenderItems(); }
@@ -3350,7 +3421,7 @@ function toggleFUStatus(id) {
   // the active list until staff issues the invoice and clears the 🧾 flag. Stops an
   // order being closed off while an invoice is still owed.
   if (next === 'completed' && f.needInvoice) {
-    toast('🧾 Issue the invoice first, then clear the 🧾 flag to complete');
+    toast('Issue the invoice first, then clear the invoice flag to complete');
     return;
   }
   // Completing needs an explicit confirm + order number (prevents mis-click that
@@ -3385,7 +3456,7 @@ function toggleInvoice(id) {
   // it isn't truly done until the invoice is issued (then clear the 🧾 to complete).
   if (f.needInvoice && f.status==='completed') f.status='pending';
   saveFollowups(); renderFollowup();
-  toast(f.needInvoice ? '🧾 Invoice requested — stays pending until issued' : '✓ Invoice issued — order can be completed');
+  toast(f.needInvoice ? 'Invoice requested — stays pending until issued' : '✓ Invoice issued — order can be completed');
 }
 function toggleComplete(id) { toggleFUStatus(id); }
 
@@ -3675,7 +3746,7 @@ function renderFollowup() {
   if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
   if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
   if(fuFilter==='completed')        list=list.filter(x=>isArchived(x));
-  if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">☎</div><div class="empty-txt">No entries</div></div>`;return;}
+  if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('phone',34)}</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
   // Sort by ORDER date — newest order on top. Entries are then grouped under an order-
@@ -3727,24 +3798,24 @@ function renderFollowup() {
       const isPast2  = dObj && dObj < today0();
       const color = isCompleted ? 'var(--c-muted)' : isPast2 ? 'var(--c-red)' : isToday2 ? 'var(--c-burg)' : 'var(--c-ink)';
       const weight = (isToday2 || isPast2) && !isCompleted ? '600' : '400';
-      const dIco = f.fulfil==='pickup' ? '🛍' : '🚚';   // self-collect vs delivery
+      const dIco = f.fulfil==='pickup' ? di('bag',12) : di('truck',12);   // self-collect vs delivery
       dueHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">${dIco} ${dStr}</div>
-        ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">🕐 ${esc(f.dueTime)}</div>`:''}
+        ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">${di('clock',10)} ${esc(f.dueTime)}</div>`:''}
         ${isPast2&&!isCompleted?'<div style="font-size:9px;color:var(--c-red);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Overdue</div>':''}
         ${isToday2&&!isCompleted?'<div style="font-size:9px;color:var(--c-burg);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Today</div>':''}`;
     } else if (f.dueTime) {
-      dueHtml = `<div style="font-size:10px;color:var(--c-ink)">🕐 ${esc(f.dueTime)}</div>`;
+      dueHtml = `<div style="font-size:10px;color:var(--c-ink)">${di('clock',10)} ${esc(f.dueTime)}</div>`;
     }
     const dateCellHtml = (ordLine + dueHtml) || '–';
     const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
     const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
     const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
-    const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">⚠ ${dupCounts[dupKey]}×</span>` : '';
+    const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${di('warn',10)} ${dupCounts[dupKey]}×</span>` : '';
     // Invoice-requested badge — shown up front so admin processes it correctly.
-    const invBadge = f.needInvoice ? `<span title="Invoice requested" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">🧾 Invoice</span>` : '';
+    const invBadge = f.needInvoice ? `<span title="Invoice requested" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${di('receipt',10)} Invoice</span>` : '';
     // Shopify order number once this follow-up has been turned into an order — shown
     // on the card so staff can see at a glance which one it became.
-    const orderNoBadge = f.orderNo ? `<span title="Shopify order ${esc(f.orderNo)}" style="font-size:9px;font-weight:700;letter-spacing:.02em;background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap">🛍 ${esc(f.orderNo)}</span>` : '';
+    const orderNoBadge = f.orderNo ? `<span title="Shopify order ${esc(f.orderNo)}" style="font-size:9px;font-weight:700;letter-spacing:.02em;background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap">${di('bag',10)} ${esc(f.orderNo)}</span>` : '';
     // Tick button style based on status
     const tickStyle = isCompleted
       ? 'background:var(--c-sage);border-color:var(--c-sage);color:#fff'
@@ -3754,9 +3825,9 @@ function renderFollowup() {
     const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
     // Clear self-collect vs delivery sign.
     const isPickup = f.fulfil==='pickup';
-    const fulfilBadge = `<span title="${isPickup?'Self collect':'Delivery'}" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${isPickup?'#E8F4F8':'#FFF3E0'};color:${isPickup?'#0F6B7B':'#E65100'};border:1px solid ${isPickup?'#4FC3D5':'#FFCC80'};border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${isPickup?'🛍 Self-collect':'🚚 Delivery'}</span>`;
+    const fulfilBadge = `<span title="${isPickup?'Self collect':'Delivery'}" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${isPickup?'#E8F4F8':'#FFF3E0'};color:${isPickup?'#0F6B7B':'#E65100'};border:1px solid ${isPickup?'#4FC3D5':'#FFCC80'};border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${isPickup?di('bag',10)+' Self-collect':di('truck',10)+' Delivery'}</span>`;
     const feeLine = (f.deliveryFee && parseFloat(f.deliveryFee) > 0)
-      ? `<div style="font-size:9px;color:var(--c-muted);margin-top:1px;white-space:nowrap">🚚 +RM ${parseFloat(f.deliveryFee).toFixed(2)}</div>` : '';
+      ? `<div style="font-size:9px;color:var(--c-muted);margin-top:1px;white-space:nowrap">${di('truck',10)} +RM ${parseFloat(f.deliveryFee).toFixed(2)}</div>` : '';
     // Order-date group header — printed once whenever the order date changes as we
     // walk the (order-date-sorted) list, so cards sit under a dated heading.
     const _gk = _fuGroupKey(f);
@@ -3766,7 +3837,7 @@ function renderFollowup() {
       <div class="fu-c-main">
         <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}${fulfilBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
         ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
-        ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">👤 Staff: ${esc(f.staff)}</div>`:''}
+        ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">${di('user',12)}Staff: ${esc(f.staff)}</div>`:''}
         <div class="fu-c-items">${esc(itemsPreview)}</div>
       </div>
       <div class="fu-c-date">${dateCellHtml}</div>
@@ -3777,9 +3848,9 @@ function renderFollowup() {
       </div>
       <div class="fu-c-tick" style="display:flex;flex-direction:column;gap:6px;align-items:center">
         <button class="act-btn" style="${tickStyle};width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px"
-          onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}">✓</button>
+          onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>
         <button class="act-btn" style="width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:12px;${f.needInvoice?'background:#E8F0FE;border-color:#90CAF9':'background:var(--c-surface);border-color:var(--c-border);opacity:.6'}"
-          onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Tick if an invoice is needed'}" aria-label="Toggle invoice needed">🧾</button>
+          onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Tick if an invoice is needed'}" aria-label="Toggle invoice needed">${di('receipt',14)}</button>
       </div>
     </div>`;
   }).join('');
@@ -3814,12 +3885,12 @@ function openFUDP(id) {
   html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
     <button onclick="togglePayment('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
     <button onclick="toggleFUStatus('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl} →</span></button>
-    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" title="Request an invoice for this order" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">🧾 ${f.needInvoice?'Invoice requested':'Request invoice'}</span></button>
+    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" title="Request an invoice for this order" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${di('receipt',11)} ${f.needInvoice?'Invoice requested':'Request invoice'}</span></button>
   </div>`;
   // Contact
   html += `<div><div class="fu-sec-ttl">Sender</div>`;
   if(f.contact) html += `<div style="margin-bottom:4px">${waLink(f.contact)}</div>`;
-  if(f.email)   html += `<div style="font-size:12px;color:var(--c-muted);margin-bottom:4px">✉ ${esc(f.email)}</div>`;
+  if(f.email)   html += `<div style="font-size:12px;color:var(--c-muted);margin-bottom:4px">${di('mail',12)} ${esc(f.email)}</div>`;
   html += `</div>`;
   if(f.recipName || f.recipPhone) {
     html += `<div><div class="fu-sec-ttl">Recipient</div>`;
@@ -3855,8 +3926,8 @@ function openFUDP(id) {
       <div style="padding:8px 0;border-bottom:1px solid var(--c-border)">
         <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
         ${(it.images&&it.images.length)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${it.images.map((s,pi)=>`<img src="${s}" alt="" onclick="openGallery(${JSON.stringify(it.images).replace(/"/g,'&quot;')},${pi},'')" style="width:54px;height:54px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer">`).join('')}</div>`:''}
-        ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">💐 ${esc(it.cardMsg)}</div>`:''}
-        ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">🌸 ${esc(it.flowerNote)}</div>`:''}
+        ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">${di('gift',12)} ${esc(it.cardMsg)}</div>`:''}
+        ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">${di('flower',12)} ${esc(it.flowerNote)}</div>`:''}
       </div>`).join('')}</div>`;
   } else if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
   // Remarks
@@ -3867,15 +3938,15 @@ function openFUDP(id) {
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
     <button onclick="openFUDraftModal('${f.id}')" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
-      <span style="font-size:15px">🛍</span> ${isDraft2 ? 'Re-send to Shopify Draft' : 'Send to Shopify Draft'}
+      <span style="display:inline-flex">${di('bag',15)}</span> ${isDraft2 ? 'Re-send to Shopify Draft' : 'Send to Shopify Draft'}
     </button>
     ${isDraft2 ? `<div style="font-size:11px;color:#1565C0;text-align:center">↗ A draft was created in Shopify — open Shopify → Drafts to confirm &amp; create the order.</div>` : ''}
     <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;font-weight:500;text-decoration:none">
       Open Shopify Admin
     </a>
     <div style="display:flex;gap:8px">
-      <button onclick="closeFUDP();editFollowup('${f.id}')" style="flex:1;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">✎ Edit</button>
-      <button onclick="closeFUDP();delFollowup('${f.id}')" style="padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">✕ Delete</button>
+      <button onclick="closeFUDP();editFollowup('${f.id}')" style="flex:1;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">${di('edit',12)} Edit</button>
+      <button onclick="closeFUDP();delFollowup('${f.id}')" style="padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">${di('trash',12)} Delete</button>
     </div>
   </div>`;
   document.getElementById('fu-dp-body').innerHTML = html;
@@ -4220,7 +4291,7 @@ function _msInner(id){
     ? sel.map(v=>`<span class="ms-chip">${esc(_msLabel(s,v))}</span>`).join('')
     : `<span class="ms-ph">${esc(s.placeholder)}</span>`;
   const optRow = o => { const on=s.selected.has(o.value); const dis=!on && s.max && s.selected.size>=s.max;
-    return `<div class="ms-opt${on?' on':''}${dis?' disabled':''}" data-ms="${id}" data-val="${esc(o.value)}"><span class="ms-box">${on?'✓':''}</span><span>${esc(o.label)}</span></div>`; };
+    return `<div class="ms-opt${on?' on':''}${dis?' disabled':''}" data-ms="${id}" data-val="${esc(o.value)}"><span class="ms-box">${on?di('check',11):''}</span><span>${esc(o.label)}</span></div>`; };
   const menu = s.grouped
     ? s.options.map(g=>`<div class="ms-group-label">${esc(g.group)}</div>${g.options.map(optRow).join('')}`).join('')
     : s.options.map(optRow).join('');
@@ -4594,28 +4665,7 @@ let _drvMap = null, _geoOff = false; const _geoTried = new Set();
 const SHOP_LATLNG = [5.3457, 100.4432];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
 const DRV_C = { pending:'#D84343', otw:'#2E7BD0', done:'#2E9E6B' };
 function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
-// Monochrome line icons (Feather/Lucide paths) — replace emoji for a consistent, professional
-// look that renders identically on every device. di() = outline, dif() = filled (play/bolt).
-const DI = {
-  phone:'<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
-  chat:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
-  nav:'<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
-  note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
-  map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
-  list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
-  pin:'<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
-  check:'<polyline points="20 6 9 17 4 12"/>',
-  warn:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  sort:'<path d="M21 16l-4 4-4-4"/><path d="M17 20V4"/><path d="M3 8l4-4 4 4"/><path d="M7 4v16"/>',
-  play:'<polygon points="5 3 19 12 5 21 5 3"/>',
-  bolt:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
-  route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
-  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-  back:'<polyline points="15 18 9 12 15 6"/>',
-  trash:'<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
-};
-function di(name, size){ size=size||15; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">'+DI[name]+'</svg>'; }
-function dif(name, size){ size=size||13; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px;flex:none">'+DI[name]+'</svg>'; }
+// (Icon system DI / di() / dif() / dot() defined near the top of the script.)
 let _drvRouteId = null;          // route id whose detail view is open
 function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null; renderDriver(); }
 function openStopDetail(id){ _drvDetail = id; renderDriver(); }
@@ -4691,7 +4741,7 @@ function _drvRow(o, opts){
     ? '<div onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')" style="width:30px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:17px;color:var(--c-muted);user-select:none;flex:none">≡</div>'
     : '';
   const unassign = opts.reorder
-    ? '<button onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="width:26px;height:26px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted);flex:none">✕</button>'
+    ? '<button onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="width:26px;height:26px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted);flex:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
     : '<span style="color:var(--c-muted);font-size:14px;flex:none">›</span>';
   const flame = o.priority==='urgent' ? ' <span title="urgent" style="color:#E65100">'+dif('bolt',12)+'</span>' : '';
   return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
@@ -4716,7 +4766,7 @@ function _drvContactRow(label, name, phone, waHref){
     + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+esc2(name||'—')+'</div>'
     + (tel ? '<div style="font-size:12px;color:#2E7D32;margin-top:1px">+'+tel+'</div>' : '<div style="font-size:11px;color:var(--c-muted);margin-top:1px">no number</div>')
     + '</div>'
-    + '<div style="display:flex;gap:8px">'+round(tel?'tel:+'+tel:null,di('phone',16),'Call')+round(waHref,di('chat',16),'WhatsApp')+'</div>'
+    + '<div style="display:flex;gap:8px">'+round(tel?'tel:+'+tel:null,di('phone',16),'Call')+round(waHref,'<span style="color:#25D366;display:inline-flex">'+dif('whatsapp',17)+'</span>','WhatsApp')+'</div>'
   + '</div>';
 }
 
@@ -5022,7 +5072,8 @@ function srcIcon(k, s){
   if (k==='whatsapp') return `<svg ${v}><path fill="#25D366" d="M.5 23.5l1.7-6A11.4 11.4 0 1 1 12 23.4c-1.9 0-3.7-.5-5.3-1.3L.5 23.5z"/><path fill="#fff" d="M9 6.9c-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.3-.3.3-.9.9-.9 2.1s.9 2.4 1 2.6c.1.2 1.8 2.8 4.4 3.8 2.1.9 2.6.7 3 .7.5 0 1.6-.6 1.8-1.3.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.6-.4-.3-.1-1.6-.8-1.9-.9-.2-.1-.4-.1-.6.1-.2.3-.6.9-.8 1-.1.2-.3.2-.5.1-.3-.1-1.2-.4-2.2-1.4-.8-.7-1.4-1.6-1.5-1.9-.2-.3 0-.4.1-.5l.4-.5c.1-.1.2-.3.2-.4 0-.2 0-.3 0-.4 0-.2-.6-1.6-.8-2.1z"/></svg>`;
   if (k==='instagram') return `<svg ${v}><rect width="24" height="24" rx="6" fill="url(#igGrad)"/><rect x="5" y="5" width="14" height="14" rx="4.5" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="12" r="3.3" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="17" cy="7" r="1.1" fill="#fff"/></svg>`;
   if (k==='facebook') return `<svg ${v}><rect width="24" height="24" rx="6" fill="#1877F2"/><path fill="#fff" d="M15.4 12.3l.4-2.6h-2.5V8c0-.7.3-1.4 1.5-1.4h1.2V4.4S15 4.2 14 4.2c-2.1 0-3.5 1.3-3.5 3.6v1.9H8.2v2.6h2.3V20h2.9v-7.7z"/></svg>`;
-  return `<span style="font-size:${s}px;line-height:1">${({online:'🛒',shopify:'🛒',draft:'📝',mixed:'🛒',walkin:'🚶',quiz:'❓',other:'•'})[k]||''}</span>`;
+  const ic = {online:'cart',shopify:'cart',draft:'note',mixed:'cart',walkin:'walk',quiz:'help'}[k];
+  return ic ? `<span style="display:inline-flex;color:var(--c-muted)">${di(ic,s)}</span>` : (k==='other' ? `<span style="color:var(--c-muted)">•</span>` : '');
 }
 // Custom Source picker (native <select> can't render logos). Value lives in the
 // hidden #cust-source input that saveCustomerProfile reads.
@@ -5086,14 +5137,14 @@ function renderCrmReminders(){
   // birthday/anniversary projection fetched at launch.
   const src = (_custLoaded && CUSTOMERS.length) ? CUSTOMERS : (_reminderRows || []);
   src.forEach(c=>{
-    const b=_upcomingDays(c.birthday);     if(b!=null && b<=7) items.push({c, kind:'🎂 Birthday', days:b});
-    const a=_upcomingDays(c.anniversary);  if(a!=null && a<=7) items.push({c, kind:'💐 Anniversary', days:a});
+    const b=_upcomingDays(c.birthday);     if(b!=null && b<=7) items.push({c, kind:di('cake',13)+' Birthday', days:b});
+    const a=_upcomingDays(c.anniversary);  if(a!=null && a<=7) items.push({c, kind:di('flower',13)+' Anniversary', days:a});
   });
   if(!items.length){ el.innerHTML=''; return; }
   items.sort((x,y)=>x.days-y.days);
   const when = d => d===0?'today':d===1?'tomorrow':`in ${d} days`;
   el.innerHTML = `<div style="background:var(--c-burg-lt);border:1.5px solid var(--c-dpink);border-radius:var(--r-lg);padding:14px 16px">
-    <div class="h-sec-ttl" style="margin-bottom:10px;color:var(--c-burg)">🌸 Reach out this week</div>
+    <div class="h-sec-ttl" style="margin-bottom:10px;color:var(--c-burg)">${di('flower',14)} Reach out this week</div>
     <div style="display:flex;flex-direction:column;gap:7px">
       ${items.map(it=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:9px 12px">
         <div style="min-width:0;cursor:pointer" onclick="goPage('customers');setTimeout(()=>openCustomer('${it.c.id}'),60)">
@@ -5109,8 +5160,7 @@ function renderCrmReminders(){
 // Multi-select filter match: within a group OR, across groups AND.
 // ── Filter / preferences option sets (shared by the filter bar AND the prefs form) ──
 const SEG_OPTS    = [['vip','VIP'],['prospect','Prospect'],['regular','Regular'],['wedding','Wedding'],['corporate','Corporate']].map(([value,label])=>({value,label}));
-const SRC_EMOJI   = {online:'🛒',draft:'📋',whatsapp:'💬',instagram:'📸',facebook:'📘',walkin:'🚶',quiz:'❓'};
-const SRC_OPTS    = ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>({value:s,label:s==='unknown'?'— No tag':((SRC_EMOJI[s]?SRC_EMOJI[s]+' ':'')+(SRC_LABELS[s]||s))}));
+const SRC_OPTS    = ['online','draft','whatsapp','instagram','facebook','walkin','quiz','unknown'].map(s=>({value:s,label:s==='unknown'?'— No tag':(SRC_LABELS[s]||s)}));
 const ACT_OPTS    = [{value:'reorder',label:'No order in 45 days'},{value:'birthday',label:'Birthday this month'},{value:'quiz',label:'Did quiz'}];
 const OCC_GROUPS  = [['Celebrations',['Birthday','Anniversary','Wedding','Graduation','New Baby']],['Holidays & Festivals',["Valentine's","Mother's Day","Father's Day",'Chinese New Year']],['Professional',['Corporate Events','Grand Opening','Corporate Gifting']],['Other',['Home Décor / Self','Sympathy / Hospital','Just Because']]].map(([group,opts])=>({group,options:opts.map(o=>({value:o,label:o}))}));
 const PERS_OPTS   = [['romantic','The Romantic 浪漫时刻型'],['aesthete','The Aesthete 轻盈美学型'],['professional','The Professional 专业送礼型'],['nature','The Nature Lover 自然治愈型'],['celebrator','The Celebrator 节日庆典型']].map(([value,label])=>({value,label}));
@@ -5243,8 +5293,8 @@ function _quizSection(c){
   const when = c.quiz_at ? fd(new Date(c.quiz_at)) : (qd.submitted_at ? fd(new Date(qd.submitted_at)) : '');
   const chips = _quizAnswerChips(qd);
   const extra = [];
-  if (qd.birthday)    extra.push('🎂 '+esc(qd.birthday));        // free-text dates from the quiz
-  if (qd.anniversary) extra.push('💐 '+esc(qd.anniversary));
+  if (qd.birthday)    extra.push(di('cake',12)+' '+esc(qd.birthday));        // free-text dates from the quiz
+  if (qd.anniversary) extra.push(di('flower',12)+' '+esc(qd.anniversary));
   return `<div class="dp-section-ttl" style="margin-top:20px">Quiz ${_quizPill()}</div>
     <div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px">
       <div style="font-size:12px;color:var(--c-ink)">${typeLbl?`<b>${esc(typeLbl)}</b>`:'Completed the flower quiz'}</div>
@@ -5382,7 +5432,7 @@ async function deleteCustomer(id){
     const { error } = await sb.from('customers').delete().eq('id', id);
     if (error) { toast('⚠ Cloud delete failed: '+error.message); return; }
   }
-  toast('🗑 Customer deleted');
+  toast('Customer deleted');
 }
 
 async function openCustomer(id){
@@ -5416,7 +5466,7 @@ function _sel(label, id, value, opts){
 let _custEmails = [];
 function renderCustEmails(){
   const el=document.getElementById('cust-emails-extra'); if(!el) return;
-  el.innerHTML = _custEmails.map((e,i)=>`<span class="ms-chip" style="margin:0 5px 4px 0">${esc(e)} <span onclick="removeCustEmail(${i})" title="Remove" style="cursor:pointer;font-weight:700;margin-left:2px">✕</span></span>`).join('');
+  el.innerHTML = _custEmails.map((e,i)=>`<span class="ms-chip" style="margin:0 5px 4px 0">${esc(e)} <span onclick="removeCustEmail(${i})" title="Remove" style="cursor:pointer;font-weight:700;margin-left:2px;display:inline-flex;vertical-align:-2px">${di('close',10)}</span></span>`).join('');
 }
 function addCustEmail(){
   const inp=document.getElementById('cust-email-add'); const v=(inp&&inp.value||'').trim(); if(!v) return;
@@ -5456,10 +5506,10 @@ function recipientBlock(r, i){
       <div style="flex:1;min-width:0"><div style="font-size:8px;font-weight:700;letter-spacing:.08em;color:var(--c-muted)">LINKED CRM</div>
         <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(linked.name||'(no name)')}<span style="font-weight:400;color:var(--c-muted)">${linked.tag?' · '+esc(linked.tag):''} · ${linked.total_orders||0} orders</span></div></div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="openCustomer('${linked.id}')">View →</button>
-      <button type="button" onclick="recipUnlink(${i})" title="Unlink" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:13px">✕</button>
+      <button type="button" onclick="recipUnlink(${i})" title="Unlink" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:13px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>` : '';
   return `<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;margin-bottom:10px;position:relative;background:var(--c-surface)">
-    ${i>0?`<button type="button" onclick="removeRecipient(${i})" title="Remove" style="position:absolute;top:8px;right:8px;border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:14px">✕</button>`:''}
+    ${i>0?`<button type="button" onclick="removeRecipient(${i})" title="Remove" style="position:absolute;top:8px;right:8px;border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`:''}
     <div class="fg fg-2">
       <div class="ff"><input value="${esc(r.name||'')}" oninput="recipSet(${i},'name',this.value)" placeholder="Name e.g. 太太 Mei..."></div>
       <div class="ff" style="position:relative"><input value="${esc(r.phone||'')}" autocomplete="off" oninput="recipPhoneInput(${i},this.value)" placeholder="Phone number"><div id="rcp-sug-${i}" class="rcp-sug" style="display:none"></div></div>
@@ -5575,7 +5625,7 @@ function renderCustomerProfile(c, prefs, notes){
     <div id="recipients-wrap"></div>
     <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
       <button class="btn btn-primary btn-sm" onclick="saveCustomerProfile('${c.id}')">Save details${c.shopify_customer_id?' (syncs to Shopify)':''}</button>
-      <span id="pref-saved" style="font-size:11px;color:var(--c-burg);display:none">Saved ✓</span>
+      <span id="pref-saved" style="font-size:11px;color:var(--c-burg);display:none">Saved ${di('check',11)}</span>
       ${prefs.last_updated_by_name?`<span style="font-size:10px;color:var(--c-muted)">Last updated: ${esc(prefs.last_updated_by_name)}${prefs.updated_at?' · '+fd(new Date(prefs.updated_at)):''}</span>`:''}
     </div>
 
@@ -5589,21 +5639,21 @@ function renderCustomerProfile(c, prefs, notes){
     <div style="display:flex;flex-direction:column;gap:6px">${(notes||[]).map(n=>`<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:10px 12px"><div style="font-size:12px;color:var(--c-ink)">${esc(n.note)}</div><div style="font-size:10px;color:var(--c-muted);margin-top:4px">${esc(n.author_name||'')} · ${n.created_at?fd(new Date(n.created_at)):''}</div></div>`).join('') || '<div style="font-size:11px;color:var(--c-muted)">No notes yet</div>'}</div>
 
     ${fuLinks.length ? `<div class="dp-section-ttl" style="margin-top:20px">Follow-ups (${fuLinks.length})</div>
-      ${fuLinks.map(f=>`<div class="dp-fl"><div class="dp-fl-ico">${({whatsapp:'💬',instagram:'📸',facebook:'📘',shopify:'🛒',walkin:'🚶'})[f.channel]||'☎'}</div><div style="flex:1"><div class="dp-fl-val">${esc(SRC_LABELS[f.channel]||f.channel||'Other')}${f.orderNo?' · '+esc(f.orderNo):''}</div><div class="dp-fl-lbl">${esc(f.status||'pending')}${f.dueDate?' · '+esc(f.dueDate):''}</div></div></div>`).join('')}` : ''}
+      ${fuLinks.map(f=>`<div class="dp-fl"><div class="dp-fl-ico">${srcIcon(f.channel,16)||di('phone',15)}</div><div style="flex:1"><div class="dp-fl-val">${esc(SRC_LABELS[f.channel]||f.channel||'Other')}${f.orderNo?' · '+esc(f.orderNo):''}</div><div class="dp-fl-lbl">${esc(f.status||'pending')}${f.dueDate?' · '+esc(f.dueDate):''}</div></div></div>`).join('')}` : ''}
 
     <div class="dp-section-ttl" style="margin-top:20px">Order history</div>
     <div id="cust-orders">${recent.length ? recent.map(o=>_custOrderRow(o.name,o.product,o.dateObj?fd(o.dateObj):(o.dueDate||''),o.total)).join('')
       : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
 
     <div style="border-top:1px solid var(--c-border);margin:26px 0 12px"></div>
-    <button class="btn btn-sm" style="background:none;border:1.5px solid #e0a8a0;color:var(--c-red);font-size:11px;padding:7px 14px" onclick="deleteCustomer('${c.id}')">🗑 Delete this customer</button>
+    <button class="btn btn-sm" style="background:none;border:1.5px solid #e0a8a0;color:var(--c-red);font-size:11px;padding:7px 14px" onclick="deleteCustomer('${c.id}')">${di('trash',12)} Delete this customer</button>
     <div style="height:30px"></div>`;
   renderRecipients();                                  // recipient blocks into #recipients-wrap
   renderCustEmails();                                  // extra-email chips into #cust-emails-extra
   if (c.shopify_customer_id) loadCustomerOrders(c);   // accurate history, live from Shopify
 }
 function _custOrderRow(name, product, date, total, src){
-  return `<div class="dp-fl"><div class="dp-fl-ico">🌸</div><div style="flex:1"><div class="dp-fl-val">${esc(name||'')} · ${esc(product||'')}</div><div class="dp-fl-lbl">${esc(date||'')}${total?' · RM '+Number(total).toFixed(2):''}${src?' · '+esc(src):''}</div></div></div>`;
+  return `<div class="dp-fl"><div class="dp-fl-ico">${di('flower',16)}</div><div style="flex:1"><div class="dp-fl-val">${esc(name||'')} · ${esc(product||'')}</div><div class="dp-fl-lbl">${esc(date||'')}${total?' · RM '+Number(total).toFixed(2):''}${src?' · '+esc(src):''}</div></div></div>`;
 }
 // Pull the customer's real order history from Shopify by customer id.
 async function loadCustomerOrders(c){
@@ -5827,7 +5877,7 @@ async function openDuplicates(){
   const cnt = document.getElementById('cust-count');
   const extra = groups.reduce((s,g)=>s+g.items.length-1,0);
   if (cnt) cnt.textContent = `${groups.length} duplicate group${groups.length===1?'':'s'} · ${extra} extra record${extra===1?'':'s'} (by WhatsApp number or email)`;
-  if (!groups.length){ cont.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderCustomers()" style="margin-bottom:10px">← Back to all</button><div class="empty" style="padding:40px"><div class="empty-ico">✓</div><div class="empty-txt">No duplicates 🎉</div></div>`; return; }
+  if (!groups.length){ cont.innerHTML = `<button class="btn btn-ghost btn-sm" onclick="renderCustomers()" style="margin-bottom:10px">← Back to all</button><div class="empty" style="padding:40px"><div class="empty-ico">${di('check',34)}</div><div class="empty-txt">No duplicates</div></div>`; return; }
   cont.innerHTML =
     `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
        <button class="btn btn-ghost btn-sm" onclick="renderCustomers()">← Back to all</button>
@@ -5836,7 +5886,7 @@ async function openDuplicates(){
     groups.map(g => `
       <div style="background:var(--c-surface);border:1.5px solid ${g.strong?'var(--c-dpink)':'#FFCC80'};border-radius:12px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
-          <div style="font-size:12px;font-weight:700;color:var(--c-burg)">${g.strong?'📱':'✉️'} ${esc(g.key)} · ${g.items.length} records${g.strong?'':' · matched by email — review before merging'}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--c-burg)">${g.strong?di('phone2',13):di('mail',13)} ${esc(g.key)} · ${g.items.length} records${g.strong?'':' · matched by email — review before merging'}</div>
           <button class="btn btn-primary btn-sm" onclick="confirmMergeGroup('${g.items.map(c=>c.id).join(',')}')">Merge → 1</button>
         </div>
         ${g.items.map(c=>`<div style="font-size:12px;color:var(--c-ink);padding:5px 0;border-top:1px solid var(--c-border)">${esc(c.name||'(no name)')} <span style="color:var(--c-muted)">· ${esc(c.phone||'(no phone)')}${c.email?' · '+esc(c.email):''} · ${c.total_orders||0} ord · RM ${Number(c.total_spend||0).toFixed(0)}${c.source?' · '+esc(c.source):''}</span></div>`).join('')}
@@ -5992,7 +6042,7 @@ function openSP() {
   if (!canAccess('settings')) { toast('Settings is admin-only'); return; }
   updateConnectedUI();
   const emailEl = document.getElementById('sp-user-email');
-  if (emailEl) emailEl.textContent = currentUser ? '✉ '+currentUser.email : 'Not signed in';
+  if (emailEl) emailEl.textContent = currentUser ? currentUser.email : 'Not signed in';
   const fromEl = document.getElementById('import-from-date');
   if (fromEl && !fromEl.value) fromEl.value = (new Date().getFullYear()-1) + '-01-01';   // default: last year Jan 1
   document.getElementById('sp').classList.add('on');
@@ -6212,7 +6262,7 @@ function setPhotoZone(zoneId, hiddenId, src) {
   const zone = document.getElementById(zoneId); if (!zone) return;
   zone.innerHTML = src
     ? `<img src="${src}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`
-    : `<div class="photo-zone-icon" style="font-size:20px">📷</div><div class="photo-zone-lbl">Tap to add a photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
+    : `<div class="photo-zone-icon" style="color:var(--c-muted)">${di('camera',22)}</div><div class="photo-zone-lbl">Tap to add a photo</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
 }
 
 function handleFUPhoto(input) {
@@ -6251,9 +6301,9 @@ function _productRowHTML(idx, item) {
           <input id="opqty-${idx}" type="number" min="1" placeholder="Qty" value="${item.quantity||1}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:60px;outline:none;background:var(--c-surface);color:var(--c-ink)">
         </div>
       </div>
-      <button onclick="removeProductRow(${idx})" style="width:24px;height:24px;border:1.5px solid var(--c-border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);cursor:pointer;flex-shrink:0;background:transparent;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'">✕</button>
+      <button onclick="removeProductRow(${idx})" style="width:24px;height:24px;border:1.5px solid var(--c-border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);cursor:pointer;flex-shrink:0;background:transparent;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)'"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <input id="opnote-${idx}" type="text" placeholder="⚠️ Special instruction for THIS item (optional)" value="${esc(item.note||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:#FFFDF5;color:var(--c-ink)">
+    <input id="opnote-${idx}" type="text" placeholder="Special instruction for THIS item (optional)" value="${esc(item.note||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:#FFFDF5;color:var(--c-ink)">
     <div id="opphotos-${idx}" class="op-photos"></div>
     <input type="file" id="opimg-${idx}" accept="image/*" multiple style="display:none" onchange="handleProductPhoto(this,${idx})">
   </div>`;
@@ -6264,8 +6314,8 @@ function renderProductPhotos(idx) {
   const el = document.getElementById('opphotos-'+idx); if (!el) return;
   const imgs = _productImages[idx] || [];
   el.innerHTML = imgs.map((src,i) =>
-    `<div class="op-photo"><img src="${src}" alt="" onclick="zoomFormPhotos(${idx},${i})"><button type="button" class="op-photo-x" onclick="removeProductPhoto(${idx},${i})" aria-label="Remove photo">✕</button></div>`
-  ).join('') + `<button type="button" class="op-photo-add" onclick="document.getElementById('opimg-${idx}').click()" title="Add photo">＋<span>Photo</span></button>`;
+    `<div class="op-photo"><img src="${src}" alt="" onclick="zoomFormPhotos(${idx},${i})"><button type="button" class="op-photo-x" onclick="removeProductPhoto(${idx},${i})" aria-label="Remove photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`
+  ).join('') + `<button type="button" class="op-photo-add" onclick="document.getElementById('opimg-${idx}').click()" title="Add photo">${di('plus',13)}<span>Photo</span></button>`;
 }
 function zoomFormPhotos(idx,start){ openGallery(_productImages[idx]||[], start||0, ''); }
 function removeProductPhoto(idx,i){ if(_productImages[idx]){ _productImages[idx].splice(i,1); renderProductPhotos(idx); } }
@@ -6409,7 +6459,7 @@ function initSwipeRows() {
     firstTd.style.overflow = 'hidden';
     const reveal = document.createElement('div');
     reveal.className = 'swipe-reveal';
-    reveal.innerHTML = '<span class="sr-ico">🚚</span><span class="sr-lbl">Delivered</span>';
+    reveal.innerHTML = '<span class="sr-ico">'+di('truck',16)+'</span><span class="sr-lbl">Delivered</span>';
     reveal.onclick = e => { e.stopPropagation(); markDelivered(oid); reveal.style.transform='translateX(100%)'; };
     firstTd.appendChild(reveal);
     let sx=0, sy=0, dx=0, moved=false;
@@ -6471,7 +6521,7 @@ function openDeliverModal(o, verb){
     <div style="font-size:12.5px;color:var(--c-muted,#888);margin-bottom:16px">${isShopify?'Fulfils in Shopify silently — no Shopify email.':'Marks delivered on this device.'}</div>
     <div style="font-size:12px;font-weight:600;margin-bottom:6px">Proof of delivery photo <span style="color:var(--c-muted,#999);font-weight:400">(optional)</span></div>
     <div id="dmZone" style="position:relative;height:120px;border:1.5px dashed var(--c-border,#ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:16px;background-size:cover;background-position:center">
-      <span class="dmLbl" style="text-align:center"><span style="font-size:22px">📷</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap, drag &amp; drop, or paste</span></span>
+      <span class="dmLbl" style="text-align:center"><span style="display:inline-flex;color:var(--c-muted)">${di('camera',24)}</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap, drag &amp; drop, or paste</span></span>
       <input id="dmFile" type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
     </div>
     ${canNotify ? `<label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:18px;cursor:pointer;user-select:none">
@@ -6608,7 +6658,7 @@ function repAddDate(val){
   row.className='rep-date-row';
   row.style.cssText='display:flex;gap:8px;align-items:center';
   row.innerHTML=`<input type="date" value="${val||''}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-    <button type="button" onclick="this.closest('.rep-date-row').remove()" title="Remove date" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0">✕</button>`;
+    <button type="button" onclick="this.closest('.rep-date-row').remove()" title="Remove date" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   list.appendChild(row);
 }
 function _repDates(){
@@ -6899,7 +6949,7 @@ function waLink(phone) {
   if (digits.startsWith('0')) digits = '60' + digits.slice(1);
   const url = 'https://wa.me/' + digits;
   return `<a href="${url}" target="_blank" class="wa-link" onclick="event.stopPropagation()">
-    <span style="font-size:14px">💬</span>${esc(phone)}
+    <span style="color:#25D366;display:inline-flex">${dif('whatsapp',14)}</span>${esc(phone)}
   </a>`;
 }
 
@@ -6933,7 +6983,7 @@ function _renderRecipeRow(f, idx) {
       <option value="sprays"  ${f.unit==='sprays'?'selected':''}>sprays</option>
       <option value="rolls"   ${f.unit==='rolls'?'selected':''}>rolls</option>
     </select>
-    <button class="recipe-del" onclick="removeRecipeRow(${idx})">✕</button>`;
+    <button class="recipe-del" onclick="removeRecipeRow(${idx})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   rows.appendChild(div);
 }
 
@@ -7138,7 +7188,7 @@ function _renderDP(order, localOrder) {
   // ── 1. INTERNAL NOTE — most prominent, appears first ──
   if (localOrder.internalNote) {
     html += `<div class="internal-note-block">
-      <div class="note-hdr">📝 Special Instructions</div>
+      <div class="note-hdr">${di('note',13)} Special Instructions</div>
       <div class="note-body">${esc(localOrder.internalNote)}</div>
     </div>`;
   }
@@ -7154,27 +7204,27 @@ function _renderDP(order, localOrder) {
   const _remark    = getAttr('Remark');
   if (_fuLink && Array.isArray(_fuLink.itemList) && _fuLink.itemList.length) {
     html += `<div style="border:1.5px solid var(--c-dpink);border-radius:var(--r-lg);padding:12px 14px;background:var(--c-surface)">
-      <div class="dp-instr-ttl" style="margin-bottom:6px">📋 Order Form · Per Item</div>
+      <div class="dp-instr-ttl" style="margin-bottom:6px">${di('clipboard',13)} Order Form · Per Item</div>
       ${_fuLink.itemList.map(it=>`
         <div style="padding:8px 0;border-bottom:1px solid var(--c-border)">
           <div style="font-size:12px;font-weight:600;color:var(--c-ink)">${esc(it.name||'(item)')}</div>
           ${(it.images&&it.images.length)?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${it.images.map((s,pi)=>`<img src="${s}" alt="" onclick="openGallery(${JSON.stringify(it.images).replace(/"/g,'&quot;')},${pi},'')" style="width:58px;height:58px;object-fit:cover;border-radius:var(--r);border:1px solid var(--c-border);cursor:pointer">`).join('')}</div>`:''}
-          ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">💐 ${esc(it.cardMsg)}</div>`:''}
-          ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">🌸 ${esc(it.flowerNote)}</div>`:''}
+          ${it.cardMsg?`<div style="font-size:11px;color:var(--c-ink);font-style:italic;background:var(--c-burg-lt);border-left:3px solid var(--c-burg);border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">${di('gift',12)} ${esc(it.cardMsg)}</div>`:''}
+          ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">${di('flower',12)} ${esc(it.flowerNote)}</div>`:''}
         </div>`).join('')}
-      ${_fuLink.remarks?`<div class="dp-instr remark" style="margin-top:8px"><div class="dp-instr-ttl">📝 Remark (whole order)</div><div class="dp-instr-body">${esc(_fuLink.remarks)}</div></div>`:''}
+      ${_fuLink.remarks?`<div class="dp-instr remark" style="margin-top:8px"><div class="dp-instr-ttl">${di('note',12)} Remark (whole order)</div><div class="dp-instr-body">${esc(_fuLink.remarks)}</div></div>`:''}
     </div>`;
   } else if (_flowerIns || _cardMsg || _remark) {
     html += `<div style="display:flex;flex-direction:column;gap:8px">
-      ${_flowerIns?`<div class="dp-instr flower"><div class="dp-instr-ttl">🌸 Flower / Design Instructions</div><div class="dp-instr-body">${esc(_flowerIns)}</div></div>`:''}
-      ${_cardMsg?`<div class="dp-instr card"><div class="dp-instr-ttl">💐 Card Message</div><div class="dp-instr-body" style="font-style:italic">${esc(_cardMsg)}</div></div>`:''}
-      ${_remark?`<div class="dp-instr remark"><div class="dp-instr-ttl">📝 Remark</div><div class="dp-instr-body">${esc(_remark)}</div></div>`:''}
+      ${_flowerIns?`<div class="dp-instr flower"><div class="dp-instr-ttl">${di('flower',12)} Flower / Design Instructions</div><div class="dp-instr-body">${esc(_flowerIns)}</div></div>`:''}
+      ${_cardMsg?`<div class="dp-instr card"><div class="dp-instr-ttl">${di('gift',12)} Card Message</div><div class="dp-instr-body" style="font-style:italic">${esc(_cardMsg)}</div></div>`:''}
+      ${_remark?`<div class="dp-instr remark"><div class="dp-instr-ttl">${di('note',12)} Remark</div><div class="dp-instr-body">${esc(_remark)}</div></div>`:''}
     </div>`;
   }
 
   // ── 2. PRIORITY + DESIGNER ──
   const priHtml = priorityBadge(localOrder);
-  const desHtml = localOrder.designer ? `<span class="designer-tag">👤 ${esc(localOrder.designer)}</span>` : '';
+  const desHtml = localOrder.designer ? `<span class="designer-tag">${di('user',12)}${esc(localOrder.designer)}</span>` : '';
   if (priHtml || desHtml) {
     html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${priHtml}${desHtml}</div>`;
   }
@@ -7183,7 +7233,7 @@ function _renderDP(order, localOrder) {
   const designers = ['','Madeleine','Audrey','Amanda','Apple','Fang Ler'];
   const designerOpts = designers.map(d => `<option value="${d}" ${localOrder.designer===d?'selected':''}>${d||'— Unassigned —'}</option>`).join('');
   const priorityOpts = [
-    ['normal','🟢 Normal'],['high','🟠 High'],['urgent','🔴 Urgent']
+    ['normal','Normal'],['high','High'],['urgent','Urgent']
   ].map(([v,l])=>`<option value="${v}" ${(localOrder.priority||'normal')===v?'selected':''}>${l}</option>`).join('');
   html += `<div style="display:flex;gap:8px;flex-wrap:wrap">
     <select onchange="quickAssign('${localOrder.id}','designer',this.value)" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;background:var(--c-burg-lt);color:var(--c-burg);font-weight:500;outline:none;cursor:pointer">
@@ -7217,9 +7267,9 @@ function _renderDP(order, localOrder) {
   // ── Fulfilment (icon rows) ──
   html += `<div>
     <div class="dp-section-ttl">Fulfilment</div>
-    <div class="dp-fl"><div class="dp-fl-ico">${localOrder.type==='pickup'?'🛍':'📦'}</div><div><div class="dp-fl-val">${fulfType}</div><div class="dp-fl-lbl">Type</div></div></div>
-    ${(dueDate||localOrder.dateObj) ? `<div class="dp-fl"><div class="dp-fl-ico">📅</div><div><div class="dp-fl-val">${esc(localOrder.dateObj?fd(localOrder.dateObj):dueDate)}</div><div class="dp-fl-lbl">${localOrder.type==='pickup'?'Pickup Date':'Delivery Date'}</div></div></div>` : ''}
-    ${dueTime ? `<div class="dp-fl"><div class="dp-fl-ico">⏰</div><div><div class="dp-fl-val">${esc(dueTime)}</div><div class="dp-fl-lbl">Time Slot</div></div></div>` : ''}
+    <div class="dp-fl"><div class="dp-fl-ico">${localOrder.type==='pickup'?di('bag',16):di('box',16)}</div><div><div class="dp-fl-val">${fulfType}</div><div class="dp-fl-lbl">Type</div></div></div>
+    ${(dueDate||localOrder.dateObj) ? `<div class="dp-fl"><div class="dp-fl-ico">${di('calendar',16)}</div><div><div class="dp-fl-val">${esc(localOrder.dateObj?fd(localOrder.dateObj):dueDate)}</div><div class="dp-fl-lbl">${localOrder.type==='pickup'?'Pickup Date':'Delivery Date'}</div></div></div>` : ''}
+    ${dueTime ? `<div class="dp-fl"><div class="dp-fl-ico">${di('clock',16)}</div><div><div class="dp-fl-val">${esc(dueTime)}</div><div class="dp-fl-lbl">Time Slot</div></div></div>` : ''}
   </div>`;
 
   // ── Delivery Address — grey box under fulfilment (delivery orders only) ──
@@ -7241,7 +7291,7 @@ function _renderDP(order, localOrder) {
       <div style="min-width:0">
         <div class="dp-cust-name">${esc(custName)}</div>
         ${phone ? `<div style="margin-top:2px">${waLink(phone)}</div>` : ''}
-        ${email ? `<div style="font-size:11px;color:var(--c-muted)">✉ ${esc(email)}</div>` : ''}
+        ${email ? `<div style="font-size:11px;color:var(--c-muted)">${di('mail',12)} ${esc(email)}</div>` : ''}
       </div>
     </div>
   </div>`;
@@ -7277,12 +7327,12 @@ function _renderDP(order, localOrder) {
       const liIdx = useLocal ? k : -1;
       const ph = liIdx >= 0 ? itemPhotos(li) : [];
       const strip = (liIdx>=0)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" onpointerdown="dpPhPointerDown(event,'${localOrder.id}',${liIdx},${pi})" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onerror="_imgFallback(this,'${String(li.image||'').replace(/'/g,"\\'")}')" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo">✕</button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">＋<span>Add</span></button></div>`
+        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" onpointerdown="dpPhPointerDown(event,'${localOrder.id}',${liIdx},${pi})" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onerror="_imgFallback(this,'${String(li.image||'').replace(/'/g,"\\'")}')" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">${di('plus',13)}<span>Add</span></button></div>`
         : '';
       // Per-item special instruction — tap to add/edit (only for stored line items).
       const noteHtml = (liIdx >= 0)
-        ? `<div class="dp-item-note${li.note?'':' empty'}" onclick="editItemNote('${localOrder.id}',${liIdx})" title="Special instruction for this item">${li.note ? '⚠️ '+esc(li.note) : '＋ Add instruction'}</div>`
-        : (li.note ? `<div class="dp-item-note">⚠️ ${esc(li.note)}</div>` : '');
+        ? `<div class="dp-item-note${li.note?'':' empty'}" onclick="editItemNote('${localOrder.id}',${liIdx})" title="Special instruction for this item">${li.note ? di('warn',11)+' '+esc(li.note) : di('plus',11)+' Add instruction'}</div>`
+        : (li.note ? `<div class="dp-item-note">${di('warn',11)} ${esc(li.note)}</div>` : '');
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
         <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
@@ -7317,10 +7367,10 @@ function _renderDP(order, localOrder) {
   html += `<div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="dp-section-ttl" style="margin-bottom:0">Flower Recipe</div>
-      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'✎ Edit recipe':'🌿 Add recipe'}</button>
+      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?di('edit',11)+' Edit recipe':di('leaf',11)+' Add recipe'}</button>
     </div>
     ${recipe.length
-      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted)">🌿</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
+      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted);display:inline-flex">${di('leaf',13)}</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
       : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`
     }
   </div>`;
@@ -7336,18 +7386,18 @@ function _renderDP(order, localOrder) {
   // ── Delivered / Edit / Delete at bottom ──
   if (!localOrder.fulfilled) {
     html += `<button onclick="markDelivered('${localOrder.id}')" style="width:100%;padding:13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:background .12s" onmouseover="this.style.background='#3A080C'" onmouseout="this.style.background='var(--c-burg)'">
-      ${localOrder.type==='pickup' ? '🛍 Mark as Picked Up' : '🚚 Mark as Delivered'}
+      ${localOrder.type==='pickup' ? di('bag',15)+' Mark as Picked Up' : di('truck',15)+' Mark as Delivered'}
     </button>`;
   }
   html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
     <button onclick="closeDP();editOrder('${localOrder.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
-      ✎ Edit Order
+      ${di('edit',13)} Edit Order
     </button>
     <button onclick="closeDP();openRepeat('${localOrder.id}')" title="Duplicate this order to other dates" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
-      🔁 Repeat
+      ${di('sync',13)} Repeat
     </button>
     <button onclick="closeDP();delOrder('${localOrder.id}')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">
-      ✕ Delete
+      ${di('trash',13)} Delete
     </button>
   </div>`;
 
@@ -7395,7 +7445,7 @@ function _renderDPManual(o) {
       <button onclick="closeDP();openRecipe('${o.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?'Edit':'+ Add recipe'}</button>
     </div>
     ${recipe.length
-      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span>🌿</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
+      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="display:inline-flex;color:var(--c-muted)">${di('leaf',13)}</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
       : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`}
   </div>`;
 
@@ -7475,7 +7525,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
       </div>
       <div style="font-size:11px;color:var(--c-dpink);margin-top:2px" id="dp-sub"></div>
     </div>
-    <button class="sp-x" aria-label="Close" onclick="closeDP()">✕</button>
+    <button class="sp-x" aria-label="Close" onclick="closeDP()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="dp-body" id="dp-body">
     <div class="dp-loading">Loading…</div>
@@ -7487,10 +7537,10 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
   <div class="mc">
     <div class="mc-hdr">
       <div>
-        <div class="mc-ttl">🌿 Flower Recipe</div>
+        <div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg> Flower Recipe</div>
         <div id="recipe-order-lbl" style="font-size:11px;color:var(--c-dpink);margin-top:2px"></div>
       </div>
-      <button class="mc-x" aria-label="Close" onclick="closeModal('m-recipe')">✕</button>
+      <button class="mc-x" aria-label="Close" onclick="closeModal('m-recipe')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
       <div style="font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">List the flowers used in this arrangement. Saved locally to this device.</div>
