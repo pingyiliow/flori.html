@@ -1852,6 +1852,13 @@ async function syncOrders() {
 
 /* ─── Data stores ────────────────────────────────────────────── */
 let ORDERS=[], INVENTORY=[], PURCHASES=[];
+// Per-order snapshot hashes. The bulk (sync-path) saveOrders() upserts only rows that
+// actually changed vs what we last read/wrote — so a no-op sync writes nothing and
+// fans out NO Realtime broadcast to other devices. Big egress saver: previously every
+// sync re-upserted all ~380 orders, each one broadcast to every connected device.
+let _rowHashes = {};
+function _rowHash(row){ const s = JSON.stringify(row); let h = 0; for (let i=0;i<s.length;i++){ h = (Math.imul(h,31) + s.charCodeAt(i)) | 0; } return h; }
+function _seedOrderHashes(){ _rowHashes = {}; ORDERS.forEach(o => { try { _rowHashes[shopId(o.id)] = _rowHash(_orderRow(o)); } catch(_){} }); }
 // Order-delete tombstones: ids of orders the user deleted in BloomFlow. They may
 // still be OPEN in Shopify, so without this every sync would re-import them. Sync,
 // load and the webhook all skip these ids. Canonical (shopId) form. Shared via the
@@ -1913,15 +1920,29 @@ function saveOrders(changed) {
     catch(_) { /* cache full even when lean — rely on Supabase */ }
   }
   if (hasSB()) {
-    const list = changed ? (Array.isArray(changed) ? changed : [changed]) : ORDERS;
-    const rows = list.map(_orderRow);
-    sbUpsert('orders', rows).catch(console.error);
-    // Persist delete tombstones to the shared settings store (the orders table has
-    // no column for them and the webhook would otherwise resurrect removed items).
-    // Full snapshot, so re-adding a product — which clears its tombstone — propagates.
-    const removedMap = {};
-    clean.forEach(o => { if (o.removedItems?.length) removedMap[shopId(o.id)] = o.removedItems; });
-    sbSet('removed_items', removedMap).catch(()=>{});
+    let rows;
+    if (changed) {
+      // Explicit change(s) from a user action — always persist.
+      const list = Array.isArray(changed) ? changed : [changed];
+      rows = list.map(_orderRow);
+      list.forEach(o => { try { _rowHashes[shopId(o.id)] = _rowHash(_orderRow(o)); } catch(_){} });
+    } else {
+      // Bulk (sync) path — upsert only rows whose content changed since we last
+      // read/wrote them, so an unchanged sync writes nothing (no Realtime fan-out).
+      rows = [];
+      ORDERS.forEach(o => {
+        const k = shopId(o.id), r = _orderRow(o), h = _rowHash(r);
+        if (_rowHashes[k] !== h) { rows.push(r); _rowHashes[k] = h; }
+      });
+    }
+    if (rows.length) sbUpsert('orders', rows).catch(console.error);
+    // Persist delete tombstones (shared settings) — only when something changed, so a
+    // no-op sync stays fully silent. Full snapshot, so clearing a tombstone propagates.
+    if (rows.length) {
+      const removedMap = {};
+      clean.forEach(o => { if (o.removedItems?.length) removedMap[shopId(o.id)] = o.removedItems; });
+      sbSet('removed_items', removedMap).catch(()=>{});
+    }
   }
 }
 function saveInventory() {
@@ -2128,6 +2149,7 @@ async function loadFromSupabase(opts = {}) {
       try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }
       catch(e){ try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); } catch(_){} }
       rehydrateOrders(); changed = true;
+      _seedOrderHashes();   // baseline = DB state, so the next bulk sync writes only real diffs
     }
     if (followups && followups.length) {
       FOLLOWUPS = followups.map(f => ({
@@ -4439,9 +4461,13 @@ function applyOrderChange(p){
     const before = ORDERS.length;
     ORDERS = ORDERS.filter(o => shopId(o.id) !== key);
     if (ORDERS.length === before) return;   // we weren't holding it
+    delete _rowHashes[key];
     rehydrateOrders();
   } else {
     if (!_mergeDbOrders([p.new])) return;   // remote row wins for its id; tombstone-aware
+    // Record the incoming row's hash so our next bulk sync doesn't echo it back up.
+    const _o = ORDERS.find(x => shopId(x.id) === key);
+    if (_o) { try { _rowHashes[key] = _rowHash(_orderRow(_o)); } catch(_){} }
   }
   // Offline cache only — must NOT call saveOrders() (that re-uploads → realtime echo loop).
   try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o => ({...o, dateObj:undefined})))); } catch(_){}
