@@ -61,6 +61,7 @@
     <div class="nav-sep" style="margin-top:6px">Admin</div>
     <button class="nav-btn" data-pg="followup"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Follow-up List</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
     <button class="nav-btn" data-pg="customers"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Customers</span></button>
+    <button class="nav-btn" data-pg="records"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Records</span></button>
     <div class="nav-sep" style="margin-top:6px">Stock</div>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span><span>Stock</span></button>
   </div>
@@ -298,6 +299,10 @@
     <div class="pc" id="driver-pc"><!-- rendered by renderDriver() --></div>
   </div>
 
+  <div id="pg-records" class="page">
+    <div class="pc" id="records-pc"><!-- rendered by renderRecords() --></div>
+  </div>
+
 </main>
 
 <!-- ══ MOBILE NAV ═════════════════════════════════════════════ -->
@@ -307,6 +312,7 @@
   <button class="mob-tab" data-pg="driver"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><span>Driver</span></button>
   <button class="mob-tab" data-pg="followup"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Follow</span></button>
   <button class="mob-tab" data-pg="customers"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>CRM</span></button>
+  <button class="mob-tab" data-pg="records"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Records</span></button>
   <button class="mob-tab" data-pg="stock"><span class="mob-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span><span>Stock</span></button>
 </nav>
 
@@ -566,6 +572,42 @@
         <button class="btn btn-primary" id="rt-submit-btn" style="flex:1" onclick="submitNewRoute()">Create route</button>
         <button class="btn btn-ghost" id="rt-del-btn" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteRouteFromModal()">Delete</button>
         <button class="btn btn-ghost" onclick="closeModal('m-route')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Record (payable / refund / document request) ═══ -->
+<div id="m-record" class="modal">
+  <div class="mc" style="max-width:400px">
+    <div class="mc-hdr"><div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> <span id="rec-modal-ttl">New record</span></div><button class="mc-x" aria-label="Close" onclick="closeModal('m-record')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <input type="hidden" id="rec-edit-id">
+      <div class="ff"><label class="ff-l">Type</label>
+        <select id="rec-kind" onchange="_recSyncKindFields()">
+          <option value="payable">Payable — pay supplier</option>
+          <option value="refund">Refund — customer money back</option>
+          <option value="document">Document request</option>
+        </select>
+      </div>
+      <div class="ff" id="rec-subtype-row" style="margin-top:10px;display:none"><label class="ff-l">Document</label>
+        <select id="rec-subtype">
+          <option value="invoice">Invoice</option>
+          <option value="statement">Statement of account</option>
+          <option value="delivery_order">Delivery order</option>
+        </select>
+      </div>
+      <div class="ff" style="margin-top:10px"><label class="ff-l">Title</label><input id="rec-title" type="text" placeholder="e.g. Pay Cameron Highlands Flowers"></div>
+      <div class="fg fg-2" style="margin-top:10px">
+        <div class="ff" id="rec-amount-row"><label class="ff-l">Amount (RM)</label><input id="rec-amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+        <div class="ff"><label class="ff-l">Due date</label><input id="rec-due" type="date"></div>
+      </div>
+      <div class="ff" style="margin-top:10px"><label class="ff-l" id="rec-ref-l">Reference</label><input id="rec-ref" type="text" placeholder="Order # or supplier"></div>
+      <div class="ff" style="margin-top:10px"><label class="ff-l">Note</label><textarea id="rec-note" rows="2" placeholder="Optional details"></textarea></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" id="rec-submit-btn" style="flex:1" onclick="submitRecord()">Add</button>
+        <button class="btn btn-ghost" id="rec-del-btn" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteRecordFromModal()">Delete</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-record')">Cancel</button>
       </div>
     </div>
   </div>
@@ -943,6 +985,7 @@ const TAB_ACCESS = {
   customers: ['admin','cs'],
   wanotify:  ['admin','cs'],
   settings:  ['admin'],
+  records:   ['admin'],            // admin-only checklist: payables, refunds, document requests
   driver:    ['admin','driver'],   // driver-role users see ONLY this page
 };
 function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || r.includes(currentUserRole); }
@@ -1102,6 +1145,10 @@ async function showApp() {
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
   subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
+  if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
+    subscribeRecords();
+    loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
+  }
   const footTxt = document.getElementById('sb-foot-txt');
   if (footTxt && currentUser) footTxt.textContent = currentUser.email;
   if (hasSB()) {
@@ -4174,7 +4221,7 @@ async function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
-const PAGES = ['home','orders','stock','followup','customers','wanotify','driver'];
+const PAGES = ['home','orders','stock','followup','customers','wanotify','driver','records'];
 function goPage(pg) {
   // Role guard — bounce to the dashboard if allowed, else to the driver page
   // (driver-role users can't access 'home', so bouncing there would blank them).
@@ -4183,6 +4230,7 @@ function goPage(pg) {
   if(pg==='customers') renderCustomers();
   if(pg==='wanotify') renderWaNotify();
   if(pg==='driver') renderDriver();
+  if(pg==='records') renderRecords();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   if(pg==='stock'){ renderInventory(); renderPurchase(); }
@@ -4631,6 +4679,204 @@ function subscribeRoutes(){
       })
       .subscribe();
   } catch(e){ console.warn('subscribeRoutes', e && e.message); }
+}
+
+/* ─── Records (admin checklist: payables, refunds, document requests) ────────
+   A shared admin-only to-do board. Each item has a kind (payable | refund |
+   document), a title, and optional amount / due date / reference / note. Tick to
+   mark done. Multi-device via Supabase realtime (mirrors routes). Record-only —
+   it never moves money or generates a document; it's a reminder/log the user
+   actions elsewhere (Shopify refund, bank transfer, issuing the doc). */
+let RECORDS = [];
+let _recRealtime = null, _recRenderTimer = null;
+let _recFilter = 'all';   // all | payable | refund | document
+const _REC_KINDS = {
+  payable:  { label:'Payable',  color:'var(--c-forest)' },
+  refund:   { label:'Refund',   color:'var(--c-blush)'  },
+  document: { label:'Document', color:'var(--c-blue)'   },
+};
+function _recDocLabel(st){ return ({invoice:'Invoice', statement:'Statement of account', delivery_order:'Delivery order'})[st] || 'Document'; }
+function _recChip(t){ return '<span style="font-size:11px;background:var(--c-bg);color:var(--c-muted);padding:2px 8px;border-radius:20px">'+esc2(t)+'</span>'; }
+function _recMoney(n){ if(n==null||isNaN(n)) return ''; return 'RM '+Number(n).toLocaleString('en-MY',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+function _recDoneWhen(iso){ try{ return new Date(iso).toLocaleDateString('en-MY',{day:'numeric',month:'short'}); }catch(e){ return ''; } }
+function _recDue(iso){
+  if(!iso) return null;
+  try{
+    const d = new Date(iso+'T00:00:00'), t = today0();
+    const days = Math.round((d - t)/86400000);
+    const label = d.toLocaleDateString('en-MY',{day:'numeric',month:'short'});
+    if(days < 0)   return { txt:'Due '+label+' · overdue', overdue:true };
+    if(days === 0) return { txt:'Due today', soon:true };
+    if(days <= 3)  return { txt:'Due '+label, soon:true };
+    return { txt:'Due '+label };
+  }catch(e){ return { txt:'Due '+iso }; }
+}
+function _mapDbRecord(r){ return { id:r.id, kind:r.kind, subtype:r.subtype||null, title:r.title||'', amount:(r.amount==null?null:Number(r.amount)), due:r.due_date||null, ref:r.ref||null, note:r.note||null, done:!!r.done, doneAt:r.done_at||null, doneBy:r.done_by||null, createdAt:r.created_at||null, createdBy:r.created_by||null }; }
+function _recordRow(x){ return { id:x.id, kind:x.kind, subtype:x.subtype||null, title:x.title, amount:(x.amount==null?null:x.amount), due_date:x.due||null, ref:x.ref||null, note:x.note||null, done:!!x.done, done_at:x.doneAt||null, done_by:x.doneBy||null, created_by:x.createdBy||null }; }
+async function loadRecords(){
+  if(!hasSB()) return;
+  try{
+    const { data, error } = await sb.from('records').select('*').order('created_at',{ascending:false});
+    if(!error && Array.isArray(data)) RECORDS = data.map(_mapDbRecord);
+  }catch(e){ console.warn('loadRecords', e&&e.message); }
+}
+function saveRecord(x){
+  const i = RECORDS.findIndex(r => r.id === x.id);
+  if(i === -1) RECORDS.unshift(x); else RECORDS[i] = x;
+  if(hasSB()) sbUpsert('records', [_recordRow(x)]).catch(console.error);
+}
+function deleteRecord(id){
+  RECORDS = RECORDS.filter(r => r.id !== id);
+  if(hasSB()) sbDelete('records', id);
+}
+function subscribeRecords(){
+  if(!hasSB() || _recRealtime || typeof sb.channel !== 'function') return;
+  try{
+    _recRealtime = sb.channel('records-live')
+      .on('postgres_changes', { event:'*', schema:'public', table:'records' }, p => {
+        try{
+          const row = (p.new && Object.keys(p.new).length) ? p.new : p.old;
+          if(!row || !row.id) return;
+          if(p.eventType === 'DELETE') RECORDS = RECORDS.filter(r => r.id !== row.id);
+          else { const x = _mapDbRecord(p.new); const i = RECORDS.findIndex(r => r.id === x.id); if(i === -1) RECORDS.unshift(x); else RECORDS[i] = x; }
+          clearTimeout(_recRenderTimer);
+          _recRenderTimer = setTimeout(() => { if(document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); }, 400);
+        }catch(e){ console.warn('record change apply', e&&e.message); }
+      })
+      .subscribe();
+  }catch(e){ console.warn('subscribeRecords', e&&e.message); }
+}
+function toggleRecordDone(id){
+  const x = RECORDS.find(r => r.id === id); if(!x) return;
+  x.done = !x.done;
+  x.doneAt = x.done ? new Date().toISOString() : null;
+  x.doneBy = x.done ? (currentUserName || '') : null;
+  saveRecord(x);
+  renderRecords();
+}
+function recSetFilter(k){ _recFilter = k; renderRecords(); }
+function newRecordPrompt(){ openRecordModal(null); }
+function _recSyncKindFields(){
+  const kind = document.getElementById('rec-kind')?.value || 'payable';
+  const docRow = document.getElementById('rec-subtype-row');
+  const amtRow = document.getElementById('rec-amount-row');
+  if(docRow) docRow.style.display = (kind === 'document') ? '' : 'none';
+  if(amtRow) amtRow.style.display = (kind === 'document') ? 'none' : '';
+  const ref = document.getElementById('rec-ref'), title = document.getElementById('rec-title'), refL = document.getElementById('rec-ref-l');
+  if(kind === 'payable'){ if(refL) refL.textContent = 'Supplier / invoice ref'; if(ref) ref.placeholder = 'e.g. Cameron Highlands · INV-2210'; if(title) title.placeholder = 'e.g. Pay Cameron Highlands Flowers'; }
+  else if(kind === 'refund'){ if(refL) refL.textContent = 'Order #'; if(ref) ref.placeholder = 'e.g. 122910'; if(title) title.placeholder = 'e.g. Refund Lim Siew Ling — wilted roses'; }
+  else { if(refL) refL.textContent = 'Order # / customer'; if(ref) ref.placeholder = 'e.g. 122910 · Tan Wei Ming'; if(title) title.placeholder = 'e.g. Statement for Tan Wei Ming'; }
+}
+function openRecordModal(id){
+  const x = id ? RECORDS.find(r => r.id === id) : null;
+  const setVal = (e,v) => { const el = document.getElementById(e); if(el) el.value = v; };
+  const setTxt = (e,v) => { const el = document.getElementById(e); if(el) el.textContent = v; };
+  setVal('rec-edit-id', id || '');
+  setVal('rec-kind', x ? x.kind : (_recFilter !== 'all' ? _recFilter : 'payable'));
+  setVal('rec-subtype', (x && x.subtype) ? x.subtype : 'invoice');
+  setVal('rec-title', x ? x.title : '');
+  setVal('rec-amount', (x && x.amount != null) ? x.amount : '');
+  setVal('rec-due', (x && x.due) ? x.due : '');
+  setVal('rec-ref', (x && x.ref) ? x.ref : '');
+  setVal('rec-note', (x && x.note) ? x.note : '');
+  setTxt('rec-modal-ttl', x ? 'Edit record' : 'New record');
+  setTxt('rec-submit-btn', x ? 'Save changes' : 'Add');
+  const del = document.getElementById('rec-del-btn'); if(del) del.style.display = x ? '' : 'none';
+  _recSyncKindFields();
+  openModal('m-record');
+  setTimeout(() => { const t = document.getElementById('rec-title'); if(t) t.focus(); }, 60);
+}
+function submitRecord(){
+  const title = (document.getElementById('rec-title').value || '').trim();
+  if(!title){ toast('Enter a title'); return; }
+  const kind = document.getElementById('rec-kind').value || 'payable';
+  const amtRaw = (document.getElementById('rec-amount').value || '').trim();
+  const amount = (kind === 'document' || !amtRaw || isNaN(parseFloat(amtRaw))) ? null : parseFloat(amtRaw);
+  const due = (document.getElementById('rec-due').value || '') || null;
+  const ref = (document.getElementById('rec-ref').value || '').trim() || null;
+  const note = (document.getElementById('rec-note').value || '').trim() || null;
+  const subtype = (kind === 'document') ? (document.getElementById('rec-subtype').value || 'invoice') : null;
+  const id = document.getElementById('rec-edit-id').value;
+  if(id){ const x = RECORDS.find(r => r.id === id); if(x){ Object.assign(x, { kind, subtype, title, amount, due, ref, note }); saveRecord(x); } }
+  else {
+    saveRecord({ id:(crypto.randomUUID ? crypto.randomUUID() : 'rec-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)),
+      kind, subtype, title, amount, due, ref, note, done:false, doneAt:null, doneBy:null, createdAt:new Date().toISOString(), createdBy:(currentUserName||'') });
+  }
+  closeModal('m-record');
+  renderRecords();
+}
+function deleteRecordFromModal(){
+  const id = document.getElementById('rec-edit-id').value;
+  closeModal('m-record');
+  if(id && confirm('Delete this record?')){ deleteRecord(id); renderRecords(); }
+}
+function _recRow(r, isDone){
+  const kc = _REC_KINDS[r.kind] || { label:r.kind, color:'var(--c-muted)' };
+  const chips = ['<span style="font-size:11px;background:'+kc.color+';color:#fff;padding:2px 8px;border-radius:20px">'+kc.label+'</span>'];
+  if(r.kind === 'document' && r.subtype) chips.push(_recChip(_recDocLabel(r.subtype)));
+  if(r.ref) chips.push(_recChip(r.ref));
+  if(r.amount != null) chips.push(_recChip(_recMoney(r.amount)));
+  const due = isDone ? null : _recDue(r.due);
+  if(due) chips.push('<span style="font-size:11px;padding:2px 8px;border-radius:20px;'+(due.overdue?'background:var(--c-red);color:#fff':(due.soon?'background:#F4E4C8;color:var(--c-amber)':'border:1px solid var(--c-border);color:var(--c-muted)'))+'">'+esc2(due.txt)+'</span>');
+  const box = isDone
+    ? '<span style="width:20px;height:20px;flex-shrink:0;border-radius:6px;background:var(--c-forest);display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;margin-top:1px">✓</span>'
+    : '<span style="width:20px;height:20px;flex-shrink:0;border:1.5px solid var(--c-border);border-radius:6px;display:inline-block;margin-top:1px"></span>';
+  const meta = isDone
+    ? '<div style="font-size:11px;color:var(--c-muted);margin-top:4px">'+kc.label+(r.doneAt?' · done '+_recDoneWhen(r.doneAt):'')+(r.doneBy?' by '+esc2(r.doneBy):'')+'</div>'
+    : (r.note ? '<div style="font-size:12px;color:var(--c-muted);margin-top:4px">'+esc2(r.note)+'</div>' : '');
+  return '<div style="display:flex;align-items:flex-start;gap:12px;padding:13px 14px;border-top:1px solid var(--c-border)'+(isDone?';opacity:.6':'')+'">'
+    + '<span onclick="event.stopPropagation();toggleRecordDone(\''+r.id+'\')" style="cursor:pointer" title="'+(isDone?'Mark not done':'Mark done')+'">'+box+'</span>'
+    + '<div style="flex:1;min-width:0;cursor:pointer" onclick="openRecordModal(\''+r.id+'\')">'
+    +   '<div style="font-size:14px;font-weight:600;'+(isDone?'text-decoration:line-through':'')+'">'+esc2(r.title)+'</div>'
+    +   (isDone ? '' : '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'+chips.join('')+'</div>')
+    +   meta
+    + '</div></div>';
+}
+function renderRecords(){
+  const pc = document.getElementById('records-pc'); if(!pc) return;
+  const kinds = ['all','payable','refund','document'];
+  const kindLabel = { all:'All', payable:'Payables', refund:'Refunds', document:'Documents' };
+  const counts = { all: RECORDS.filter(r => !r.done).length };
+  ['payable','refund','document'].forEach(k => counts[k] = RECORDS.filter(r => !r.done && r.kind === k).length);
+
+  const filtered = RECORDS.filter(r => _recFilter === 'all' || r.kind === _recFilter);
+  const open = filtered.filter(r => !r.done).sort((a,b) => {
+    const ad = a.due || '9999', bd = b.due || '9999';
+    if(ad !== bd) return ad < bd ? -1 : 1;
+    return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+  });
+  const doneList = filtered.filter(r => r.done).sort((a,b) => String(b.doneAt||'').localeCompare(String(a.doneAt||''))).slice(0,40);
+  const owed = RECORDS.filter(r => !r.done && r.kind === 'payable' && r.amount != null).reduce((s,r) => s + Number(r.amount), 0);
+
+  let h = '<div class="page-hdr"><div><div class="page-title">Records</div>'
+    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">Payables · refunds · document requests</div></div>'
+    + '<button class="btn btn-primary" onclick="newRecordPrompt()">+ Add</button></div>';
+
+  h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
+  kinds.forEach(k => {
+    const on = _recFilter === k;
+    h += '<button onclick="recSetFilter(\''+k+'\')" style="cursor:pointer;font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid '+(on?'var(--c-ink)':'var(--c-border)')+';background:'+(on?'var(--c-ink)':'transparent')+';color:'+(on?'#fff':'var(--c-muted)')+'">'+kindLabel[k]+' · '+(counts[k]||0)+'</button>';
+  });
+  h += '</div>';
+
+  if(owed > 0 && (_recFilter === 'all' || _recFilter === 'payable')) h += '<div style="font-size:12px;color:var(--c-muted);margin-bottom:12px">Outstanding to pay: <span style="color:var(--c-ink);font-weight:700">'+_recMoney(owed)+'</span></div>';
+
+  if(!open.length && !doneList.length){
+    h += '<div style="text-align:center;color:var(--c-muted);padding:48px 16px;font-size:13px;max-width:640px">Nothing here yet. Tap <b>+ Add</b> to note a payable, refund, or document request — everyone on the team sees it.</div>';
+    pc.innerHTML = h; return;
+  }
+
+  h += '<div style="max-width:640px">';
+  h += '<div style="font-size:11px;color:var(--c-muted);letter-spacing:.05em;margin:0 0 8px 2px">OPEN · '+open.length+'</div>';
+  h += open.length
+    ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;overflow:hidden;margin-bottom:20px">'+open.map(r => _recRow(r,false)).join('')+'</div>'
+    : '<div style="color:var(--c-muted);font-size:13px;padding:0 2px 20px">All clear.</div>';
+  if(doneList.length){
+    h += '<div style="font-size:11px;color:var(--c-muted);letter-spacing:.05em;margin:0 0 8px 2px">DONE</div>';
+    h += '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;overflow:hidden">'+doneList.map(r => _recRow(r,true)).join('')+'</div>';
+  }
+  h += '</div>';
+  pc.innerHTML = h;
 }
 
 /* ─── Driver page ───────────────────────────────────────────────────────────
