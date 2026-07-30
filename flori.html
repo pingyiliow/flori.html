@@ -5052,10 +5052,14 @@ function _ensureLeaflet(cb){
 }
 function _drvPin(o){
   const st = _drvStatus(o);
-  const seq = o.routeSeq != null ? o.routeSeq : '·';
+  // Unassigned stops (not on a route yet, still pending) get a distinct GREY pin so they
+  // stand out from routed pending stops (red) on the map. Routed stops keep the status colour.
+  const unassigned = !o.routeId && !o.fulfilled;
+  const bg = unassigned ? '#8d8578' : DRV_C[st];
+  const seq = o.routeSeq != null ? o.routeSeq : (unassigned ? '?' : '·');
   const label = st==='done' ? di('check',15) : seq;
   return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
-    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+DRV_C[st]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
+    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
 }
 // Decode a Google encoded polyline → [[lat,lng],…] for the road-following route line.
 function _decodePolyline(str){
@@ -5183,10 +5187,10 @@ function _drvDateBar(){
   const d = new Date(iso+'T00:00:00');
   const pre = iso===t0 ? 'Today, ' : iso===t1 ? 'Tomorrow, ' : '';
   const lbl = pre + d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
-  const arrow = 'width:38px;height:38px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center';
-  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;max-width:560px">'
+  const arrow = 'width:36px;height:36px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center';
+  return '<div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:12px">'
     + '<button aria-label="Previous day" onclick="drvDateStep(-1)" style="'+arrow+'">&#8249;</button>'
-    + '<label style="flex:1;position:relative;height:38px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">'
+    + '<label style="position:relative;height:36px;min-width:190px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;font-size:13px;font-weight:600;cursor:pointer">'
       + di('calendar',14) + ' ' + esc2(lbl)
       + '<input type="date" value="'+iso+'" onchange="drvDateSet(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" aria-label="Pick a delivery date">'
     + '</label>'
@@ -5288,7 +5292,8 @@ function renderDriver(){
   const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
     + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span></div>';
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span>'
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8d8578"></span> unassigned</span></div>';
 
   let html;
   if (desktop){
