@@ -858,3 +858,36 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .drv-drawer{position:fixed;top:0;right:0;height:100vh;width:min(480px,92vw);background:var(--c-bg);border-left:1.5px solid var(--c-border);box-shadow:-8px 0 30px rgba(0,0,0,.18);z-index:401;overflow-y:auto;padding:16px;animation:drvSlide .18s ease}
 @keyframes drvFade{from{opacity:0}to{opacity:1}}
 @keyframes drvSlide{from{transform:translateX(24px);opacity:.4}to{transform:translateX(0);opacity:1}}
+
+/* ── Daily Orders: consolidated one-card-per-order (products nested) ── */
+.ocx{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 13px;margin-bottom:10px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.ocx:hover{border-color:var(--c-burg)}
+.ocx.done{opacity:.72}
+.ocx.urg{border-left:3px solid #D84343}
+.ocx.rdy{border-left:3px solid #2e9e6b}
+.ocx-hdr{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ocx-num{font-size:12.5px;font-weight:700;color:var(--c-burg)}
+.ocx-time{margin-left:auto;font-size:11.5px;color:var(--c-muted);font-weight:600}
+.ocx-tag{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:5px;border:1px solid;display:inline-flex;align-items:center;gap:3px}
+.ocx-tag.de{border-color:#e6b98f;color:#b46a1e}
+.ocx-tag.pu{border-color:#a7c3d6;color:#2d6a93}
+.ocx-tag.pend{border-color:#e2a3a3;color:#c0392b}
+.ocx-tag.rdy{border-color:#c9e3cc;color:#2e7d46}
+.ocx-tag.ful{border-color:#acd0b0;color:#2e7d46}
+.ocx-tag.urg{border-color:#f0c07a;color:#b46a1e}
+.ocx-sub{display:flex;align-items:baseline;gap:8px;margin-top:4px}
+.ocx-cust{font-size:12.5px;font-weight:600}
+.ocx-cnt{font-size:10.5px;color:var(--c-muted)}
+.ocx-des{font-size:10px;color:var(--c-muted);display:inline-flex;align-items:center;gap:3px}
+.ocx-total{margin-left:auto;font-size:13px;font-weight:800;color:var(--c-burg)}
+.ocx-items{margin-top:8px;border-top:1px solid var(--c-border);padding-top:2px}
+.ocx-row{display:flex;align-items:center;gap:10px;padding:6px 0}
+.ocx-th{width:34px;height:34px;border-radius:7px;overflow:hidden;flex:none;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-dpink)}
+.ocx-th img{width:100%;height:100%;object-fit:cover}
+.ocx-pname{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ocx-qty{color:var(--c-muted);font-weight:400;font-size:11px}
+.ocx-price{font-size:12px;color:var(--c-ink);white-space:nowrap}
+.ocx-tick{width:24px;height:24px;border-radius:50%;flex:none;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-border2);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ocx-tick.r{border-color:#2e9e6b;background:#2e9e6b;color:#fff}
+.ocx-note{font-size:11px;color:var(--c-muted);margin-top:4px;display:flex;gap:5px;align-items:flex-start}
+.ocx-remark{font-size:11px;color:#7a6a34;background:#fbf3d9;border-left:3px solid #e6c65a;border-radius:0 6px 6px 0;padding:5px 8px;margin-top:6px}
