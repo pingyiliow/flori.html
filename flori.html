@@ -7606,6 +7606,71 @@ function editItemNote(orderId, itemIdx){
   toast(it.note ? '✓ Instruction saved' : 'Instruction cleared');
 }
 function closeZoom(){document.getElementById('zoom').classList.remove('on');}
+
+/* ── Mobile back-gesture / OS back support (SPA history integration) ──────────
+   The app is a single page, so a phone's Back gesture (Android back button, iOS
+   standalone edge-swipe) has no in-app history to move through — it would leave
+   the app. We give it some: opening any overlay (modal, order panel, settings,
+   follow-up panel, photo zoom, driver route/stop detail) pushes a history
+   "guard" entry. Back then fires popstate → we close the top overlay instead of
+   exiting. In-app ✕/‹ buttons pop the same guard (history.back) so both routes
+   stay in sync. Page↔page tab switches are intentionally left to the OS. */
+(function(){
+  if(window.__bfBackInit) return; window.__bfBackInit = true;
+  let armed = false;
+  const rawOpenModal=openModal, rawCloseModal=closeModal,
+        rawOpenDP=openDP, rawCloseDP=closeDP,
+        rawOpenSP=openSP, rawCloseSP=closeSP,
+        rawOpenFUDP=openFUDP, rawCloseFUDP=closeFUDP,
+        rawOpenGallery=openGallery, rawCloseZoom=closeZoom,
+        rawOpenStop=openStopDetail, rawCloseStop=closeStopDetail,
+        rawOpenRoute=openRouteDetail, rawCloseRoute=closeRouteDetail;
+
+  function overlayOpen(){
+    if(document.querySelector('.modal.on')) return true;
+    for(const id of ['dp','sp','fu-dp','zoom']){ const el=document.getElementById(id); if(el&&el.classList.contains('on')) return true; }
+    if(typeof _drvDetail!=='undefined' && _drvDetail) return true;
+    if(typeof _drvRouteId!=='undefined' && _drvRouteId) return true;
+    return false;
+  }
+  function arm(){ if(!armed){ armed=true; try{ history.pushState({bfGuard:1},''); }catch(_){} } }
+  // Close the single top-most overlay (priority = visual stacking). Uses the
+  // ORIGINAL closers so there's no recursion back into history.
+  function closeTop(){
+    const zoom=document.getElementById('zoom'); if(zoom&&zoom.classList.contains('on')){ rawCloseZoom(); return true; }
+    const m=document.querySelector('.modal.on'); if(m){ rawCloseModal(m.id); return true; }
+    const sp=document.getElementById('sp'); if(sp&&sp.classList.contains('on')){ rawCloseSP(); return true; }
+    const fdp=document.getElementById('fu-dp'); if(fdp&&fdp.classList.contains('on')){ rawCloseFUDP(); return true; }
+    const dp=document.getElementById('dp'); if(dp&&dp.classList.contains('on')){ rawCloseDP(); return true; }
+    if(typeof _drvDetail!=='undefined' && _drvDetail){ rawCloseStop(); return true; }
+    if(typeof _drvRouteId!=='undefined' && _drvRouteId){ rawCloseRoute(); return true; }
+    return false;
+  }
+  // Opens → arm a guard once the overlay is actually showing.
+  openModal=function(id){ rawOpenModal(id); arm(); };
+  openDP=function(id){ rawOpenDP(id); if(document.getElementById('dp').classList.contains('on')) arm(); };
+  openSP=function(){ rawOpenSP.apply(this,arguments); arm(); };
+  openFUDP=function(id){ rawOpenFUDP(id); if(document.getElementById('fu-dp').classList.contains('on')) arm(); };
+  openGallery=function(){ rawOpenGallery.apply(this,arguments); if(document.getElementById('zoom').classList.contains('on')) arm(); };
+  openStopDetail=function(id){ rawOpenStop(id); arm(); };
+  openRouteDetail=function(id){ rawOpenRoute(id); arm(); };
+  // Closes → when a guard is live, go through history so popstate performs the
+  // actual close and browser history stays consistent; else close directly.
+  function wrapClose(raw){ return function(){ if(armed){ history.back(); } else { return raw.apply(this,arguments); } }; }
+  closeModal=wrapClose(rawCloseModal);
+  closeDP=wrapClose(rawCloseDP);
+  closeSP=wrapClose(rawCloseSP);
+  closeFUDP=wrapClose(rawCloseFUDP);
+  closeZoom=wrapClose(rawCloseZoom);
+  closeStopDetail=wrapClose(rawCloseStop);
+  closeRouteDetail=wrapClose(rawCloseRoute);
+
+  window.addEventListener('popstate', function(){
+    armed=false;
+    const closed=closeTop();
+    if(closed && overlayOpen()) arm();   // a stacked overlay is still open → keep a guard live
+  });
+})();
 let _toastT;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(_toastT);_toastT=setTimeout(()=>el.classList.remove('on'),2400);}
 function setPill(msg){const el=document.getElementById('hdr-pill');if(el)el.textContent=msg;}
