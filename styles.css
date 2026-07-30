@@ -838,3 +838,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 
 /* ── Driver route detail: fills the page like the rest of the app ── */
 .drv-rd{width:100%;max-width:1500px;margin-left:auto;margin-right:auto}
+
+/* ── Driver console (redesign v4): mobile = single column; desktop = list + persistent map/detail pane ── */
+.drv-console{display:block}
+.drv-console-list{min-width:0}
+.drv-console-side{display:none}
+@media(min-width:900px){
+  .drv-console{display:grid;grid-template-columns:minmax(0,380px) 1fr;gap:16px;align-items:start;max-width:1200px}
+  .drv-console-side{display:block;position:sticky;top:14px;height:calc(100vh - 130px);min-height:420px}
+}

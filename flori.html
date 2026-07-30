@@ -4547,11 +4547,11 @@ function subscribeRoutes(){
    status. Driver: own routes, Start route (buyer OTW notifications), navigate,
    recipient WhatsApp (from the driver's own phone), Mark Delivered (existing
    modal). Reorder = toggle + drag. */
-let _drvTab = 'today';
+let _drvDate = null;   // ISO 'YYYY-MM-DD' shown on the driver page; null = today. Supports any future/past date (on-demand loaded).
 const RECIP_WA_DEFAULT = 'Hello! Bamboo Green Florist 🌿 — we have a delivery for you today ({time}). Please keep your phone reachable, our driver will contact you on arrival. 您好！我们今天有花礼送达给您（{time}），请保持电话畅通，司机抵达前会与您联系。';
 let _recipWaDraft = null;   // settings override, loaded lazily
 function _drvE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('60')) return d; if(d.startsWith('0')) return '60'+d.slice(1); return '60'+d; }
-function _drvDateISO(){ const t=today0(); return _drvTab==='today' ? tdi(t) : tdi(new Date(t.getTime()+86400000)); }
+function _drvDateISO(){ return _drvDate || tdi(today0()); }
 function _drvIsOnDate(o, iso){
   if (o.dateObj) return tdi(o.dateObj) === iso;
   return (o.dueOn || null) === iso;
@@ -5166,83 +5166,140 @@ function _gpsEnsure(){
 function _gpsStop(){ if (_gpsWatchId != null){ try{ navigator.geolocation.clearWatch(_gpsWatchId); }catch(_){} _gpsWatchId = null; } }
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', ()=>{ document.hidden ? _gpsStop() : _gpsEnsure(); });
 
+// ── Redesign v4: any-date picker, responsive console, stop-first route blocks ──
+function _isDesktop(){ try { return !!(window.matchMedia && window.matchMedia('(min-width:900px)').matches); } catch(_){ return false; } }
+let _drvMapOpen = false;                       // mobile: the map is tucked behind a toggle
+function drvToggleMap(){ _drvMapOpen = !_drvMapOpen; renderDriver(); }
+function drvDateStep(n){ const d = new Date(_drvDateISO()+'T00:00:00'); d.setDate(d.getDate()+n); drvDateSet(tdi(d)); }
+async function drvDateSet(iso){
+  if (!iso) return;
+  _drvDate = iso; _drvDetail = null; _drvRouteId = null; _drvReorderRoute = null;
+  renderDriver();                                   // paint immediately with what's already loaded
+  try { await loadOrdersForDate(iso); } catch(_){}  // pull that day's orders on demand (past OR future)
+  renderDriver();
+}
+function _drvDateBar(){
+  const iso = _drvDateISO(), t0 = tdi(today0()), t1 = tdi(new Date(today0().getTime()+86400000));
+  const d = new Date(iso+'T00:00:00');
+  const pre = iso===t0 ? 'Today, ' : iso===t1 ? 'Tomorrow, ' : '';
+  const lbl = pre + d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
+  const arrow = 'width:38px;height:38px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center';
+  return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;max-width:560px">'
+    + '<button aria-label="Previous day" onclick="drvDateStep(-1)" style="'+arrow+'">&#8249;</button>'
+    + '<label style="flex:1;position:relative;height:38px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer">'
+      + di('calendar',14) + ' ' + esc2(lbl)
+      + '<input type="date" value="'+iso+'" onchange="drvDateSet(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" aria-label="Pick a delivery date">'
+    + '</label>'
+    + '<button aria-label="Next day" onclick="drvDateStep(1)" style="'+arrow+'">&#8250;</button>'
+  + '</div>';
+}
+function _drvBar(done, total){
+  const pct = total ? Math.round(done/total*100) : 0;
+  return '<div style="height:7px;background:var(--c-bg);border-radius:99px;overflow:hidden;margin-top:8px"><div style="width:'+pct+'%;height:100%;background:'+DRV_C.done+'"></div></div>';
+}
+// Stop-first route block: a progress header (delivered/total, distance, Start/Resume) then the
+// route's stops inline. "Plan" opens the full route detail (map / optimize / reorder / add).
+function _drvRouteBlock(rt){
+  const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
+  const stops = _drvStopsForRoute(rt.id);
+  const done = stops.filter(o => o.fulfilled).length;
+  const pending = stops.length - done;
+  const m = _routeMetrics[rt.id]; _computeRouteMetrics(rt.id);
+  const metric = (m && m.km != null) ? (m.km+' km, '+_fmtDur(m.min)) : '';
+  const started = !!rt.startedAt;
+  const start = pending
+    ? '<button onclick="event.stopPropagation();startRoute(\''+rt.id+'\')" style="width:100%;margin-top:11px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">'+di('nav',15)+' '+(started ? ('Resume, '+pending+' left') : 'Start route')+'</button>'
+    : '<div style="margin-top:11px;padding:10px;text-align:center;background:var(--c-bg);border-radius:9px;font-size:12px;color:'+DRV_C.done+';font-weight:700">'+di('check',14)+' All delivered</div>';
+  const header = '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:13px;margin-bottom:8px">'
+    + '<div style="display:flex;align-items:baseline;gap:8px">'
+      + '<span style="font-size:14px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">'+esc2(rt.driver)+'</span>':'')+'</span>'
+      + '<button onclick="openRouteDetail(\''+rt.id+'\')" title="Plan, map, optimize" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--c-muted);cursor:pointer;flex:none">'+di('route',13)+' Plan</button>'
+    + '</div>'
+    + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:7px"><span style="font-size:22px;font-weight:800;line-height:1">'+done+'</span><span style="font-size:13px;color:var(--c-muted)">/ '+stops.length+' delivered</span>'+(metric?'<span style="margin-left:auto;font-size:11px;color:var(--c-muted)">'+metric+'</span>':'')+'</div>'
+    + _drvBar(done, stops.length)
+    + start
+  + '</div>';
+  return header + stops.slice().sort(bySeq).map(o => _drvRow(o)).join('');
+}
+
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
   if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
   _loadRecipDraft();
   _loadRouteOrigin();
-  _gpsEnsure();          // (re)assess driver GPS sharing on every driver render
-  // Stop detail view
-  if (_drvDetail){
-    const o = ORDERS.find(x => x.id === _drvDetail);
-    if (o){ pc.innerHTML = _drvDetailView(o); return; }
-    _drvDetail = null;
-  }
-  // Route detail view (map + totals + stops + add-orders + Start)
+  _gpsEnsure();
+  const desktop = _isDesktop();
+  // Route detail = full page on both breakpoints (the planning surface).
   if (_drvRouteId){
     const rt = ROUTES.find(r => r.id === _drvRouteId);
     if (rt){
       pc.innerHTML = _drvRouteDetail(rt);
       _computeRouteMetrics(rt.id);
       const rs = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
-      _geoBackfill(rs);   // always try to locate stops — the map only appears once they have coords
+      _geoBackfill(rs);
       const _org = _routeOrigin(rt);
       if (document.getElementById('drv-map')){ _drvMapInit(rs, [rt], [_org.lat, _org.lng]); }
       return;
     }
     _drvRouteId = null;
   }
+  // Stop detail: MOBILE = full page; DESKTOP = shown in the side panel (below).
+  let detailStop = null;
+  if (_drvDetail){ detailStop = ORDERS.find(x => x.id === _drvDetail) || null; if (!detailStop) _drvDetail = null; }
+  if (detailStop && !desktop){ pc.innerHTML = _drvDetailView(detailStop); return; }
+
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
   const routes = _drvRoutesFor(iso);
   const isAdmin = currentUserRole === 'admin';
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
-  const tab = t => '<button onclick="driverTab(\''+t+'\')" style="padding:7px 15px;border-radius:99px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'
-    + (t==='today'?'Today':'Tomorrow')+' · '+_drvStops(t==='today'?tdi(today0()):tdi(new Date(today0().getTime()+86400000))).filter(o=>!o.fulfilled).length+'</button>';
-  const view = v => '<button onclick="driverView(\''+v+'\')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvView===v?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'+(v==='map'?di('map',14)+' Map':di('list',14)+' List')+'</button>';
+  const done = stops.filter(o => o.fulfilled).length;
 
-  let html = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
-    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+' · ':'')+iso+'</div></div>'
+  const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
+    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
     + (isAdmin ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>' : '')
-    + '</div>'
-    + '<div style="display:flex;gap:8px;margin-bottom:10px">'+tab('today')+tab('tomorrow')+'</div>'
-    + '<div style="display:flex;gap:6px;margin-bottom:12px;max-width:560px">'+view('map')+view('list')+'</div>';
+    + '</div>' + _drvDateBar();
 
-  const pendingAll = stops.filter(o => !o.fulfilled).sort(bySeq);
-  const doneAll = stops.filter(o => o.fulfilled);
+  const overall = stops.length
+    ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;margin-bottom:12px;max-width:560px"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:700">Deliveries</span><span style="margin-left:auto;font-size:13px;font-weight:700">'+done+' <span style="color:var(--c-muted);font-weight:400">/ '+stops.length+'</span></span></div>'+_drvBar(done, stops.length)+'</div>'
+    : '';
 
-  // Shared: unassigned deliveries with a quick "add to route" picker.
   const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
   const unassignedBlock = () => (unassigned.length || !routes.length)
     ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
-      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned · '+unassigned.length+'</div>'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned, '+unassigned.length+'</div>'
       + (unassigned.length ? unassigned.map(o =>
-          _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">— add to route —</option>'
-            + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' — '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
+          _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">add to route</option>'
+            + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' - '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
         ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
       + '</div>'
     : '';
 
-  if (_drvView === 'map'){
-    // Overview map of every stop today; route cards + unassigned below it. Tap a card → detail.
-    html += '<div id="drv-map" style="height:44vh;min-height:240px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:8px;z-index:0"></div>'
-      + '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-bottom:10px;flex-wrap:wrap">'
-        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
-        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
-        + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span>'
-      + '</div>';
-    const noPin = pendingAll.filter(o => o.lat == null && _drvAddr(o)).length;
-    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) — routes still work from the cards below.</div>';
-    else if (noPin) html += '<div style="font-size:11px;color:var(--c-muted);margin-bottom:8px">Locating '+noPin+' stop'+(noPin===1?'':'s')+'…</div>';
-    html += routes.map(rt => _drvRouteCard(rt)).join('') + unassignedBlock();
+  const routeBlocks = routes.length
+    ? routes.map(rt => _drvRouteBlock(rt)).join('')
+    : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">No routes yet'+(isAdmin?' - tap "+ New route".':'.')+'</div>';
+  const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
+  const deliveredBlock = doneUnrouted.length
+    ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
+    : '';
+  const listBody = overall + routeBlocks + unassignedBlock() + deliveredBlock;
+
+  const mapWarn = _geoOff ? '<div style="font-size:11px;color:#E65100;margin:8px 0">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
+  const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span></div>';
+
+  let html;
+  if (desktop){
+    const side = detailStop
+      ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:14px;height:100%;overflow:auto">'+_drvDetailView(detailStop)+'</div>'
+      : '<div id="drv-map" style="height:100%;min-height:420px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend;
+    html = head + '<div class="drv-console"><div class="drv-console-list">'+listBody+'</div><div class="drv-console-side">'+side+'</div></div>';
   } else {
-    // List: an overview map preview, then the tappable route cards + unassigned.
-    html += '<div id="drv-map" style="height:30vh;min-height:180px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:12px;z-index:0"></div>';
-    if (_geoOff) html += '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) — routes still work from the cards below.</div>';
-    html += (routes.length ? routes.map(rt => _drvRouteCard(rt)).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">No routes yet'+(isAdmin?' — tap “+ New route”.':'.')+'</div>')
-      + unassignedBlock();
-    const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
-    if (doneUnrouted.length) html += '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route) · '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>';
+    const mapBtn = '<button onclick="drvToggleMap()" style="width:100%;margin-bottom:12px;padding:9px;border-radius:9px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:12px;font-weight:600;color:var(--c-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">'+di('map',14)+' '+(_drvMapOpen?'Hide map':'Show map')+'</button>';
+    const mapBlock = _drvMapOpen ? '<div id="drv-map" style="height:40vh;min-height:220px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend+'<div style="height:12px"></div>' : '';
+    html = head + mapBtn + mapBlock + listBody;
   }
   pc.innerHTML = html;
   if (document.getElementById('drv-map')){
@@ -7608,8 +7665,8 @@ function _renderDP(order, localOrder) {
     <button onclick="closeDP();editOrder('${localOrder.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
       ${di('edit',13)} Edit Order
     </button>
-    <button onclick="closeDP();openRepeat('${localOrder.id}')" title="Duplicate this order to other dates" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
-      ${di('sync',13)} Repeat
+    <button onclick="closeDP();openRepeat('${localOrder.id}')" title="Repeat — duplicate this order to other dates" aria-label="Repeat order" style="display:flex;align-items:center;justify-content:center;padding:10px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
+      ${di('sync',15)}
     </button>
     <button onclick="closeDP();delOrder('${localOrder.id}')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">
       ${di('trash',13)} Delete
