@@ -5674,7 +5674,9 @@ function renderDriver(){
 
   const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
     + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
-    + (isAdmin ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>' : '')
+    + (isAdmin
+        ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>'
+        : '<button class="btn btn-ghost" onclick="signOut()" style="font-size:12px">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
     + '</div>' + _drvDateBar();
 
   const overall = myStops.length
