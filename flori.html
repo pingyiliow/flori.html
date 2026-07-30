@@ -4986,7 +4986,9 @@ let DRIVERS = [];
 async function loadDrivers(){
   if (!hasSB()) return DRIVERS;
   try {
-    const { data } = await sb.from('profiles').select('name,role').eq('role','driver');
+    // Assignable drivers = role='driver' PLUS anyone flagged is_driver (e.g. an admin
+    // who also drives). Lets one person hold both admin access and a driver name.
+    const { data } = await sb.from('profiles').select('name,role,is_driver').or('role.eq.driver,is_driver.eq.true');
     DRIVERS = [...new Set((data||[]).map(d => (d.name||'').trim()).filter(Boolean))].sort();
   } catch(_) {}
   return DRIVERS;
