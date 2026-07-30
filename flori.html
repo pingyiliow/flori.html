@@ -88,13 +88,14 @@
     </div>
     <div class="pc" style="padding-top:16px;gap:18px">
       <div id="crm-reminders"></div>
+      <div id="h-attention"></div>
       <div>
         <div class="h-sec-ttl" style="margin-bottom:8px">Quick Actions</div>
         <div class="h-qa-grid" id="h-quick"></div>
       </div>
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div class="h-sec-ttl">Today's Schedule</div>
+          <div class="h-sec-ttl">Up next</div>
           <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all →</button>
         </div>
         <div id="home-list" style="display:flex;flex-direction:column;gap:6px"></div>
@@ -2776,6 +2777,8 @@ function renderHome() {
   const readyT    = todayO.filter(o => !o.fulfilled && o.ready);
   const fulfilledT= todayO.filter(o => o.fulfilled);
   const urgentT   = todayO.filter(o => !o.fulfilled && o.priority==='urgent');
+  const revToday  = todayO.reduce((s,o)=>s+(orderTotal(o)||0),0);
+  const unassignedDel = todayO.filter(o=>(o.type||'delivery')==='delivery' && !o.routeId && !o.fulfilled).length;
   document.getElementById('s-total').textContent = todayO.length;
   document.getElementById('s-today').textContent = pendingT.length;
   document.getElementById('s-pu').textContent    = readyT.length;
@@ -2785,7 +2788,7 @@ function renderHome() {
   const greet = h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
   document.getElementById('h-day').textContent = now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   document.getElementById('h-greet').textContent = greet;
-  document.getElementById('h-sub').textContent = 'Bamboo Green · '+todayO.length+' order'+(todayO.length===1?'':'s')+' today';
+  document.getElementById('h-sub').textContent = 'Bamboo Green · '+todayO.length+' order'+(todayO.length===1?'':'s')+' today'+(revToday>0?' · RM '+Math.round(revToday).toLocaleString('en-MY'):'');
   const dl=document.getElementById('hdr-date-lbl');if(dl)dl.textContent=now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'});
   // Quick actions
   const fuPending = (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').length;
@@ -2796,15 +2799,23 @@ function renderHome() {
   qa.push(`<button class="h-qa" onclick="goPage('followup')"><span class="h-qa-ico">${di('clipboard',22)}</span><div><div class="h-qa-lbl">Follow-up</div><div class="h-qa-sub">${fuPending} pending</div></div></button>`);
   qa.push(`<button class="h-qa" onclick="goPage('stock')"><span class="h-qa-ico">${di('box',22)}</span><div><div class="h-qa-lbl">Stock</div><div class="h-qa-sub">${lowStock?lowStock+' low':'In stock'}</div></div></button>`);
   document.getElementById('h-quick').innerHTML = qa.join('');
-  // Today's schedule — mini cards. Multi-product orders are expanded into one
-  // card per product (own line, photo and ready tick); single-product unchanged.
-  const sorted = sortedOrders(todayO);
-  const units = [];
-  sorted.forEach(o => {
-    if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push(homeMiniCard(o, it, idx)));
-    else units.push(homeMiniCard(o));
-  });
-  document.getElementById('home-list').innerHTML = units.length ? units.join('') : `<div class="empty" style="padding:40px 20px"><div class="empty-ico">${di('flower',34)}</div><div class="empty-txt">No orders today</div></div>`;
+  // Needs attention — the actionable stuff (command-center, not a duplicate order list).
+  const _attRow = (ic,col,txt,act)=>`<div onclick="${act}" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer"><span style="color:${col};display:inline-flex">${di(ic,16)}</span><span style="flex:1;font-size:12.5px;font-weight:600">${txt}</span><span style="color:var(--c-border2);font-size:15px">›</span></div>`;
+  const att = [];
+  if (urgentT.length) att.push(_attRow('warn','#c0392b',urgentT.length+' urgent order'+(urgentT.length>1?'s':''),"goPage('orders')"));
+  if (unassignedDel)  att.push(_attRow('nav','#b46a1e',unassignedDel+' deliver'+(unassignedDel>1?'ies':'y')+' not on a route',"goPage('driver')"));
+  if (lowStock)       att.push(_attRow('box','#b46a1e',lowStock+' stock item'+(lowStock>1?'s':'')+' low',"goPage('stock')"));
+  if (fuPending)      att.push(_attRow('clipboard','#b46a1e',fuPending+' follow-up'+(fuPending>1?'s':'')+' pending',"goPage('followup')"));
+  const ael = document.getElementById('h-attention');
+  if (ael) ael.innerHTML = att.length
+    ? '<div class="h-sec-ttl" style="margin-bottom:8px">Needs attention</div><div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:2px 12px 6px">'+att.join('')+'</div>'
+    : '';
+  // Up next — a peek at the next few upcoming orders (whole-order rows, no 1/2 split); the
+  // full list lives in Daily Orders. Replaces the old duplicate "Today's Schedule" list.
+  const upNext = sortedOrders(todayO.filter(o=>!o.fulfilled)).slice(0,4);
+  document.getElementById('home-list').innerHTML = upNext.length
+    ? upNext.map(o=>homeMiniCard(o)).join('')
+    : `<div class="empty" style="padding:28px 20px"><div class="empty-ico">${di('check',30)}</div><div class="empty-txt">All caught up for today</div></div>`;
   // Follow-up alert
   const fw=document.getElementById('h-fualert-wrap');
   if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
