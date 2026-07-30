@@ -26,7 +26,7 @@ const AUTO_REPLY =
 
 This is our delivery-notice line and isn't monitored.
 
-For orders & enquiries, message our main line 👉 60124778120
+For orders & enquiries, message our main line 👉 +60 12-477 8120
 Or browse and order on our website 👉 www.bambooflorist.com.my
 
 We'd love to arrange something for you 🌸
@@ -35,7 +35,7 @@ We'd love to arrange something for you 🌸
 
 这是我们的配送通知专线，平时没有专人查看讯息哦。
 
-订购与查询，请联系我们的主线 👉 016-477 8120（可直接 WhatsApp）
+订购与查询，请联系我们的主线 👉 012-477 8120（可直接 WhatsApp）
 或浏览我们的网站自行选购 👉 www.bambooflorist.com.my
 
 期待为你插上一束刚刚好的花 🌸`;
