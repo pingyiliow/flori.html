@@ -5334,7 +5334,7 @@ function _drvDetailView(o){
     + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;background:var(--c-surface);margin-bottom:10px">'
       + '<div style="font-size:11px;color:var(--c-muted);margin-bottom:3px">DELIVER TO</div>'
       + '<div style="font-size:13px;line-height:1.55">'+ (esc2(_drvAddr(o)) || '<span style="color:#E65100">'+di('warn',13)+' no address on order</span>') +'</div>'
-      + (nav ? '<div style="margin-top:10px"><div style="font-size:11px;color:var(--c-muted);margin-bottom:6px">'+di('nav',12)+' Navigate with</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+_navBtn(nav.apple,'Apple Maps')+'</div></div>' : '')
+      + (nav ? '<div style="margin-top:10px"><div style="font-size:11px;color:var(--c-muted);margin-bottom:6px">'+di('nav',12)+' Navigate with</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+'</div></div>' : '')
       + (o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 6px 6px 0;padding:7px 9px;margin-top:10px;font-size:12px;color:#795548">'+di('note',13)+' '+esc2(o.internalNote)+'</div>' : '')
     + '</div>'
     + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:2px 12px;background:var(--c-surface);margin-bottom:12px">'
