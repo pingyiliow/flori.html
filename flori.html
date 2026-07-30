@@ -4837,8 +4837,11 @@ function esc2(s){ return String(s==null?'':s).replace(/[<>&"']/g, c => ({'<':'&l
 // (Icon system DI / di() / dif() / dot() defined near the top of the script.)
 let _drvRouteId = null;          // route id whose detail view is open
 function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null; renderDriver(); }
-function openStopDetail(id){ _drvDetail = id; renderDriver(); }
-function closeStopDetail(){ _drvDetail = null; renderDriver(); }
+let _drvDetailFromRoute = null;   // the route a stop-detail was opened from, so Back returns to it
+// Opening a stop must LEAVE route-detail (else renderDriver keeps showing the route and the
+// stop never opens — "can't click in to fulfill"). Remember the route so Back returns to it.
+function openStopDetail(id){ _drvDetailFromRoute = _drvRouteId || null; _drvRouteId = null; _drvDetail = id; renderDriver(); }
+function closeStopDetail(){ _drvDetail = null; if (_drvDetailFromRoute){ _drvRouteId = _drvDetailFromRoute; _drvDetailFromRoute = null; } renderDriver(); }
 let _drvRouteTab = 'stops';   // 'stops' | 'items' — route-detail sub-view
 function openRouteDetail(id){ _drvRouteId = id; _drvDetail = null; _drvRouteTab = 'stops'; renderDriver(); }
 function driverRouteTab(t){ _drvRouteTab = t; renderDriver(); }
@@ -5055,6 +5058,8 @@ function _drvRouteDetail(rt){
       + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
       + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">'+esc2(rt.name)+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
+      + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" aria-label="Reorder stops" title="'+(reorder?'Done reordering':'Reorder stops')+'" style="width:34px;height:34px;border-radius:8px;cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px;'+(reorder?'background:var(--c-burg);color:var(--c-bg);border:1.5px solid var(--c-burg)':'background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted)')+'">'+(reorder?di('check',15):di('sort',15))+'</button>' : '')
+      + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" aria-label="Optimize route" title="'+(optimized?'Re-optimize':'Optimize')+' — shortest order from the start point" style="width:34px;height:34px;border-radius:8px;background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px">'+di('route',15)+'</button>' : '')
       + (isAdmin ? '<button onclick="openRouteModal(\''+rt.id+'\')" aria-label="Edit route" title="Rename / change driver" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px">'+di('edit',15)+'</button>' : '')
       + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" aria-label="Delete route" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('trash',15)+'</button>' : '')
     + '</div>'
@@ -5075,8 +5080,6 @@ function _drvRouteDetail(rt){
       + '</div>'
       + '<div style="display:flex;gap:8px;flex:none;margin-left:auto">'
         + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:11px 20px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
-        + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="padding:11px 14px;background:'+(reorder?'var(--c-burg);color:var(--c-bg);border:none':'var(--c-surface);border:1.5px solid var(--c-border)')+';border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap">'+(reorder?di('check',13)+' Done':di('sort',13)+' Reorder')+'</button>' : '')
-        + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" title="Sort stops the shortest way from the start point" style="padding:11px 14px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap">'+di('route',13)+' '+(optimized?'Re-optimize':'Optimize')+'</button>' : '')
       + '</div>'
     + '</div>'
     // tabs
@@ -5085,11 +5088,11 @@ function _drvRouteDetail(rt){
     + (_drvRouteTab === 'items'
         ? _drvItemsView(rt)
         : ('<div class="drv-list">'
-            + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet'+(unassigned.length?' — add some below.':'.')+'</div>')
+            + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet'+(isAdmin && unassigned.length?' — add some below.':'.')+'</div>')
           + '</div>'
           + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')))
     // add orders (only when there are unassigned deliveries to add)
-    + (unassigned.length ? '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:14px">'
+    + (isAdmin && unassigned.length ? '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:14px">'
         + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
         + unassigned.map(o =>
             '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
@@ -5286,7 +5289,10 @@ function _drvRouteBlock(rt){
   // button inside (stopPropagation), so it won't trigger the card tap.
   const header = '<div onclick="openRouteDetail(\''+rt.id+'\')" style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px 12px 0 0;border-bottom:none;padding:13px;cursor:pointer">'
     + '<div style="display:flex;align-items:center;gap:8px">'
-      + '<span style="font-size:14px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">'+esc2(rt.driver)+'</span>':'')+'</span>'
+      + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+'</div>'
+        + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;display:inline-flex;align-items:center;gap:4px">'+di('user',11)+' '+(rt.driver?esc2(rt.driver):'Any driver')+'</div>'
+      + '</div>'
       + '<span style="font-size:10.5px;color:var(--c-muted);display:inline-flex;align-items:center;gap:3px;flex:none">'+di('map',13)+' map</span>'
       + '<span style="color:var(--c-muted);font-size:15px;flex:none">›</span>'
     + '</div>'
