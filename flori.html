@@ -5056,7 +5056,7 @@ function _drvRouteDetail(rt){
   return '<div class="drv-rd">'
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
       + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
-      + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">'+esc2(rt.name)+'</div>'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
       + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" aria-label="Reorder stops" title="'+(reorder?'Done reordering':'Reorder stops')+'" style="width:34px;height:34px;border-radius:8px;cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px;'+(reorder?'background:var(--c-burg);color:var(--c-bg);border:1.5px solid var(--c-burg)':'background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted)')+'">'+(reorder?di('check',15):di('sort',15))+'</button>' : '')
       + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" aria-label="Optimize route" title="'+(optimized?'Re-optimize':'Optimize')+' — shortest order from the start point" style="width:34px;height:34px;border-radius:8px;background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px">'+di('route',15)+'</button>' : '')
@@ -5120,16 +5120,23 @@ function _ensureLeaflet(cb){
   s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   s.onload = cb; document.head.appendChild(s);
 }
+// Each route gets its own stable colour (hash of its id → palette) so multiple drivers'
+// routes are distinguishable on the map. Unassigned = grey. Delivered pins are dimmed + a check.
+const _ROUTE_PALETTE = ['#2E7BD0','#D8622E','#7B4FB5','#0F9D58','#C2185B','#00897B','#E65100','#3949AB'];
+function _routeColor(routeId){
+  if (!routeId) return '#8d8578';
+  let h = 0; const s = String(routeId); for (let k=0;k<s.length;k++) h = (h*31 + s.charCodeAt(k)) >>> 0;
+  return _ROUTE_PALETTE[h % _ROUTE_PALETTE.length];
+}
 function _drvPin(o){
   const st = _drvStatus(o);
-  // Unassigned stops (not on a route yet, still pending) get a distinct GREY pin so they
-  // stand out from routed pending stops (red) on the map. Routed stops keep the status colour.
   const unassigned = !o.routeId && !o.fulfilled;
-  const bg = unassigned ? '#8d8578' : DRV_C[st];
+  const bg = unassigned ? '#8d8578' : _routeColor(o.routeId);
   const seq = o.routeSeq != null ? o.routeSeq : (unassigned ? '?' : '·');
   const label = st==='done' ? di('check',15) : seq;
+  const op = st==='done' ? 'opacity:.55;' : '';
   return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
-    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
+    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);'+op+'">'+label+'</div>' });
 }
 // Decode a Google encoded polyline → [[lat,lng],…] for the road-following route line.
 function _decodePolyline(str){
@@ -5171,14 +5178,15 @@ function _drvMapInit(stops, routes, origin){
       const line = stops.filter(o => o.routeId===rt.id && o.lat!=null)
         .sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9)).map(o=>[o.lat,o.lng]);
       const poly = (_routeMetrics[rt.id] && _routeMetrics[rt.id].poly) ? _decodePolyline(_routeMetrics[rt.id].poly) : null;
+      const rc = _routeColor(rt.id);
       if (poly && poly.length > 1){
-        L.polyline(poly, { color:'#2E7BD0', weight:4, opacity:.75 }).addTo(_drvMap);
+        L.polyline(poly, { color:rc, weight:4, opacity:.8 }).addTo(_drvMap);
         poly.forEach(p => pts.push(p));
       } else if (line.length){
-        L.polyline([origin, ...line], { color:'#2E7BD0', weight:2, dashArray:'6 5', opacity:.7 }).addTo(_drvMap);
+        L.polyline([origin, ...line], { color:rc, weight:2.5, dashArray:'6 5', opacity:.75 }).addTo(_drvMap);
       }
       if (rt.lastLat != null){
-        L.circleMarker([rt.lastLat, rt.lastLng], { radius:7, color:'#fff', weight:2, fillColor:'#2E7BD0', fillOpacity:1 }).addTo(_drvMap)
+        L.circleMarker([rt.lastLat, rt.lastLng], { radius:7, color:'#fff', weight:2, fillColor:rc, fillOpacity:1 }).addTo(_drvMap)
           .bindTooltip((rt.driver||'driver') + (rt.lastLocAt ? ' · '+Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000)+'m ago' : ''));
         pts.push([rt.lastLat, rt.lastLng]);
       }
@@ -5290,7 +5298,7 @@ function _drvRouteBlock(rt){
   const header = '<div onclick="openRouteDetail(\''+rt.id+'\')" style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px 12px 0 0;border-bottom:none;padding:13px;cursor:pointer">'
     + '<div style="display:flex;align-items:center;gap:8px">'
       + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+'</div>'
+        + '<div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
         + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;display:inline-flex;align-items:center;gap:4px">'+di('user',11)+' '+(rt.driver?esc2(rt.driver):'Any driver')+'</div>'
       + '</div>'
       + '<span style="font-size:10.5px;color:var(--c-muted);display:inline-flex;align-items:center;gap:3px;flex:none">'+di('map',13)+' map</span>'
@@ -5379,10 +5387,9 @@ function renderDriver(){
 
   const mapWarn = _geoOff ? '<div style="font-size:11px;color:#E65100;margin:8px 0">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
   const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.pending+'"></span> pending</span>'
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.otw+'"></span> on the way</span>'
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+DRV_C.done+'"></span> delivered</span>'
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8d8578"></span> unassigned</span></div>';
+    + routes.map(rt => '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+'"></span> '+esc2(rt.name)+'</span>').join('')
+    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8d8578"></span> unassigned</span>'
+    + '<span style="opacity:.75">'+di('check',10)+' delivered</span></div>';
 
   let html;
   if (desktop){
