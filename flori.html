@@ -1610,6 +1610,9 @@ function _applyShopifyToExisting(prev, m){
     proofPhoto:   prev.proofPhoto || null,
     lat:          prev.lat ?? null,
     lng:          prev.lng ?? null,
+    deliveredLat: prev.deliveredLat ?? null,
+    deliveredLng: prev.deliveredLng ?? null,
+    deliveredAt:  prev.deliveredAt || null,
     recipName:    m.recipName  || prev.recipName  || null,
     recipPhone:   m.recipPhone || prev.recipPhone || null,
     address:      m.address    || prev.address    || null,
@@ -1806,7 +1809,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,lat:o.lat,lng:o.lng,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1829,7 +1832,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.lat=pm.lat??null; o.lng=pm.lng??null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -1893,6 +1896,9 @@ async function syncOrders() {
           o.proofPhoto   = o.proofPhoto || r.proof_photo || null;
           o.lat          = r.lat ?? o.lat ?? null;
           o.lng          = r.lng ?? o.lng ?? null;
+          o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
+          o.deliveredLng = o.deliveredLng ?? r.delivered_lng ?? null;
+          o.deliveredAt  = o.deliveredAt || r.delivered_at || null;
           o.recipName    = o.recipName  || r.recip_name  || null;
           o.recipPhone   = o.recipPhone || r.recip_phone || null;
           o.address      = o.address    || r.address     || null;
@@ -1976,7 +1982,8 @@ function _orderRow(o){
     recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otw_at: o.otwAt||null, route_id: o.routeId||null, route_seq: o.routeSeq??null,
-    proof_photo: o.proofPhoto||null
+    proof_photo: o.proofPhoto||null,
+    delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null
   };
 }
 // saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
@@ -2074,7 +2081,8 @@ function _mapDbOrder(o){
     recipName: o.recip_name||null, recipPhone: o.recip_phone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otwAt: o.otw_at||null, routeId: o.route_id||null, routeSeq: o.route_seq??null,
-    proofPhoto: o.proof_photo||null
+    proofPhoto: o.proof_photo||null,
+    deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null
   };
 }
 // Only the recent/active slice of orders is read on launch + focus-refresh, so the
@@ -2308,6 +2316,9 @@ function mergeOrderRows(a, b){
   m.address      = a.address || b.address || null;
   m.lat          = a.lat ?? b.lat ?? null;
   m.lng          = a.lng ?? b.lng ?? null;
+  m.deliveredLat = a.deliveredLat ?? b.deliveredLat ?? null;
+  m.deliveredLng = a.deliveredLng ?? b.deliveredLng ?? null;
+  m.deliveredAt  = a.deliveredAt || b.deliveredAt || null;
   return m;
 }
 
@@ -2344,6 +2355,9 @@ async function migrateOrderIds({ dryRun = false } = {}) {
     merged.route_id      = rows.map(r=>r.route_id).find(Boolean) || null;
     merged.route_seq     = rows.map(r=>r.route_seq).find(v=>v!=null) ?? null;
     merged.proof_photo   = rows.map(r=>r.proof_photo).find(Boolean) || null;
+    merged.delivered_lat = rows.map(r=>r.delivered_lat).find(v=>v!=null) ?? null;
+    merged.delivered_lng = rows.map(r=>r.delivered_lng).find(v=>v!=null) ?? null;
+    merged.delivered_at  = rows.map(r=>r.delivered_at).find(Boolean) || null;
     merged.recip_name    = rows.map(r=>r.recip_name).find(Boolean) || null;
     merged.recip_phone   = rows.map(r=>r.recip_phone).find(Boolean) || null;
     merged.address       = rows.map(r=>r.address).find(Boolean) || null;
@@ -4906,6 +4920,33 @@ function _drvRoutesFor(iso){
 function driverTab(t){ _drvTab = t; _drvReorderRoute = null; _drvDetail = null; renderDriver(); }
 
 function navMapsLink(o){ const a=_drvAddr(o); return a ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a) : null; }
+// Navigation deep-links — universal https URLs that open the installed app
+// (Google Maps / Waze / Apple Maps) if present, else its web version; they do
+// NOT bounce to the App Store. Driver picks an app per stop.
+function _navLinks(o){
+  const a = _drvAddr(o); if (!a) return null;
+  const q = encodeURIComponent(a);
+  return { gmaps:'https://www.google.com/maps/dir/?api=1&destination='+q,
+           waze:'https://waze.com/ul?q='+q+'&navigate=yes',
+           apple:'https://maps.apple.com/?daddr='+q };
+}
+function _navBtn(href,label){ return '<a href="'+href+'" target="_blank" rel="noopener" style="flex:1;min-width:92px;text-align:center;padding:10px 8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);font-weight:600;background:var(--c-surface)">'+esc2(label)+'</a>'; }
+// Best-effort current GPS fix (foreground). Resolves {lat,lng} or null; never
+// blocks longer than ~timeout so it can't stall a delivery if GPS is slow/denied.
+// During an active route the watcher keeps a fresh fix cached (maximumAge) → instant.
+function _capturePos(timeout){
+  return new Promise(res=>{
+    if (!navigator.geolocation){ res(null); return; }
+    let done=false; const finish=v=>{ if(!done){ done=true; res(v); } };
+    try{
+      navigator.geolocation.getCurrentPosition(
+        p=>finish({ lat:p.coords.latitude, lng:p.coords.longitude }),
+        ()=>finish(null),
+        { enableHighAccuracy:true, maximumAge:15000, timeout:timeout||6000 });
+    }catch(_){ finish(null); }
+    setTimeout(()=>finish(null), (timeout||6000)+800);
+  });
+}
 function routeMapsLink(stops){
   const addrs = stops.map(_drvAddr).filter(Boolean).slice(0, 10);   // Maps caps ~9 waypoints + destination
   if (!addrs.length) return null;
@@ -5270,7 +5311,7 @@ function _drvContactRow(label, name, phone, waHref){
 
 function _drvDetailView(o){
   const st = _drvStatus(o);
-  const nav = navMapsLink(o);
+  const nav = _navLinks(o);
   const items = (o.lineItems && o.lineItems.length)
     ? o.lineItems.map(li => '<div style="font-size:12.5px;padding:2px 0">· '+(li.quantity||1)+' × '+esc2(li.title||'')+'</div>').join('')
     : '<div style="font-size:12.5px">· '+esc2(o.product||'—')+'</div>';
@@ -5293,14 +5334,15 @@ function _drvDetailView(o){
     + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;background:var(--c-surface);margin-bottom:10px">'
       + '<div style="font-size:11px;color:var(--c-muted);margin-bottom:3px">DELIVER TO</div>'
       + '<div style="font-size:13px;line-height:1.55">'+ (esc2(_drvAddr(o)) || '<span style="color:#E65100">'+di('warn',13)+' no address on order</span>') +'</div>'
-      + (nav ? '<a href="'+nav+'" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:10px;padding:11px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12.5px;text-decoration:none;color:var(--c-ink);font-weight:600">'+di('nav',14)+' Navigate</a>' : '')
+      + (nav ? '<div style="margin-top:10px"><div style="font-size:11px;color:var(--c-muted);margin-bottom:6px">'+di('nav',12)+' Navigate with</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+_navBtn(nav.apple,'Apple Maps')+'</div></div>' : '')
       + (o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 6px 6px 0;padding:7px 9px;margin-top:10px;font-size:12px;color:#795548">'+di('note',13)+' '+esc2(o.internalNote)+'</div>' : '')
     + '</div>'
     + '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:2px 12px;background:var(--c-surface);margin-bottom:12px">'
       + _drvContactRow('Ship to:', o.recipName || o.customer, o.recipPhone, recipWaLink(o))
     + '</div>'
     + (st==='done'
-        ? (o.proofPhoto ? '<img src="'+o.proofPhoto+'" style="width:100%;border-radius:10px;margin-bottom:10px" onerror="this.style.display=\'none\'">' : '')
+        ? ((o.proofPhoto ? '<img src="'+o.proofPhoto+'" style="width:100%;border-radius:10px;margin-bottom:10px" onerror="this.style.display=\'none\'">' : '')
+           + (o.deliveredLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);margin-bottom:10px;background:var(--c-surface)">'+di('nav',13)+' Delivered location'+(o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : ''))
         : '<button onclick="markDelivered(\''+o.id+'\')" style="width:100%;padding:14px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #A5D6A7;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">'+di('check',16)+' Mark as delivered</button>'
           + (!o.otwAt ? '<button onclick="resendOTW(\''+o.id+'\')" style="width:100%;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--c-muted)">Send on-the-way notification</button>' : ''))
     + (o._otwFlag ? '<div style="font-size:11px;color:#E65100;margin-top:6px">'+di('warn',12)+' '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '')
@@ -7264,6 +7306,9 @@ function openDeliverModal(o, verb){
 async function confirmDeliver(id, photoUrl, notify, verb){
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
   if (photoUrl) o.proofPhoto = photoUrl;
+  // Stamp where the delivery was completed (best-effort foreground GPS fix).
+  o.deliveredAt = new Date().toISOString();
+  try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
     o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
