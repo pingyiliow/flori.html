@@ -5050,7 +5050,14 @@ async function startRoute(routeId){
   const already = !!rt.startedAt;
   if (!confirm((already ? 'Route already started — resend for un-notified stops?\n\n' : '') +
       'Start "'+rt.name+'" and send "on the way" to '+stops.length+' customer'+(stops.length===1?'':'s')+'?')) return;
-  if (!already){ rt.startedAt = new Date().toISOString(); rt.startedBy = currentUserName || 'staff'; saveRoute(rt); }
+  if (!already){
+    rt.startedAt = new Date().toISOString();
+    rt.startedBy = currentUserName || 'staff';
+    // Claim an unassigned ("Any driver") route for whoever starts it → the route
+    // now shows their name to everyone (realtime). Never overrides an explicit driver.
+    if (!rt.driver && currentUserName) rt.driver = currentUserName;
+    saveRoute(rt);
+  }
   let sent = 0, flagged = 0;
   for (let i = 0; i < stops.length; i++){
     const o = stops[i];
