@@ -137,6 +137,9 @@
       </div>
     </div>
 
+    <!-- Day summary pills -->
+    <div id="ord-summary" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+
     <!-- Filters -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -2830,6 +2833,16 @@ function renderOrders() {
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
+  // Day summary pills (counts for the current view).
+  const _os = document.getElementById('ord-summary');
+  if (_os) {
+    const sP=list.filter(o=>orderState(o)==='pending').length, sR=list.filter(o=>orderState(o)==='ready').length, sF=list.filter(o=>orderState(o)==='fulfilled').length;
+    const pill=(n,l,bg,bd,c)=>`<span style="background:${bg};border:1px solid ${bd};border-radius:8px;padding:5px 11px;font-size:11px;color:${c}"><b style="font-size:13px">${n}</b> ${l}</span>`;
+    _os.innerHTML = pill(list.length,'orders','var(--c-surface)','var(--c-border)','var(--c-muted)')
+      + (sP?pill(sP,'pending','#fdeceb','#f2cfcc','#c0392b'):'')
+      + (sR?pill(sR,'ready','#eef6ee','#c9e3cc','#2e7d46'):'')
+      + (sF?pill(sF,'done','#f1f1ef','#ddd','#6b6a63'):'');
+  }
   if (!list.length) {
     tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('grid',34)}</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
