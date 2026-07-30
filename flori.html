@@ -5281,16 +5281,28 @@ function _drvRouteBlock(rt){
   const start = pending
     ? '<button onclick="event.stopPropagation();startRoute(\''+rt.id+'\')" style="width:100%;margin-top:11px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">'+di('nav',15)+' '+(started ? ('Resume, '+pending+' left') : 'Start route')+'</button>'
     : '<div style="margin-top:11px;padding:10px;text-align:center;background:var(--c-bg);border-radius:9px;font-size:12px;color:'+DRV_C.done+';font-weight:700">'+di('check',14)+' All delivered</div>';
-  const header = '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:13px;margin-bottom:8px">'
-    + '<div style="display:flex;align-items:baseline;gap:8px">'
+  // Tappable route header → opens the route detail (map / navigate / optimize). Replaces the
+  // old floating "Plan" button; a map icon + chevron signal it's tappable. Start/Resume is a
+  // button inside (stopPropagation), so it won't trigger the card tap.
+  const header = '<div onclick="openRouteDetail(\''+rt.id+'\')" style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px 12px 0 0;border-bottom:none;padding:13px;cursor:pointer">'
+    + '<div style="display:flex;align-items:center;gap:8px">'
       + '<span style="font-size:14px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">'+esc2(rt.driver)+'</span>':'')+'</span>'
-      + '<button onclick="openRouteDetail(\''+rt.id+'\')" title="Plan, map, optimize" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--c-muted);cursor:pointer;flex:none">'+di('route',13)+' Plan</button>'
+      + '<span style="font-size:10.5px;color:var(--c-muted);display:inline-flex;align-items:center;gap:3px;flex:none">'+di('map',13)+' map</span>'
+      + '<span style="color:var(--c-muted);font-size:15px;flex:none">›</span>'
     + '</div>'
     + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:7px"><span style="font-size:22px;font-weight:800;line-height:1">'+done+'</span><span style="font-size:13px;color:var(--c-muted)">/ '+stops.length+' delivered</span>'+(metric?'<span style="margin-left:auto;font-size:11px;color:var(--c-muted)">'+metric+'</span>':'')+'</div>'
     + _drvBar(done, stops.length)
     + start
   + '</div>';
-  return header + stops.slice().sort(bySeq).map(o => _drvRow(o)).join('');
+  // Stops belong to this route — render them INSIDE the route unit (shared bordered box +
+  // a "Stops" label), so they read as part of Route A, not a separate list.
+  const rows = stops.length
+    ? '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:10px 10px 4px">'
+        + '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted);margin:0 2px 8px">Stops · '+stops.length+'</div>'
+        + stops.slice().sort(bySeq).map(o => _drvRow(o)).join('')
+      + '</div>'
+    : '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:12px;font-size:12px;color:var(--c-muted)">No stops on this route yet.</div>';
+  return '<div style="margin-bottom:16px">' + header + rows + '</div>';
 }
 
 function renderDriver(){
