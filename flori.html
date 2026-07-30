@@ -546,6 +546,24 @@
   </div>
 </div>
 
+<!-- ══ MODAL — New Route ═════════════════════════════════════ -->
+<div id="m-route" class="modal">
+  <div class="mc" style="max-width:360px">
+    <div class="mc-hdr"><div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg> New Route</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-route')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div class="ff"><label class="ff-l">Route name</label><input id="rt-name" type="text" placeholder="Route A · Perai"></div>
+      <div class="ff" style="margin-top:10px"><label class="ff-l">Driver</label>
+        <select id="rt-driver"><option value="">Any driver</option></select>
+        <div id="rt-driver-hint" style="font-size:10.5px;color:var(--c-muted);margin-top:4px;display:none">No driver accounts found — add one under staff, or leave as “Any driver”.</div>
+      </div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="submitNewRoute()">Create route</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-route')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Inventory ═════════════════════════════════ -->
 <div id="m-inv" class="modal">
   <div class="mc">
@@ -935,6 +953,9 @@ function applyRoleGating(){
     const roles = TAB_ACCESS[el.dataset.pg];
     if (roles) el.style.display = roles.includes(currentUserRole) ? '' : 'none';
   });
+  // Driver-only role has a single accessible page → hide the sidebar + mobile nav entirely
+  // (a one-tab nav is just clutter). CSS `.role-driver` reclaims the layout space.
+  document.body.classList.toggle('role-driver', currentUserRole === 'driver');
   document.querySelectorAll('[data-role-gate]').forEach(el => {
     el.style.display = canAccess(el.dataset.roleGate) ? '' : 'none';
   });
@@ -4642,11 +4663,35 @@ function _drvDragStart(ev, orderId, routeId){
 }
 
 // ── route lifecycle ──
-function newRoutePrompt(){
-  const name = prompt('Route name (e.g. Route A · Perai):', 'Route ' + String.fromCharCode(65 + _drvRoutesFor(_drvDateISO()).length));
-  if (!name) return;
-  const driver = prompt('Driver name (optional — leave empty for any driver):', '') || null;
-  createRoute(name.trim(), _drvDateISO(), driver && driver.trim() ? driver.trim() : null);
+// Driver-account names (profiles.role='driver'), used to populate the route driver picker.
+// Picking from real accounts guarantees route.driver === the driver's login name, so their
+// route actually shows for them (free-text names used to mismatch → orphaned routes).
+let DRIVERS = [];
+async function loadDrivers(){
+  if (!hasSB()) return DRIVERS;
+  try {
+    const { data } = await sb.from('profiles').select('name,role').eq('role','driver');
+    DRIVERS = [...new Set((data||[]).map(d => (d.name||'').trim()).filter(Boolean))].sort();
+  } catch(_) {}
+  return DRIVERS;
+}
+async function newRoutePrompt(){
+  const nameEl = document.getElementById('rt-name');
+  if (nameEl) nameEl.value = 'Route ' + String.fromCharCode(65 + _drvRoutesFor(_drvDateISO()).length);
+  const sel = document.getElementById('rt-driver');
+  if (sel) sel.innerHTML = '<option value="">Any driver</option>';
+  openModal('m-route');
+  await loadDrivers();
+  const cur = document.getElementById('rt-driver'); if (!cur) return;   // modal closed while loading
+  cur.innerHTML = '<option value="">Any driver</option>' + DRIVERS.map(n => '<option value="'+esc2(n)+'">'+esc2(n)+'</option>').join('');
+  const hint = document.getElementById('rt-driver-hint'); if (hint) hint.style.display = DRIVERS.length ? 'none' : 'block';
+}
+function submitNewRoute(){
+  const name = (document.getElementById('rt-name').value || '').trim();
+  if (!name){ toast('Enter a route name'); return; }
+  const driver = document.getElementById('rt-driver').value || null;
+  createRoute(name, _drvDateISO(), driver);
+  closeModal('m-route');
   renderDriver();
 }
 function deleteRoutePrompt(id){
@@ -5257,19 +5302,23 @@ function renderDriver(){
   const routes = _drvRoutesFor(iso);
   const isAdmin = currentUserRole === 'admin';
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
-  const done = stops.filter(o => o.fulfilled).length;
+  // A driver only sees their own (or any-driver) routes — count/show only those stops, not
+  // every delivery for the day; admins see everything (incl. unassigned).
+  const visibleRouteIds = new Set(routes.map(r => r.id));
+  const myStops = isAdmin ? stops : stops.filter(o => o.routeId && visibleRouteIds.has(o.routeId));
+  const done = myStops.filter(o => o.fulfilled).length;
 
   const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
     + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
     + (isAdmin ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>' : '')
     + '</div>' + _drvDateBar();
 
-  const overall = stops.length
-    ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;margin-bottom:12px;max-width:560px"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:700">Deliveries</span><span style="margin-left:auto;font-size:13px;font-weight:700">'+done+' <span style="color:var(--c-muted);font-weight:400">/ '+stops.length+'</span></span></div>'+_drvBar(done, stops.length)+'</div>'
+  const overall = myStops.length
+    ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;margin-bottom:12px;max-width:560px"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:700">Deliveries</span><span style="margin-left:auto;font-size:13px;font-weight:700">'+done+' <span style="color:var(--c-muted);font-weight:400">/ '+myStops.length+'</span></span></div>'+_drvBar(done, myStops.length)+'</div>'
     : '';
 
-  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
-  const unassignedBlock = () => (unassigned.length || !routes.length)
+  const unassigned = isAdmin ? stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq) : [];
+  const unassignedBlock = () => isAdmin && (unassigned.length || !routes.length)
     ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
       + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned, '+unassigned.length+'</div>'
       + (unassigned.length ? unassigned.map(o =>
@@ -5281,8 +5330,8 @@ function renderDriver(){
 
   const routeBlocks = routes.length
     ? routes.map(rt => _drvRouteBlock(rt)).join('')
-    : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">No routes yet'+(isAdmin?' - tap "+ New route".':'.')+'</div>';
-  const doneUnrouted = stops.filter(o => !o.routeId && o.fulfilled);
+    : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">'+(isAdmin?'No routes yet - tap "+ New route".':'No deliveries assigned to you yet.')+'</div>';
+  const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled) : [];
   const deliveredBlock = doneUnrouted.length
     ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
     : '';
