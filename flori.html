@@ -5262,7 +5262,7 @@ function _drvDateBar(){
     + '<button aria-label="Previous day" onclick="drvDateStep(-1)" style="'+arrow+'">&#8249;</button>'
     + '<label style="position:relative;height:36px;min-width:190px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;font-size:13px;font-weight:600;cursor:pointer">'
       + di('calendar',14) + ' ' + esc2(lbl)
-      + '<input type="date" value="'+iso+'" onchange="drvDateSet(this.value)" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" aria-label="Pick a delivery date">'
+      + '<input type="date" value="'+iso+'" onchange="drvDateSet(this.value)" onclick="try{this.showPicker&&this.showPicker()}catch(e){}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" aria-label="Pick a delivery date">'
     + '</label>'
     + '<button aria-label="Next day" onclick="drvDateStep(1)" style="'+arrow+'">&#8250;</button>'
   + '</div>';
@@ -5386,10 +5386,13 @@ function renderDriver(){
 
   let html;
   if (desktop){
-    const side = detailStop
-      ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:14px;height:100%;overflow:auto">'+_drvDetailView(detailStop)+'</div>'
-      : '<div id="drv-map" style="height:100%;min-height:420px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend;
-    html = head + '<div class="drv-console"><div class="drv-console-list">'+listBody+'</div><div class="drv-console-side">'+side+'</div></div>';
+    // Console: wide list + slim map sidebar (always). The stop detail slides out as a
+    // drawer OVER the console (with a dismiss backdrop) instead of replacing the map.
+    html = head + '<div class="drv-console">'
+      + '<div class="drv-console-list">'+listBody+'</div>'
+      + '<div class="drv-console-side"><div style="display:flex;flex-direction:column;height:100%"><div id="drv-map" style="flex:1;min-height:380px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend+'</div></div>'
+    + '</div>'
+    + (detailStop ? '<div class="drv-drawer-backdrop" onclick="closeStopDetail()"></div><div class="drv-drawer">'+_drvDetailView(detailStop)+'</div>' : '');
   } else {
     const mapBtn = '<button onclick="drvToggleMap()" style="width:100%;margin-bottom:12px;padding:9px;border-radius:9px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:12px;font-weight:600;color:var(--c-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">'+di('map',14)+' '+(_drvMapOpen?'Hide map':'Show map')+'</button>';
     const mapBlock = _drvMapOpen ? '<div id="drv-map" style="height:40vh;min-height:220px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend+'<div style="height:12px"></div>' : '';
