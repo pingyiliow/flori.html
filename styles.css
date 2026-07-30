@@ -889,5 +889,5 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .ocx-price{font-size:12px;color:var(--c-ink);white-space:nowrap}
 .ocx-tick{width:24px;height:24px;border-radius:50%;flex:none;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-border2);display:flex;align-items:center;justify-content:center;cursor:pointer}
 .ocx-tick.r{border-color:#2e9e6b;background:#2e9e6b;color:#fff}
-.ocx-note{font-size:11px;color:var(--c-muted);margin-top:4px;display:flex;gap:5px;align-items:flex-start}
+.ocx-note{font-size:11.5px;color:#6b4a1a;background:#fbf3d9;border-left:3px solid #e6c65a;border-radius:0 6px 6px 0;padding:5px 8px;margin-top:6px;display:flex;gap:6px;align-items:flex-start;font-weight:500}
 .ocx-remark{font-size:11px;color:#7a6a34;background:#fbf3d9;border-left:3px solid #e6c65a;border-radius:0 6px 6px 0;padding:5px 8px;margin-top:6px}
