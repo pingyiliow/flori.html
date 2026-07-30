@@ -100,6 +100,7 @@
         </div>
         <div id="home-list" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
+      <div id="h-week"></div>
       <div id="h-fualert-wrap"></div>
     </div>
   </div>
@@ -2819,6 +2820,19 @@ function renderHome() {
   document.getElementById('home-list').innerHTML = upNext.length
     ? upNext.map(o=>homeMiniCard(o)).join('')
     : `<div class="empty" style="padding:28px 20px"><div class="empty-ico">${di('check',30)}</div><div class="empty-txt">All caught up for today</div></div>`;
+  // This week — revenue per day (last 7 days) from loaded orders. Hidden if no data.
+  const _week=[]; let _weekTot=0;
+  for (let dd=6; dd>=0; dd--){
+    const day=new Date(t0.getTime()-dd*86400000), dayEnd=new Date(day.getTime()+86400000);
+    const rev=ORDERS.filter(o=>o.dateObj && o.dateObj>=day && o.dateObj<dayEnd).reduce((s,o)=>s+(orderTotal(o)||0),0);
+    _week.push({day,rev}); _weekTot+=rev;
+  }
+  const _wkMax=Math.max(1,..._week.map(x=>x.rev)), _dn=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const _bars=_week.map(x=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%"><div title="RM ${Math.round(x.rev)}" style="width:62%;height:${Math.max(3,Math.round(x.rev/_wkMax*100))}%;background:#e3b9a0;border-radius:3px 3px 0 0"></div><span style="font-size:9px;color:var(--c-muted)">${_dn[x.day.getDay()]}</span></div>`).join('');
+  const _wel=document.getElementById('h-week');
+  if (_wel) _wel.innerHTML = _weekTot>0
+    ? `<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px"><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span class="h-sec-ttl">This week</span><span style="font-size:11px;color:var(--c-muted)">revenue</span><span style="margin-left:auto;font-size:14px;font-weight:800;color:var(--c-burg)">RM ${Math.round(_weekTot).toLocaleString('en-MY')}</span></div><div style="display:flex;align-items:flex-end;gap:6px;height:52px">${_bars}</div></div>`
+    : '';
   // Follow-up alert
   const fw=document.getElementById('h-fualert-wrap');
   if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
