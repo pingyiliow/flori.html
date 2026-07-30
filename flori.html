@@ -2667,6 +2667,46 @@ function orderCard(o, item, idx) {
   </div>`;
 }
 
+// Consolidated Daily-Orders card: ONE card per order (kills the "1/2, 2/2" split), with
+// its products nested inside — each product keeps its own ready-tick + price. Header carries
+// the shared info once (order #, type, status, time, customer, summed total, remarks).
+function orderCardConsolidated(o){
+  const zh = LANG === 'zh';
+  const items = (o.lineItems && o.lineItems.length) ? o.lineItems : [{ title: o.product || '–', quantity: 1 }];
+  const state = orderState(o);
+  const urgent = !o.fulfilled && o.priority === 'urgent';
+  const tot = orderTotal(o); const totTxt = tot != null ? 'RM ' + tot.toFixed(2) : '';
+  const multi = o.lineItems && o.lineItems.length > 1;
+  const typeTag = o.type === 'pickup' ? `<span class="ocx-tag pu">${zh?'自取':'PICKUP'}</span>` : `<span class="ocx-tag de">${zh?'送货':'DELIVERY'}</span>`;
+  const statusBadge = state === 'fulfilled' ? `<span class="ocx-tag ful">${di('check',10)} ${zh?'已完成':'FULFILLED'}</span>`
+    : state === 'ready' ? `<span class="ocx-tag rdy">${zh?'已准备':'READY'}</span>`
+    : `<span class="ocx-tag pend">${zh?'待准备':'PENDING'}</span>`;
+  const urgentBadge = urgent ? `<span class="ocx-tag urg">${dif('bolt',10)} ${zh?'紧急':'URGENT'}</span>` : '';
+  const des = o.designer ? `<span class="ocx-des">${di('user',11)}${esc(o.designer)}</span>` : '';
+  const timeTxt = o.dueTime ? `<span class="ocx-time">${esc(o.dueTime)}</span>` : '';
+  const rows = items.map((it, idx) => {
+    const ready = o.fulfilled ? true : (multi ? !!it.ready : !!o.ready);
+    const img = itemPhotos(it)[0] || (idx === 0 ? o.image : null) || null;
+    const thumb = img ? `<span class="ocx-th"><img src="${String(img).replace(/"/g,'&quot;')}" loading="lazy" onerror="imgFlower(this)"></span>` : `<span class="ocx-th">${di('flower',16)}</span>`;
+    const qty = (it.quantity > 1) ? ` <span class="ocx-qty">× ${it.quantity}</span>` : '';
+    const p = parseFloat(it.price) || 0; const priceTxt = p > 0 ? `<span class="ocx-price">RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
+    const on = o.fulfilled ? `event.stopPropagation()` : (multi ? `event.stopPropagation();toggleItemReady('${o.id}',${idx})` : `event.stopPropagation();toggleReady('${o.id}')`);
+    return `<div class="ocx-row">${thumb}<div class="ocx-pname">${esc(it.title||'–')}${qty}</div>${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>`;
+  }).join('');
+  const cn = _cardNotes(o);
+  const _tr = (s,n) => (s && s.length > n) ? s.slice(0,n)+'…' : s;
+  let notes = '';
+  if (cn.flower) notes += `<div class="ocx-note">${di('flower',12)}<span>${esc(_tr(cn.flower,90))}</span></div>`;
+  if (cn.remark) notes += `<div class="ocx-remark">${di('note',12)} ${esc(_tr(cn.remark,90))}</div>`;
+  const cls = ['ocx']; if (o.fulfilled) cls.push('done'); else if (urgent) cls.push('urg'); else if (state === 'ready') cls.push('rdy');
+  return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
+    <div class="ocx-hdr"><span class="ocx-num">${esc(o.name||'')}</span>${typeTag}${statusBadge}${urgentBadge}${timeTxt}</div>
+    <div class="ocx-sub"><span class="ocx-cust">${esc(o.customer||'Guest')}</span>${multi?`<span class="ocx-cnt">${items.length} items</span>`:''}${des}${totTxt?`<span class="ocx-total">${totTxt}</span>`:''}</div>
+    <div class="ocx-items">${rows}</div>
+    ${notes}
+  </div>`;
+}
+
 // Toggle a single product's "ready" state; the order is "ready" only when
 // every product is ready (Shopify fulfilment stays a whole-order action).
 function toggleItemReady(id, idx) {
@@ -2783,18 +2823,14 @@ function renderOrders() {
     tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('grid',34)}</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
   }
-  // Expand multi-product orders into one display unit per product so each can
-  // be prepped/ticked separately. Single-product orders stay one unit.
-  const units = [];
-  list.forEach(o => {
-    if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push({o, item:it, idx}));
-    else units.push({o});
-  });
-  const unitState = u => u.o.fulfilled ? 'fulfilled' : ((u.item ? u.item.ready : u.o.ready) ? 'ready' : 'pending');
-  const groups = [];
+  let html = '';
   if (prodMode) {
-    // Production mode: group by product so the same item across orders is made
-    // together. Biggest batches first; within a batch sort by due date.
+    // Production mode: split each order into per-product units and group by product so the
+    // same item across orders is batch-made. Biggest batches first; within a batch by date.
+    const units = [];
+    list.forEach(o => { if (o.lineItems && o.lineItems.length > 1) o.lineItems.forEach((it, idx) => units.push({o, item:it, idx})); else units.push({o}); });
+    const unitState = u => u.o.fulfilled ? 'fulfilled' : ((u.item ? u.item.ready : u.o.ready) ? 'ready' : 'pending');
+    const groups = [];
     units.forEach(u => {
       const title = (u.item ? u.item.title : ((u.o.lineItems&&u.o.lineItems[0]&&u.o.lineItems[0].title)||u.o.product||'–')) || '–';
       const k = String(title).trim().toLowerCase();
@@ -2802,32 +2838,26 @@ function renderOrders() {
     });
     groups.sort((a,b)=> b.items.length - a.items.length || a.prod.localeCompare(b.prod));
     groups.forEach(g => g.items.sort((a,b)=> (a.o.dateObj?+a.o.dateObj:8.64e15) - (b.o.dateObj?+b.o.dateObj:8.64e15)));
+    groups.forEach(g => {
+      const lbl = `${di('factory',13)} ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
+      const gP=g.items.filter(u=>unitState(u)==='pending').length, gR=g.items.filter(u=>unitState(u)==='ready').length, gF=g.items.filter(u=>unitState(u)==='fulfilled').length;
+      const stats = [gP?`<span class="ord-gc p">${gP} pending</span>`:'', gR?`<span class="ord-gc r">${gR} ready</span>`:'', gF?`<span class="ord-gc f">${gF} fulfilled</span>`:''].filter(Boolean).join('');
+      html += `<div class="ord-grp"><div class="ord-grp-dot"></div><div class="ord-grp-lbl">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
+      html += g.items.map(u=>orderCard(u.o, u.item, u.idx)).join('');
+    });
   } else {
-    units.forEach(u => { const o=u.o; const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(u); });
+    // Default: ONE consolidated card per order (products nested), grouped by due date.
+    const groups = [];
+    list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
+    groups.forEach(g => {
+      const isGrpLate = g.d && isPast(g.d);
+      const lbl = g.d ? (isPast(g.d) ? 'Overdue · '+fd(g.d) : isToday(g.d) ? 'Today · '+fd(g.d) : fd(g.d)) : 'No date set';
+      const gP=g.items.filter(o=>orderState(o)==='pending').length, gR=g.items.filter(o=>orderState(o)==='ready').length, gF=g.items.filter(o=>orderState(o)==='fulfilled').length;
+      const stats = [gP?`<span class="ord-gc p">${gP} pending</span>`:'', gR?`<span class="ord-gc r">${gR} ready</span>`:'', gF?`<span class="ord-gc f">${gF} fulfilled</span>`:''].filter(Boolean).join('');
+      html += `<div class="ord-grp"><div class="ord-grp-dot${isGrpLate?' late':''}"></div><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
+      html += g.items.map(orderCardConsolidated).join('');
+    });
   }
-  let html = '';
-  groups.forEach(g => {
-    const isGrpLate = !prodMode && g.d && isPast(g.d);
-    let lbl='–';
-    if (prodMode) {
-      lbl = `${di('factory',13)} ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
-    } else if (g.d) {
-      if (isPast(g.d)) lbl = 'Overdue · ' + fd(g.d);
-      else if (isToday(g.d)) lbl = 'Today · ' + fd(g.d);
-      else lbl = fd(g.d);
-    } else { lbl = 'No date set'; }
-    // Group separator with pending/ready/fulfilled counts (per product)
-    const gPending   = g.items.filter(u=>unitState(u)==='pending').length;
-    const gReady     = g.items.filter(u=>unitState(u)==='ready').length;
-    const gFulfilled = g.items.filter(u=>unitState(u)==='fulfilled').length;
-    const stats = [
-      gPending   ? `<span class="ord-gc p">${gPending} pending</span>` : '',
-      gReady     ? `<span class="ord-gc r">${gReady} ready</span>` : '',
-      gFulfilled ? `<span class="ord-gc f">${gFulfilled} fulfilled</span>` : '',
-    ].filter(Boolean).join('');
-    html += `<div class="ord-grp"><div class="ord-grp-dot${isGrpLate?' late':''}"></div><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
-    html += g.items.map(u=>orderCard(u.o, u.item, u.idx)).join('');
-  });
   tb.innerHTML = html;
 }
 
