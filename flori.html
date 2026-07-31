@@ -7706,16 +7706,13 @@ function closeZoom(){document.getElementById('zoom').classList.remove('on');}
   openGallery=function(){ rawOpenGallery.apply(this,arguments); if(document.getElementById('zoom').classList.contains('on')) arm(); };
   openStopDetail=function(id){ rawOpenStop(id); arm(); };
   openRouteDetail=function(id){ rawOpenRoute(id); arm(); };
-  // Closes → when a guard is live, go through history so popstate performs the
-  // actual close and browser history stays consistent; else close directly.
-  function wrapClose(raw){ return function(){ if(armed){ history.back(); } else { return raw.apply(this,arguments); } }; }
-  closeModal=wrapClose(rawCloseModal);
-  closeDP=wrapClose(rawCloseDP);
-  closeSP=wrapClose(rawCloseSP);
-  closeFUDP=wrapClose(rawCloseFUDP);
-  closeZoom=wrapClose(rawCloseZoom);
-  closeStopDetail=wrapClose(rawCloseStop);
-  closeRouteDetail=wrapClose(rawCloseRoute);
+  // In-app ✕/‹ buttons close directly (synchronously). We deliberately do NOT
+  // route them through history.back(): a close-then-open transition (e.g.
+  // openFUDraftModal does closeFUDP(); openModal(...)) would otherwise fire an
+  // async popstate that closes the just-opened overlay. The OS Back gesture is
+  // still handled via popstate→closeTop below. The only cost of leaving a guard
+  // entry behind after an in-app close is one no-op Back press, which is minor.
+  // (closers kept as their originals — no wrapping.)
 
   // ── Page-to-page history ── so Back / edge-swipe also returns to the
   // previously-viewed tab (not just closing overlays). Each goPage switch that
