@@ -7717,10 +7717,28 @@ function closeZoom(){document.getElementById('zoom').classList.remove('on');}
   closeStopDetail=wrapClose(rawCloseStop);
   closeRouteDetail=wrapClose(rawCloseRoute);
 
-  window.addEventListener('popstate', function(){
+  // ── Page-to-page history ── so Back / edge-swipe also returns to the
+  // previously-viewed tab (not just closing overlays). Each goPage switch that
+  // actually changes the visible page pushes a tagged history entry.
+  const rawGoPage = goPage;
+  let curPage = null;
+  function _visiblePage(){ const el=document.querySelector('.page.on'); return el ? el.id.replace('pg-','') : 'home'; }
+  goPage = function(pg){
+    const from = _visiblePage();
+    if(curPage === null){ try{ history.replaceState({ bfPage:from },''); }catch(_){} curPage = from; }  // seed the base entry
+    rawGoPage(pg);
+    const now = _visiblePage();
+    if(now !== curPage){ try{ history.pushState({ bfPage:now },''); }catch(_){} curPage = now; }
+  };
+
+  window.addEventListener('popstate', function(e){
     armed=false;
-    const closed=closeTop();
-    if(closed && overlayOpen()) arm();   // a stacked overlay is still open → keep a guard live
+    if(closeTop()){ if(overlayOpen()) arm(); return; }   // Back closed an overlay → done, don't change page
+    // No overlay open → treat Back as a page switch, but only for entries we tagged
+    // (a bfPage state). Untagged/null state means we've reached pre-app history → let it go.
+    const pg = e && e.state && e.state.bfPage;
+    if(pg && pg !== _visiblePage()){ curPage = pg; rawGoPage(pg); }
+    else if(pg){ curPage = pg; }
   });
 })();
 let _toastT;
