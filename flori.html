@@ -3650,13 +3650,25 @@ function openFUDraftModal(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   _fuDraftVariant = null;
   document.getElementById('fu-draft-id').value = id;
-  document.getElementById('fu-draft-search').value = '';
-  document.getElementById('fu-draft-custom-name').value = '';
-  document.getElementById('fu-draft-custom-price').value = (f.amount && parseFloat(f.amount)>0) ? parseFloat(f.amount).toFixed(2) : '';
+  // Carry the follow-up's chosen product over so staff don't re-pick from scratch.
+  // Use the first named item; split a trailing "· RM123" price off the name if present.
+  const firstItem = (Array.isArray(f.itemList) && f.itemList.find(it => it && it.name && it.name.trim()))
+    || (f.items ? { name: String(f.items).split('\n')[0] } : null);
+  let itemName = (firstItem && firstItem.name) ? firstItem.name.trim() : '';
+  let parsedPrice = '';
+  const pm = itemName.match(/[·\-–]\s*RM\s*([\d,]+(?:\.\d+)?)\s*$/i);
+  if (pm){ parsedPrice = pm[1].replace(/,/g,''); itemName = itemName.replace(/[·\-–]\s*RM\s*[\d,]+(?:\.\d+)?\s*$/i,'').trim(); }
+  document.getElementById('fu-draft-search').value = itemName;
+  document.getElementById('fu-draft-custom-name').value = itemName;
+  const price = (f.amount && parseFloat(f.amount)>0) ? parseFloat(f.amount) : (parsedPrice ? parseFloat(parsedPrice) : 0);
+  document.getElementById('fu-draft-custom-price').value = price>0 ? price.toFixed(2) : '';
   document.getElementById('fu-draft-qty').value = '1';
-  document.getElementById('fu-draft-results').innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">Search your Shopify products above, or add a custom item below.</div>';
+  document.getElementById('fu-draft-results').innerHTML = '<div style="font-size:11px;color:var(--c-muted);padding:6px 2px">'
+    + (itemName ? 'Pre-filled from this follow-up. Tap a Shopify match below to link the real product, or just Create Draft to use it as-is.' : 'Search your Shopify products above, or add a custom item below.') + '</div>';
   closeFUDP();
   openModal('m-fu-draft');
+  // Auto-search Shopify for the pre-filled name so a matching product is one tap away.
+  if (itemName && typeof searchDraftProducts==='function') setTimeout(()=>{ try{ searchDraftProducts(); }catch(_){} }, 60);
 }
 
 function _fuDraftClearVariant() {
@@ -4015,12 +4027,19 @@ function renderFollowup() {
     const _gk = _fuGroupKey(f);
     let _hdr = '';
     if (_gk !== _fuLastGroup) { _fuLastGroup = _gk; _hdr = `<div class="fu-date-hdr">${esc(_fuGroupLabel(f))}</div>`; }
-    return _hdr + `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
-      <div class="fu-c-main">
+    // Cover photo = first product photo on the follow-up's items (falls back to a legacy single photo).
+    const _fuImgs = Array.isArray(f.itemList) ? f.itemList.flatMap(it => Array.isArray(it.images) ? it.images : []) : [];
+    const coverImg = _fuImgs[0] || f.photo || null;
+    const _nameBlock = `<div style="${coverImg?'flex:1;min-width:0':''}">
         <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}${fulfilBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
         ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
         ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">${di('user',12)}Staff: ${esc(f.staff)}</div>`:''}
         <div class="fu-c-items">${esc(itemsPreview)}</div>
+      </div>`;
+    return _hdr + `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
+      <div class="fu-c-main" style="${coverImg?'display:flex;gap:9px;align-items:flex-start':''}">
+        ${coverImg?`<img src="${esc(coverImg)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
+        ${_nameBlock}
       </div>
       <div class="fu-c-date">${dateCellHtml}</div>
       <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}${feeLine}</div>
