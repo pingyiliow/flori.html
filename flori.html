@@ -4674,6 +4674,19 @@ async function loadRoutes(){
     if (!error && Array.isArray(data)) ROUTES = data.map(_mapDbRoute);
   } catch(e){ console.warn('loadRoutes', e && e.message); }
 }
+// Pull a specific day's routes on demand (past or future) and merge them in —
+// the default window is only today+tomorrow, so stepping the date back would
+// otherwise show "no route" even though yesterday's route is still in the DB.
+async function loadRoutesForDate(iso){
+  if (!hasSB() || !iso) return;
+  try {
+    const { data, error } = await sb.from('routes').select('*').eq('route_date', iso).order('created_at');
+    if (!error && Array.isArray(data)){
+      const others = ROUTES.filter(r => r.date !== iso);   // drop the stale copy for this date, keep every other day
+      ROUTES = others.concat(data.map(_mapDbRoute));
+    }
+  } catch(e){ console.warn('loadRoutesForDate', e && e.message); }
+}
 function saveRoute(rt){
   const i = ROUTES.findIndex(r => r.id === rt.id);
   if (i === -1) ROUTES.push(rt); else ROUTES[i] = rt;
@@ -5669,6 +5682,7 @@ async function drvDateSet(iso){
   _drvDate = iso; _drvDetail = null; _drvRouteId = null; _drvReorderRoute = null;
   renderDriver();                                   // paint immediately with what's already loaded
   try { await loadOrdersForDate(iso); } catch(_){}  // pull that day's orders on demand (past OR future)
+  try { await loadRoutesForDate(iso); } catch(_){}  // …and that day's routes, so past routes reappear
   renderDriver();
 }
 function _drvDateBar(){
