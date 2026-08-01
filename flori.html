@@ -5104,20 +5104,19 @@ async function notifyOTW(o){
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }
-async function startRoute(routeId){
-  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
-  const stops = _drvStops(rt.date).filter(o => o.routeId === routeId && !o.fulfilled && !o.otwAt);
-  const already = !!rt.startedAt;
-  if (!confirm((already ? 'Route already started — resend for un-notified stops?\n\n' : '') +
-      'Start "'+rt.name+'" and send "on the way" to '+stops.length+' customer'+(stops.length===1?'':'s')+'?')) return;
-  if (!already){
-    rt.startedAt = new Date().toISOString();
-    rt.startedBy = currentUserName || 'staff';
-    // Claim an unassigned ("Any driver") route for whoever starts it → the route
-    // now shows their name to everyone (realtime). Never overrides an explicit driver.
-    if (!rt.driver && currentUserName) rt.driver = currentUserName;
-    saveRoute(rt);
-  }
+// "On the way" is sent in a ROLLING WINDOW, not all at once: only the next N
+// undelivered stops are notified, so a customer hears "on the way" when the
+// driver is ~N stops away (not while the driver is still far down the route).
+// The window advances automatically as each stop is delivered (_otwAdvance).
+const OTW_LOOKAHEAD = 2;
+function _otwPendingStops(routeId){
+  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return [];
+  const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
+  return _drvStops(rt.date).filter(o => o.routeId === routeId && !o.fulfilled).sort(bySeq);
+}
+// The next up-to-N undelivered stops that haven't been notified yet.
+function _otwWindowStops(routeId){ return _otwPendingStops(routeId).slice(0, OTW_LOOKAHEAD).filter(o => !o.otwAt); }
+async function _otwNotify(stops){
   let sent = 0, flagged = 0;
   for (let i = 0; i < stops.length; i++){
     const o = stops[i];
@@ -5127,8 +5126,36 @@ async function startRoute(routeId){
     else if (r && (r.csFlag || r.skipped)){ o.otwAt = new Date().toISOString(); o._otwFlag = r.csFlag ? 'no contact' : r.skipped; saveOrders(o); flagged++; }
     else flagged++;
   }
+  return { sent, flagged };
+}
+// Called after a stop is delivered: notify whatever stop has now entered the
+// next-N window (fire-and-forget; server + otwAt both dedupe).
+async function _otwAdvance(routeId){
+  const rt = ROUTES.find(r => r.id === routeId);
+  if (!rt || !rt.startedAt) return;                 // only roll on a started route
+  const next = _otwWindowStops(routeId);
+  if (next.length){ const { sent } = await _otwNotify(next); if (sent) renderDriver(); }
+}
+async function startRoute(routeId){
+  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
+  const already = !!rt.startedAt;
+  const windowStops = _otwWindowStops(routeId);     // only the next N undelivered stops
+  const remaining = _otwPendingStops(routeId).length;
+  if (!windowStops.length && !already){ if (!confirm('Start "'+rt.name+'"? (No stops need an "on the way" message yet.)')) return; }
+  else if (!confirm((already ? 'Route already started.\n\n' : '') +
+      'Start "'+rt.name+'" and send "on the way" to the next '+windowStops.length+' stop'+(windowStops.length===1?'':'s')+'?'
+      + (remaining > windowStops.length ? '\n\nThe remaining '+(remaining-windowStops.length)+' will be notified automatically as you deliver — so no one is told too early.' : ''))) return;
+  if (!already){
+    rt.startedAt = new Date().toISOString();
+    rt.startedBy = currentUserName || 'staff';
+    // Claim an unassigned ("Any driver") route for whoever starts it → the route
+    // now shows their name to everyone (realtime). Never overrides an explicit driver.
+    if (!rt.driver && currentUserName) rt.driver = currentUserName;
+    saveRoute(rt);
+  }
+  const { sent, flagged } = await _otwNotify(windowStops);
   renderDriver();
-  toast('✓ Route started · '+sent+' notified'+(flagged ? ' · '+flagged+' flagged' : ''));
+  toast('✓ Route started · '+sent+' notified'+(flagged ? ' · '+flagged+' flagged' : '')+(remaining > windowStops.length ? ' · rest auto-notify as you deliver' : ''));
 }
 async function resendOTW(orderId){
   const o = ORDERS.find(x => x.id === orderId); if (!o) return;
@@ -7330,13 +7357,13 @@ async function confirmDeliver(id, photoUrl, notify, verb){
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     toast('✓ Marked as '+verb); return;
   }
   toast('Fulfilling in Shopify…');
   try {
     const r = await fulfillInShopify(o, false);   // silent — our own system notifies
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
+    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     if (notify){
       toast('Notifying customer…');
       const res = await notifyCustomerManual(o, photoUrl);
@@ -7353,7 +7380,7 @@ async function confirmDeliver(id, photoUrl, notify, verb){
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
-      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP();
+      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else { toast('Cancelled'); }
   }
