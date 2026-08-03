@@ -1608,6 +1608,7 @@ function _applyShopifyToExisting(prev, m){
     routeId:      prev.routeId || null,
     routeSeq:     prev.routeSeq ?? null,
     proofPhoto:   prev.proofPhoto || null,
+    proofPhotos:  prev.proofPhotos || null,
     lat:          prev.lat ?? null,
     lng:          prev.lng ?? null,
     deliveredLat: prev.deliveredLat ?? null,
@@ -1809,7 +1810,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1832,7 +1833,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -1894,6 +1895,7 @@ async function syncOrders() {
           o.routeSeq     = r.route_seq ?? null;
           o.otwAt        = o.otwAt || r.otw_at || null;
           o.proofPhoto   = o.proofPhoto || r.proof_photo || null;
+          o.proofPhotos  = o.proofPhotos || r.proof_photos || null;
           o.lat          = r.lat ?? o.lat ?? null;
           o.lng          = r.lng ?? o.lng ?? null;
           o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
@@ -1982,7 +1984,7 @@ function _orderRow(o){
     recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otw_at: o.otwAt||null, route_id: o.routeId||null, route_seq: o.routeSeq??null,
-    proof_photo: o.proofPhoto||null,
+    proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null,
     delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null
   };
 }
@@ -2081,7 +2083,7 @@ function _mapDbOrder(o){
     recipName: o.recip_name||null, recipPhone: o.recip_phone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otwAt: o.otw_at||null, routeId: o.route_id||null, routeSeq: o.route_seq??null,
-    proofPhoto: o.proof_photo||null,
+    proofPhoto: o.proof_photo||null, proofPhotos: o.proof_photos||null,
     deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null
   };
 }
@@ -2311,6 +2313,7 @@ function mergeOrderRows(a, b){
   m.routeId      = a.routeId || b.routeId || null;
   m.routeSeq     = a.routeSeq ?? b.routeSeq ?? null;
   m.proofPhoto   = a.proofPhoto || b.proofPhoto || null;
+  m.proofPhotos  = a.proofPhotos || b.proofPhotos || null;
   m.recipName    = a.recipName || b.recipName || null;
   m.recipPhone   = a.recipPhone || b.recipPhone || null;
   m.address      = a.address || b.address || null;
@@ -2355,6 +2358,7 @@ async function migrateOrderIds({ dryRun = false } = {}) {
     merged.route_id      = rows.map(r=>r.route_id).find(Boolean) || null;
     merged.route_seq     = rows.map(r=>r.route_seq).find(v=>v!=null) ?? null;
     merged.proof_photo   = rows.map(r=>r.proof_photo).find(Boolean) || null;
+    merged.proof_photos  = rows.map(r=>r.proof_photos).find(Boolean) || null;
     merged.delivered_lat = rows.map(r=>r.delivered_lat).find(v=>v!=null) ?? null;
     merged.delivered_lng = rows.map(r=>r.delivered_lng).find(v=>v!=null) ?? null;
     merged.delivered_at  = rows.map(r=>r.delivered_at).find(Boolean) || null;
@@ -5371,6 +5375,12 @@ function _drvContactRow(label, name, phone, waHref){
 function _drvDetailView(o){
   const st = _drvStatus(o);
   const nav = _navLinks(o);
+  // Proof-of-delivery: support multiple photos (proofPhotos array), falling back to
+  // the legacy single proofPhoto. Rendered as tap-to-zoom thumbnails in the done state.
+  const _pp = (o.proofPhotos && o.proofPhotos.length) ? o.proofPhotos : (o.proofPhoto ? [o.proofPhoto] : []);
+  const _ppHtml = _pp.length
+    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">' + _pp.map(s=>{ const ss=String(s).replace(/'/g,"\\'"); return '<img src="'+ss+'" onclick="openZoom(\''+ss+'\')" style="width:90px;height:90px;object-fit:cover;border-radius:9px;cursor:zoom-in" onerror="this.style.display=\'none\'">'; }).join('') + '</div>'
+    : '';
   const items = (o.lineItems && o.lineItems.length)
     ? o.lineItems.map(li => '<div style="font-size:12.5px;padding:2px 0">· '+(li.quantity||1)+' × '+esc2(li.title||'')+'</div>').join('')
     : '<div style="font-size:12.5px">· '+esc2(o.product||'—')+'</div>';
@@ -5400,7 +5410,7 @@ function _drvDetailView(o){
       + _drvContactRow('Ship to:', o.recipName || o.customer, o.recipPhone, recipWaLink(o))
     + '</div>'
     + (st==='done'
-        ? ((o.proofPhoto ? '<img src="'+o.proofPhoto+'" style="width:100%;border-radius:10px;margin-bottom:10px" onerror="this.style.display=\'none\'">' : '')
+        ? (_ppHtml
            + (o.deliveredLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);margin-bottom:10px;background:var(--c-surface)">'+di('nav',13)+' Delivered location'+(o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : ''))
         : '<button onclick="markDelivered(\''+o.id+'\')" style="width:100%;padding:14px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #A5D6A7;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">'+di('check',16)+' Mark as delivered</button>'
           + (!o.otwAt ? '<button onclick="resendOTW(\''+o.id+'\')" style="width:100%;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--c-muted)">Send on-the-way notification</button>' : ''))
@@ -7316,16 +7326,17 @@ async function markDelivered(id){
 function openDeliverModal(o, verb){
   const isShopify = o.src === 'shopify';
   const canNotify = isShopify && o.type !== 'pickup';
-  let photoUrl = '';
+  let photoUrls = [];
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   ov.innerHTML = `<div style="background:var(--c-bg,#fff);border-radius:var(--r,10px);max-width:380px;width:100%;padding:20px;box-shadow:0 12px 44px rgba(0,0,0,.35)">
     <div style="font-size:16px;font-weight:700;margin-bottom:4px">Mark ${o.name||'order'} as ${verb}</div>
     <div style="font-size:12.5px;color:var(--c-muted,#888);margin-bottom:16px">${isShopify?'Fulfils in Shopify silently — no Shopify email.':'Marks delivered on this device.'}</div>
-    <div style="font-size:12px;font-weight:600;margin-bottom:6px">Proof of delivery photo <span style="color:var(--c-muted,#999);font-weight:400">(optional)</span></div>
-    <div id="dmZone" style="position:relative;height:120px;border:1.5px dashed var(--c-border,#ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:16px;background-size:cover;background-position:center">
-      <span class="dmLbl" style="text-align:center"><span style="display:inline-flex;color:var(--c-muted)">${di('camera',24)}</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap, drag &amp; drop, or paste</span></span>
-      <input id="dmFile" type="file" accept="image/*" style="position:absolute;inset:0;opacity:0;cursor:pointer">
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px">Proof of delivery photos <span style="color:var(--c-muted,#999);font-weight:400">(optional — add a few)</span></div>
+    <div id="dmThumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div id="dmZone" style="position:relative;height:96px;border:1.5px dashed var(--c-border,#ccc);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:16px">
+      <span class="dmLbl" style="text-align:center"><span style="display:inline-flex;color:var(--c-muted)">${di('camera',24)}</span><br><span style="font-size:12px;color:var(--c-muted,#999)">Tap, drag &amp; drop, or paste — multiple ok</span></span>
+      <input id="dmFile" type="file" accept="image/*" multiple style="position:absolute;inset:0;opacity:0;cursor:pointer">
     </div>
     ${canNotify ? `<label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:18px;cursor:pointer;user-select:none">
       <input id="dmNotify" type="checkbox" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>` : '<div style="height:2px"></div>'}
@@ -7335,37 +7346,48 @@ function openDeliverModal(o, verb){
     </div></div>`;
   document.body.appendChild(ov);
   const zone = ov.querySelector('#dmZone');
-  const applyFile = (f)=>{
-    if(!f) return;
-    if(!/^image\//.test(f.type||'')){ toast('Not an image file'); return; }
-    toast('Uploading…');
-    storePhoto(f, src=>{ photoUrl = src; zone.style.backgroundImage = `url("${src}")`; const l = zone.querySelector('.dmLbl'); if(l) l.style.display='none'; toast('✓ Photo added'); });
+  const thumbs = ov.querySelector('#dmThumbs');
+  const renderThumbs = ()=>{
+    thumbs.innerHTML = photoUrls.map((src,i)=>`<div style="position:relative;width:58px;height:58px;border-radius:7px;overflow:hidden;border:1px solid var(--c-border,#ccc)"><img src="${src}" style="width:100%;height:100%;object-fit:cover"><button data-i="${i}" class="dmRm" title="Remove" style="position:absolute;top:1px;right:1px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0">×</button></div>`).join('');
+    thumbs.querySelectorAll('.dmRm').forEach(b=>{ b.onclick=()=>{ photoUrls.splice(+b.dataset.i,1); renderThumbs(); }; });
   };
-  // Paste an image from the clipboard while the modal is open (Ctrl/⌘-V or right-click Paste).
+  const applyFiles = (files)=>{
+    const imgs = Array.from(files||[]).filter(f=>/^image\//.test(f.type||''));
+    if(!imgs.length){ toast('Not an image file'); return; }
+    toast(imgs.length>1?`Uploading ${imgs.length} photos…`:'Uploading…');
+    let pending = imgs.length;
+    imgs.forEach(f=>storePhoto(f, src=>{ photoUrls.push(src); renderThumbs(); if(--pending===0) toast('✓ Photo'+(imgs.length>1?'s':'')+' added'); }));
+  };
+  // Paste image(s) from the clipboard while the modal is open (Ctrl/⌘-V or right-click Paste).
   const onPaste = e=>{
-    const items = (e.clipboardData && e.clipboardData.items) || [];
-    for (const it of items){ if(it.type && it.type.indexOf('image')===0){ const f = it.getAsFile(); if(f){ e.preventDefault(); applyFile(f); return; } } }
+    const items = (e.clipboardData && e.clipboardData.items) || []; const fs=[];
+    for (const it of items){ if(it.type && it.type.indexOf('image')===0){ const f = it.getAsFile(); if(f) fs.push(f); } }
+    if(fs.length){ e.preventDefault(); applyFiles(fs); }
   };
   const close = ()=>{ document.removeEventListener('paste', onPaste); ov.remove(); };
   ov.addEventListener('click', e=>{ if(e.target===ov) close(); });
   ov.querySelector('#dmCancel').onclick = close;
-  ov.querySelector('#dmFile').onchange = function(){ applyFile(this.files[0]); };
+  ov.querySelector('#dmFile').onchange = function(){ applyFiles(this.files); this.value=''; };
   // Drag & drop — the file input overlays the zone, so drop events bubble up here; preventDefault
   // stops the input's native handling so we upload exactly once.
   ['dragenter','dragover'].forEach(ev=>zone.addEventListener(ev, e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor='var(--c-burg,#1a3d2b)'; }));
   zone.addEventListener('dragleave', e=>{ e.preventDefault(); zone.style.borderColor=''; });
-  zone.addEventListener('drop', e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if(f) applyFile(f); });
+  zone.addEventListener('drop', e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; applyFiles(e.dataTransfer && e.dataTransfer.files); });
   document.addEventListener('paste', onPaste);
   ov.querySelector('#dmOk').onclick = ()=>{
     const notify = canNotify && ov.querySelector('#dmNotify').checked;
     close();
-    confirmDeliver(o.id, photoUrl, notify, verb);
+    confirmDeliver(o.id, photoUrls, notify, verb);
   };
 }
 
-async function confirmDeliver(id, photoUrl, notify, verb){
+async function confirmDeliver(id, photos, notify, verb){
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
-  if (photoUrl) o.proofPhoto = photoUrl;
+  // Accept one photo (legacy) or an array (multi proof). Keep proofPhoto = the first
+  // as the cover, used by the customer notification + card thumbnails.
+  const _photos = Array.isArray(photos) ? photos.filter(Boolean) : (photos ? [photos] : []);
+  if (_photos.length){ o.proofPhotos = _photos; o.proofPhoto = _photos[0]; }
+  const photoUrl = _photos[0] || '';
   // Stamp where the delivery was completed (best-effort foreground GPS fix).
   o.deliveredAt = new Date().toISOString();
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
