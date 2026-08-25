@@ -4956,17 +4956,27 @@ function _drvRoutesFor(iso){
 function driverTab(t){ _drvTab = t; _drvReorderRoute = null; _drvDetail = null; renderDriver(); }
 
 function navMapsLink(o){ const a=_drvAddr(o); return a ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a) : null; }
-// Navigation deep-links — universal https URLs that open the installed app
-// (Google Maps / Waze / Apple Maps) if present, else its web version; they do
-// NOT bounce to the App Store. Driver picks an app per stop.
+// Navigation deep-links. On ANDROID a plain https maps URL opens the browser,
+// not the app — so use the app schemes (google.navigation: / waze://) which
+// launch the actual app in nav mode. iOS + desktop use universal https links
+// (open the app if installed, else web; no App Store bounce). _navBtn only adds
+// target=_blank for http(s) hrefs, so a scheme link lets the OS intercept it
+// (the page stays put instead of opening a blank tab).
 function _navLinks(o){
   const a = _drvAddr(o); if (!a) return null;
   const q = encodeURIComponent(a);
+  if (/Android/i.test(navigator.userAgent || '')){
+    return { gmaps:'google.navigation:q='+q, waze:'waze://?q='+q+'&navigate=yes', apple:null };
+  }
   return { gmaps:'https://www.google.com/maps/dir/?api=1&destination='+q,
            waze:'https://waze.com/ul?q='+q+'&navigate=yes',
            apple:'https://maps.apple.com/?daddr='+q };
 }
-function _navBtn(href,label){ return '<a href="'+href+'" target="_blank" rel="noopener" style="flex:1;min-width:92px;text-align:center;padding:10px 8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);font-weight:600;background:var(--c-surface)">'+esc2(label)+'</a>'; }
+function _navBtn(href,label){
+  if (!href) return '';
+  const blank = /^https?:/i.test(href) ? ' target="_blank" rel="noopener"' : '';
+  return '<a href="'+href+'"'+blank+' style="flex:1;min-width:92px;text-align:center;padding:10px 8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);font-weight:600;background:var(--c-surface)">'+esc2(label)+'</a>';
+}
 // Best-effort current GPS fix (foreground). Resolves {lat,lng} or null; never
 // blocks longer than ~timeout so it can't stall a delivery if GPS is slow/denied.
 // During an active route the watcher keeps a fresh fix cached (maximumAge) → instant.
