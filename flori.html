@@ -5479,6 +5479,44 @@ function _drvItemsView(rt){
 
 // Full route detail: back, totals (stops/km/time), route map, editable start, Start/Reorder/
 // Optimize, a Stops|Items toggle, and an "add orders" section. Two columns on desktop.
+// Route management sheet — one "Manage" button replaces the scattered
+// reorder / optimize / edit / add / delete icons. Role-aware: a plain driver
+// only sees Reorder + Auto-sort; admins get the full set.
+function openRouteManage(routeId){
+  const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
+  const isAdmin = currentUserRole === 'admin';
+  const pending = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
+  const canOpt = pending.filter(o => o.lat != null).length >= 2;
+  const unassigned = _drvStops(_drvDateISO()).filter(o => !o.routeId && !o.fulfilled).length;
+  const row = (icon, label, sub, action, danger) =>
+    '<button onclick="_rmDo(\''+action+'\',\''+rt.id+'\')" style="display:flex;align-items:center;gap:13px;width:100%;text-align:left;padding:14px 16px;border:none;border-top:1px solid var(--c-border);background:var(--c-surface);cursor:pointer">'
+    + '<span style="display:inline-flex;flex:none;color:'+(danger?'var(--c-red)':'var(--c-burg)')+'">'+di(icon,19)+'</span>'
+    + '<span style="min-width:0"><span style="font-size:14px;display:block;color:'+(danger?'var(--c-red)':'var(--c-ink)')+'">'+label+'</span>'+(sub?'<span style="font-size:11px;color:var(--c-muted)">'+sub+'</span>':'')+'</span></button>';
+  let items = '';
+  if (isAdmin || pending.length > 1) items += row('sort','Edit stops', isAdmin ? 'reorder, add & remove stops' : 'drag to reorder','editstops');
+  if (canOpt)             items += row('route','Auto-sort by distance','shortest path from the shop','optimize');
+  if (isAdmin)            items += row('edit','Rename / change driver','','edit');
+  if (isAdmin)            items += row('trash','Delete route','','delete', true);
+  if (!items) items = '<div style="padding:16px;font-size:12px;color:var(--c-muted);border-top:1px solid var(--c-border)">No actions available for this route.</div>';
+  const ov = document.createElement('div');
+  ov.id = 'rm-sheet';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML = '<div style="background:var(--c-surface);border-radius:16px 16px 0 0;max-width:460px;width:100%;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+    + '<div style="padding:15px 16px 11px;font-size:14px;font-weight:700;color:var(--c-ink)">Manage route</div>'
+    + items
+    + '<button onclick="_rmClose()" style="display:block;width:calc(100% - 24px);margin:12px 12px;padding:12px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-bg);font-size:13px;font-weight:600;color:var(--c-muted);cursor:pointer">Cancel</button>'
+    + '</div>';
+  ov.onclick = () => _rmClose();
+  document.body.appendChild(ov);
+}
+function _rmClose(){ const el = document.getElementById('rm-sheet'); if (el) el.remove(); }
+function _rmDo(action, routeId){
+  _rmClose();
+  if (action === 'editstops')     toggleReorder(routeId);   // enter edit mode: drag reorder + ✕ remove + add panel
+  else if (action === 'optimize') optimizeRoute(routeId);
+  else if (action === 'edit')     openRouteModal(routeId);
+  else if (action === 'delete')   deleteRoutePrompt(routeId);
+}
 function _drvRouteDetail(rt){
   const isAdmin = currentUserRole === 'admin';
   const iso = _drvDateISO();
@@ -5502,10 +5540,13 @@ function _drvRouteDetail(rt){
       + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
       + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
-      + (pending.length>1 ? '<button onclick="toggleReorder(\''+rt.id+'\')" aria-label="Reorder stops" title="'+(reorder?'Done reordering':'Reorder stops')+'" style="width:34px;height:34px;border-radius:8px;cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px;'+(reorder?'background:var(--c-burg);color:var(--c-bg);border:1.5px solid var(--c-burg)':'background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted)')+'">'+(reorder?di('check',15):di('sort',15))+'</button>' : '')
-      + (canOpt ? '<button onclick="optimizeRoute(\''+rt.id+'\')" aria-label="Optimize route" title="'+(optimized?'Re-optimize':'Optimize')+' — shortest order from the start point" style="width:34px;height:34px;border-radius:8px;background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px">'+di('route',15)+'</button>' : '')
-      + (isAdmin ? '<button onclick="openRouteModal(\''+rt.id+'\')" aria-label="Edit route" title="Rename / change driver" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center;margin-right:2px">'+di('edit',15)+'</button>' : '')
-      + (isAdmin ? '<button onclick="deleteRoutePrompt(\''+rt.id+'\')" aria-label="Delete route" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-muted);flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('trash',15)+'</button>' : '')
+      // Reorder mode shows a clear "Done" to exit; otherwise one "Manage" button
+      // opens the action sheet with everything (reorder / auto-sort / add / edit / delete).
+      + (reorder
+          ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;cursor:pointer;flex:none;background:var(--c-burg);color:var(--c-bg);border:1.5px solid var(--c-burg);font-size:12px;font-weight:600">'+di('check',15)+' Done</button>'
+          : ((isAdmin || pending.length>1 || canOpt)
+              ? '<button onclick="openRouteManage(\''+rt.id+'\')" aria-label="Manage route" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-burg);flex:none;font-size:12px;font-weight:600">'+di('gear',15)+' Manage</button>'
+              : ''))
     + '</div>'
     // map (prominent, full width)
     + '<div id="drv-map" style="height:360px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:12px;z-index:0"></div>'
@@ -5532,11 +5573,12 @@ function _drvRouteDetail(rt){
     + (_drvRouteTab === 'items'
         ? _drvItemsView(rt)
         : ('<div class="drv-list">'
-            + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet'+(isAdmin && unassigned.length?' — add some below.':'.')+'</div>')
+            + (reorder ? '<div style="font-size:11px;color:var(--c-muted);margin:0 2px 8px;display:flex;align-items:center;gap:5px">'+di('sort',12)+' Drag ≡ to reorder · ✕ to remove'+(isAdmin && unassigned.length?' · add more below':'')+'</div>' : '')
+            + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet'+(isAdmin?(reorder && unassigned.length?' — add below.':' — Manage → Edit stops to add.'):'.')+'</div>')
           + '</div>'
           + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')))
-    // add orders (only when there are unassigned deliveries to add)
-    + (isAdmin && unassigned.length ? '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:14px">'
+    // add orders — shown inside Edit-stops mode only, so add/reorder/remove live together
+    + (isAdmin && reorder && unassigned.length ? '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:14px">'
         + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
         + unassigned.map(o =>
             '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
