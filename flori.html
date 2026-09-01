@@ -1614,6 +1614,7 @@ function _applyShopifyToExisting(prev, m){
     deliveredLat: prev.deliveredLat ?? null,
     deliveredLng: prev.deliveredLng ?? null,
     deliveredAt:  prev.deliveredAt || null,
+    deliveredBy:  prev.deliveredBy || null,
     recipName:    m.recipName  || prev.recipName  || null,
     recipPhone:   m.recipPhone || prev.recipPhone || null,
     address:      m.address    || prev.address    || null,
@@ -1833,7 +1834,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -1901,6 +1902,7 @@ async function syncOrders() {
           o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
           o.deliveredLng = o.deliveredLng ?? r.delivered_lng ?? null;
           o.deliveredAt  = o.deliveredAt || r.delivered_at || null;
+          o.deliveredBy  = o.deliveredBy || r.delivered_by || null;
           o.recipName    = o.recipName  || r.recip_name  || null;
           o.recipPhone   = o.recipPhone || r.recip_phone || null;
           o.address      = o.address    || r.address     || null;
@@ -1985,7 +1987,7 @@ function _orderRow(o){
     lat: o.lat??null, lng: o.lng??null,
     otw_at: o.otwAt||null, route_id: o.routeId||null, route_seq: o.routeSeq??null,
     proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null,
-    delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null
+    delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null, delivered_by: o.deliveredBy||null
   };
 }
 // saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
@@ -2084,7 +2086,7 @@ function _mapDbOrder(o){
     lat: o.lat??null, lng: o.lng??null,
     otwAt: o.otw_at||null, routeId: o.route_id||null, routeSeq: o.route_seq??null,
     proofPhoto: o.proof_photo||null, proofPhotos: o.proof_photos||null,
-    deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null
+    deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null, deliveredBy: o.delivered_by||null
   };
 }
 // Only the recent/active slice of orders is read on launch + focus-refresh, so the
@@ -2322,6 +2324,7 @@ function mergeOrderRows(a, b){
   m.deliveredLat = a.deliveredLat ?? b.deliveredLat ?? null;
   m.deliveredLng = a.deliveredLng ?? b.deliveredLng ?? null;
   m.deliveredAt  = a.deliveredAt || b.deliveredAt || null;
+  m.deliveredBy  = a.deliveredBy || b.deliveredBy || null;
   return m;
 }
 
@@ -2362,6 +2365,7 @@ async function migrateOrderIds({ dryRun = false } = {}) {
     merged.delivered_lat = rows.map(r=>r.delivered_lat).find(v=>v!=null) ?? null;
     merged.delivered_lng = rows.map(r=>r.delivered_lng).find(v=>v!=null) ?? null;
     merged.delivered_at  = rows.map(r=>r.delivered_at).find(Boolean) || null;
+    merged.delivered_by  = rows.map(r=>r.delivered_by).find(Boolean) || null;
     merged.recip_name    = rows.map(r=>r.recip_name).find(Boolean) || null;
     merged.recip_phone   = rows.map(r=>r.recip_phone).find(Boolean) || null;
     merged.address       = rows.map(r=>r.address).find(Boolean) || null;
@@ -5340,6 +5344,28 @@ function _drvStatusText(o){
   return st==='done' ? 'delivered' : st==='otw' ? 'on the way' : 'pending';
 }
 
+// Rank a free-text delivery time window into minutes-of-day, for sorting the
+// delivered list earliest→latest. Handles "before 9am", "2:00 PM – 6:00 PM",
+// "morning/afternoon/evening", plain "9am"; unknown/empty sort last.
+function _timeRank(t){
+  if (!t) return 1e9;
+  const s = String(t).toLowerCase();
+  const m = s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if (m){
+    let h = parseInt(m[1],10); const mi = m[2] ? parseInt(m[2],10) : 0; const ap = m[3];
+    if (ap==='pm' && h<12) h += 12;
+    if (ap==='am' && h===12) h = 0;
+    if (!ap && h<8) h += 12;                 // a bare "2"/"6" on a delivery is almost always afternoon
+    if (h>=0 && h<24) return h*60 + mi;
+  }
+  if (/morning/.test(s))   return 540;
+  if (/afternoon/.test(s)) return 840;
+  if (/evening/.test(s))   return 1080;
+  if (/night/.test(s))     return 1200;
+  if (/noon/.test(s))      return 720;
+  return 1e9 - 1;
+}
+function _byTime(a,b){ return _timeRank(a.dueTime) - _timeRank(b.dueTime) || String(a.name||'').localeCompare(String(b.name||'')); }
 // Minimal one-line stop row (list + below-map). Tap → detail. Reorder mode adds a
 // drag handle + unassign; taps are disabled while reordering.
 function _drvRow(o, opts){
@@ -5421,7 +5447,8 @@ function _drvDetailView(o){
     + '</div>'
     + (st==='done'
         ? (_ppHtml
-           + (o.deliveredLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);margin-bottom:10px;background:var(--c-surface)">'+di('nav',13)+' Delivered location'+(o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : ''))
+           + (o.deliveredLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);margin-bottom:10px;background:var(--c-surface)">'+di('nav',13)+' Delivered location'+(o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : '')
+           + ((o.deliveredBy || o.deliveredAt) ? '<div style="font-size:11px;color:var(--c-muted);text-align:center;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:5px">'+di('user',12)+' Delivered'+(o.deliveredBy?' by '+esc2(o.deliveredBy):'')+(o.deliveredLat==null && o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</div>' : ''))
         : '<button onclick="markDelivered(\''+o.id+'\')" style="width:100%;padding:14px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #A5D6A7;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">'+di('check',16)+' Mark as delivered</button>'
           + (!o.otwAt ? '<button onclick="resendOTW(\''+o.id+'\')" style="width:100%;padding:10px;background:var(--c-bg);border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;cursor:pointer;color:var(--c-muted)">Send on-the-way notification</button>' : ''))
     + (o._otwFlag ? '<div style="font-size:11px;color:#E65100;margin-top:6px">'+di('warn',12)+' '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '')
@@ -5522,7 +5549,7 @@ function _drvRouteDetail(rt){
   const iso = _drvDateISO();
   const stops = _drvStopsForRoute(rt.id);
   const pending = stops.filter(o => !o.fulfilled);
-  const done = stops.filter(o => o.fulfilled);
+  const done = stops.filter(o => o.fulfilled).sort(_byTime);   // delivered: earliest → latest time
   const reorder = _drvReorderRoute === rt.id;
   const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
   const m = _routeMetrics[rt.id];
@@ -5868,7 +5895,7 @@ function renderDriver(){
   const routeBlocks = routes.length
     ? routes.map(rt => _drvRouteBlock(rt)).join('')
     : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">'+(isAdmin?'No routes yet - tap "+ New route".':'No deliveries assigned to you yet.')+'</div>';
-  const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled) : [];
+  const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled).sort(_byTime) : [];   // delivered: earliest → latest time
   const deliveredBlock = doneUnrouted.length
     ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
     : '';
@@ -7440,8 +7467,10 @@ async function confirmDeliver(id, photos, notify, verb){
   const _photos = Array.isArray(photos) ? photos.filter(Boolean) : (photos ? [photos] : []);
   if (_photos.length){ o.proofPhotos = _photos; o.proofPhoto = _photos[0]; }
   const photoUrl = _photos[0] || '';
-  // Stamp where the delivery was completed (best-effort foreground GPS fix).
+  // Stamp who + when + where the delivery was completed (internal record only —
+  // deliveredBy is shown in the app, never sent to the customer).
   o.deliveredAt = new Date().toISOString();
+  o.deliveredBy = currentUserName || (currentUser ? currentUser.email : '') || 'staff';
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
