@@ -677,8 +677,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .stock-tab.on{background:var(--c-burg);color:var(--c-bg)}
 .stk-cat{font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);padding:16px 0 8px;display:flex;align-items:center;gap:10px}
 .stk-cat::after{content:'';flex:1;height:1px;background:var(--c-border)}
-.stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
-@media(max-width:480px){.stk-grid{grid-template-columns:1fr 1fr}}
+.stk-grid{display:grid;grid-template-columns:1fr;gap:8px;max-width:640px}
 .stk-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;transition:all .12s;position:relative}
 .stk-card:hover{border-color:var(--c-border2);box-shadow:0 2px 8px rgba(77,14,19,.08)}
 .stk-card.low{border-color:#EF9A9A;background:#FFF5F5}
