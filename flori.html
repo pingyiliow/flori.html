@@ -3086,11 +3086,13 @@ function _invUnitInfo(u){
   return { name:u.item.name||'', qty:u.item.qty||0, low:_invLow(u.item) };
 }
 function _invCard(i){
-  const low=_invLow(i); const reorder=(i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW;
+  const low=_invLow(i);
+  // Reorder point is NOT shown normally (was confusing "补5" on every card); only a
+  // red "低 · 该补货" prompt appears when the item is at/below its reorder point.
   const sub=[i.unit||'', i.size||'', (i.price!=null&&i.price!==''?('RM '+_invPriceStr(i.price)):'')].filter(Boolean).join(' · ');
   return '<div class="stk-card '+(low?'low':'')+'">'
     +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="editInv(\''+i.id+'\')">'+_invThumb(i.photo,_invIcon(i.cat))
-      +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+(low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低</span>':'')+'</div><div class="stk-unit">'+esc(sub)+(sub?' · ':'')+'补'+reorder+'</div></div></div>'
+      +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+(low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 5px">低 · 该补货</span>':'')+'</div><div class="stk-unit">'+esc(sub)+'</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:6px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)+'</div>'
   +'</div>';
 }
@@ -3104,9 +3106,9 @@ function _invFamCard(u){
     +'</div>';
   if(expanded){
     u.items.slice().sort((a,b)=> _invSort==='qty'?((b.qty||0)-(a.qty||0)):String(a.color||a.name).localeCompare(String(b.color||b.name))).forEach(i=>{
-      const low=_invLow(i), reorder=(i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW;
+      const low=_invLow(i);
       h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(low?';background:#FFF5F5':'')+'">'+_invThumb(i.photo,ic,30)
-        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="editInv(\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 3px">低</span>':'')+' <span style="font-size:10px;color:var(--c-muted)">补'+reorder+'</span></div>'
+        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="editInv(\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低 · 该补货</span>':'')+'</div>'
         +'<span class="stk-qty '+(low?'low':'')+'" style="font-size:17px;min-width:20px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)
       +'</div>';
     });
