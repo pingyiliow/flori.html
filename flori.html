@@ -191,7 +191,10 @@
       <div id="stock-pane-inv">
         <div class="page-hdr" style="margin-bottom:0">
           <div style="font-size:11px;color:var(--c-muted)">Track stems, materials & supplies</div>
-          <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost btn-sm" onclick="openCatManager()">管理分类</button>
+            <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
+          </div>
         </div>
         <div id="inv-body"></div>
       </div>
@@ -626,13 +629,7 @@
       <div class="fg fg-2" id="i-form">
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name 名称</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
         <div class="ff"><label class="ff-l">Category 分类</label>
-          <select id="i-cat">
-            <option value="cut">Cut Flowers</option><option value="green">Greenery</option>
-            <option value="dried">Dried</option><option value="pot">Pots · 花盆</option>
-            <option value="vase">Vases</option><option value="wrap">Wrapping · 花纸</option>
-            <option value="ribbon">Ribbons</option><option value="acc">Accessories · 配件</option>
-            <option value="foam">Foam</option><option value="other">Other</option>
-          </select>
+          <select id="i-cat" onchange="invCatSelect(this)"></select>
         </div>
         <div class="ff"><label class="ff-l">款式 Family <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-family" type="text" placeholder="e.g. 玫瑰 (同款多色归一组)"></div>
         <div class="ff"><label class="ff-l">颜色 Color <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-color" type="text" placeholder="e.g. 红 / 粉 / 白"></div>
@@ -666,6 +663,19 @@
         <button class="btn btn-ghost" id="i-del-btn" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteInvItem()">Delete</button>
         <button class="btn btn-ghost" onclick="closeModal('m-inv')">Cancel</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Manage Categories ═════════════════════════════ -->
+<div id="m-cats" class="modal">
+  <div class="mc" style="max-width:380px">
+    <div class="mc-hdr"><div class="mc-ttl">管理分类 Categories</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cats')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div style="font-size:11px;color:var(--c-muted);margin-bottom:8px;line-height:1.5">改名、删除、或加新分类。删除有货品的分类，那些货品会移到「其他」。跨设备同步。</div>
+      <div id="cats-list"></div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="catAdd()">＋ 新分类 New category</button>
+      <div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="closeModal('m-cats')">完成 Done</button></div>
     </div>
   </div>
 </div>
@@ -1166,6 +1176,7 @@ async function showApp() {
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
   subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
+  loadInvCats();       // editable stock categories (shared settings)
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -3034,7 +3045,61 @@ function switchStockTab(tab) {
   document.getElementById('stock-tab-pur').classList.toggle('on', !isInv);
 }
 
-const INV_CAT = {cut:di('flower',14)+' Cut Flowers',green:di('leaf',14)+' Greenery',dried:di('wheat',14)+' Dried Flowers',pot:di('vase',14)+' Pots · 花盆',vase:di('vase',14)+' Vases & Containers',wrap:di('note',14)+' Wrapping · 花纸',ribbon:di('gift',14)+' Ribbons',acc:di('gift',14)+' Accessories · 配件',foam:di('box',14)+' Floral Foam',other:di('box',14)+' Other'};
+// Editable categories — fully user-managed (add / rename / delete, no locked
+// built-ins), stored in the shared settings table so all devices stay in sync.
+// Seeded with sensible florist defaults; keys stay stable so existing items keep
+// their category even after a rename.
+const _INV_CAT_DEFAULT = [
+  {key:'cut',label:'Cut Flowers 鲜花'},{key:'green',label:'Greenery 绿叶'},{key:'dried',label:'Dried 干花'},
+  {key:'pot',label:'Pots 花盆'},{key:'vase',label:'Vases 花瓶'},{key:'wrap',label:'Wrapping 花纸'},
+  {key:'ribbon',label:'Ribbons 缎带'},{key:'acc',label:'Accessories 配件'},{key:'foam',label:'Foam 花泥'},
+  {key:'other',label:'Other 其他'}
+];
+let INV_CATS = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-inv-cats')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(_){} return _INV_CAT_DEFAULT.map(c=>({...c})); })();
+function _catLabel(key){ const c=INV_CATS.find(x=>x.key===key); return c?c.label:(key||'other'); }
+function _catIndex(key){ const i=INV_CATS.findIndex(x=>x.key===key); return i<0?999:i; }
+function _catNewKey(){ return 'c-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+async function loadInvCats(){
+  if(!hasSB()) return;
+  try{ const v=await sbGetVal('inv_categories'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null;
+    if(Array.isArray(arr)&&arr.length){ INV_CATS=arr; try{ _lsSet('flori-inv-cats',JSON.stringify(arr)); }catch(_){} if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){}
+}
+function saveInvCats(){ try{ _lsSet('flori-inv-cats',JSON.stringify(INV_CATS)); }catch(_){} if(hasSB()) sbSet('inv_categories', JSON.stringify(INV_CATS)); }
+// Dropdown in the item modal — built from INV_CATS + a "＋ 新分类" option.
+function _fillCatSelect(sel){
+  const el=document.getElementById('i-cat'); if(!el) return;
+  el.innerHTML = INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===sel?' selected':'')+'>'+esc(c.label)+'</option>').join('')
+    + '<option value="__new__">＋ 新分类 New…</option>';
+}
+function invCatSelect(el){
+  if(el.value!=='__new__') return;
+  const name=(prompt('新分类名称 New category:')||'').trim();
+  if(name){ const key=_catNewKey(); INV_CATS.push({key,label:name}); saveInvCats(); _fillCatSelect(key); }
+  else _fillCatSelect(INV_CATS[0]?INV_CATS[0].key:'other');
+}
+// Manage panel — add / rename / delete any category.
+function openCatManager(){ _renderCatsList(); openModal('m-cats'); }
+function _renderCatsList(){
+  const el=document.getElementById('cats-list'); if(!el) return;
+  el.innerHTML = INV_CATS.map(c=>{ const count=INVENTORY.filter(i=>(i.cat||'other')===c.key).length;
+    return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
+      +'<span style="flex:1;min-width:0;font-size:13px">'+esc(c.label)+(count?' <span style="font-size:10px;color:var(--c-muted)">· '+count+' 样</span>':'')+'</span>'
+      +'<button onclick="catRename(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px" title="改名">'+di('edit',15)+'</button>'
+      +'<button onclick="catDelete(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-red);padding:4px" title="删除">'+di('trash',15)+'</button>'
+    +'</div>'; }).join('') || '<div style="font-size:12px;color:var(--c-muted);padding:8px 0">还没有分类</div>';
+}
+function catAdd(){ const n=(prompt('新分类名称 New category:')||'').trim(); if(!n) return; INV_CATS.push({key:_catNewKey(),label:n}); saveInvCats(); _renderCatsList(); renderInventory(); }
+function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt('改名 Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; saveInvCats(); _renderCatsList(); renderInventory(); }
+function catDelete(key){
+  const c=INV_CATS.find(x=>x.key===key); if(!c) return;
+  const affected=INVENTORY.filter(i=>(i.cat||'other')===key);
+  if(!confirm('删除「'+c.label+'」？'+(affected.length?('\n这 '+affected.length+' 样货品会移到「其他」。'):''))) return;
+  affected.forEach(i=>{ i.cat='other'; });
+  INV_CATS=INV_CATS.filter(x=>x.key!==key);
+  if(!INV_CATS.some(x=>x.key==='other')) INV_CATS.push({key:'other',label:'Other 其他'});
+  if(affected.length) saveInventory();
+  saveInvCats(); _renderCatsList(); renderInventory();
+}
 const INV_LOW = 5; // qty at or below this is flagged low-stock
 
 // ── Stock v3 — search + sort + category chips + family (color) grouping + total value ──
@@ -3052,7 +3117,7 @@ function invSort(s){ _invSort=s; renderInventory(); }
 function invCat(c){ _invCat=c; renderInventory(); }
 function invToggleFam(key){ if(_invExpanded.has(key)) _invExpanded.delete(key); else _invExpanded.add(key); renderInventory(); }
 function invOnSearch(v){ _invSearch=v||''; const el=document.getElementById('inv-list'); if(el) el.innerHTML=_invListHTML(); }   // update list only → keep search focus
-function _invCatLabel(cat){ return String(INV_CAT[cat]||cat).replace(/<svg[\s\S]*?<\/svg>\s*/,'').trim(); }
+function _invCatLabel(cat){ return _catLabel(cat); }
 function _invPriceStr(p){ return Number(p).toFixed(2).replace(/\.00$/,''); }
 function _invIcon(cat){ return cat==='wrap'?'note':(cat==='pot'||cat==='vase')?'vase':(cat==='acc'||cat==='ribbon')?'gift':'flower'; }
 function _invThumb(photo, ic, size){
@@ -3074,7 +3139,7 @@ function _invTotalStrip(){
     +'</div>';
 }
 function _invChips(){
-  const present=[...new Set(INVENTORY.map(i=>i.cat||'other'))].sort((a,b)=>((_INV_ORDER.indexOf(a)+1)||99)-((_INV_ORDER.indexOf(b)+1)||99));
+  const present=[...new Set(INVENTORY.map(i=>i.cat||'other'))].sort((a,b)=>_catIndex(a)-_catIndex(b));
   const chip=(c,label,low)=>{ const on=_invCat===c;
     return '<button type="button" onclick="invCat(\''+c+'\')" style="cursor:pointer;font-size:12px;padding:5px 13px;border-radius:20px;white-space:nowrap;border:1.5px solid '+(on?'var(--c-burg)':'var(--c-border)')+';background:'+(on?'var(--c-burg)':'var(--c-surface)')+';color:'+(on?'var(--c-bg)':'var(--c-muted)')+'">'+esc(label)+(low?' <b style="color:'+(on?'#fff':'var(--c-red)')+'">'+low+'</b>':'')+'</button>'; };
   let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('','全部',0);
@@ -3124,7 +3189,7 @@ function _invListHTML(){
   });
   if(!items.length) return '<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">没有符合的 · no match</div>';
   const byCat={}; items.forEach(i=>{(byCat[i.cat||'other']=byCat[i.cat||'other']||[]).push(i);});
-  const cats=Object.keys(byCat).sort((a,b)=>((_INV_ORDER.indexOf(a)+1)||99)-((_INV_ORDER.indexOf(b)+1)||99));
+  const cats=Object.keys(byCat).sort((a,b)=>_catIndex(a)-_catIndex(b));
   let html='';
   cats.forEach(cat=>{
     const fams={}, singles=[];
@@ -3137,7 +3202,7 @@ function _invListHTML(){
       if(_invSort==='qty') return b.qty-a.qty;
       return a.name.localeCompare(b.name);
     });
-    html+='<div class="stk-cat">'+(INV_CAT[cat]||cat)+'</div><div class="stk-grid">';
+    html+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
     units.forEach(u=>{ html += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
     html+='<button class="stk-add" onclick="openAddInv(\''+cat+'\')">+ Add</button></div>';
   });
@@ -7205,7 +7270,7 @@ function openAddOrder(){
 function openAddInv(cat) {
   document.getElementById('i-edit-id').value = '';
   document.getElementById('i-name').value = '';
-  document.getElementById('i-cat').value = (typeof cat === 'string' && cat) ? cat : 'cut';
+  _fillCatSelect((typeof cat === 'string' && cat) ? cat : (INV_CATS[0]?INV_CATS[0].key:'cut'));
   document.getElementById('i-family').value = '';
   document.getElementById('i-color').value = '';
   document.getElementById('i-sku').value = '';
@@ -7227,7 +7292,7 @@ function editInv(id) {
   const i = INVENTORY.find(x => x.id === id); if (!i) return;
   document.getElementById('i-edit-id').value = i.id;
   document.getElementById('i-name').value = i.name || '';
-  document.getElementById('i-cat').value = i.cat || 'other';
+  _fillCatSelect(i.cat || 'other');
   document.getElementById('i-family').value = i.family || '';
   document.getElementById('i-color').value = i.color || '';
   document.getElementById('i-sku').value = i.sku || '';
