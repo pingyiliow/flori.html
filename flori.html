@@ -619,9 +619,13 @@
     <div class="mc-hdr"><div class="mc-ttl" id="m-inv-ttl">Add Stock Item</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-inv')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="i-edit-id">
-      <div class="fg fg-2">
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
-        <div class="ff"><label class="ff-l">Category</label>
+      <div id="i-tabs" style="display:none;gap:6px;margin-bottom:12px">
+        <button type="button" id="i-tab-d" onclick="invTab('d')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg)">详情 Details</button>
+        <button type="button" id="i-tab-s" onclick="invTab('s')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-muted)">库存 Stock</button>
+      </div>
+      <div class="fg fg-2" id="i-form">
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name 名称</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
+        <div class="ff"><label class="ff-l">Category 分类</label>
           <select id="i-cat">
             <option value="cut">Cut Flowers</option><option value="green">Greenery</option>
             <option value="dried">Dried</option><option value="pot">Pots · 花盆</option>
@@ -630,6 +634,9 @@
             <option value="foam">Foam</option><option value="other">Other</option>
           </select>
         </div>
+        <div class="ff"><label class="ff-l">款式 Family <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-family" type="text" placeholder="e.g. 玫瑰 (同款多色归一组)"></div>
+        <div class="ff"><label class="ff-l">颜色 Color <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-color" type="text" placeholder="e.g. 红 / 粉 / 白"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">SKU 货号 <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-sku" type="text" placeholder="e.g. FL-ROSE-RD"></div>
         <div class="ff"><label class="ff-l">Quantity 数量</label><input id="i-qty" type="number" value="0" min="0"></div>
         <div class="ff"><label class="ff-l">Unit 单位</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
         <div class="ff"><label class="ff-l">Size 尺寸</label><input id="i-size" type="text" placeholder="e.g. 6寸 / 20cm"></div>
@@ -2047,6 +2054,7 @@ function saveOrders(changed) {
 }
 function _invRow(i){
   return { id:i.id, name:i.name, cat:i.cat||'other', qty:i.qty||0, unit:i.unit||'pcs',
+    sku:i.sku||null, family:i.family||null, color:i.color||null,
     size:i.size||null, price:(i.price==null||i.price===''?null:Number(i.price)),
     reorder:(i.reorder==null||i.reorder===''?null:parseInt(i.reorder,10)),
     notes:i.notes||null, photo:i.photo||null, moves:Array.isArray(i.moves)?i.moves:null };
@@ -3029,37 +3037,123 @@ function switchStockTab(tab) {
 const INV_CAT = {cut:di('flower',14)+' Cut Flowers',green:di('leaf',14)+' Greenery',dried:di('wheat',14)+' Dried Flowers',pot:di('vase',14)+' Pots · 花盆',vase:di('vase',14)+' Vases & Containers',wrap:di('note',14)+' Wrapping · 花纸',ribbon:di('gift',14)+' Ribbons',acc:di('gift',14)+' Accessories · 配件',foam:di('box',14)+' Floral Foam',other:di('box',14)+' Other'};
 const INV_LOW = 5; // qty at or below this is flagged low-stock
 
-function renderInventory() {
-  const cont = document.getElementById('inv-body');
-  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
-  const byCat = {};
-  INVENTORY.forEach(i => { (byCat[i.cat]=byCat[i.cat]||[]).push(i); });
-  const order = ['cut','green','dried','pot','vase','wrap','ribbon','acc','foam','other'];
-  const cats = Object.keys(byCat).sort((a,b)=>((order.indexOf(a)+1)||99)-((order.indexOf(b)+1)||99));
-  let html = '';
-  cats.forEach(cat => {
-    const label = INV_CAT[cat] || cat;
-    const cards = byCat[cat].map(i => {
-      const low = _invLow(i);
-      const reorder = (i.reorder!=null && i.reorder!=='') ? i.reorder : INV_LOW;
-      const thumb = i.photo
-        ? `<img class="stk-thumb" src="${esc(i.photo)}" alt="" onclick="event.stopPropagation();openZoom('${String(i.photo).replace(/'/g,"\\'")}','')">`
-        : `<div class="stk-thumb" style="display:flex;align-items:center;justify-content:center;color:var(--c-dpink)">${di('box',18)}</div>`;
-      const sub = [i.unit||'', i.size||'', (i.price!=null&&i.price!==''?('RM '+Number(i.price).toFixed(2).replace(/\.00$/,'')):'')].filter(Boolean).join(' · ');
-      return `<div class="stk-card ${low?'low':''}">
-        <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="editInv('${i.id}')">${thumb}
-          <div class="stk-left"><div class="stk-name">${esc(i.name)}${low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低 LOW</span>':''}</div><div class="stk-unit">${esc(sub)}${sub?' · ':''}补${reorder}</div></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:7px;flex:none">
-          <span class="stk-qty ${low?'low':''}" style="min-width:24px;text-align:right">${i.qty||0}</span>
-          <button type="button" onclick="event.stopPropagation();invAdjust('${i.id}',-1,'out')" title="用掉 1 / Use 1" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:17px;line-height:1;cursor:pointer;flex:none">−</button>
-          <button type="button" onclick="event.stopPropagation();invAdjust('${i.id}',1,'in')" title="收货 1 / Receive 1" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg);font-size:17px;line-height:1;cursor:pointer;flex:none">＋</button>
-        </div>
-      </div>`;
-    }).join('');
-    html += `<div class="stk-cat">${label}</div><div class="stk-grid">${cards}<button class="stk-add" onclick="openAddInv('${cat}')">+ Add</button></div>`;
+// ── Stock v3 — search + sort + category chips + family (color) grouping + total value ──
+let _invSearch='', _invSort='low', _invCat='';
+const _invExpanded = new Set();   // expanded family group keys (cat|family)
+const _INV_ORDER = ['cut','green','dried','pot','vase','wrap','ribbon','acc','foam','other'];
+function invTab(t){
+  const f=document.getElementById('i-form'), a=document.getElementById('i-adjust-sec');
+  if(f) f.style.display = t==='d' ? '' : 'none';
+  if(a) a.style.display = t==='s' ? '' : 'none';
+  [['d','i-tab-d'],['s','i-tab-s']].forEach(([k,id])=>{ const el=document.getElementById(id); if(!el) return; const on=(k===t);
+    el.style.background=on?'var(--c-burg)':'var(--c-surface)'; el.style.color=on?'var(--c-bg)':'var(--c-muted)'; el.style.borderColor=on?'var(--c-burg)':'var(--c-border)'; });
+}
+function invSort(s){ _invSort=s; renderInventory(); }
+function invCat(c){ _invCat=c; renderInventory(); }
+function invToggleFam(key){ if(_invExpanded.has(key)) _invExpanded.delete(key); else _invExpanded.add(key); renderInventory(); }
+function invOnSearch(v){ _invSearch=v||''; const el=document.getElementById('inv-list'); if(el) el.innerHTML=_invListHTML(); }   // update list only → keep search focus
+function _invCatLabel(cat){ return String(INV_CAT[cat]||cat).replace(/<svg[\s\S]*?<\/svg>\s*/,'').trim(); }
+function _invPriceStr(p){ return Number(p).toFixed(2).replace(/\.00$/,''); }
+function _invIcon(cat){ return cat==='wrap'?'note':(cat==='pot'||cat==='vase')?'vase':(cat==='acc'||cat==='ribbon')?'gift':'flower'; }
+function _invThumb(photo, ic, size){
+  size = size || 40;
+  return photo
+    ? '<img src="'+esc(photo)+'" alt="" onclick="event.stopPropagation();openZoom(\''+String(photo).replace(/'/g,"\\'")+'\',\'\')" style="width:'+size+'px;height:'+size+'px;border-radius:9px;object-fit:cover;flex:none;background:var(--c-bg);cursor:zoom-in">'
+    : '<div style="width:'+size+'px;height:'+size+'px;border-radius:9px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-dpink);flex:none">'+di(ic||'box',Math.round(size*0.5))+'</div>';
+}
+function _invPM(id){
+  return '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',-1,\'out\')" title="用掉 1" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:13px;line-height:1;cursor:pointer;flex:none">−</button>'
+    + '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',1,\'in\')" title="收货 1" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg);font-size:13px;line-height:1;cursor:pointer;flex:none">＋</button>';
+}
+function _invTotalStrip(){
+  let qty=0, val=0;
+  INVENTORY.forEach(i=>{ qty+=(i.qty||0); if(i.price!=null&&i.price!=='') val+=(i.qty||0)*Number(i.price); });
+  return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--c-burg);color:var(--c-bg);border-radius:12px;padding:11px 16px;margin-bottom:14px">'
+    +'<div><div style="font-size:10px;opacity:.7">总数量 Total qty</div><div style="font-size:16px;font-weight:700">'+qty+'</div></div>'
+    +'<div style="text-align:right"><div style="font-size:10px;opacity:.7">库存总值 (成本)</div><div style="font-size:16px;font-weight:700">RM '+val.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'
+    +'</div>';
+}
+function _invChips(){
+  const present=[...new Set(INVENTORY.map(i=>i.cat||'other'))].sort((a,b)=>((_INV_ORDER.indexOf(a)+1)||99)-((_INV_ORDER.indexOf(b)+1)||99));
+  const chip=(c,label,low)=>{ const on=_invCat===c;
+    return '<button type="button" onclick="invCat(\''+c+'\')" style="cursor:pointer;font-size:12px;padding:5px 13px;border-radius:20px;white-space:nowrap;border:1.5px solid '+(on?'var(--c-burg)':'var(--c-border)')+';background:'+(on?'var(--c-burg)':'var(--c-surface)')+';color:'+(on?'var(--c-bg)':'var(--c-muted)')+'">'+esc(label)+(low?' <b style="color:'+(on?'#fff':'var(--c-red)')+'">'+low+'</b>':'')+'</button>'; };
+  let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('','全部',0);
+  present.forEach(c=>{ const low=INVENTORY.filter(i=>(i.cat||'other')===c && _invLow(i)).length; h+=chip(c,_invCatLabel(c),low); });
+  return h+'</div>';
+}
+function _invUnitInfo(u){
+  if(u.type==='fam') return { name:u.name, qty:u.items.reduce((s,i)=>s+(i.qty||0),0), low:u.items.some(_invLow) };
+  return { name:u.item.name||'', qty:u.item.qty||0, low:_invLow(u.item) };
+}
+function _invCard(i){
+  const low=_invLow(i); const reorder=(i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW;
+  const sub=[i.unit||'', i.size||'', (i.price!=null&&i.price!==''?('RM '+_invPriceStr(i.price)):'')].filter(Boolean).join(' · ');
+  return '<div class="stk-card '+(low?'low':'')+'">'
+    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="editInv(\''+i.id+'\')">'+_invThumb(i.photo,_invIcon(i.cat))
+      +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+(low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低</span>':'')+'</div><div class="stk-unit">'+esc(sub)+(sub?' · ':'')+'补'+reorder+'</div></div></div>'
+    +'<div style="display:flex;align-items:center;gap:6px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)+'</div>'
+  +'</div>';
+}
+function _invFamCard(u){
+  const info=_invUnitInfo(u), expanded=_invExpanded.has(u.key);
+  const cover=u.items.map(x=>x.photo).find(Boolean), ic=_invIcon(u.items[0]&&u.items[0].cat);
+  let h='<div class="stk-card" style="display:block;padding:0;overflow:hidden">'
+    +'<div onclick="invToggleFam(\''+u.key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--c-bg);cursor:pointer">'+_invThumb(cover,ic)
+      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(info.name)+' <span style="font-size:10px;color:var(--c-muted);font-weight:400">· 款式</span></div><div class="stk-unit">'+u.items.length+' 色 · 共 '+info.qty+(info.low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div>'
+      +'<span style="color:var(--c-muted);font-size:13px">'+(expanded?'▴':'▾')+'</span>'
+    +'</div>';
+  if(expanded){
+    u.items.slice().sort((a,b)=> _invSort==='qty'?((b.qty||0)-(a.qty||0)):String(a.color||a.name).localeCompare(String(b.color||b.name))).forEach(i=>{
+      const low=_invLow(i), reorder=(i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW;
+      h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(low?';background:#FFF5F5':'')+'">'+_invThumb(i.photo,ic,30)
+        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="editInv(\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 3px">低</span>':'')+' <span style="font-size:10px;color:var(--c-muted)">补'+reorder+'</span></div>'
+        +'<span class="stk-qty '+(low?'low':'')+'" style="font-size:17px;min-width:20px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)
+      +'</div>';
+    });
+  }
+  return h+'</div>';
+}
+function _invListHTML(){
+  const q=(_invSearch||'').trim().toLowerCase();
+  const items=INVENTORY.filter(i=>{
+    if(_invCat && (i.cat||'other')!==_invCat) return false;
+    if(q){ const hay=[i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
+    return true;
   });
-  cont.innerHTML = html;
+  if(!items.length) return '<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">没有符合的 · no match</div>';
+  const byCat={}; items.forEach(i=>{(byCat[i.cat||'other']=byCat[i.cat||'other']||[]).push(i);});
+  const cats=Object.keys(byCat).sort((a,b)=>((_INV_ORDER.indexOf(a)+1)||99)-((_INV_ORDER.indexOf(b)+1)||99));
+  let html='';
+  cats.forEach(cat=>{
+    const fams={}, singles=[];
+    byCat[cat].forEach(i=>{ const fk=(i.family||'').trim(); if(fk) (fams[fk]=fams[fk]||[]).push(i); else singles.push(i); });
+    let units=[];
+    Object.keys(fams).forEach(k=>{ const list=fams[k]; if(list.length>1) units.push({type:'fam',key:cat+'|'+k,name:k,items:list}); else singles.push(list[0]); });
+    singles.forEach(i=>units.push({type:'one',item:i}));
+    units.sort((A,B)=>{ const a=_invUnitInfo(A), b=_invUnitInfo(B);
+      if(_invSort==='low'){ if(a.low!==b.low) return a.low?-1:1; return a.name.localeCompare(b.name); }
+      if(_invSort==='qty') return b.qty-a.qty;
+      return a.name.localeCompare(b.name);
+    });
+    html+='<div class="stk-cat">'+(INV_CAT[cat]||cat)+'</div><div class="stk-grid">';
+    units.forEach(u=>{ html += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
+    html+='<button class="stk-add" onclick="openAddInv(\''+cat+'\')">+ Add</button></div>';
+  });
+  return html;
+}
+function renderInventory() {
+  const cont = document.getElementById('inv-body'); if(!cont) return;
+  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
+  cont.innerHTML =
+    '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
+      +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="搜索 名字/款式/颜色/SKU…" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
+      +'<select onchange="invSort(this.value)" style="border:1.5px solid var(--c-border);border-radius:10px;padding:8px;background:var(--c-surface);color:var(--c-ink);font-size:12px">'
+        +[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少']].map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
+      +'</select>'
+    +'</div>'
+    + _invChips()
+    + _invTotalStrip()
+    + '<div id="inv-list">'+_invListHTML()+'</div>';
 }
 
 function renderPurchase() {
@@ -7110,6 +7204,9 @@ function openAddInv(cat) {
   document.getElementById('i-edit-id').value = '';
   document.getElementById('i-name').value = '';
   document.getElementById('i-cat').value = (typeof cat === 'string' && cat) ? cat : 'cut';
+  document.getElementById('i-family').value = '';
+  document.getElementById('i-color').value = '';
+  document.getElementById('i-sku').value = '';
   document.getElementById('i-qty').value = '0';
   document.getElementById('i-unit').value = '';
   document.getElementById('i-size').value = '';
@@ -7117,7 +7214,9 @@ function openAddInv(cat) {
   document.getElementById('i-reorder').value = '';
   document.getElementById('i-notes').value = '';
   setPhotoZone('i-photo-zone', 'i-photo', '');
-  document.getElementById('i-adjust-sec').style.display = 'none';   // no movement log for a brand-new item
+  document.getElementById('i-tabs').style.display = 'none';         // no Details/Stock tabs for a brand-new item
+  document.getElementById('i-form').style.display = '';
+  document.getElementById('i-adjust-sec').style.display = 'none';
   document.getElementById('m-inv-ttl').textContent = 'Add Stock Item';
   document.getElementById('i-del-btn').style.display = 'none';
   openModal('m-inv');
@@ -7127,6 +7226,9 @@ function editInv(id) {
   document.getElementById('i-edit-id').value = i.id;
   document.getElementById('i-name').value = i.name || '';
   document.getElementById('i-cat').value = i.cat || 'other';
+  document.getElementById('i-family').value = i.family || '';
+  document.getElementById('i-color').value = i.color || '';
+  document.getElementById('i-sku').value = i.sku || '';
   document.getElementById('i-qty').value = i.qty || 0;
   document.getElementById('i-unit').value = i.unit || '';
   document.getElementById('i-size').value = i.size || '';
@@ -7135,8 +7237,9 @@ function editInv(id) {
   document.getElementById('i-notes').value = i.notes || '';
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-adjust-qty').value = '1';
-  document.getElementById('i-adjust-sec').style.display = '';   // show 收货/用掉 + movement log
   _invRenderMoves(i);
+  document.getElementById('i-tabs').style.display = 'flex';   // Details / Stock tabs
+  invTab('d');
   document.getElementById('m-inv-ttl').textContent = 'Edit Stock Item';
   document.getElementById('i-del-btn').style.display = '';
   openModal('m-inv');
@@ -7377,6 +7480,9 @@ function saveInv(){
   const _priceRaw=document.getElementById('i-price').value.trim();
   const _reorderRaw=document.getElementById('i-reorder').value.trim();
   const data={name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',
+    sku:document.getElementById('i-sku').value.trim()||null,
+    family:document.getElementById('i-family').value.trim()||null,
+    color:document.getElementById('i-color').value.trim()||null,
     size:document.getElementById('i-size').value.trim()||null,
     price:_priceRaw===''?null:(parseFloat(_priceRaw)||null),
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
