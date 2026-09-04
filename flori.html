@@ -680,6 +680,27 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Cake collection ═══════════════════════════════ -->
+<div id="m-cake" class="modal">
+  <div class="mc" style="max-width:360px">
+    <div class="mc-hdr"><div class="mc-ttl">🎂 蛋糕 Cake collection</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cake')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <input type="hidden" id="cake-order-id">
+      <label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:14px;cursor:pointer;user-select:none"><input type="checkbox" id="cake-on" onchange="_cakeToggle()" style="width:18px;height:18px;flex:none"> 这单要取蛋糕</label>
+      <div id="cake-fields" style="display:none">
+        <div class="ff"><label class="ff-l">供应商 Supplier</label><select id="cake-supplier" onchange="_cakeSupplierChange()"></select></div>
+        <div class="ff" style="margin-top:10px;display:none" id="cake-supplier-name-ff"></div>
+        <input id="cake-supplier-name" type="text" placeholder="供应商名字（一次性）" style="display:none;width:100%;margin-top:10px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;background:var(--c-surface);color:var(--c-ink);outline:none">
+        <div class="ff" style="margin-top:10px"><label class="ff-l">地址 Address <span style="color:var(--c-muted);font-weight:400">可选 · 司机导航用</span></label><input id="cake-address" type="text" placeholder="供应商地址"></div>
+      </div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveCake()">保存 Save</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-cake')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
@@ -1177,6 +1198,7 @@ async function showApp() {
   subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   loadInvCats();       // editable stock categories (shared settings)
+  loadCakeSuppliers(); // editable cake-supplier list (shared settings)
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -1641,6 +1663,7 @@ function _applyShopifyToExisting(prev, m){
     routeSeq:     prev.routeSeq ?? null,
     proofPhoto:   prev.proofPhoto || null,
     proofPhotos:  prev.proofPhotos || null,
+    cake:         prev.cake || null,
     lat:          prev.lat ?? null,
     lng:          prev.lng ?? null,
     deliveredLat: prev.deliveredLat ?? null,
@@ -1843,7 +1866,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1866,7 +1889,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -1929,6 +1952,7 @@ async function syncOrders() {
           o.otwAt        = o.otwAt || r.otw_at || null;
           o.proofPhoto   = o.proofPhoto || r.proof_photo || null;
           o.proofPhotos  = o.proofPhotos || r.proof_photos || null;
+          o.cake         = o.cake || r.cake || null;
           o.lat          = r.lat ?? o.lat ?? null;
           o.lng          = r.lng ?? o.lng ?? null;
           o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
@@ -2018,7 +2042,7 @@ function _orderRow(o){
     recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otw_at: o.otwAt||null, route_id: o.routeId||null, route_seq: o.routeSeq??null,
-    proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null,
+    proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null, cake: o.cake||null,
     delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null, delivered_by: o.deliveredBy||null
   };
 }
@@ -2154,7 +2178,7 @@ function _mapDbOrder(o){
     recipName: o.recip_name||null, recipPhone: o.recip_phone||null, address: o.address||null,
     lat: o.lat??null, lng: o.lng??null,
     otwAt: o.otw_at||null, routeId: o.route_id||null, routeSeq: o.route_seq??null,
-    proofPhoto: o.proof_photo||null, proofPhotos: o.proof_photos||null,
+    proofPhoto: o.proof_photo||null, proofPhotos: o.proof_photos||null, cake: o.cake||null,
     deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null, deliveredBy: o.delivered_by||null
   };
 }
@@ -2385,6 +2409,7 @@ function mergeOrderRows(a, b){
   m.routeSeq     = a.routeSeq ?? b.routeSeq ?? null;
   m.proofPhoto   = a.proofPhoto || b.proofPhoto || null;
   m.proofPhotos  = a.proofPhotos || b.proofPhotos || null;
+  m.cake         = a.cake || b.cake || null;
   m.recipName    = a.recipName || b.recipName || null;
   m.recipPhone   = a.recipPhone || b.recipPhone || null;
   m.address      = a.address || b.address || null;
@@ -2944,6 +2969,8 @@ function renderHome() {
   // Needs attention — the actionable stuff (command-center, not a duplicate order list).
   const _attRow = (ic,col,txt,act)=>`<div onclick="${act}" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer"><span style="color:${col};display:inline-flex">${di(ic,16)}</span><span style="flex:1;font-size:12.5px;font-weight:600">${txt}</span><span style="color:var(--c-border2);font-size:15px">›</span></div>`;
   const att = [];
+  const cakeToday = todayO.filter(o => o.cake && !o.fulfilled).length;
+  if (cakeToday)      att.push(_attRow('note','#956A40','🎂 '+cakeToday+' 单要取蛋糕 · cakes to collect',"goPage('driver')"));
   if (urgentT.length) att.push(_attRow('warn','#c0392b',urgentT.length+' urgent order'+(urgentT.length>1?'s':''),"goPage('orders')"));
   if (unassignedDel)  att.push(_attRow('nav','#b46a1e',unassignedDel+' deliver'+(unassignedDel>1?'ies':'y')+' not on a route',"goPage('driver')"));
   if (lowStock)       att.push(_attRow('box','#b46a1e',lowStock+' stock item'+(lowStock>1?'s':'')+' low',"goPage('stock')"));
@@ -6054,6 +6081,82 @@ function _drvRouteBlock(rt){
   return '<div style="margin-bottom:16px">' + header + rows + '</div>';
 }
 
+/* ─── Cake collection reminder ───────────────────────────────────────────────
+   Some orders include a cake to collect from a supplier. Staff flag the order
+   (order detail panel) + pick a supplier; the driver page shows a "今日需拿蛋糕"
+   list grouped by supplier (with address + navigate), and the dashboard counts
+   them. Supplier list is editable (settings KV, synced); an editable "其他"
+   handles one-off suppliers. order.cake = null | {supplier, address}. */
+const _CAKE_SUP_DEFAULT = [{name:'Cake By Me',address:''},{name:'Bite Sensation',address:''}];
+let CAKE_SUPPLIERS = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-cake-sup')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(_){} return _CAKE_SUP_DEFAULT.map(s=>({...s})); })();
+async function loadCakeSuppliers(){ if(!hasSB()) return; try{ const v=await sbGetVal('cake_suppliers'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null; if(Array.isArray(arr)&&arr.length){ CAKE_SUPPLIERS=arr; try{ _lsSet('flori-cake-sup',JSON.stringify(arr)); }catch(_){} } }catch(_){} }
+function saveCakeSuppliers(){ try{ _lsSet('flori-cake-sup',JSON.stringify(CAKE_SUPPLIERS)); }catch(_){} if(hasSB()) sbSet('cake_suppliers', JSON.stringify(CAKE_SUPPLIERS)); }
+function _fillCakeSupplier(sel){
+  const el=document.getElementById('cake-supplier'); if(!el) return;
+  el.innerHTML = CAKE_SUPPLIERS.map(s=>'<option value="'+esc(s.name)+'"'+(s.name===sel?' selected':'')+'>'+esc(s.name)+'</option>').join('')
+    + '<option value="__other__"'+(sel==='__other__'?' selected':'')+'>其他（自己打）</option>'
+    + '<option value="__new__">＋ 新供应商 New…</option>';
+}
+function _cakeToggle(){ const on=document.getElementById('cake-on').checked; document.getElementById('cake-fields').style.display=on?'':'none'; }
+function _cakeSupplierChange(){
+  const el=document.getElementById('cake-supplier'), nameBox=document.getElementById('cake-supplier-name'), addr=document.getElementById('cake-address');
+  if(el.value==='__new__'){
+    const nm=(prompt('新供应商名字 Supplier name:')||'').trim();
+    if(nm){ const ad=(prompt('地址 Address (可留空):')||'').trim(); if(!CAKE_SUPPLIERS.some(s=>s.name===nm)) CAKE_SUPPLIERS.push({name:nm,address:ad}); saveCakeSuppliers(); _fillCakeSupplier(nm); addr.value=ad; nameBox.style.display='none'; }
+    else _fillCakeSupplier('');
+    return;
+  }
+  if(el.value==='__other__'){ nameBox.style.display=''; nameBox.value=''; addr.value=''; return; }
+  nameBox.style.display='none';
+  const s=CAKE_SUPPLIERS.find(x=>x.name===el.value); if(s) addr.value=s.address||'';
+}
+function openCakeModal(id){
+  const o=ORDERS.find(x=>String(x.id)===String(id)); if(!o) return;
+  document.getElementById('cake-order-id').value=id;
+  const ck=o.cake, on=!!ck, supplier=ck?(ck.supplier||''):'', known=CAKE_SUPPLIERS.some(s=>s.name===supplier);
+  document.getElementById('cake-on').checked=on;
+  document.getElementById('cake-fields').style.display=on?'':'none';
+  _fillCakeSupplier(known?supplier:(supplier?'__other__':''));
+  const nameBox=document.getElementById('cake-supplier-name');
+  if(!known && supplier){ nameBox.style.display=''; nameBox.value=supplier; } else nameBox.style.display='none';
+  document.getElementById('cake-address').value=ck?(ck.address||''):'';
+  openModal('m-cake');
+}
+function saveCake(){
+  const id=document.getElementById('cake-order-id').value, o=ORDERS.find(x=>String(x.id)===String(id));
+  if(!o){ closeModal('m-cake'); return; }
+  if(!document.getElementById('cake-on').checked){ o.cake=null; }
+  else{
+    const sel=document.getElementById('cake-supplier').value;
+    const supplier = (sel==='__other__') ? (document.getElementById('cake-supplier-name').value.trim())
+                   : (sel==='__new__'||sel==='') ? '' : sel;
+    const address=document.getElementById('cake-address').value.trim();
+    o.cake={ supplier:supplier||'', address:address||'' };
+    // teach a saved supplier its address the first time it's entered
+    if(supplier && address){ const s=CAKE_SUPPLIERS.find(x=>x.name===supplier); if(s && s.address!==address){ s.address=address; saveCakeSuppliers(); } }
+  }
+  saveOrders(o); closeModal('m-cake');
+  renderHome(); renderOrders(); if(typeof renderDriver==='function') renderDriver();
+  if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast('✓ 蛋糕已更新');
+}
+function _cakeNav(addr){ const q=encodeURIComponent(addr); return /Android/i.test(navigator.userAgent||'') ? ('google.navigation:q='+q) : ('https://www.google.com/maps/dir/?api=1&destination='+q); }
+function _cakeOrdersFor(iso){ return ORDERS.filter(o => o.cake && _drvIsOnDate(o, iso)); }
+function _drvCakeList(iso){
+  const list=_cakeOrdersFor(iso); if(!list.length) return '';
+  const bySup={}; list.forEach(o=>{ const k=(o.cake.supplier||'待定供应商'); if(!bySup[k]) bySup[k]={addr:o.cake.address||'',orders:[]}; if(o.cake.address) bySup[k].addr=o.cake.address; bySup[k].orders.push(o); });
+  let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
+    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">🎂 今日需拿蛋糕 · '+list.length+' 单</div>';
+  Object.keys(bySup).forEach(sup=>{
+    const g=bySup[sup], nums=g.orders.map(o=>esc2(o.name||'')).join(' · ');
+    const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+' 导航</a>' : '';
+    h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+' 个</span></div>'
+      +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
+      +'<div style="font-size:11px;color:#8a7a55">'+nums+'</div></div>'+nav+'</div>';
+  });
+  return h+'</div>';
+}
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
   if (_dragEl) return;   // never rebuild the DOM under an in-progress drag
@@ -6120,7 +6223,7 @@ function renderDriver(){
   const deliveredBlock = doneUnrouted.length
     ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
     : '';
-  const listBody = overall + routeBlocks + unassignedBlock() + deliveredBlock;
+  const listBody = _drvCakeList(iso) + overall + routeBlocks + unassignedBlock() + deliveredBlock;
 
   const mapWarn = _geoOff ? '<div style="font-size:11px;color:#E65100;margin:8px 0">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
   const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
@@ -8429,6 +8532,15 @@ function _renderDP(order, localOrder) {
       <div class="note-hdr">${di('note',13)} Special Instructions</div>
       <div class="note-body">${esc(localOrder.internalNote)}</div>
     </div>`;
+  }
+
+  // ── Cake collection: flag this order so the driver's "今日需拿蛋糕" list picks it up ──
+  { const _ck = localOrder.cake;
+    html += '<div style="border:1.5px solid '+(_ck?'#E6C65A':'var(--c-border)')+';border-radius:var(--r-lg);padding:10px 13px;background:'+(_ck?'#FBF3D9':'var(--c-surface)')+';margin-bottom:10px;display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:18px;flex:none">🎂</span>'
+      +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck?('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')):'<span style="color:var(--c-muted)">这单要取蛋糕吗？</span>')+'</div>'
+      +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'标记')+'</button>'
+    +'</div>';
   }
 
   // ── Order-form details for the florist: per-item photos + card message + flower
