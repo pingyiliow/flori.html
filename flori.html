@@ -692,6 +692,7 @@
         <div class="ff" style="margin-top:10px;display:none" id="cake-supplier-name-ff"></div>
         <input id="cake-supplier-name" type="text" placeholder="供应商名字（一次性）" style="display:none;width:100%;margin-top:10px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;background:var(--c-surface);color:var(--c-ink);outline:none">
         <div class="ff" style="margin-top:10px"><label class="ff-l">地址 Address <span style="color:var(--c-muted);font-weight:400">可选 · 司机导航用</span></label><input id="cake-address" type="text" placeholder="供应商地址"></div>
+        <div class="ff" style="margin-top:10px"><label class="ff-l">备注 Remark <span style="color:var(--c-muted);font-weight:400">几点可取 · 蛋糕能否 ready</span></label><input id="cake-remark" type="text" placeholder="例：3pm 后才可取"></div>
       </div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" style="flex:1" onclick="saveCake()">保存 Save</button>
@@ -6120,6 +6121,7 @@ function openCakeModal(id){
   const nameBox=document.getElementById('cake-supplier-name');
   if(!known && supplier){ nameBox.style.display=''; nameBox.value=supplier; } else nameBox.style.display='none';
   document.getElementById('cake-address').value=ck?(ck.address||''):'';
+  document.getElementById('cake-remark').value=ck?(ck.remark||''):'';
   openModal('m-cake');
 }
 function saveCake(){
@@ -6131,7 +6133,8 @@ function saveCake(){
     const supplier = (sel==='__other__') ? (document.getElementById('cake-supplier-name').value.trim())
                    : (sel==='__new__'||sel==='') ? '' : sel;
     const address=document.getElementById('cake-address').value.trim();
-    o.cake={ supplier:supplier||'', address:address||'' };
+    const remark=document.getElementById('cake-remark').value.trim();
+    o.cake={ supplier:supplier||'', address:address||'', remark:remark||'' };
     // teach a saved supplier its address the first time it's entered
     if(supplier && address){ const s=CAKE_SUPPLIERS.find(x=>x.name===supplier); if(s && s.address!==address){ s.address=address; saveCakeSuppliers(); } }
   }
@@ -6148,12 +6151,13 @@ function _drvCakeList(iso){
   let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
     +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">🎂 今日需拿蛋糕 · '+list.length+' 单</div>';
   Object.keys(bySup).forEach(sup=>{
-    const g=bySup[sup], nums=g.orders.map(o=>esc2(o.name||'')).join(' · ');
+    const g=bySup[sup];
     const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+' 导航</a>' : '';
     h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
       +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+' 个</span></div>'
       +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
-      +'<div style="font-size:11px;color:#8a7a55">'+nums+'</div></div>'+nav+'</div>';
+      +g.orders.map(o=>{ const rk=(o.cake&&o.cake.remark)?' · <span style="color:#B86050;font-weight:600">'+esc2(o.cake.remark)+'</span>':''; return '<div style="font-size:11px;color:#8a7a55;margin-top:2px">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</div>'; }).join('')
+      +'</div>'+nav+'</div>';
   });
   return h+'</div>';
 }
@@ -8538,7 +8542,7 @@ function _renderDP(order, localOrder) {
   { const _ck = localOrder.cake;
     html += '<div style="border:1.5px solid '+(_ck?'#E6C65A':'var(--c-border)')+';border-radius:var(--r-lg);padding:10px 13px;background:'+(_ck?'#FBF3D9':'var(--c-surface)')+';margin-bottom:10px;display:flex;align-items:center;gap:10px">'
       +'<span style="font-size:18px;flex:none">🎂</span>'
-      +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck?('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')):'<span style="color:var(--c-muted)">这单要取蛋糕吗？</span>')+'</div>'
+      +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck?('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':'')):'<span style="color:var(--c-muted)">这单要取蛋糕吗？</span>')+'</div>'
       +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'标记')+'</button>'
     +'</div>';
   }
