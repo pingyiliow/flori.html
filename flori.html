@@ -6095,18 +6095,11 @@ function saveCakeSuppliers(){ try{ _lsSet('flori-cake-sup',JSON.stringify(CAKE_S
 function _fillCakeSupplier(sel){
   const el=document.getElementById('cake-supplier'); if(!el) return;
   el.innerHTML = CAKE_SUPPLIERS.map(s=>'<option value="'+esc(s.name)+'"'+(s.name===sel?' selected':'')+'>'+esc(s.name)+'</option>').join('')
-    + '<option value="__other__"'+(sel==='__other__'?' selected':'')+'>其他（自己打）</option>'
-    + '<option value="__new__">＋ 新供应商 New…</option>';
+    + '<option value="__other__"'+(sel==='__other__'?' selected':'')+'>其他 Other</option>';
 }
 function _cakeToggle(){ const on=document.getElementById('cake-on').checked; document.getElementById('cake-fields').style.display=on?'':'none'; }
 function _cakeSupplierChange(){
   const el=document.getElementById('cake-supplier'), nameBox=document.getElementById('cake-supplier-name'), addr=document.getElementById('cake-address');
-  if(el.value==='__new__'){
-    const nm=(prompt('新供应商名字 Supplier name:')||'').trim();
-    if(nm){ const ad=(prompt('地址 Address (可留空):')||'').trim(); if(!CAKE_SUPPLIERS.some(s=>s.name===nm)) CAKE_SUPPLIERS.push({name:nm,address:ad}); saveCakeSuppliers(); _fillCakeSupplier(nm); addr.value=ad; nameBox.style.display='none'; }
-    else _fillCakeSupplier('');
-    return;
-  }
   if(el.value==='__other__'){ nameBox.style.display=''; nameBox.value=''; addr.value=''; return; }
   nameBox.style.display='none';
   const s=CAKE_SUPPLIERS.find(x=>x.name===el.value); if(s) addr.value=s.address||'';
