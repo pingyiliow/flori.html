@@ -702,6 +702,17 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Driver date picker (custom calendar, matches main) ═══ -->
+<div id="m-drvcal" class="modal">
+  <div class="mc" style="max-width:340px">
+    <div class="mc-hdr"><div class="mc-ttl">选择日期 Select date</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-drvcal')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div id="drvcal-title" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px"></div>
+      <div id="drvcal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0;border-top:1px solid var(--c-border);border-left:1px solid var(--c-border);border-radius:var(--r);overflow:hidden"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
@@ -4463,6 +4474,62 @@ function clearCalFilter() {
   renderCalendar(); renderOrders();
 }
 
+// ── Lunar (农历) converter ─────────────────────────────────────────
+// Inlined because CSP blocks external CDNs. Standard lunarInfo bit-table
+// (1900–2100). We only surface the lunar DAY label (初一…三十, month name on
+// day 1) under each solar date — no solar terms or festivals, per request.
+const _lunarInfo=[0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
+0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
+0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
+0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
+0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
+0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,
+0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
+0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b5a0,0x195a6,
+0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
+0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,
+0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
+0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
+0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
+0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
+0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,
+0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06b20,0x1a6c4,0x0aae0,
+0x0a2e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,
+0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,
+0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,
+0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a2d0,0x0d150,0x0f252,0x0d520];
+const _lDayN=['初一','初二','初三','初四','初五','初六','初七','初八','初九','初十','十一','十二','十三','十四','十五','十六','十七','十八','十九','二十','廿一','廿二','廿三','廿四','廿五','廿六','廿七','廿八','廿九','三十'];
+const _lMonN=['正月','二月','三月','四月','五月','六月','七月','八月','九月','十月','冬月','腊月'];
+function _lLeapMonth(y){return _lunarInfo[y-1900]&0xf;}
+function _lLeapDays(y){return _lLeapMonth(y)?((_lunarInfo[y-1900]&0x10000)?30:29):0;}
+function _lMonthDays(y,m){return(_lunarInfo[y-1900]&(0x10000>>m))?30:29;}
+function _lYearDays(y){let s=348;for(let i=0x8000;i>0x8;i>>=1)s+=(_lunarInfo[y-1900]&i)?1:0;return s+_lLeapDays(y);}
+function _solar2lunar(y,m,d){
+  let offset=Math.round((Date.UTC(y,m-1,d)-Date.UTC(1900,0,31))/86400000);
+  let temp=0,i,year;
+  for(i=1900;i<2101&&offset>0;i++){temp=_lYearDays(i);offset-=temp;}
+  if(offset<0){offset+=temp;i--;}
+  year=i; const leap=_lLeapMonth(year); let isLeap=false;
+  for(i=1;i<13&&offset>0;i++){
+    if(leap>0&&i===leap+1&&isLeap===false){--i;isLeap=true;temp=_lLeapDays(year);}
+    else{temp=_lMonthDays(year,i);}
+    if(isLeap===true&&i===leap+1)isLeap=false;
+    offset-=temp;
+  }
+  if(offset===0&&leap>0&&i===leap+1){if(isLeap){isLeap=false;}else{isLeap=true;--i;}}
+  if(offset<0){offset+=temp;--i;}
+  return {lMonth:i,lDay:offset+1,isLeap:isLeap};
+}
+// Returns the short lunar label for a solar date: month name on the 1st
+// (闰-prefixed in a leap month), else the day name. '' outside 1900–2100.
+function lunarDayLabel(y,m,d){
+  try{ if(y<1900||y>2100)return '';
+    const r=_solar2lunar(y,m,d);
+    if(r.lDay===1) return (r.isLeap?'闰':'')+(_lMonN[r.lMonth-1]||'');
+    return _lDayN[r.lDay-1]||'';
+  }catch(e){return '';}
+}
+
 function renderCalendar() {
   const grid=document.getElementById('cal-grid'),ttl=document.getElementById('cal-title'); if(!grid) return;
   const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -4488,7 +4555,8 @@ function renderCalendar() {
     const k=calYear+'-'+String(calMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
     const cnt=counts[k]||0,isT=k===todayStr,isSel=k===calFilter;
     let cls='cal-day';if(cnt>0)cls+=' has-orders';if(isT)cls+=' today-cell';if(isSel)cls+=' selected';
-    html+=`<div class="${cls}" onclick="selectCalDay('${k}')">${d}${cnt>0?`<div class="cal-dot">${cnt}</div>`:''}</div>`;
+    const lun=lunarDayLabel(calYear,calMonth+1,d);
+    html+=`<div class="${cls}" onclick="selectCalDay('${k}')"><span class="cal-num">${d}</span>${lun?`<span class="cal-lunar">${lun}</span>`:''}${cnt>0?`<div class="cal-dot">${cnt}</div>`:''}</div>`;
   }
   const rem=(firstDay+daysInMonth)%7===0?0:7-(firstDay+daysInMonth)%7;
   for(let i=1;i<=rem;i++) html+=`<div class="cal-day other-month">${i}</div>`;
@@ -6036,12 +6104,59 @@ function _drvDateBar(){
   const arrow = 'width:36px;height:36px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center';
   return '<div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:12px">'
     + '<button aria-label="Previous day" onclick="drvDateStep(-1)" style="'+arrow+'">&#8249;</button>'
-    + '<label style="position:relative;height:36px;min-width:190px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;font-size:13px;font-weight:600;cursor:pointer">'
+    + '<button onclick="openDrvCal()" style="height:36px;min-width:190px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-ink);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;font-size:13px;font-weight:600;cursor:pointer">'
       + di('calendar',14) + ' ' + esc2(lbl)
-      + '<input type="date" value="'+iso+'" onchange="drvDateSet(this.value)" onclick="try{this.showPicker&&this.showPicker()}catch(e){}" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer" aria-label="Pick a delivery date">'
-    + '</label>'
+    + '</button>'
     + '<button aria-label="Next day" onclick="drvDateStep(1)" style="'+arrow+'">&#8250;</button>'
   + '</div>';
+}
+
+// Driver date picker → the SAME custom calendar as the main Daily Orders view
+// (lunar days + order-count dots), opened in a modal instead of the native OS
+// date picker.
+let _drvCalY, _drvCalM;
+function openDrvCal(){
+  const d = new Date(_drvDateISO()+'T00:00:00');
+  _drvCalY = d.getFullYear(); _drvCalM = d.getMonth();
+  _drvCalRender(); openModal('m-drvcal');
+}
+function drvCalSetMonth(m){ _drvCalM = +m; _drvCalRender(); }
+function drvCalSetYear(y){ _drvCalY = +y; _drvCalRender(); }
+function drvCalStep(delta){
+  _drvCalM += delta;
+  if (_drvCalM < 0){ _drvCalM = 11; _drvCalY--; }
+  else if (_drvCalM > 11){ _drvCalM = 0; _drvCalY++; }
+  _drvCalRender();
+}
+function drvCalPick(iso){ closeModal('m-drvcal'); drvDateSet(iso); }
+function _drvCalRender(){
+  const ttl = document.getElementById('drvcal-title'), grid = document.getElementById('drvcal-grid');
+  if (!grid) return;
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const arrowB = 'width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none';
+  const curY=new Date().getFullYear(); const years=[]; for(let y=curY-7;y<=curY+1;y++) years.push(y);
+  ttl.innerHTML =
+    '<button aria-label="Previous month" onclick="drvCalStep(-1)" style="'+arrowB+'">&#8249;</button>'
+    + '<select class="cal-sel" onchange="drvCalSetMonth(this.value)">'+months.map((m,i)=>'<option value="'+i+'"'+(i===_drvCalM?' selected':'')+'>'+m+'</option>').join('')+'</select>'
+    + '<select class="cal-sel" onchange="drvCalSetYear(this.value)">'+years.map(y=>'<option value="'+y+'"'+(y===_drvCalY?' selected':'')+'>'+y+'</option>').join('')+'</select>'
+    + '<button aria-label="Next month" onclick="drvCalStep(1)" style="'+arrowB+'">&#8250;</button>';
+  const counts={};
+  ORDERS.forEach(o=>{if(!o.dateObj)return;const k=o.dateObj.getFullYear()+'-'+String(o.dateObj.getMonth()+1).padStart(2,'0')+'-'+String(o.dateObj.getDate()).padStart(2,'0');counts[k]=(counts[k]||0)+1;});
+  const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  let html=days.map(d=>'<div class="cal-dow">'+d+'</div>').join('');
+  const firstDay=new Date(_drvCalY,_drvCalM,1).getDay(),daysInMonth=new Date(_drvCalY,_drvCalM+1,0).getDate(),daysInPrev=new Date(_drvCalY,_drvCalM,0).getDate();
+  const todayStr=tdi(today0()), sel=_drvDateISO();
+  for(let i=firstDay-1;i>=0;i--) html+='<div class="cal-day other-month"><span class="cal-num">'+(daysInPrev-i)+'</span></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const k=_drvCalY+'-'+String(_drvCalM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const cnt=counts[k]||0,isT=k===todayStr,isSel=k===sel;
+    let cls='cal-day';if(cnt>0)cls+=' has-orders';if(isT)cls+=' today-cell';if(isSel)cls+=' selected';
+    const lun=lunarDayLabel(_drvCalY,_drvCalM+1,d);
+    html+='<div class="'+cls+'" onclick="drvCalPick(\''+k+'\')"><span class="cal-num">'+d+'</span>'+(lun?'<span class="cal-lunar">'+lun+'</span>':'')+(cnt>0?'<div class="cal-dot">'+cnt+'</div>':'')+'</div>';
+  }
+  const rem=(firstDay+daysInMonth)%7===0?0:7-(firstDay+daysInMonth)%7;
+  for(let i=1;i<=rem;i++) html+='<div class="cal-day other-month"><span class="cal-num">'+i+'</span></div>';
+  grid.innerHTML=html;
 }
 function _drvBar(done, total){
   const pct = total ? Math.round(done/total*100) : 0;
