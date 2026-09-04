@@ -475,6 +475,12 @@ body.role-driver .shell{grid-template-columns:1fr}
 .cal-dot{width:16px;height:4px;border-radius:2px;background:var(--c-burg-lt);font-size:9px;text-align:center;color:var(--c-burg);line-height:4px;font-weight:500}
 
 .cal-day.selected .cal-dot{background:rgba(238,228,218,.3);color:var(--c-bg)}
+.cal-num{line-height:1}
+.cal-lunar{font-size:8px;line-height:1;font-weight:400;color:var(--c-muted);opacity:.72;white-space:nowrap;}
+.cal-day.other-month .cal-lunar{color:var(--c-border2);opacity:.6}
+.cal-day.selected .cal-lunar{color:var(--c-bg);opacity:.72}
+/* month-start labels (正月/腊月…) carry a faint accent so lunar months are scannable */
+.cal-lunar:not(:empty){letter-spacing:.02em}
 
 /* ── follow-up table ─────────────────────────────────────────── */
 .ch-wa{background:#E7F7EE;color:#1A7A3A;border:1px solid #C2EDD1}
