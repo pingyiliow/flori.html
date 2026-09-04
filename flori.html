@@ -1705,6 +1705,11 @@ function _dropSupersededManualOrders(){
 // api/webhook.js's fmtAddr so the two writers produce the same string (no ping-pong).
 function _fmtShipAddr(s){
   if (!s) return null;
+  // Prefer Shopify's own `formatted` lines when present — they mirror the admin's
+  // rendering exactly, so a street stored in address2 (or a field we don't map) is
+  // never dropped. Fall back to reconstruction for webhook/REST payloads.
+  if (Array.isArray(s.formatted) && s.formatted.length)
+    return s.formatted.map(x => (x || '').replace(/,\s*$/, '').trim()).filter(Boolean).join(', ') || null;
   return [s.address1, s.address2, [s.zip, s.city].filter(Boolean).join(' '), s.province]
     .map(x => (x || '').trim()).filter(Boolean).join(', ') || null;
 }
@@ -1740,7 +1745,7 @@ async function importOrderByName(rawName){
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
       id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-      customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
@@ -1784,7 +1789,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -1832,14 +1837,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -8468,7 +8473,7 @@ async function _fetchOrderDetail(id, o) {
     const q = `{ order(id:"${gid}"){
       name note createdAt
       customer { firstName lastName phone email }
-      shippingAddress { address1 address2 city province zip country phone }
+      shippingAddress { formatted(withName:false) address1 address2 city province zip country phone }
       billingAddress { phone }
       lineItems(first:50){ edges{ node{
         title quantity
@@ -8621,7 +8626,12 @@ function _renderDP(order, localOrder) {
 
   // ── Delivery Address — grey box under fulfilment (delivery orders only) ──
   if (addr && localOrder.type !== 'pickup') {
-    const lines = [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
+    // Prefer Shopify's own `formatted` lines — they mirror exactly what the admin
+    // shows, so we never drop a line by mis-mapping individual fields (e.g. street
+    // in address1 vs address2). Fall back to reconstruction if formatted is absent.
+    const lines = (Array.isArray(addr.formatted) && addr.formatted.length)
+      ? addr.formatted.map(l => (l||'').replace(/,\s*$/, '').trim()).filter(Boolean)
+      : [addr.address1, addr.address2, [addr.city,addr.province].filter(Boolean).join(', '), [addr.zip,addr.country].filter(Boolean).join(' ')].filter(Boolean);
     // Recipient phone belongs here (it's who's at the delivery address), not in the
     // sender's Customer section — only when it differs from the sender's number.
     const recipLine = (recipPhone && recipPhone !== phone)
