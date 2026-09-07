@@ -301,7 +301,9 @@ export function buildDeliveredEmail(order, opts = {}) {
 export function buildOutForDeliveryEmail(order, opts = {}) {
   const nm = firstName(order);
   const orderNo = (order && order.name) || '';
-  const statusUrl = opts.statusUrl || (order && order.order_status_url) || '';
+  // A Lalamove (or other) live-tracking link the shop pasted takes priority — it's the
+  // real "where's my delivery" link. Falls back to the Shopify order-status page.
+  const statusUrl = opts.trackUrl || opts.statusUrl || (order && order.order_status_url) || '';
   const dueDate = attr(order, 'Order Due Date') || '—';
   const dueTime = attr(order, 'Order Due Time') || '—';
   const recipient = attr(order, 'recipient_name') || ((order && order.shipping_address && order.shipping_address.name) || '');

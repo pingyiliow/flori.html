@@ -460,6 +460,9 @@
             <div class="ff"><label class="ff-l">Phone</label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
             <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
             <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
+            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 贴上 Lalamove 分享的追踪链接</span></label>
+              <input id="o-lala" type="url" placeholder="https://track.lalamove.com/..." oninput="_oLalaSync()">
+              <a id="o-lala-open" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12px;color:var(--c-burg);font-weight:600;text-decoration:none">🔗 打开追踪 Track Lalamove ↗</a></div>
           </div>
         </div>
       </div>
@@ -1666,6 +1669,7 @@ function _applyShopifyToExisting(prev, m){
     recipe:       (prev.recipe && prev.recipe.length) ? prev.recipe : [],
     manualPrice:  prev.manualPrice ?? null,
     manualAddr:   prev.manualAddr || null,
+    lalamoveUrl:  prev.lalamoveUrl || null,
     removedItems: prev.removedItems || [],
     fulfilled:    m.fulfilled || prev.fulfilled || false,
     // Driver-mode fields. App-managed (route plan / OTW / proof / geo) ← previous row;
@@ -1883,7 +1887,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -1906,7 +1910,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -1960,6 +1964,7 @@ async function syncOrders() {
           if (Array.isArray(r.recipe) && r.recipe.length) o.recipe = r.recipe;
           o.manualPrice  = r.manual_price ?? o.manualPrice ?? null;
           o.manualAddr   = r.manual_addr  || o.manualAddr  || null;
+          o.lalamoveUrl  = r.lalamove_url || o.lalamoveUrl || null;
           o.fulfilled    = o.fulfilled || !!r.fulfilled;      // keep a fulfilled state set on any device
           // Driver-mode fields. Route assignment/sequence: DB wins (another device may
           // have just re-planned, same as designer). otwAt/proofPhoto: forward-only merge
@@ -2052,7 +2057,7 @@ function _orderRow(o){
     due_date: o.dueDate||null, due_on: _computeDueOn(o.dueDate), due_time: o.dueTime||null,
     type: o.type||'delivery', fulfilled: o.fulfilled||false,
     ready: o.ready||false, created_at: o.createdAt||null,
-    manual_addr: o.manualAddr||null, recipe: o.recipe||[],
+    manual_addr: o.manualAddr||null, lalamove_url: o.lalamoveUrl||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internal_note: o.internalNote||null,
     manual_price: o.manualPrice||null,
@@ -2188,7 +2193,7 @@ function _mapDbOrder(o){
     dueDate: o.due_date||null, dueOn: o.due_on||null, dueTime: o.due_time||null,
     type: o.type||'delivery', fulfilled: o.fulfilled||false,
     ready: o.ready||false, createdAt: o.created_at||null,
-    manualAddr: o.manual_addr||null, recipe: o.recipe||[],
+    manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
     manualPrice: o.manual_price||null, dateObj: null,
@@ -2417,6 +2422,7 @@ function mergeOrderRows(a, b){
   // Cover: a merged user photo wins; otherwise keep whichever row had a cover.
   m.image        = (m.lineItems||[]).find(hasUserPhotos)?.image || base.image || other.image || null;
   m.manualAddr   = a.manualAddr || b.manualAddr || null;
+  m.lalamoveUrl  = a.lalamoveUrl || b.lalamoveUrl || null;
   m.manualPrice  = a.manualPrice ?? b.manualPrice ?? null;
   m.recipe       = [a.recipe,b.recipe].filter(r=>Array.isArray(r)&&r.length).sort((x,y)=>y.length-x.length)[0] || [];
   // Driver-mode fields: forward-only unions so a route plan / sent-OTW / proof photo
@@ -2466,6 +2472,7 @@ async function migrateOrderIds({ dryRun = false } = {}) {
     merged.priority      = rows.map(r=>r.priority).find(p=>p&&p!=='normal') || 'normal';
     merged.internal_note = rows.map(r=>r.internal_note).find(Boolean) || null;
     merged.manual_addr   = rows.map(r=>r.manual_addr).find(Boolean) || null;
+    merged.lalamove_url  = rows.map(r=>r.lalamove_url).find(Boolean) || null;
     merged.manual_price  = rows.map(r=>r.manual_price).find(v=>v!=null && v!=='') ?? null;
     merged.recipe        = rows.map(r=>r.recipe).filter(r=>Array.isArray(r)&&r.length).sort((a,b)=>b.length-a.length)[0] || [];
     merged.otw_at        = rows.map(r=>r.otw_at).find(Boolean) || null;
@@ -5453,7 +5460,7 @@ async function notifyOTW(o){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
   try {
     const r = await fetch('/api/notify-manual', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ orderId: shopId(o.id), stage:'out_for_delivery', authToken }) });
+      body: JSON.stringify({ orderId: shopId(o.id), stage:'out_for_delivery', trackUrl: o.lalamoveUrl||'', authToken }) });
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }
@@ -7476,8 +7483,15 @@ function oCustPick(i){
   const srch=document.getElementById('o-cust-search'); if(srch) srch.value='';
 }
 document.addEventListener('click', e=>{ if(e.target.closest('#o-cust-search')||e.target.closest('#o-cust-sug')) return; const s=document.getElementById('o-cust-sug'); if(s&&s.style.display!=='none'){ s.style.display='none'; } });
+// Show/hide the "Track Lalamove" open-link under the input as it's typed/loaded.
+function _oLalaSync(){
+  const inp=document.getElementById('o-lala'), a=document.getElementById('o-lala-open'); if(!inp||!a) return;
+  const v=(inp.value||'').trim();
+  if(/^https?:\/\//i.test(v)){ a.href=v; a.style.display='inline-block'; } else { a.style.display='none'; }
+}
 function openAddOrder(){
-  ['o-cust','o-num','o-date','o-time','o-addr','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _oLalaSync();
   document.getElementById('o-edit-id').value='';
   document.getElementById('o-modal-ttl').textContent='Add Order';
   const sum=document.getElementById('o-cust-summary'); if(sum) sum.textContent='Customer details';
@@ -7713,6 +7727,7 @@ function saveOrder() {
   const dateVal = document.getElementById('o-date').value;
   const editId  = document.getElementById('o-edit-id').value;
   const addrVal = document.getElementById('o-addr')?.value.trim() || '';
+  const lalaVal = document.getElementById('o-lala')?.value.trim() || '';
   const prevOrder2 = editId ? ORDERS.find(x=>x.id===editId) : null;
   // Use existing date if form field is blank (preserves Shopify date formats)
   const finalDateVal = dateVal || prevOrder2?.dueDate || null;
@@ -7747,6 +7762,7 @@ function saveOrder() {
     type: document.getElementById('o-type').value,
     ready: prevOrder?.ready || false,
     manualAddr: addrVal || null,
+    lalamoveUrl: lalaVal || null,
     designer: document.getElementById('o-designer')?.value||null,
     priority: document.getElementById('o-priority')?.value||'normal',
     internalNote: document.getElementById('o-internal-note')?.value.trim()||null,
@@ -8083,7 +8099,7 @@ function editOrder(id) {
   const ceEl=document.getElementById('o-cust-email'); if(ceEl) ceEl.value=o.custEmail||'';
   const csEl=document.getElementById('o-cust-search'); if(csEl) csEl.value='';
   const sumEl=document.getElementById('o-cust-summary'); if(sumEl) sumEl.textContent=o.customer||'Customer details';
-  toggleOrderCust(!!(o.customer||o.manualAddr));   // expand if there's customer info to show
+  toggleOrderCust(!!(o.customer||o.manualAddr||o.lalamoveUrl));   // expand if there's customer info to show
   document.getElementById('o-num').value=o.name||'';
   // Convert any date format to YYYY-MM-DD for the date input
   const dueParsed = o.dueDate ? pd(o.dueDate) : null;
@@ -8092,6 +8108,7 @@ function editOrder(id) {
   document.getElementById('o-time').value=o.dueTime||'';
   document.getElementById('o-type').value=o.type||'delivery';
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
+  const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync();
   const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
