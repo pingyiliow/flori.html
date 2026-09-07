@@ -80,6 +80,10 @@ export default async function handler(req, res) {
   // body {{1}}=name {{2}}=order no, static phone button, no photo, no URL param.
   const type = body.stage === 'out_for_delivery' ? 'out_for_delivery' : 'delivered';
   const photoIn = type === 'delivered' && (typeof body.photoUrl === 'string' && /^https?:\/\//i.test(body.photoUrl)) ? body.photoUrl : null;
+  // Lalamove (or any) live-tracking link supplied by the app — used as the email's
+  // "Track my delivery" button on the out_for_delivery mail. WhatsApp's approved
+  // template has no URL button, so the link rides email only.
+  const trackUrl = (typeof body.trackUrl === 'string' && /^https?:\/\//i.test(body.trackUrl)) ? body.trackUrl : null;
 
   const sb = createClient(SB_URL, SB_KEY);
 
@@ -148,7 +152,7 @@ export default async function handler(req, res) {
 
   if (email) {
     if (await claim('email')) {
-      const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url });
+      const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url, trackUrl });
       const r = await sendEmailViaResend(email, msg);
       if (r && typeof r === 'object') { emSent = true; emId = r.id; } else emErr = String(r);
       await logNote(sb, { order_id: orderId, order_no: orderNo, template: 'email:' + type, phone: email, meta_message_id: emId, status: emSent ? 'sent' : 'error', error: emSent ? 'manual' : ('email_failed: ' + emErr) });
