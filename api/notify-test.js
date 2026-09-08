@@ -258,6 +258,8 @@ export default async function handler(req, res) {
     jobs.push(['_delivered_withphoto', { orderNo, photo, btnParam }]);
   if (which === 'delivered_nophoto' || which === 'all')
     jobs.push(['delivered_nophoto', { name, orderNo, btnParam }]);
+  if (which === 'lalamove' || which === 'all')
+    jobs.push(['deivery_withlalamovelink', { name, orderNo, trackUrl: q.track || 'https://share.lalamove.com/track/SAMPLE123' }]);
 
   if (!jobs.length) return res.status(400).json({ error: 'Unknown template: ' + which });
 

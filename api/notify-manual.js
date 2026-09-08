@@ -129,7 +129,11 @@ export default async function handler(req, res) {
 
   const vars = { name: firstNameOf(order), orderNo, btnParam: statusUrlSuffix(order) || undefined };
   let tpl;
-  if (type === 'out_for_delivery') tpl = 'out_for_delivery';
+  if (type === 'out_for_delivery') {
+    // A Lalamove tracking link → the OTW template that carries it as body {{3}}; else plain OTW.
+    if (trackUrl) { tpl = 'deivery_withlalamovelink'; vars.trackUrl = trackUrl; }
+    else tpl = 'out_for_delivery';
+  }
   else { tpl = photoLink ? '_delivered_withphoto' : 'delivered_nophoto'; if (photoLink) vars.photo = photoLink; }
 
   let waSent = false, waErr = null, waId = null, waDup = false;
