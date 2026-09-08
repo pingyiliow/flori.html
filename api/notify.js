@@ -182,6 +182,10 @@ const TEMPLATES = {
   delivered_nophoto:    { lang: 'en', header: { type: 'text', vars: ['orderNo'] }, body: [], urlBtnIndex: 0 },
   // IMAGE header (proof photo), body {{1}}=order, URL button (index 0) = order status page.
   _delivered_withphoto: { lang: 'en', header: { type: 'image' }, body: ['orderNo'], urlBtnIndex: 0 },
+  // OTW variant carrying a live tracking link (Lalamove). Static TEXT header + static phone
+  // button (no send-time params); body {{1}}=name {{2}}=order {{3}}=tracking URL. NOTE: the
+  // Meta template name is misspelled "deivery" — must match it exactly.
+  deivery_withlalamovelink: { lang: 'en', body: ['name', 'orderNo', 'trackUrl'] },
 };
 
 export function buildTemplate(to, tpl, vars) {
