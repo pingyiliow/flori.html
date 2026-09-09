@@ -3278,9 +3278,101 @@ function _invListHTML(){
   });
   return html;
 }
+// ── Shopify-synced stock (read-only mirror; qty lives in Shopify) ──────────
+// These Shopify products show in the stock page grouped like Shopify (product →
+// variants), with LIVE quantities pulled from Shopify. They are NOT adjusted
+// here — Shopify is the source of truth. To add/remove, edit this id list.
+const SHOP_STOCK_IDS = [
+  'gid://shopify/Product/7847264682043', // Gold Number Candle (0–9)
+  'gid://shopify/Product/7850412507195', // Sparkling Candle
+  'gid://shopify/Product/7847225688123', // Happy Birthday Cake Topper (colours)
+];
+let SHOPIFY_STOCK = [];
+let _shopStockAt = 0, _shopStockLoading = false, _shopStockErr = '';
+const _shopExpanded = new Set();
+const SHOP_STOCK_LOW = 3;   // flag a variant at/below this as low
+
+async function syncShopifyStock(force){
+  if (_shopStockLoading) return;
+  if (!force && _shopStockAt && Date.now()-_shopStockAt < 60000) return;   // throttle 60s
+  if (typeof hasSB==='function' && !hasSB()) return;                        // demo / not signed in
+  if (!SHOP_STOCK_IDS.length) return;
+  _shopStockLoading = true;
+  try {
+    const ids = SHOP_STOCK_IDS.map(id=>'"'+id+'"').join(',');
+    const q = `{ nodes(ids:[${ids}]){ ... on Product { id title handle featuredImage{url} variants(first:100){edges{node{title inventoryQuantity price}}} } } }`;
+    const data = await shopifyGQL(q);
+    const nodes = (data && data.nodes) || [];
+    SHOPIFY_STOCK = nodes.filter(Boolean).map(p=>{
+      const variants=((p.variants&&p.variants.edges)||[]).map(e=>({ title:e.node.title, qty:(e.node.inventoryQuantity==null?0:e.node.inventoryQuantity), price:e.node.price }));
+      return { id:p.id, title:p.title, handle:p.handle, image:(p.featuredImage&&p.featuredImage.url)||'', variants, total:variants.reduce((s,v)=>s+(v.qty||0),0) };
+    });
+    _shopStockAt = Date.now(); _shopStockErr = '';
+  } catch(e){ _shopStockErr = (e && e.message) || 'sync failed'; _shopStockAt = Date.now(); console.warn('Shopify stock sync failed:', _shopStockErr); }
+  finally {
+    _shopStockLoading = false;
+    const pg=document.getElementById('pg-stock'); if(pg && pg.classList.contains('on')) renderInventory();
+  }
+}
+function _shopToggle(key){ if(_shopExpanded.has(key)) _shopExpanded.delete(key); else _shopExpanded.add(key); renderInventory(); }
+function _shopStockAgo(){
+  if(!_shopStockAt) return '';
+  const s=Math.round((Date.now()-_shopStockAt)/1000);
+  if(s<60) return '刚刚同步'; const m=Math.round(s/60); if(m<60) return m+' 分钟前'; return Math.round(m/60)+' 小时前';
+}
+function _shopStockCard(p){
+  const ic=_invIcon('other');
+  const badge=' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  if(p.variants.length<=1){
+    const v=p.variants[0]||{qty:0}, low=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
+    const price=(v&&v.price!=null&&v.price!=='')?('RM '+_invPriceStr(v.price)):'';
+    return '<div class="stk-card">'
+      +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">'+_invThumb(p.image,ic)
+        +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+badge+'</div><div class="stk-unit">'+esc(price)+'</div></div></div>'
+      +'<div style="display:flex;align-items:center;gap:5px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">缺</span>':'')+'</div>'
+    +'</div>';
+  }
+  const key='shop|'+p.id, expanded=_shopExpanded.has(key), low=p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
+  let h='<div class="stk-card" style="display:block;padding:0;overflow:hidden">'
+    +'<div onclick="_shopToggle(\''+key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--c-bg);cursor:pointer">'+_invThumb(p.image,ic)
+      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(p.title)+badge+'</div><div class="stk-unit">'+p.variants.length+' 款 · 共 '+p.total+(low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div>'
+      +'<span style="color:var(--c-muted);font-size:13px">'+(expanded?'▴':'▾')+'</span>'
+    +'</div>';
+  if(expanded){
+    p.variants.forEach(v=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
+      h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(l?';background:#FFF5F5':'')+'">'
+        +'<div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">'+esc(v.title)+'</span></div>'
+        +'<span class="stk-qty '+(l?'low':'')+'" style="font-size:16px;min-width:20px;text-align:right">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;margin-left:4px">缺</span>':'')
+      +'</div>';
+    });
+  }
+  return h+'</div>';
+}
+function _shopStockHTML(){
+  if(_invCat && _invCat!=='') return '';   // not a manual category — only on 全部
+  if(!SHOPIFY_STOCK.length){
+    if(_shopStockLoading || !_shopStockAt)
+      return '<div class="stk-cat">🔄 Shopify 同步</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">正在同步 Shopify 库存…</div>';
+    if(_shopStockErr)
+      return '<div class="stk-cat">🔄 Shopify 同步</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">同步失败：'+esc(_shopStockErr)+' · <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">重试</a></div>';
+    return '';
+  }
+  const qq=(_invSearch||'').trim().toLowerCase();
+  const prods=SHOPIFY_STOCK.filter(p=>{ if(!qq) return true; const hay=(p.title+' '+p.variants.map(v=>v.title).join(' ')).toLowerCase(); return hay.indexOf(qq)>-1; });
+  if(!prods.length) return '';
+  const grand=prods.reduce((s,p)=>s+p.total,0);
+  let h='<div class="stk-cat" style="display:flex;align-items:center;justify-content:space-between">'
+    +'<span>🔄 Shopify 同步 <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· 共 '+grand+' · 只读</span></span>'
+    +'<span style="font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">刷新</a></span>'
+    +'</div><div class="stk-grid">';
+  prods.forEach(p=>{ h+=_shopStockCard(p); });
+  return h+'</div>';
+}
+
 function renderInventory() {
   const cont = document.getElementById('inv-body'); if(!cont) return;
-  if (!INVENTORY.length) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
+  const shop = _shopStockHTML();
+  if (!INVENTORY.length && !shop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   cont.innerHTML =
     '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
       +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="搜索 名字/款式/颜色/SKU…" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
@@ -3290,6 +3382,7 @@ function renderInventory() {
     +'</div>'
     + _invChips()
     + _invTotalStrip()
+    + shop
     + '<div id="inv-list">'+_invListHTML()+'</div>';
 }
 
@@ -4622,7 +4715,7 @@ function goPage(pg) {
   if(pg==='records') renderRecords();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
-  if(pg==='stock'){ renderInventory(); renderPurchase(); }
+  if(pg==='stock'){ renderInventory(); renderPurchase(); syncShopifyStock(); }
 }
 document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
 
