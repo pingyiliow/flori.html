@@ -716,6 +716,25 @@
   </div>
 </div>
 
+<!-- ══ MODAL — On the way (dispatch + Lalamove tracking link) ═══ -->
+<div id="m-otw" class="modal">
+  <div class="mc" style="max-width:380px">
+    <div class="mc-hdr"><div class="mc-ttl">🚚 派送中 On the way</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-otw')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <input type="hidden" id="otw-order-id">
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.55;margin-bottom:14px">给顾客发「订单派送中 🚚 + 实时追踪链接」的 WhatsApp + 邮件。 <span id="otw-order-no" style="font-weight:600;color:var(--c-ink)"></span></div>
+      <div class="ff"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 顾客点这个实时追踪</span></label>
+        <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
+      </div>
+      <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> 通知顾客 Notify customer (WhatsApp + email)</label>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">发送 Send</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-otw')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Add Purchase ══════════════════════════════════ -->
 <div id="m-pur" class="modal">
   <div class="mc">
@@ -5464,6 +5483,39 @@ async function notifyOTW(o){
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }
+// Per-order "On the way" dispatch (for Lalamove / manual delivery not on a driver
+// route): paste/confirm the tracking link, then notify the customer with it.
+function openOTWModal(id){
+  const o = ORDERS.find(x=>x.id===id); if(!o) return;
+  document.getElementById('otw-order-id').value = id;
+  const noEl=document.getElementById('otw-order-no'); if(noEl) noEl.textContent = o.name ? ('· '+o.name) : '';
+  const lalaEl=document.getElementById('otw-lala'); if(lalaEl) lalaEl.value = o.lalamoveUrl || '';
+  const nEl=document.getElementById('otw-notify'); if(nEl) nEl.checked = true;
+  openModal('m-otw');
+}
+async function sendOTW(){
+  const id = document.getElementById('otw-order-id').value;
+  const o = ORDERS.find(x=>x.id===id); if(!o){ closeModal('m-otw'); return; }
+  const link = (document.getElementById('otw-lala').value||'').trim();
+  const notify = document.getElementById('otw-notify').checked;
+  o.lalamoveUrl = link || null;
+  if (!o.otwAt) o.otwAt = new Date().toISOString();   // stamp on-the-way (forward-only)
+  saveOrders(o);
+  closeModal('m-otw');
+  if (typeof renderHome==='function') renderHome();
+  if (typeof renderOrders==='function') renderOrders();
+  if (typeof openDP==='function' && _dpId===id) openDP(id);   // refresh panel (OTW badge)
+  if (!notify){ toast('已标记派送中 On the way'); return; }
+  toast('通知顾客中…');
+  try {
+    const res = await notifyOTW(o);
+    if (res && res.channels && res.channels.length) toast(`✓ 已通知顾客 · on the way (${res.channels.join(' + ')})`);
+    else if (res && res.alreadySent)                toast('✓ 已通知过了 · already sent');
+    else if (res && res.csFlag)                     toast('顾客没有联系方式 — 已标记跟进');
+    else if (res && res.skipped==='pickup')         toast('✓ 已标记派送中');
+    else toast('已标记派送中 · 通知遇到问题（查 WhatsApp Log）');
+  } catch(e){ toast('已标记派送中 · 通知失败'); }
+}
 // "On the way" is sent in a ROLLING WINDOW, not all at once: only the next N
 // undelivered stops are notified, so a customer hears "on the way" when the
 // driver is ~N stops away (not while the driver is still far down the route).
@@ -8872,10 +8924,17 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Delivered / Edit / Delete at bottom ──
+  // ── On the way / Delivered / Edit / Delete at bottom ──
   if (!localOrder.fulfilled) {
+    // "On the way" — dispatch step for Lalamove/manual delivery: sends the customer a
+    // live-tracking (Lalamove link) WhatsApp + email. Not for pickup orders.
+    if (localOrder.type !== 'pickup') {
+      html += `<button onclick="openOTWModal('${localOrder.id}')" style="width:100%;padding:12px;background:#EAF3FF;color:#1B4F9C;border:1.5px solid #B9D4F5;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;transition:all .12s" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EAF3FF'">
+        ${di('truck',15)} On the way 派送中${localOrder.otwAt?' · 已发':''}
+      </button>`;
+    }
     html += `<button onclick="markDelivered('${localOrder.id}')" style="width:100%;padding:13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:background .12s" onmouseover="this.style.background='#3A080C'" onmouseout="this.style.background='var(--c-burg)'">
-      ${localOrder.type==='pickup' ? di('bag',15)+' Mark as Picked Up' : di('truck',15)+' Mark as Delivered'}
+      ${localOrder.type==='pickup' ? di('bag',15)+' Mark as Picked Up' : di('check',15)+' Mark as Delivered'}
     </button>`;
   }
   html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
