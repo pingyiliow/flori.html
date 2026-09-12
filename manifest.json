@@ -1,13 +1,13 @@
 {
-  "name": "Bamboo Flower Club - Florist Studio",
-  "short_name": "Bamboo Flower Club",
+  "name": "Bamboo Flower Club",
+  "short_name": "Bamboo",
   "description": "Mobile app for florist shop daily order management and inventory tracking with Shopify integration",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "theme_color": "#4D0E13",
-  "background_color": "#9B6559",
+  "theme_color": "#FFFFFF",
+  "background_color": "#E8EEE4",
   "icons": [
     {
       "src": "/icon-192.png",
