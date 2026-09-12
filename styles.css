@@ -171,7 +171,7 @@ img{display:block;max-width:100%}
   background:var(--c-burg);color:var(--c-bg);font-size:9px;font-weight:800;border-radius:99px;text-align:center;display:none}
 
 /* ── More sheet (mobile admin drawer) ─────────────────────────── */
-.more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:340;background:var(--c-surface);
+.more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:960;background:var(--c-surface);
   border-radius:22px 22px 0 0;padding:8px 16px calc(22px + max(0px,env(safe-area-inset-bottom)));
   transform:translateY(115%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
   box-shadow:0 -16px 44px -18px rgba(40,30,25,.42)}
