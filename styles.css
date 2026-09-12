@@ -23,8 +23,8 @@
   --c-burg-dk:  #3A080C;
   --c-dpink:    #C8A49F;
   --c-sand:     #D8C4AC;
-  --f-head: 'Cormorant',Georgia,serif;
-  --f-body: 'DM Sans',system-ui,-apple-system,sans-serif;
+  --f-head: 'Bricolage Grotesque','Plus Jakarta Sans',system-ui,sans-serif;
+  --f-body: 'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
   --r:   4px;
   --r-lg: 8px;
   --sh:  none;
@@ -158,6 +158,33 @@ img{display:block;max-width:100%}
 }
 .mob-tab:hover{color:var(--c-ink)}
 .mob-tab.on{color:var(--c-burg);border-top-color:var(--c-burg)}
+.mob-tab span:last-child{font-size:10px;font-weight:600;letter-spacing:.02em}
+
+/* nav divider (replaces the old section headers) */
+.nav-div{height:1.5px;background:var(--c-border);margin:12px 20px}
+/* nav labels a touch bigger/clearer */
+.nav-btn{font-size:13.5px;font-weight:500;padding-top:10px;padding-bottom:10px}
+.nav-btn .nav-icon svg{width:19px;height:19px}
+
+/* mobile Orders badge (count on the icon) */
+.mob-badge{position:absolute;top:-5px;right:-8px;min-width:15px;height:15px;line-height:15px;padding:0 4px;
+  background:var(--c-burg);color:var(--c-bg);font-size:9px;font-weight:800;border-radius:99px;text-align:center;display:none}
+
+/* ── More sheet (mobile admin drawer) ─────────────────────────── */
+.more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:340;background:var(--c-surface);
+  border-radius:22px 22px 0 0;padding:8px 16px calc(22px + max(0px,env(safe-area-inset-bottom)));
+  transform:translateY(115%);transition:transform .26s cubic-bezier(.2,.8,.2,1);
+  box-shadow:0 -16px 44px -18px rgba(40,30,25,.42)}
+.more-sheet.on{transform:translateY(0)}
+.more-grab{width:38px;height:4px;border-radius:99px;background:var(--c-border2);margin:8px auto 8px}
+.more-ttl{font-family:var(--f-head);font-weight:700;font-size:21px;padding:2px 4px 12px}
+.more-row{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 6px;border-radius:14px}
+.more-row:active{background:var(--c-bg)}
+.more-ico{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px;flex:none}
+.more-lbl{font-weight:700;font-size:16px;flex:1}
+.more-badge{background:var(--c-burg);color:var(--c-bg);font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px}
+.more-chev{color:var(--c-muted);font-size:20px}
+@media(min-width:861px){ .more-sheet,#more-ov{display:none!important} }
 .mob-icon{font-size:18px}
 
 /* ── main ────────────────────────────────────────────────────── */
