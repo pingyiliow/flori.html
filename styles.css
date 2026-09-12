@@ -17,10 +17,10 @@
   --c-red-bg:   #FAF0EF;
   --c-blue:     #244E8C;
   --c-blue-bg:  #EBF1FA;
-  --c-burg:     #4D0E13;
-  --c-burg-mid: #7A1A20;
-  --c-burg-lt:  #F5EDEC;
-  --c-burg-dk:  #3A080C;
+  --c-burg:     #201F1C;
+  --c-burg-mid: #3B3A36;
+  --c-burg-lt:  #ECEFE8;
+  --c-burg-dk:  #000000;
   --c-dpink:    #C8A49F;
   --c-sand:     #D8C4AC;
   --f-head: 'Bricolage Grotesque','Plus Jakarta Sans',system-ui,sans-serif;
@@ -65,22 +65,22 @@ img{display:block;max-width:100%}
 /* ── header ──────────────────────────────────────────────────── */
 .hdr{
   grid-column:1/-1;
-  background:var(--c-burg);
+  background:var(--c-surface);border-bottom:1px solid var(--c-border);
   display:flex;align-items:center;justify-content:space-between;
   padding:env(safe-area-inset-top) 0 0 0;gap:0;
   position:sticky;top:0;z-index:200;
 }
-.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-burg);display:flex;align-items:center;gap:11px;padding:0 22px;flex-shrink:0}
+.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-surface);border-right:1px solid var(--c-border);display:flex;align-items:center;gap:11px;padding:0 22px;flex-shrink:0}
 .hdr-logo-mark{height:38px;width:38px;object-fit:contain;flex-shrink:0}
-.hdr-bloom{font-family:var(--f-head);font-size:20px;font-weight:600;color:var(--c-bg);letter-spacing:.02em;line-height:1}
-.hdr-flow{font-family:var(--f-head);font-size:20px;font-weight:400;color:var(--c-dpink);letter-spacing:.02em;line-height:1}
-.hdr-dot{width:5px;height:5px;border-radius:50%;background:var(--c-dpink);flex-shrink:0;margin:0 1px 2px;opacity:.7}
-.hdr-tagline{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--c-dpink);opacity:.6;font-family:var(--f-body);display:block;margin-top:3px}
-.hdr-center{flex:1;padding-left:22px;font-family:var(--f-head);font-size:13px;font-weight:500;color:var(--c-dpink);opacity:.9}
+.hdr-bloom{font-family:var(--f-head);font-size:19px;font-weight:700;color:var(--c-burg);letter-spacing:-.01em;line-height:1}
+.hdr-flow{font-family:var(--f-head);font-size:19px;font-weight:500;color:var(--c-blush);letter-spacing:-.01em;line-height:1}
+.hdr-dot{width:5px;height:5px;border-radius:50%;background:var(--c-blush);flex-shrink:0;margin:0 1px 2px;opacity:.8}
+.hdr-tagline{font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--c-muted);font-family:var(--f-body);display:block;margin-top:3px}
+.hdr-center{flex:1;padding-left:22px;font-family:var(--f-body);font-size:13px;font-weight:600;color:var(--c-muted)}
 .hdr-pill{
   font-size:10px;padding:3px 12px;border-radius:20px;margin-right:10px;
-  border:1px solid rgba(238,228,218,.25);color:rgba(238,228,218,.8);
-  font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;
+  border:1px solid var(--c-border);color:var(--c-muted);
+  font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;
 }
 .hdr-pill:empty{display:none}
 .hdr-actions{display:flex;align-items:center;gap:8px;padding-right:22px}
@@ -95,19 +95,19 @@ img{display:block;max-width:100%}
 .hdr-btn{
   width:34px;height:34px;border-radius:var(--r);
   display:flex;align-items:center;justify-content:center;
-  color:rgba(238,228,218,.8);font-size:18px;
+  color:var(--c-muted);font-size:18px;
   transition:background .15s,color .15s;
 }
-.hdr-btn:hover{background:rgba(238,228,218,.12);color:var(--c-bg)}
+.hdr-btn:hover{background:var(--c-bg);color:var(--c-burg)}
 .sync-btn{
   display:flex;align-items:center;gap:6px;
   padding:0 14px;height:30px;
-  background:rgba(238,228,218,.15);color:var(--c-bg);
-  border:1px solid rgba(238,228,218,.25);border-radius:var(--r);
-  font-size:11px;font-weight:500;letter-spacing:.04em;
+  background:var(--c-burg);color:#fff;
+  border:1px solid var(--c-burg);border-radius:var(--r);
+  font-size:11px;font-weight:600;letter-spacing:.02em;
   transition:background .15s;white-space:nowrap;
 }
-.sync-btn:hover{background:rgba(238,228,218,.25)}
+.sync-btn:hover{background:var(--c-burg-dk)}
 .spin{animation:rot .7s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 
