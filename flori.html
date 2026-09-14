@@ -2994,9 +2994,12 @@ function renderHome() {
   const urgentT   = todayO.filter(o => !o.fulfilled && o.priority==='urgent');
   const revToday  = todayO.reduce((s,o)=>s+(orderTotal(o)||0),0);
   const unassignedDel = todayO.filter(o=>(o.type||'delivery')==='delivery' && !o.routeId && !o.fulfilled).length;
+  // Only the recent active window counts — the DB keeps a long backlog of stale
+  // unfulfilled imports, which must NOT inflate the "Ready"/"Overdue" tiles.
+  const _statCut = new Date(t0.getTime() - 7*86400000);   // ignore anything older than a week
   const onwayCnt   = ORDERS.filter(o => o.otwAt && !o.fulfilled).length;
-  const readyCnt   = ORDERS.filter(o => o.ready && !o.fulfilled).length;
-  const overdueCnt = ORDERS.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled).length;
+  const readyCnt   = ORDERS.filter(o => o.ready && !o.fulfilled && (!o.dateObj || o.dateObj >= _statCut)).length;
+  const overdueCnt = ORDERS.filter(o => o.dateObj && o.dateObj < t0 && o.dateObj >= _statCut && !o.fulfilled).length;
   const _sv=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
   _sv('s-due', todayO.length); _sv('s-otw', onwayCnt); _sv('s-ready', readyCnt); _sv('s-over', overdueCnt);
   // Hero — time-based greeting + date
