@@ -3758,12 +3758,12 @@ function _shopStockHTML(){
   const refreshBit='<span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">刷新</a></span>';
   let h='';
   Object.keys(groups).sort((a,b)=>_catIndex(a)-_catIndex(b)).forEach(cat=>{
-    h+='<div class="stk-cat">'+esc(_catLabel(cat))+' '+shopTag+'</div><div class="stk-grid">';
+    h+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
     groups[cat].forEach(p=>{ h+=_shopStockCard(p); });
     h+='</div>';
   });
   if(unassigned.length){
-    h+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">Shopify · 未分类 <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· pick a category on each</span>'+refreshBit+'</div><div class="stk-grid">';
+    h+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">未分类 Unassigned <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· pick a category on each</span>'+refreshBit+'</div><div class="stk-grid">';
     unassigned.forEach(p=>{ h+=_shopStockCard(p); });
     h+='</div>';
   }
