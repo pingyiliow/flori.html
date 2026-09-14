@@ -470,77 +470,64 @@
     <div class="mc-body">
 
       <!-- Customer (collapsed by default — tap to expand) -->
-      <div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);margin-bottom:12px;overflow:hidden">
-        <button type="button" onclick="toggleOrderCust()" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 14px;background:var(--c-surface);border:none;cursor:pointer;font-size:13px;font-weight:600;color:var(--c-ink)">
-          <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="o-cust-summary">Customer details</span></span>
-          <span id="o-cust-chev" style="color:var(--c-muted);font-size:11px;white-space:nowrap">▸ expand</span>
-        </button>
-        <div id="o-cust-section" style="display:none;padding:10px 14px 12px;border-top:1px solid var(--c-border)">
-          <div class="ff" style="position:relative">
-            <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find existing customer</label>
-            <input id="o-cust-search" type="text" placeholder="Search phone, email or name…" autocomplete="off" oninput="oCustSearch(this.value)">
-            <div id="o-cust-sug" class="rcp-sug" style="display:none"></div>
-          </div>
-          <div class="fg fg-2" style="margin-top:8px">
-            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
-            <div class="ff"><label class="ff-l">Phone</label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
-            <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
-            <div class="ff" id="o-addr-wrap" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
-            <div class="ff" id="o-lala-wrap" style="grid-column:1/-1"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 贴上 Lalamove 分享的追踪链接</span></label>
-              <input id="o-lala" type="url" placeholder="https://track.lalamove.com/..." oninput="_oLalaSync()">
-              <a id="o-lala-open" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12px;color:var(--c-burg);font-weight:600;text-decoration:none">打开追踪 Track Lalamove ↗</a></div>
-          </div>
+      <!-- 1 · When & how -->
+      <div style="margin-bottom:18px">
+        <div class="osec">When &amp; how</div>
+        <input type="hidden" id="o-type" value="delivery">
+        <div class="oseg-row" style="margin-bottom:11px">
+          <button type="button" id="o-type-del" class="oseg on" onclick="_oPickType('delivery')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="1" y="4" width="14" height="12" rx="2"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg> Delivery</button>
+          <button type="button" id="o-type-pick" class="oseg" onclick="_oPickType('pickup')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Self collect</button>
+        </div>
+        <div class="fg fg-2">
+          <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
+          <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
         </div>
       </div>
 
-      <!-- Order info -->
-      <div class="fg fg-2">
-        <div class="ff"><label class="ff-l">Order #</label><input id="o-num" type="text" placeholder="#manual-001"></div>
-        <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
-        <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
-        <div class="ff">
-          <label class="ff-l">Type</label>
-          <select id="o-type" onchange="_oTypeChange()">
-            <option value="delivery">Delivery</option>
-            <option value="pickup">Self Collect / Pickup</option>
-          </select>
+      <!-- 2 · Customer -->
+      <div style="margin-bottom:18px">
+        <div class="osec">Customer</div>
+        <div class="ff" style="position:relative;margin-bottom:8px">
+          <input id="o-cust-search" type="text" placeholder="Search existing — phone, name or email…" autocomplete="off" oninput="oCustSearch(this.value)">
+          <div id="o-cust-sug" class="rcp-sug" style="display:none"></div>
         </div>
-        <div class="ff">
-          <label class="ff-l">Designer</label>
-          <select id="o-designer">
-            <option value="">— Unassigned —</option>
-            <option value="Madeleine">Madeleine</option>
-            <option value="Audrey">Audrey</option>
-            <option value="Amanda">Amanda</option>
-            <option value="Apple">Apple</option>
-            <option value="Fang Ler">Fang Ler</option>
-          </select>
-        </div>
-        <div class="ff">
-          <label class="ff-l">Priority</label>
-          <select id="o-priority">
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
-        </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Special Instructions (internal)</label>
-          <textarea id="o-internal-note" style="min-height:70px;border:2px solid #FFD54F;background:#FFF8E1" placeholder="e.g. Customer wants pink theme, use white Korean paper, no lilies…"></textarea>
+        <div class="fg fg-2">
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
+          <div class="ff"><label class="ff-l">Phone</label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
+          <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
         </div>
       </div>
 
-      <!-- Products -->
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span class="ff-l" style="font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted)">Products</span>
-          <button onclick="addProductRow()" style="font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:500">+ Add product</button>
-        </div>
-        <div style="position:relative;margin-bottom:10px">
-          <input id="o-prod-search" type="text" placeholder="Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'o')" style="width:100%;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-          <div id="o-prod-search-results" class="rcp-sug" style="display:none"></div>
-        </div>
+      <!-- 3 · Delivery address (delivery only) -->
+      <div style="margin-bottom:18px" id="o-deliv-sec">
+        <div class="osec">Delivery address</div>
+        <div class="ff" id="o-addr-wrap"><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
+        <div class="ff" id="o-lala-wrap" style="margin-top:10px"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选</span></label>
+          <input id="o-lala" type="url" placeholder="https://track.lalamove.com/..." oninput="_oLalaSync()">
+          <a id="o-lala-open" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12px;color:var(--c-burg);font-weight:600;text-decoration:none">打开追踪 Track Lalamove ↗</a></div>
+      </div>
+
+      <!-- 4 · Items -->
+      <div style="margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between"><div class="osec" style="margin-bottom:0">Items</div><button onclick="addProductRow()" style="font-size:12px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:600">+ Add product</button></div>
+        <div style="position:relative;margin:10px 0"><input id="o-prod-search" type="text" placeholder="Find a Shopify product to add…" autocomplete="off" oninput="shopProdSearch(this.value,'o')" style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)"><div id="o-prod-search-results" class="rcp-sug" style="display:none"></div></div>
         <div id="o-products-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+
+      <!-- 5 · Details -->
+      <div style="margin-bottom:6px">
+        <div class="osec">Details</div>
+        <div class="fg fg-2">
+          <div class="ff"><label class="ff-l">Order #</label><input id="o-num" type="text" placeholder="#manual-001"></div>
+          <div class="ff"><label class="ff-l">Designer</label>
+            <select id="o-designer"><option value="">— Unassigned —</option><option value="Madeleine">Madeleine</option><option value="Audrey">Audrey</option><option value="Amanda">Amanda</option><option value="Apple">Apple</option><option value="Fang Ler">Fang Ler</option></select></div>
+          <div class="ff"><label class="ff-l">Priority</label>
+            <select id="o-priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+        </div>
+        <div class="ff" style="margin-top:10px">
+          <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Special Instructions (internal)</label>
+          <textarea id="o-internal-note" style="min-height:70px;border:2px solid #FFD54F;background:#FFF8E1" placeholder="e.g. pink theme, white Korean paper, no lilies…"></textarea>
+        </div>
       </div>
 
       <div class="btn-row">
@@ -7856,13 +7843,15 @@ function _oLalaSync(){
   const v=(inp.value||'').trim();
   if(/^https?:\/\//i.test(v)){ a.href=v; a.style.display='inline-block'; } else { a.style.display='none'; }
 }
-// Lalamove tracking + delivery address only make sense for a delivery order — hide
-// them for Self Collect / Pickup.
+// Segmented Delivery / Pickup toggle → sets the hidden o-type, syncs button state, and
+// hides the whole Delivery-address section (address + Lalamove) for Self Collect.
+function _oPickType(v){ const el=document.getElementById('o-type'); if(el) el.value=v; _oTypeChange(); }
 function _oTypeChange(){
   const t=(document.getElementById('o-type')||{}).value;
   const isPickup = t==='pickup';
-  const lw=document.getElementById('o-lala-wrap'); if(lw) lw.style.display = isPickup ? 'none' : '';
-  const aw=document.getElementById('o-addr-wrap'); if(aw) aw.style.display = isPickup ? 'none' : '';
+  const sec=document.getElementById('o-deliv-sec'); if(sec) sec.style.display = isPickup ? 'none' : '';
+  const del=document.getElementById('o-type-del'); if(del) del.classList.toggle('on', !isPickup);
+  const pik=document.getElementById('o-type-pick'); if(pik) pik.classList.toggle('on', isPickup);
 }
 function openAddOrder(){
   ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});

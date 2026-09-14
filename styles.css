@@ -429,6 +429,13 @@ body.role-driver .shell{grid-template-columns:1fr}
 .fp-row .fbar-l{font-size:11px}
 .fp-chips{display:flex;flex-wrap:wrap;gap:7px}
 
+/* add-order form — logical sections + segmented type toggle */
+.osec{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px}
+.oseg-row{display:flex;gap:8px}
+.oseg{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:12px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:14px;font-weight:600;color:var(--c-muted);cursor:pointer;transition:all .12s}
+.oseg:hover{color:var(--c-ink)}
+.oseg.on{background:var(--c-ink);color:var(--c-bg);border-color:var(--c-ink)}
+
 /* follow-up list stat tiles (pastel pipeline) */
 .fu-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .fu-tile{border-radius:16px;padding:15px 16px}
