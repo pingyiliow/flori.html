@@ -1346,6 +1346,7 @@ async function showApp() {
   loadShopCat();       // manual category assignment for Shopify-tracked items
   loadShopStockIds();  // user-added Shopify products tracked as stock (shared settings)
   loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
+  loadShopDeductLog(); // idempotency ledger for recipe→Shopify auto-deductions
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -2312,11 +2313,17 @@ function loadRecipes(){ try{ RECIPES = JSON.parse(localStorage.getItem('flori-re
 async function loadRecipesSB(){ if(!hasSB()) return; try{ const v=await sbGetVal('recipes'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null; if(Array.isArray(arr)){ RECIPES=arr; try{ _lsSet('flori-recipes',JSON.stringify(arr)); }catch(_){} } }catch(_){} }
 function saveRecipes(){ try{ _lsSet('flori-recipes',JSON.stringify(RECIPES)); }catch(_){} if(hasSB()) sbSet('recipes', JSON.stringify(RECIPES)); }
 // Auto-deduct materials for every non-cancelled order whose line item matches a recipe.
+// Idempotency ledger for Shopify-component deductions (writes to LIVE Shopify stock).
+// Keyed by rkey = orderId|title|mid; persisted so a re-sync never double-deducts.
+let SHOP_DEDUCT_LOG = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-shop-deduct')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+let _shopDeductInFlight = new Set();
+async function loadShopDeductLog(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_deduct_log'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ SHOP_DEDUCT_LOG=o; try{ _lsSet('flori-shop-deduct',JSON.stringify(o)); }catch(_){} } }catch(_){} }
+function saveShopDeductLog(){ try{ _lsSet('flori-shop-deduct',JSON.stringify(SHOP_DEDUCT_LOG)); }catch(_){} if(hasSB()) sbSet('shop_deduct_log', JSON.stringify(SHOP_DEDUCT_LOG)); }
 function _applyRecipes(){
   if(typeof INVENTORY==='undefined' || typeof ORDERS==='undefined' || !RECIPES.length) return;
   const byName={}; RECIPES.forEach(r=>{ if(r && r.name) byName[String(r.name).trim()] = r; });
   const cutoff = Date.now() - 120*86400000;
-  let changed=false;
+  let changed=false; const shopQueue=[];
   ORDERS.forEach(o=>{
     if(o.cancelled) return;
     const when = o.dateObj ? o.dateObj.getTime() : (o.createdAt ? new Date(o.createdAt).getTime() : Date.now());
@@ -2326,9 +2333,19 @@ function _applyRecipes(){
       if(r.since && when < r.since) return;   // only deduct orders from when the recipe was set up onward (no retroactive double-count)
       const lq = li.quantity||1;
       r.components.forEach(c=>{
+        const rkey = o.id+'|'+String(li.title||'')+'|'+c.mid;
+        if(_compIsShop(c)){
+          // Shopify component → write to LIVE Shopify stock. Guard against retroactive
+          // deduction (only orders from when this component was added), the shared
+          // ledger, and in-flight writes.
+          const from = c.addedAt || r.since || 0;
+          if(when < from) return;
+          if(SHOP_DEDUCT_LOG[rkey] || _shopDeductInFlight.has(rkey)) return;
+          shopQueue.push({ rkey, pid:_compPid(c), need:(c.qty||1)*lq, orderNo:o.name||'' });
+          return;
+        }
         const item = INVENTORY.find(x=>x.id===c.mid); if(!item) return;
         item.moves = Array.isArray(item.moves) ? item.moves : [];
-        const rkey = o.id+'|'+String(li.title||'')+'|'+c.mid;
         // Idempotent, and won't double-count an order the OLD link-based BOM already
         // deducted (those moves carry orderId but no rkey).
         if(item.moves.some(m=> m.rkey===rkey || (m.type==='auto' && !m.rkey && m.orderId===o.id))) return;
@@ -2341,6 +2358,7 @@ function _applyRecipes(){
     });
   });
   if(changed){ saveInventory(); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
+  if(shopQueue.length && typeof _flushShopDeducts==='function') _flushShopDeducts(shopQueue);
 }
 function _applyBOM(){ _applyRecipes(); }   // back-compat alias for existing call sites
 function renderRecipes(){
@@ -2379,8 +2397,10 @@ function rbomSetSrc(s){ _recEdit.source=s;
 function _rbomRenderComps(){
   const el=document.getElementById('rbom-comps'); if(!el) return;
   const comps=_recEdit.components||[];
-  el.innerHTML = comps.length ? comps.map((c,i)=>{ const inv=INVENTORY.find(x=>x.id===c.mid); const stock=inv?(inv.qty||0):null;
-    return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+'</div>'+(stock!=null?'<div style="font-size:11px;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">'+stock+' in stock</div>':'<div style="font-size:11px;color:#b46a1e">not in materials</div>')+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
+  el.innerHTML = comps.length ? comps.map((c,i)=>{ const st=_compStock(c);
+    const tag=_compIsShop(c)?' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>':'';
+    const line = st.qty!=null ? '<div style="font-size:11px;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">'+st.qty+' in stock</div>' : '<div style="font-size:11px;color:#b46a1e">not in materials</div>';
+    return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+tag+'</div>'+line+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 2px">No materials yet — add below.</div>';
 }
 function rbomQty(i,d){ const c=_recEdit.components[i]; if(!c) return; c.qty=Math.max(1,(c.qty||1)+d); _rbomRenderComps(); }
@@ -2389,12 +2409,27 @@ function rbomMatSearch(q){
   const box=document.getElementById('rbom-mat-results'); if(!box) return;
   q=String(q||'').trim().toLowerCase();
   if(!q){ box.style.display='none'; box.innerHTML=''; return; }
-  const rows=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>String(i.name||'').toLowerCase().includes(q)).slice(0,12);
+  const shopTag=' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  const man=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>String(i.name||'').toLowerCase().includes(q)).slice(0,10)
+    .map(i=>({shop:false,id:i.id,name:i.name,qty:i.qty||0,unit:i.unit||''}));
+  const shop=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).filter(p=>String(p.title||'').toLowerCase().includes(q)).slice(0,8)
+    .map(p=>({shop:true,pid:p.id,name:p.title,qty:p.total||0}));
+  const rows=man.concat(shop);
   _rbomMatResults=rows;
-  box.innerHTML = rows.length ? rows.map((i,k)=>'<div class="rcp-sug-row" onmousedown="rbomMatPick('+k+')">'+esc(i.name)+' <span style="color:var(--c-muted);float:right">'+(i.qty||0)+' '+esc(i.unit||'')+'</span></div>').join('') : '<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">Not in materials — add it in the Materials tab first</div>';
+  box.innerHTML = rows.length ? rows.map((r,k)=>'<div class="rcp-sug-row" onmousedown="rbomMatPick('+k+')">'+esc(r.name)+(r.shop?shopTag:'')+' <span style="color:var(--c-muted);float:right">'+r.qty+(r.shop?'':' '+esc(r.unit))+'</span></div>').join('') : '<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">Not found — add it in the Materials tab first</div>';
   box.style.display='';
 }
-function rbomMatPick(k){ const i=_rbomMatResults[k]; if(!i) return; if(!_recEdit.components.some(c=>c.mid===i.id)) _recEdit.components.push({mid:i.id,name:i.name,qty:1}); _rbomRenderComps(); const box=document.getElementById('rbom-mat-results'); if(box){box.style.display='none';box.innerHTML='';} const inp=document.getElementById('rbom-mat-search'); if(inp) inp.value=''; }
+// Current stock for a recipe component — manual (INVENTORY) or Shopify (SHOPIFY_STOCK).
+function _compIsShop(c){ return !!(c && (c.kind==='shop' || String(c.mid||'').indexOf('shop:')===0)); }
+function _compPid(c){ return c.pid || String(c.mid||'').replace(/^shop:/,''); }
+function _compStock(c){
+  if(_compIsShop(c)){ const p=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).find(x=>x.id===_compPid(c)); return { qty:p?(p.total||0):null, shop:true, low:p?((p.total||0)<=SHOP_STOCK_LOW):false }; }
+  const inv=(typeof INVENTORY!=='undefined'?INVENTORY:[]).find(x=>x.id===c.mid); return { qty:inv?(inv.qty||0):null, shop:false, low:inv?_invLow(inv):false };
+}
+function rbomMatPick(k){ const r=_rbomMatResults[k]; if(!r) return;
+  if(r.shop){ if(!_recEdit.components.some(c=>_compIsShop(c)&&_compPid(c)===r.pid)) _recEdit.components.push({mid:'shop:'+r.pid, pid:r.pid, name:r.name, qty:1, kind:'shop', addedAt:Date.now()}); }
+  else { if(!_recEdit.components.some(c=>c.mid===r.id)) _recEdit.components.push({mid:r.id, name:r.name, qty:1}); }
+  _rbomRenderComps(); const box=document.getElementById('rbom-mat-results'); if(box){box.style.display='none';box.innerHTML='';} const inp=document.getElementById('rbom-mat-search'); if(inp) inp.value=''; }
 function rbomNameSearch(q){
   _recEdit.name = q; _recEdit.image = null;   // free-typed name loses the linked image until re-picked
   const box=document.getElementById('rbom-name-results'); if(!box) return;
@@ -2441,8 +2476,9 @@ function _recView(r){
   const zh=LANG==='zh';
   h+='<div class="skv-body"><div class="skv-sec">'+(zh?'用料 · 订单来时扣库存':'Materials · deducted when an order comes in')+'</div>';
   const comps=r.components||[];
-  h+= comps.length ? comps.map(c=>{ const inv=INVENTORY.find(x=>x.id===c.mid); const stock=inv?(inv.qty||0):null;
-      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+(stock!=null?' <span style="font-size:11px;font-weight:400;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">· '+stock+(zh?' 库存':' in stock')+'</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
+  h+= comps.length ? comps.map(c=>{ const st=_compStock(c);
+      const tag=_compIsShop(c)?' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>':'';
+      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+tag+(st.qty!=null?' <span style="font-size:11px;font-weight:400;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">· '+st.qty+(zh?' 库存':' in stock')+'</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
     : '<span style="color:var(--c-muted);font-size:12px">'+(zh?'还没设置用料':'No materials set')+'</span>';
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-recview\');openBom(\''+r.id+'\')">'+di('edit',14)+' '+(zh?'编辑设计':'Edit design')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="closeModal(\'m-recview\');_recDelete(\''+r.id+'\')">'+di('trash',14)+'</button></div>';
@@ -3788,6 +3824,32 @@ function stkSetInv(id, val){
   const delta=target-(it.qty||0);
   if(delta!==0) invAdjust(id, delta, delta>0?'in':'out');
   _stkRefresh();
+}
+// Recipe auto-deduction for Shopify components: subtract each design's Shopify material
+// from the LIVE store, once per order (ledger-guarded). Targets variant 0.
+async function _flushShopDeducts(queue){
+  if(!Array.isArray(queue) || !queue.length) return;
+  if(typeof hasSB==='function' && !hasSB()) return;
+  const locId = await _shopLocation(); if(!locId) return;
+  let applied=0;
+  for(const job of queue){
+    if(SHOP_DEDUCT_LOG[job.rkey] || _shopDeductInFlight.has(job.rkey)) continue;
+    const p=(SHOPIFY_STOCK||[]).find(x=>x.id===job.pid); if(!p) continue;
+    const v=(p.variants||[])[0]; if(!v || !v.invItemId) continue;
+    _shopDeductInFlight.add(job.rkey);
+    try{
+      const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
+      const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:-job.need, inventoryItemId:v.invItemId, locationId:locId }] } });
+      const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
+      if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+      v.qty=(v.qty||0)-job.need; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
+      SHOP_DEDUCT_LOG[job.rkey]={ delta:-job.need, ts:Date.now(), orderNo:job.orderNo };
+      saveShopDeductLog();
+      applied++;
+    }catch(e){ console.warn('shop auto-deduct failed', job.rkey, e&&e.message); }
+    finally{ _shopDeductInFlight.delete(job.rkey); }
+  }
+  if(applied){ if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof _stkRefresh==='function') _stkRefresh(); toast((LANG==='zh'?'Shopify 已扣库存 ×':'Shopify stock deducted ×')+applied); }
 }
 function _shopStepper(pid, vIdx, qty, low, small){
   const sz=small?20:26, fs=small?13:15, qs=small?16:18;
