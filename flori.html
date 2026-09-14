@@ -634,6 +634,11 @@
         <div class="ff"><label class="ff-l">Size 尺寸</label><input id="i-size" type="text" placeholder="e.g. 6寸 / 20cm"></div>
         <div class="ff"><label class="ff-l">到货价格 Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="每个 / 每卷"></div>
         <div class="ff"><label class="ff-l">补货点 Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="低过就提醒 (default 5)"></div>
+        <div class="ff" style="grid-column:1/-1">
+          <label class="ff-l">共用产品 Shared with products <span style="color:var(--c-muted);font-weight:400">选填 · 送达时自动扣库存 auto-deducts on delivery</span></label>
+          <div style="position:relative"><input id="i-link-search" type="text" placeholder="Find a Shopify design that uses this item…" autocomplete="off" oninput="invLinkSearch(this.value)"><div id="i-link-results" class="rcp-sug" style="display:none"></div></div>
+          <div id="i-linked-list" style="margin-top:8px"></div>
+        </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes 备注</label><textarea id="i-notes" placeholder="Supplier 供应商…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
@@ -2051,7 +2056,7 @@ async function syncOrders() {
   } catch(e) { setPill('Sync failed'); toast('⚠ ' + (e.message || 'Sync failed')); if (/sign in|登录|401/i.test(e.message||'')) _ensureSignedIn(); }
   // Single paint for the whole refresh chain. On failure this still renders the
   // Supabase data a skipRender loadFromSupabase loaded silently just before.
-  finally { renderAll(); ico.classList.remove('spin'); }
+  finally { if(typeof _applyBOM==='function')_applyBOM(); renderAll(); ico.classList.remove('spin'); }
 }
 
 /* ─── Data stores ────────────────────────────────────────────── */
@@ -2155,7 +2160,8 @@ function _invRow(i){
     sku:i.sku||null, family:i.family||null, color:i.color||null,
     size:i.size||null, price:(i.price==null||i.price===''?null:Number(i.price)),
     reorder:(i.reorder==null||i.reorder===''?null:parseInt(i.reorder,10)),
-    notes:i.notes||null, photo:i.photo||null, moves:Array.isArray(i.moves)?i.moves:null };
+    notes:i.notes||null, photo:i.photo||null, moves:Array.isArray(i.moves)?i.moves:null,
+    linked:Array.isArray(i.linked)?i.linked:null };
 }
 function saveInventory() {
   _lsSet('flori-inventory', JSON.stringify(INVENTORY));
@@ -2172,8 +2178,37 @@ function _invRenderMoves(i){
   const el = document.getElementById('i-moves'); if(!el) return;
   const moves = Array.isArray(i.moves) ? i.moves : [];
   el.innerHTML = moves.length
-    ? moves.slice(0,8).map(m => '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+(m.delta>0?'＋收货 ':'－用掉 ')+Math.abs(m.delta)+'</span><span style="color:var(--c-muted)">'+esc(m.by||'')+' · '+_invMoveTime(m.ts)+'</span></div>').join('')
+    ? moves.slice(0,10).map(m => { const who = (m.type==='auto' && m.orderNo) ? ('订单 '+esc(m.orderNo)) : esc(m.by||''); const verb = m.delta>0?'＋收货 ':(m.type==='auto'?'－订单 ':'－用掉 ');
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span style="color:var(--c-muted)">'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join('')
     : '<div style="font-size:11px;color:var(--c-muted)">还没有记录 no movements yet</div>';
+}
+// Bill-of-materials auto-deduct: a stock item linked to Shopify product titles is
+// consumed when a linked order is delivered. Deducts the ordered quantity, once per
+// order (guarded by a move carrying that order id), and logs which order.
+function _applyBOM(){
+  if(typeof INVENTORY==='undefined' || typeof ORDERS==='undefined') return;
+  const linked = INVENTORY.filter(i => Array.isArray(i.linked) && i.linked.length);
+  if(!linked.length) return;
+  const linkSets = linked.map(i => new Set(i.linked.map(t=>String(t).trim())));
+  const cutoff = Date.now() - 90*86400000;   // ignore very old orders
+  let changed = false;
+  ORDERS.forEach(o => {
+    if(!o.fulfilled) return;
+    const when = o.deliveredAt ? new Date(o.deliveredAt).getTime() : (o.dateObj ? o.dateObj.getTime() : Date.now());
+    if(when < cutoff) return;
+    linked.forEach((item, idx) => {
+      item.moves = Array.isArray(item.moves) ? item.moves : [];
+      if(item.moves.some(m => m.orderId === o.id)) return;   // already deducted for this order
+      const need = (o.lineItems||[]).reduce((s,li) => s + (linkSets[idx].has(String(li.title||'').trim()) ? (li.quantity||1) : 0), 0);
+      if(need > 0){
+        item.qty = (item.qty||0) - need;
+        item.moves.unshift({ ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'' });
+        if(item.moves.length > 60) item.moves = item.moves.slice(0,60);
+        changed = true;
+      }
+    });
+  });
+  if(changed){ saveInventory(); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
 }
 // Adjust stock by delta and log who/when/±how much (capped to the last 40 moves).
 function invAdjust(id, delta, type){
@@ -4198,6 +4233,32 @@ function shopProdPick(i, target){
   const inp=document.getElementById(target+'-prod-search'); if(inp) inp.value='';
 }
 document.addEventListener('click', e=>{ if(e.target.closest('#o-prod-search,#o-prod-search-results,#fu-prod-search,#fu-prod-search-results')) return; ['o','fu'].forEach(t=>{ const b=document.getElementById(t+'-prod-search-results'); if(b&&b.style.display!=='none'){ b.style.display='none'; } }); });
+
+// Inventory ↔ Shopify product linking (shared component / BOM). Stores PRODUCT titles
+// (order line items carry the product title, so matching is exact).
+let _invLinked = [], _invLinkResults = [], _invLinkT = null;
+function invLinkSearch(q){
+  const box=document.getElementById('i-link-results'); if(!box) return;
+  q=String(q||'').trim();
+  if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
+  clearTimeout(_invLinkT);
+  _invLinkT=setTimeout(async ()=>{
+    let rows=[];
+    try{ const data=await shopifyGQL(`{ products(first:15, query:${JSON.stringify(q)}) { edges { node { title } } } }`); rows=(data.products?.edges||[]).map(e=>e.node.title).filter(Boolean); }
+    catch(err){ box.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--c-red)">Search failed</div>'; box.style.display=''; return; }
+    _invLinkResults=rows;
+    box.innerHTML = rows.length ? rows.map((t,i)=>'<div class="rcp-sug-row" onmousedown="invLinkPick('+i+')">'+esc(t)+'</div>').join('') : '<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">No products found</div>';
+    box.style.display='';
+  }, 300);
+}
+function invLinkPick(i){ const t=_invLinkResults[i]; if(!t) return; if(!_invLinked.includes(t)) _invLinked.push(t); _invRenderLinked(); const box=document.getElementById('i-link-results'); if(box){ box.style.display='none'; box.innerHTML=''; } const inp=document.getElementById('i-link-search'); if(inp) inp.value=''; }
+function invLinkRemove(i){ _invLinked.splice(i,1); _invRenderLinked(); }
+function _invRenderLinked(){ const el=document.getElementById('i-linked-list'); if(!el) return;
+  el.innerHTML = _invLinked.length
+    ? _invLinked.map((t,i)=>'<span style="display:inline-flex;align-items:center;gap:6px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:4px 11px;font-size:12px;margin:0 6px 6px 0">'+esc(t)+'<button type="button" onclick="invLinkRemove('+i+')" aria-label="remove" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:0;font-size:15px;line-height:1">×</button></span>').join('')
+    : '<span style="font-size:11px;color:var(--c-muted)">未链接产品 — this stock isn\'t auto-deducted.</span>';
+}
+document.addEventListener('click', e=>{ if(e.target.closest('#i-link-search,#i-link-results')) return; const b=document.getElementById('i-link-results'); if(b&&b.style.display!=='none') b.style.display='none'; });
 // Format a date as DD/MM/YYYY for Shopify (pd() reads this format back fine).
 function _fmtDDMM(s){
   const d = pd(s); if (!d) return String(s||'');
@@ -7899,6 +7960,8 @@ function openAddInv(cat) {
   document.getElementById('i-price').value = '';
   document.getElementById('i-reorder').value = '';
   document.getElementById('i-notes').value = '';
+  const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
+  _invLinked = []; _invRenderLinked();
   setPhotoZone('i-photo-zone', 'i-photo', '');
   document.getElementById('i-tabs').style.display = 'none';         // no Details/Stock tabs for a brand-new item
   document.getElementById('i-form').style.display = '';
@@ -7921,6 +7984,8 @@ function editInv(id) {
   document.getElementById('i-price').value = (i.price!=null && i.price!=='') ? i.price : '';
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
+  const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
+  _invLinked = Array.isArray(i.linked) ? i.linked.slice() : []; _invRenderLinked();
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-adjust-qty').value = '1';
   _invRenderMoves(i);
@@ -8197,7 +8262,8 @@ function saveInv(){
     size:document.getElementById('i-size').value.trim()||null,
     price:_priceRaw===''?null:(parseFloat(_priceRaw)||null),
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
-    notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||''};
+    notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||'',
+    linked:_invLinked.slice()};
   if(editId){ const i=INVENTORY.find(x=>x.id===editId); if(i)Object.assign(i,data); }
   else { INVENTORY.push({id:'inv-'+Date.now(),...data}); }
   saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
@@ -8370,13 +8436,13 @@ async function confirmDeliver(id, photos, notify, verb){
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     toast('✓ Marked as '+verb); return;
   }
   toast('Fulfilling in Shopify…');
   try {
     const r = await fulfillInShopify(o, false);   // silent — our own system notifies
-    o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     if (notify){
       toast('Notifying customer…');
       const res = await notifyCustomerManual(o, photoUrl);
@@ -8393,7 +8459,7 @@ async function confirmDeliver(id, photos, notify, verb){
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
-      o.ready=true; o.fulfilled=true; saveOrders(o); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+      o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else { toast('Cancelled'); }
   }
