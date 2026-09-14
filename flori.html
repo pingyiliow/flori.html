@@ -681,16 +681,21 @@
   <div class="mc" style="max-width:460px">
     <div class="mc-hdr"><div class="mc-ttl" id="rbom-ttl">New design</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-rbom')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
-      <div class="ff"><label class="ff-l">Design name 设计名称</label>
-        <div style="position:relative"><input id="rbom-name" type="text" placeholder="Search a website design, or type an omakase name…" autocomplete="off" oninput="rbomNameSearch(this.value)"><div id="rbom-name-results" class="rcp-sug" style="display:none"></div></div>
+      <div class="osec" style="margin-top:2px">Design source 设计来源</div>
+      <div class="oseg-row" style="margin-bottom:14px">
+        <button type="button" id="rbom-src-web" class="oseg on" onclick="rbomSetSrc('website')">Website 网站</button>
+        <button type="button" id="rbom-src-oma" class="oseg" onclick="rbomSetSrc('omakase')">Omakase 定制</button>
       </div>
-      <div class="oseg-row" style="margin:11px 0 4px">
-        <button type="button" id="rbom-src-web" class="oseg on" onclick="rbomSetSrc('website')">Website</button>
-        <button type="button" id="rbom-src-oma" class="oseg" onclick="rbomSetSrc('omakase')">Omakase</button>
+      <div class="ff" style="position:relative"><label class="ff-l" id="rbom-name-lbl">Find your website design</label>
+        <input id="rbom-name" type="text" placeholder="Search a Shopify design…" autocomplete="off" oninput="rbomNameSearch(this.value)">
+        <div id="rbom-name-results" class="rcp-sug" style="display:none"></div>
       </div>
-      <div class="osec" style="margin:16px 0 8px">Materials used 用料</div>
+      <div class="osec" style="margin:18px 0 8px">Materials used 用料</div>
       <div id="rbom-comps"></div>
-      <div style="position:relative;margin-top:8px"><input id="rbom-mat-search" type="text" placeholder="+ Add a material from stock…" autocomplete="off" oninput="rbomMatSearch(this.value)"><div id="rbom-mat-results" class="rcp-sug" style="display:none"></div></div>
+      <div class="ff" style="position:relative;margin-top:10px">
+        <input id="rbom-mat-search" type="text" placeholder="+ Add a material from stock…" autocomplete="off" oninput="rbomMatSearch(this.value)">
+        <div id="rbom-mat-results" class="rcp-sug" style="display:none"></div>
+      </div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" style="flex:1" onclick="saveRecipeBom()">Save design</button>
         <button class="btn btn-ghost" id="rbom-del" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteRecipeBom()">Delete</button>
@@ -1289,6 +1294,7 @@ async function showApp() {
   loadInvCats();       // editable stock categories (shared settings)
   loadCakeSuppliers(); // editable cake-supplier list (shared settings)
   loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyRecipes==='function') _applyRecipes(); }); // design→materials recipes
+  loadShopCat();       // manual category assignment for Shopify-tracked items
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -2243,7 +2249,9 @@ function _applyRecipes(){
         const item = INVENTORY.find(x=>x.id===c.mid); if(!item) return;
         item.moves = Array.isArray(item.moves) ? item.moves : [];
         const rkey = o.id+'|'+String(li.title||'')+'|'+c.mid;
-        if(item.moves.some(m=>m.rkey===rkey)) return;   // already deducted for this order-line-material
+        // Idempotent, and won't double-count an order the OLD link-based BOM already
+        // deducted (those moves carry orderId but no rkey).
+        if(item.moves.some(m=> m.rkey===rkey || (m.type==='auto' && !m.rkey && m.orderId===o.id))) return;
         const need = (c.qty||1)*lq;
         item.qty = (item.qty||0) - need;
         item.moves.unshift({ ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'', rkey });
@@ -2280,7 +2288,13 @@ function openBom(id){
   _rbomRenderComps();
   openModal('m-rbom');
 }
-function rbomSetSrc(s){ _recEdit.source=s; const w=document.getElementById('rbom-src-web'),o=document.getElementById('rbom-src-oma'); if(w)w.classList.toggle('on',s==='website'); if(o)o.classList.toggle('on',s==='omakase'); }
+function rbomSetSrc(s){ _recEdit.source=s;
+  const w=document.getElementById('rbom-src-web'),o=document.getElementById('rbom-src-oma'); if(w)w.classList.toggle('on',s==='website'); if(o)o.classList.toggle('on',s==='omakase');
+  const lbl=document.getElementById('rbom-name-lbl'), inp=document.getElementById('rbom-name'), box=document.getElementById('rbom-name-results');
+  if(lbl) lbl.textContent = s==='omakase' ? 'Design name 设计名称' : 'Find your website design 网站产品';
+  if(inp) inp.placeholder = s==='omakase' ? 'Type the omakase design name…' : 'Search a Shopify design…';
+  if(box){ box.style.display='none'; box.innerHTML=''; }
+}
 function _rbomRenderComps(){
   const el=document.getElementById('rbom-comps'); if(!el) return;
   const comps=_recEdit.components||[];
@@ -2303,6 +2317,7 @@ function rbomMatPick(k){ const i=_rbomMatResults[k]; if(!i) return; if(!_recEdit
 function rbomNameSearch(q){
   _recEdit.name = q;
   const box=document.getElementById('rbom-name-results'); if(!box) return;
+  if(_recEdit.source !== 'website'){ box.style.display='none'; box.innerHTML=''; return; }   // omakase = free text, no lookup
   q=String(q||'').trim(); if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
   clearTimeout(_rbomNameT);
   _rbomNameT=setTimeout(async ()=>{
@@ -3523,31 +3538,49 @@ function _shopStockAgo(){
 }
 function _shopStockCard(p){
   const ic=_invIcon('other');
-  const badge=' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  const tag='<span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  const cat=_shopCatSelect(p.id);
   if(p.variants.length<=1){
     const v=p.variants[0]||{qty:0}, low=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
     const price=(v&&v.price!=null&&v.price!=='')?('RM '+_invPriceStr(v.price)):'';
-    return '<div class="stk-card">'
-      +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">'+_invThumb(p.image,ic)
-        +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+badge+'</div><div class="stk-unit">'+esc(price)+'</div></div></div>'
-      +'<div style="display:flex;align-items:center;gap:5px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">缺</span>':'')+'</div>'
-    +'</div>';
+    return '<div class="stk-shop"><div style="display:flex;align-items:center;gap:11px">'+_invThumb(p.image,ic)
+      +'<div style="flex:1;min-width:0"><div class="stk-name" style="white-space:normal">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+esc(price)+'</div></div>'
+      +cat
+      +'<span class="stk-qty '+(low?'low':'')+'" style="min-width:26px;text-align:right;font-size:20px;flex:none">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;flex:none">缺</span>':'')
+    +'</div></div>';
   }
-  const key='shop|'+p.id, expanded=_shopExpanded.has(key), low=p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
-  let h='<div class="stk-card" style="display:block;padding:0;overflow:hidden">'
-    +'<div onclick="_shopToggle(\''+key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--c-bg);cursor:pointer">'+_invThumb(p.image,ic)
-      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(p.title)+badge+'</div><div class="stk-unit">'+p.variants.length+' 款 · 共 '+p.total+(low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div>'
-      +'<span style="color:var(--c-muted);font-size:13px">'+(expanded?'▴':'▾')+'</span>'
+  const key='shop|'+p.id, ek=key.replace(/'/g,"\\'"), expanded=_shopExpanded.has(key), low=p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
+  let h='<div class="stk-shop" style="padding:0;overflow:hidden">'
+    +'<div style="display:flex;align-items:center;gap:11px;padding:12px 14px">'
+      +'<div onclick="_shopToggle(\''+ek+'\')" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;cursor:pointer">'+_invThumb(p.image,ic)
+        +'<div style="flex:1;min-width:0"><div class="stk-name" style="white-space:normal">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+p.variants.length+' 款 · 共 '+p.total+(low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div></div>'
+      +cat
+      +'<span onclick="_shopToggle(\''+ek+'\')" style="color:var(--c-muted);font-size:14px;cursor:pointer;flex:none">'+(expanded?'▴':'▾')+'</span>'
     +'</div>';
   if(expanded){
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:7px;padding:0 14px 14px">';
     p.variants.forEach(v=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
-      h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(l?';background:#FFF5F5':'')+'">'
-        +'<div style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">'+esc(v.title)+'</span></div>'
-        +'<span class="stk-qty '+(l?'low':'')+'" style="font-size:16px;min-width:20px;text-align:right">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;margin-left:4px">缺</span>':'')
+      h+='<div style="border:1.5px solid '+(l?'#EF9A9A':'var(--c-border)')+';border-radius:9px;padding:6px 4px;background:'+(l?'#FFF5F5':'var(--c-bg)')+';text-align:center">'
+        +'<div style="font-size:10.5px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(v.title)+'</div>'
+        +'<div style="font-family:var(--f-head);font-weight:800;font-size:18px;color:'+(l?'var(--c-red)':'var(--c-ink)')+'">'+(v.qty||0)+(out?'<span style="font-size:9px"> 缺</span>':'')+'</div>'
       +'</div>';
     });
+    h+='</div>';
   }
   return h+'</div>';
+}
+// Manual category assignment for Shopify-tracked items (productId → category key).
+// You pick the category yourself; unassigned items sit in a "未分类" group.
+let SHOP_ITEM_CAT = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-shop-cat')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadShopCat(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_item_cat'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ SHOP_ITEM_CAT=o; try{ _lsSet('flori-shop-cat',JSON.stringify(o)); }catch(_){} if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){} }
+function saveShopCat(){ try{ _lsSet('flori-shop-cat',JSON.stringify(SHOP_ITEM_CAT)); }catch(_){} if(hasSB()) sbSet('shop_item_cat', JSON.stringify(SHOP_ITEM_CAT)); }
+function setShopCat(pid, cat){ if(cat) SHOP_ITEM_CAT[pid]=cat; else delete SHOP_ITEM_CAT[pid]; saveShopCat(); renderInventory(); }
+function _shopCatSelect(pid){
+  const cur=SHOP_ITEM_CAT[pid]||'';
+  return '<select onchange="setShopCat(\''+pid+'\',this.value)" onclick="event.stopPropagation()" style="font-size:11px;border:1.5px solid var(--c-border);border-radius:7px;padding:3px 6px;background:var(--c-surface);color:var(--c-muted);max-width:130px;flex:none">'
+    +'<option value="">分类…</option>'
+    +INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===cur?' selected':'')+'>'+esc(c.label)+'</option>').join('')
+    +'</select>';
 }
 function _shopStockHTML(){
   if(_invCat && _invCat!=='') return '';   // not a manual category — only on 全部
@@ -3561,13 +3594,23 @@ function _shopStockHTML(){
   const qq=(_invSearch||'').trim().toLowerCase();
   const prods=SHOPIFY_STOCK.filter(p=>{ if(!qq) return true; const hay=(p.title+' '+p.variants.map(v=>v.title).join(' ')).toLowerCase(); return hay.indexOf(qq)>-1; });
   if(!prods.length) return '';
-  const grand=prods.reduce((s,p)=>s+p.total,0);
-  let h='<div class="stk-cat" style="display:flex;align-items:center;justify-content:space-between">'
-    +'<span>Shopify 同步 <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· 共 '+grand+' · 只读</span></span>'
-    +'<span style="font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">刷新</a></span>'
-    +'</div><div class="stk-grid">';
-  prods.forEach(p=>{ h+=_shopStockCard(p); });
-  return h+'</div>';
+  // Group by the category you assigned each Shopify item; unassigned last.
+  const groups={}, unassigned=[];
+  prods.forEach(p=>{ const c=SHOP_ITEM_CAT[p.id]; if(c && INV_CATS.some(x=>x.key===c)) (groups[c]=groups[c]||[]).push(p); else unassigned.push(p); });
+  const shopTag='<span style="font-size:9px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  const refreshBit='<span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">刷新</a></span>';
+  let h='';
+  Object.keys(groups).sort((a,b)=>_catIndex(a)-_catIndex(b)).forEach(cat=>{
+    h+='<div class="stk-cat">'+esc(_catLabel(cat))+' '+shopTag+'</div><div class="stk-shop-list">';
+    groups[cat].forEach(p=>{ h+=_shopStockCard(p); });
+    h+='</div>';
+  });
+  if(unassigned.length){
+    h+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">Shopify · 未分类 <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· pick a category on each</span>'+refreshBit+'</div><div class="stk-shop-list">';
+    unassigned.forEach(p=>{ h+=_shopStockCard(p); });
+    h+='</div>';
+  }
+  return h;
 }
 
 function renderInventory() {
