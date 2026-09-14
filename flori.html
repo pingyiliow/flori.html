@@ -632,8 +632,8 @@
     <div class="mc-body">
       <input type="hidden" id="i-edit-id">
       <div id="i-src" style="display:none;gap:6px;margin-bottom:14px">
-        <button type="button" id="i-src-m" class="i-seg on" onclick="invSrc('m')">手动 Manual</button>
-        <button type="button" id="i-src-s" class="i-seg" onclick="invSrc('s')">Shopify 商品</button>
+        <button type="button" id="i-src-m" class="i-seg on" onclick="invSrc('m')">Manual</button>
+        <button type="button" id="i-src-s" class="i-seg" onclick="invSrc('s')">Shopify</button>
       </div>
       <div id="i-shop-pane" style="display:none">
         <div class="ff"><input id="i-shop-q" type="text" placeholder="Search name or paste product link" oninput="shopSearchDebounced(this.value)"></div>
@@ -735,11 +735,11 @@
   <div class="mc" style="max-width:460px">
     <div class="mc-hdr"><div class="mc-ttl" id="rbom-ttl">New design</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-rbom')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
-      <div class="ff" style="position:relative"><label class="ff-l">网站产品 Find your website design</label>
+      <div class="ff" style="position:relative"><label class="ff-l">Find your website design</label>
         <input id="rbom-name" type="text" placeholder="Search a Shopify design…" autocomplete="off" oninput="rbomNameSearch(this.value)">
         <div id="rbom-name-results" class="rcp-sug" style="display:none"></div>
       </div>
-      <div class="osec" style="margin:18px 0 8px">Materials used 用料</div>
+      <div class="osec" style="margin:18px 0 8px">Materials used</div>
       <div id="rbom-comps"></div>
       <div class="ff" style="position:relative;margin-top:10px">
         <input id="rbom-mat-search" type="text" placeholder="+ Add a material from stock…" autocomplete="off" oninput="rbomMatSearch(this.value)">
@@ -770,19 +770,19 @@
 <!-- ══ MODAL — Cake collection ═══════════════════════════════ -->
 <div id="m-cake" class="modal">
   <div class="mc" style="max-width:360px">
-    <div class="mc-hdr"><div class="mc-ttl">蛋糕 Cake collection</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cake')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Cake collection</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cake')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="cake-order-id">
-      <label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:14px;cursor:pointer;user-select:none"><input type="checkbox" id="cake-on" onchange="_cakeToggle()" style="width:18px;height:18px;flex:none"> 这单要取蛋糕</label>
+      <label style="display:flex;align-items:center;gap:9px;font-size:14px;margin-bottom:14px;cursor:pointer;user-select:none"><input type="checkbox" id="cake-on" onchange="_cakeToggle()" style="width:18px;height:18px;flex:none"> This order needs a cake collected</label>
       <div id="cake-fields" style="display:none">
-        <div class="ff"><label class="ff-l">供应商 Supplier</label><select id="cake-supplier" onchange="_cakeSupplierChange()"></select></div>
+        <div class="ff"><label class="ff-l">Supplier</label><select id="cake-supplier" onchange="_cakeSupplierChange()"></select></div>
         <div class="ff" style="margin-top:10px;display:none" id="cake-supplier-name-ff"></div>
-        <input id="cake-supplier-name" type="text" placeholder="供应商名字（一次性）" style="display:none;width:100%;margin-top:10px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;background:var(--c-surface);color:var(--c-ink);outline:none">
-        <div class="ff" style="margin-top:10px"><label class="ff-l">地址 Address <span style="color:var(--c-muted);font-weight:400">可选 · 司机导航用</span></label><input id="cake-address" type="text" placeholder="供应商地址"></div>
-        <div class="ff" style="margin-top:10px"><label class="ff-l">备注 Remark <span style="color:var(--c-muted);font-weight:400">几点可取 · 蛋糕能否 ready</span></label><input id="cake-remark" type="text" placeholder="例：3pm 后才可取"></div>
+        <input id="cake-supplier-name" type="text" placeholder="Supplier name (one-off)" style="display:none;width:100%;margin-top:10px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;background:var(--c-surface);color:var(--c-ink);outline:none">
+        <div class="ff" style="margin-top:10px"><label class="ff-l">Address <span style="color:var(--c-muted);font-weight:400">Optional · for driver nav</span></label><input id="cake-address" type="text" placeholder="Supplier address"></div>
+        <div class="ff" style="margin-top:10px"><label class="ff-l">Remark <span style="color:var(--c-muted);font-weight:400">pickup time · is it ready</span></label><input id="cake-remark" type="text" placeholder="e.g. ready after 3pm"></div>
       </div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-primary" style="flex:1" onclick="saveCake()">保存 Save</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveCake()">Save</button>
         <button class="btn btn-ghost" onclick="closeModal('m-cake')">Cancel</button>
       </div>
     </div>
@@ -792,7 +792,7 @@
 <!-- ══ MODAL — Driver date picker (custom calendar, matches main) ═══ -->
 <div id="m-drvcal" class="modal">
   <div class="mc" style="max-width:340px">
-    <div class="mc-hdr"><div class="mc-ttl">选择日期 Select date</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-drvcal')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Select date</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-drvcal')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <div id="drvcal-title" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:10px"></div>
       <div id="drvcal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0;border-top:1px solid var(--c-border);border-left:1px solid var(--c-border);border-radius:var(--r);overflow:hidden"></div>
@@ -803,16 +803,16 @@
 <!-- ══ MODAL — On the way (dispatch + Lalamove tracking link) ═══ -->
 <div id="m-otw" class="modal">
   <div class="mc" style="max-width:380px">
-    <div class="mc-hdr"><div class="mc-ttl">派送中 On the way</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-otw')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">On the way</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-otw')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="otw-order-id">
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.55;margin-bottom:14px">给顾客发「订单派送中 + 实时追踪链接」的 WhatsApp + 邮件。 <span id="otw-order-no" style="font-weight:600;color:var(--c-ink)"></span></div>
-      <div class="ff"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 顾客点这个实时追踪</span></label>
+      <div style="font-size:12px;color:var(--c-muted);line-height:1.55;margin-bottom:14px">Send the customer an "order on the way + live tracking link" by WhatsApp + email. <span id="otw-order-no" style="font-weight:600;color:var(--c-ink)"></span></div>
+      <div class="ff"><label class="ff-l">Lalamove tracking link <span style="color:var(--c-muted);font-weight:400">Optional · customer taps this to track live</span></label>
         <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
       </div>
-      <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> 通知顾客 Notify customer (WhatsApp + email)</label>
+      <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">发送 Send</button>
+        <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">Send</button>
         <button class="btn btn-ghost" onclick="closeModal('m-otw')">Cancel</button>
       </div>
     </div>
@@ -1526,6 +1526,15 @@ const I18N_ZH = {
   'e.g. Red / Pink / White':'例：红 / 粉 / 白','stems / pcs / rolls':'枝 / 个 / 卷',
   'e.g. 20cm':'例：20cm','per stem / per roll':'每枝 / 每卷','alert below (default 5)':'低过就提醒（默认 5）',
   'Supplier…':'供应商…','Notes':'备注','Item Name':'名称','Quantity':'数量',
+  // Cake / On-the-way / Recipe / date modals (static HTML)
+  'Cake collection':'蛋糕','This order needs a cake collected':'这单要取蛋糕',
+  'Supplier':'供应商','Address':'地址','Remark':'备注','Save':'保存','Send':'发送',
+  'On the way':'派送中','Select date':'选择日期','Notify customer (WhatsApp + email)':'通知顾客 (WhatsApp + 邮件)',
+  'Lalamove tracking link':'Lalamove 追踪链接','Find your website design':'网站产品','Materials used':'用料',
+  'Supplier name (one-off)':'供应商名字（一次性）','Supplier address':'供应商地址','e.g. ready after 3pm':'例：3pm 后才可取',
+  'Optional · for driver nav':'可选 · 司机导航用','pickup time · is it ready':'几点可取 · 蛋糕能否 ready',
+  'Optional · customer taps this to track live':'可选 · 顾客点这个实时追踪',
+  'Send the customer an "order on the way + live tracking link" by WhatsApp + email.':'给顾客发「订单派送中 + 实时追踪链接」的 WhatsApp + 邮件。',
 };
 
 // Auto-translate the live DOM. Runs on language switch and (via a MutationObserver)
@@ -2287,10 +2296,11 @@ function _invMoveTime(ts){ try{ return new Date(ts).toLocaleDateString('en-GB',{
 function _invRenderMoves(i){
   const el = document.getElementById('i-moves'); if(!el) return;
   const moves = Array.isArray(i.moves) ? i.moves : [];
+  const zh=LANG==='zh';
   el.innerHTML = moves.length
-    ? moves.slice(0,10).map(m => { const who = (m.type==='auto' && m.orderNo) ? ('订单 '+esc(m.orderNo)) : esc(m.by||''); const verb = m.delta>0?'＋收货 ':(m.type==='auto'?'－订单 ':'－用掉 ');
+    ? moves.slice(0,10).map(m => { const who = (m.type==='auto' && m.orderNo) ? ((zh?'订单 ':'Order ')+esc(m.orderNo)) : esc(m.by||''); const verb = m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used '));
         return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span style="color:var(--c-muted)">'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join('')
-    : '<div style="font-size:11px;color:var(--c-muted)">还没有记录 no movements yet</div>';
+    : '<div style="font-size:11px;color:var(--c-muted)">'+(zh?'还没有记录':'No movements yet')+'</div>';
 }
 /* ─── Recipes (bill of materials) ─────────────────────────────────
    A recipe = a design (website product OR omakase, not on the site) and the
@@ -2336,7 +2346,7 @@ function _applyBOM(){ _applyRecipes(); }   // back-compat alias for existing cal
 function renderRecipes(){
   const el=document.getElementById('rec-body'); if(!el) return;
   const q=(document.getElementById('rec-search') ? document.getElementById('rec-search').value : '').trim().toLowerCase();
-  if(!RECIPES.length){ el.innerHTML='<div class="empty" style="padding:44px 16px;text-align:center;color:var(--c-muted);font-size:13px">还没有配方 · No recipes yet.<br>Tap <b>+ New design</b> — website or omakase — and list the materials it uses.</div>'; return; }
+  if(!RECIPES.length){ el.innerHTML='<div class="empty" style="padding:44px 16px;text-align:center;color:var(--c-muted);font-size:13px">'+(LANG==='zh'?'还没有配方。':'No recipes yet.')+'<br>Tap <b>+ New design</b> — website or omakase — and list the materials it uses.</div>'; return; }
   let list=RECIPES.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
   if(q) list=list.filter(r=>String(r.name||'').toLowerCase().includes(q));
   el.innerHTML = list.length ? list.map(r=>{
@@ -2362,7 +2372,7 @@ function openBom(id){
 function rbomSetSrc(s){ _recEdit.source=s;
   const w=document.getElementById('rbom-src-web'),o=document.getElementById('rbom-src-oma'); if(w)w.classList.toggle('on',s==='website'); if(o)o.classList.toggle('on',s==='omakase');
   const lbl=document.getElementById('rbom-name-lbl'), inp=document.getElementById('rbom-name'), box=document.getElementById('rbom-name-results');
-  if(lbl) lbl.textContent = s==='omakase' ? 'Design name 设计名称' : 'Find your website design 网站产品';
+  if(lbl) lbl.textContent = (LANG==='zh') ? (s==='omakase'?'设计名称':'网站产品') : (s==='omakase'?'Design name':'Find your website design');
   if(inp) inp.placeholder = s==='omakase' ? 'Type the omakase design name…' : 'Search a Shopify design…';
   if(box){ box.style.display='none'; box.innerHTML=''; }
 }
@@ -2405,9 +2415,9 @@ function saveRecipeBom(){
   _recEdit.name=name;
   const idx=RECIPES.findIndex(r=>r.id===_recEdit.id);
   if(idx>=0) RECIPES[idx]=_recEdit; else RECIPES.push(_recEdit);
-  saveRecipes(); closeModal('m-rbom'); renderRecipes(); if(typeof _applyRecipes==='function')_applyRecipes(); toast('✓ 配方已保存 Recipe saved');
+  saveRecipes(); closeModal('m-rbom'); renderRecipes(); if(typeof _applyRecipes==='function')_applyRecipes(); toast(LANG==='zh'?'✓ 配方已保存':'✓ Recipe saved');
 }
-function deleteRecipeBom(){ if(!confirm('Delete this design recipe? 删除配方？')) return; RECIPES=RECIPES.filter(r=>r.id!==_recEdit.id); saveRecipes(); closeModal('m-rbom'); renderRecipes(); toast('Deleted'); }
+function deleteRecipeBom(){ if(!confirm(LANG==='zh'?'删除这个设计配方？':'Delete this design recipe?')) return; RECIPES=RECIPES.filter(r=>r.id!==_recEdit.id); saveRecipes(); closeModal('m-rbom'); renderRecipes(); toast(LANG==='zh'?'已删除':'Deleted'); }
 // Recipe detail popup — view first (design picture from Shopify + its materials), Edit within.
 let _recViewId=null;
 function openRecipeView(id){
@@ -2428,23 +2438,24 @@ function _recView(r){
   let h='<div class="skv-hd">'+img
     +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(r.name)+'</div><div style="margin-top:6px">'+pill+'</div></div>'
     +'<button class="skv-x" onclick="closeModal(\'m-recview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
-  h+='<div class="skv-body"><div class="skv-sec">用料 Materials · 订单来时扣库存</div>';
+  const zh=LANG==='zh';
+  h+='<div class="skv-body"><div class="skv-sec">'+(zh?'用料 · 订单来时扣库存':'Materials · deducted when an order comes in')+'</div>';
   const comps=r.components||[];
   h+= comps.length ? comps.map(c=>{ const inv=INVENTORY.find(x=>x.id===c.mid); const stock=inv?(inv.qty||0):null;
-      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+(stock!=null?' <span style="font-size:11px;font-weight:400;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">· '+stock+' 库存</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
-    : '<span style="color:var(--c-muted);font-size:12px">还没设置用料 · no materials set</span>';
+      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+(stock!=null?' <span style="font-size:11px;font-weight:400;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">· '+stock+(zh?' 库存':' in stock')+'</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
+    : '<span style="color:var(--c-muted);font-size:12px">'+(zh?'还没设置用料':'No materials set')+'</span>';
   h+='</div>';
-  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-recview\');openBom(\''+r.id+'\')">'+di('edit',14)+' Edit design 编辑</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="closeModal(\'m-recview\');_recDelete(\''+r.id+'\')">'+di('trash',14)+'</button></div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-recview\');openBom(\''+r.id+'\')">'+di('edit',14)+' '+(zh?'编辑设计':'Edit design')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="closeModal(\'m-recview\');_recDelete(\''+r.id+'\')">'+di('trash',14)+'</button></div>';
   return h;
 }
-function _recDelete(id){ if(!confirm('Delete this design recipe? 删除配方？')) return; RECIPES=RECIPES.filter(r=>r.id!==id); saveRecipes(); renderRecipes(); toast('Deleted'); }
+function _recDelete(id){ if(!confirm(LANG==='zh'?'删除这个设计配方？':'Delete this design recipe?')) return; RECIPES=RECIPES.filter(r=>r.id!==id); saveRecipes(); renderRecipes(); toast(LANG==='zh'?'已删除':'Deleted'); }
 document.addEventListener('click', e=>{ if(e.target.closest('#rbom-name,#rbom-name-results,#rbom-mat-search,#rbom-mat-results')) return; ['rbom-name-results','rbom-mat-results'].forEach(x=>{const b=document.getElementById(x); if(b&&b.style.display!=='none') b.style.display='none';}); });
 // Adjust stock by delta and log who/when/±how much (capped to the last 40 moves).
 function invAdjust(id, delta, type){
   const i = INVENTORY.find(x => x.id === id); if(!i) return;
   const before = i.qty||0;
   let next = before + delta; if(next < 0) next = 0;
-  const applied = next - before; if(applied === 0){ if(delta<0) toast('已经是 0'); return; }
+  const applied = next - before; if(applied === 0){ if(delta<0) toast(LANG==='zh'?'已经是 0':'Already at 0'); return; }
   i.qty = next;
   i.moves = Array.isArray(i.moves) ? i.moves : [];
   i.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:type||(applied>0?'in':'out') });
@@ -2453,11 +2464,11 @@ function invAdjust(id, delta, type){
   if(document.getElementById('i-edit-id') && document.getElementById('i-edit-id').value === id){
     const q=document.getElementById('i-qty'); if(q) q.value = i.qty; _invRenderMoves(i);   // keep an open editor in sync
   }
-  toast((applied>0?'＋收货 ':'－用掉 ')+Math.abs(applied)+' · '+i.name);
+  toast((applied>0?(LANG==='zh'?'＋收货 ':'+ in '):(LANG==='zh'?'－用掉 ':'− used '))+Math.abs(applied)+' · '+i.name);
 }
 function invAdjustFromModal(sign){
   const id = document.getElementById('i-edit-id').value; if(!id) return;
-  const n = Math.abs(parseInt(document.getElementById('i-adjust-qty').value,10)||0); if(!n){ toast('输入数量 enter qty'); return; }
+  const n = Math.abs(parseInt(document.getElementById('i-adjust-qty').value,10)||0); if(!n){ toast(LANG==='zh'?'输入数量':'Enter a quantity'); return; }
   invAdjust(id, sign*n, sign>0?'in':'out');
 }
 function savePurchases() {
@@ -3316,7 +3327,7 @@ function renderHome() {
   const _attRow = (ic,col,txt,act)=>`<div onclick="${act}" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer"><span style="color:${col};display:inline-flex">${di(ic,16)}</span><span style="flex:1;font-size:12.5px;font-weight:600">${txt}</span><span style="color:var(--c-border2);font-size:15px">›</span></div>`;
   const att = [];
   const cakeToday = todayO.filter(o => _effCake(o) && !o.fulfilled && !_cakeCollected(o)).length;
-  if (cakeToday)      att.push(_attRow('note','#956A40',''+cakeToday+' 单要取蛋糕 · cakes to collect',"goPage('driver')"));
+  if (cakeToday)      att.push(_attRow('note','#956A40',cakeToday+(LANG==='zh'?' 单要取蛋糕':' cake'+(cakeToday>1?'s':'')+' to collect'),"goPage('driver')"));
   if (urgentT.length) att.push(_attRow('warn','#c0392b',urgentT.length+' urgent order'+(urgentT.length>1?'s':''),"goPage('orders')"));
   if (unassignedDel)  att.push(_attRow('nav','#b46a1e',unassignedDel+' deliver'+(unassignedDel>1?'ies':'y')+' not on a route',"goPage('driver')"));
   if (lowStock)       att.push(_attRow('box','#b46a1e',lowStock+' stock item'+(lowStock>1?'s':'')+' low',"goPage('stock')"));
@@ -3354,7 +3365,7 @@ function renderHome() {
     '<div class="card" style="padding:16px 18px">'
     + '<div style="display:flex;align-items:center;gap:9px;background:var(--p-butter);color:var(--p-butter-ink);border-radius:12px;padding:11px 14px;font-weight:700;font-size:13.5px">'+di('note',16)+' '+_cakes.length+' cake'+(_cakes.length>1?'s':'')+' to collect today</div>'
     + '<div style="margin-top:12px;display:flex;flex-direction:column;gap:9px">'
-    + _cakes.map(o=>{ const c=_effCake(o)||{}; const tm=o.dueTime||''; const who=c.supplier||(c.auto?'选择供应商':'Cake'); return '<div style="font-size:12.5px;color:var(--c-muted);font-weight:500;line-height:1.5">• <span style="color:var(--c-ink);font-weight:700">'+(tm?esc(tm)+' · ':'')+esc(who)+'</span>'+(c.remark?' — '+esc(c.remark):'')+'</div>'; }).join('')
+    + _cakes.map(o=>{ const c=_effCake(o)||{}; const tm=o.dueTime||''; const who=c.supplier||(c.auto?(LANG==='zh'?'选择供应商':'Pick supplier'):'Cake'); return '<div style="font-size:12.5px;color:var(--c-muted);font-weight:500;line-height:1.5">• <span style="color:var(--c-ink);font-weight:700">'+(tm?esc(tm)+' · ':'')+esc(who)+'</span>'+(c.remark?' — '+esc(c.remark):'')+'</div>'; }).join('')
     + '</div></div>'
   ) : '';
   // Today's progress — donut (done / in progress / to do), replacing the week bar chart.
@@ -3436,19 +3447,23 @@ function switchStockTab(tab) {
 // Seeded with sensible florist defaults; keys stay stable so existing items keep
 // their category even after a rename.
 const _INV_CAT_DEFAULT = [
-  {key:'cut',label:'Cut Flowers 鲜花'},{key:'green',label:'Greenery 绿叶'},{key:'dried',label:'Dried 干花'},
-  {key:'pot',label:'Pots 花盆'},{key:'vase',label:'Vases 花瓶'},{key:'wrap',label:'Wrapping 花纸'},
-  {key:'ribbon',label:'Ribbons 缎带'},{key:'acc',label:'Accessories 配件'},{key:'foam',label:'Foam 花泥'},
-  {key:'other',label:'Other 其他'}
+  {key:'cut',label:'Cut Flowers'},{key:'green',label:'Greenery'},{key:'dried',label:'Dried'},
+  {key:'pot',label:'Pots'},{key:'vase',label:'Vases'},{key:'wrap',label:'Wrapping'},
+  {key:'ribbon',label:'Ribbons'},{key:'acc',label:'Accessories'},{key:'foam',label:'Foam'},
+  {key:'other',label:'Other'}
 ];
-let INV_CATS = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-inv-cats')||'null'); if(Array.isArray(v)&&v.length) return v; }catch(_){} return _INV_CAT_DEFAULT.map(c=>({...c})); })();
+// One-time cleanup: earlier builds seeded bilingual category labels ("Other 其他").
+// Normalise the known ones to English so the language tab controls the display.
+const _CAT_LABEL_FIX = {'Cut Flowers 鲜花':'Cut Flowers','Greenery 绿叶':'Greenery','Dried 干花':'Dried','Pots 花盆':'Pots','Vases 花瓶':'Vases','Wrapping 花纸':'Wrapping','Ribbons 缎带':'Ribbons','Accessories 配件':'Accessories','Foam 花泥':'Foam','Other 其他':'Other','Basket 花篮':'Basket'};
+function _normCats(arr){ let ch=false; (arr||[]).forEach(c=>{ if(c&&_CAT_LABEL_FIX[c.label]){ c.label=_CAT_LABEL_FIX[c.label]; ch=true; } }); return ch; }
+let INV_CATS = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-inv-cats')||'null'); if(Array.isArray(v)&&v.length){ _normCats(v); return v; } }catch(_){} return _INV_CAT_DEFAULT.map(c=>({...c})); })();
 function _catLabel(key){ const c=INV_CATS.find(x=>x.key===key); return c?c.label:(key||'other'); }
 function _catIndex(key){ const i=INV_CATS.findIndex(x=>x.key===key); return i<0?999:i; }
 function _catNewKey(){ return 'c-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 async function loadInvCats(){
   if(!hasSB()) return;
   try{ const v=await sbGetVal('inv_categories'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null;
-    if(Array.isArray(arr)&&arr.length){ INV_CATS=arr; try{ _lsSet('flori-inv-cats',JSON.stringify(arr)); }catch(_){} if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){}
+    if(Array.isArray(arr)&&arr.length){ const fixed=_normCats(arr); INV_CATS=arr; try{ _lsSet('flori-inv-cats',JSON.stringify(arr)); }catch(_){} if(fixed) saveInvCats(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){}
 }
 function saveInvCats(){ try{ _lsSet('flori-inv-cats',JSON.stringify(INV_CATS)); }catch(_){} if(hasSB()) sbSet('inv_categories', JSON.stringify(INV_CATS)); }
 // Dropdown in the item modal — built from INV_CATS + a "＋ 新分类" option.
@@ -3467,22 +3482,24 @@ function invCatSelect(el){
 function openCatManager(){ _renderCatsList(); openModal('m-cats'); }
 function _renderCatsList(){
   const el=document.getElementById('cats-list'); if(!el) return;
+  const zh=LANG==='zh';
   el.innerHTML = INV_CATS.map(c=>{ const count=INVENTORY.filter(i=>(i.cat||'other')===c.key).length;
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
-      +'<span style="flex:1;min-width:0;font-size:13px">'+esc(c.label)+(count?' <span style="font-size:10px;color:var(--c-muted)">· '+count+' 样</span>':'')+'</span>'
-      +'<button onclick="catRename(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px" title="改名">'+di('edit',15)+'</button>'
-      +'<button onclick="catDelete(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-red);padding:4px" title="删除">'+di('trash',15)+'</button>'
-    +'</div>'; }).join('') || '<div style="font-size:12px;color:var(--c-muted);padding:8px 0">还没有分类</div>';
+      +'<span style="flex:1;min-width:0;font-size:13px">'+esc(c.label)+(count?' <span style="font-size:10px;color:var(--c-muted)">· '+count+(zh?' 样':'')+'</span>':'')+'</span>'
+      +'<button onclick="catRename(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px" title="'+(zh?'改名':'Rename')+'">'+di('edit',15)+'</button>'
+      +'<button onclick="catDelete(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-red);padding:4px" title="'+(zh?'删除':'Delete')+'">'+di('trash',15)+'</button>'
+    +'</div>'; }).join('') || '<div style="font-size:12px;color:var(--c-muted);padding:8px 0">'+(zh?'还没有分类':'No categories yet')+'</div>';
 }
 function catAdd(){ const n=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim(); if(!n) return; INV_CATS.push({key:_catNewKey(),label:n}); saveInvCats(); _renderCatsList(); renderInventory(); }
-function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt('改名 Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; saveInvCats(); _renderCatsList(); renderInventory(); }
+function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt(LANG==='zh'?'改名：':'Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; saveInvCats(); _renderCatsList(); renderInventory(); }
 function catDelete(key){
+  const zh=LANG==='zh';
   const c=INV_CATS.find(x=>x.key===key); if(!c) return;
   const affected=INVENTORY.filter(i=>(i.cat||'other')===key);
-  if(!confirm('删除「'+c.label+'」？'+(affected.length?('\n这 '+affected.length+' 样货品会移到「其他」。'):''))) return;
+  if(!confirm(zh?('删除「'+c.label+'」？'+(affected.length?('\n这 '+affected.length+' 样货品会移到「其他」。'):'')):('Delete "'+c.label+'"?'+(affected.length?('\n'+affected.length+' item(s) will move to Other.'):'')))) return;
   affected.forEach(i=>{ i.cat='other'; });
   INV_CATS=INV_CATS.filter(x=>x.key!==key);
-  if(!INV_CATS.some(x=>x.key==='other')) INV_CATS.push({key:'other',label:'Other 其他'});
+  if(!INV_CATS.some(x=>x.key==='other')) INV_CATS.push({key:'other',label:'Other'});
   if(affected.length) saveInventory();
   saveInvCats(); _renderCatsList(); renderInventory();
 }
@@ -3513,8 +3530,9 @@ function _invThumb(photo, ic, size){
     : '<div style="width:'+size+'px;height:'+size+'px;border-radius:9px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-dpink);flex:none">'+di(ic||'box',Math.round(size*0.5))+'</div>';
 }
 function _invPM(id){
-  return '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',-1,\'out\')" title="用掉 1" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:13px;line-height:1;cursor:pointer;flex:none">−</button>'
-    + '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',1,\'in\')" title="收货 1" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg);font-size:13px;line-height:1;cursor:pointer;flex:none">＋</button>';
+  const zh=LANG==='zh';
+  return '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',-1,\'out\')" title="'+(zh?'用掉 1':'Use 1')+'" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:13px;line-height:1;cursor:pointer;flex:none">−</button>'
+    + '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',1,\'in\')" title="'+(zh?'收货 1':'Receive 1')+'" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg);font-size:13px;line-height:1;cursor:pointer;flex:none">＋</button>';
 }
 function _invTotalStrip(){
   let qty=0, val=0;
@@ -3546,11 +3564,12 @@ function _invCard(i){
   +'</div>';
 }
 function _invFamCard(u){
+  const zh=LANG==='zh';
   const info=_invUnitInfo(u), expanded=_invExpanded.has(u.key);
   const cover=u.items.map(x=>x.photo).find(Boolean), ic=_invIcon(u.items[0]&&u.items[0].cat);
   let h='<div class="stk-card" style="display:block;padding:0;overflow:hidden">'
     +'<div onclick="invToggleFam(\''+u.key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--c-bg);cursor:pointer">'+_invThumb(cover,ic)
-      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(info.name)+' <span style="font-size:10px;color:var(--c-muted);font-weight:400">· 款式</span></div><div class="stk-unit">'+u.items.length+' 色 · 共 '+info.qty+(info.low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(info.name)+' <span style="font-size:10px;color:var(--c-muted);font-weight:400">'+(zh?'· 款式':'· family')+'</span></div><div class="stk-unit">'+u.items.length+(zh?(' 色 · 共 '):(' colours · total '))+info.qty+(info.low?' <span style="color:var(--c-red)">'+(zh?'· 有低':'· low')+'</span>':'')+'</div></div>'
       +'<span style="color:var(--c-muted);font-size:13px">'+(expanded?'▴':'▾')+'</span>'
     +'</div>';
   if(expanded){
@@ -3571,7 +3590,7 @@ function _invListHTML(){
     if(q){ const hay=[i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
   });
-  if(!items.length) return '<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">没有符合的 · no match</div>';
+  if(!items.length) return '<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(LANG==='zh'?'没有符合的':'No match')+'</div>';
   const byCat={}; items.forEach(i=>{(byCat[i.cat||'other']=byCat[i.cat||'other']||[]).push(i);});
   const cats=Object.keys(byCat).sort((a,b)=>_catIndex(a)-_catIndex(b));
   let html='';
@@ -3859,8 +3878,7 @@ function _stkViewShop(p){
     });
   }
   h+='</div>';
-  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="openShopMeta(\''+p.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button></div>';
-  h+='<div style="text-align:center;padding:0 0 14px"><a onclick="removeStkShop(\''+p.id+'\')" style="color:var(--c-muted);font-size:11.5px;cursor:pointer">'+(zh?'从库存移除':'Remove from stock')+'</a></div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="openShopMeta(\''+p.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="removeStkShop(\''+p.id+'\')" title="'+(zh?'从库存移除':'Remove from stock')+'" aria-label="Remove from stock">'+di('trash',14)+'</button></div>';
   return h;
 }
 function removeStkShop(gid){
@@ -3870,7 +3888,7 @@ function removeStkShop(gid){
   removeShopStockId(gid); closeModal('m-stkview'); renderInventory(); toast(zh?'已移除':'Removed from stock');
 }
 function stkAdjInv(id, delta){ invAdjust(id, delta, delta>0?'in':'out'); _stkRefresh(); }
-function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm('Delete '+(it.name||'this item')+'? 删除？')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory(); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
+function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm((LANG==='zh'?'删除 ':'Delete ')+(it.name||'this item')+'?')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory(); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
 // Category picker — shared by manual items (sets item.cat) and Shopify items (SHOP_ITEM_CAT).
 let _catPickKind=null, _catPickId=null;
 function openCatPick(kind, id){
@@ -3925,7 +3943,7 @@ function saveShopMeta(){
 // avoid clutter). Shows the assigned category label when set.
 function _shopGear(pid){
   const c=SHOP_ITEM_CAT[pid];
-  return '<button onclick="event.stopPropagation();openShopCat(\''+pid+'\')" title="设置分类 category" style="border:none;background:none;cursor:pointer;color:var(--c-muted);display:inline-flex;align-items:center;gap:4px;flex:none">'
+  return '<button onclick="event.stopPropagation();openShopCat(\''+pid+'\')" title="'+(LANG==='zh'?'设置分类':'Set category')+'" style="border:none;background:none;cursor:pointer;color:var(--c-muted);display:inline-flex;align-items:center;gap:4px;flex:none">'
     +(c?'<span style="font-size:10.5px">'+esc(_catLabel(c))+'</span>':'')+di('gear',15)+'</button>';
 }
 // (Duplicate openShopCat/saveShopCatModal removed — the shared openCatPick above
@@ -4761,7 +4779,7 @@ function invLinkRemove(i){ _invLinked.splice(i,1); _invRenderLinked(); }
 function _invRenderLinked(){ const el=document.getElementById('i-linked-list'); if(!el) return;
   el.innerHTML = _invLinked.length
     ? _invLinked.map((t,i)=>'<span style="display:inline-flex;align-items:center;gap:6px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:4px 11px;font-size:12px;margin:0 6px 6px 0">'+esc(t)+'<button type="button" onclick="invLinkRemove('+i+')" aria-label="remove" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:0;font-size:15px;line-height:1">×</button></span>').join('')
-    : '<span style="font-size:11px;color:var(--c-muted)">未链接产品 — this stock isn\'t auto-deducted.</span>';
+    : '<span style="font-size:11px;color:var(--c-muted)">'+(LANG==='zh'?'未链接产品 — 此库存不会自动扣减。':'Not linked — this stock isn\'t auto-deducted.')+'</span>';
 }
 document.addEventListener('click', e=>{ if(e.target.closest('#i-link-search,#i-link-results')) return; const b=document.getElementById('i-link-results'); if(b&&b.style.display!=='none') b.style.display='none'; });
 // Format a date as DD/MM/YYYY for Shopify (pd() reads this format back fine).
@@ -6266,16 +6284,17 @@ async function sendOTW(){
   if (typeof renderHome==='function') renderHome();
   if (typeof renderOrders==='function') renderOrders();
   if (typeof openDP==='function' && _dpId===id) openDP(id);   // refresh panel (OTW badge)
-  if (!notify){ toast('已标记派送中 On the way'); return; }
-  toast('通知顾客中…');
+  const zh=LANG==='zh';
+  if (!notify){ toast(zh?'已标记派送中':'Marked on the way'); return; }
+  toast(zh?'通知顾客中…':'Notifying customer…');
   try {
     const res = await notifyOTW(o);
-    if (res && res.channels && res.channels.length) toast(`✓ 已通知顾客 · on the way (${res.channels.join(' + ')})`);
-    else if (res && res.alreadySent)                toast('✓ 已通知过了 · already sent');
-    else if (res && res.csFlag)                     toast('顾客没有联系方式 — 已标记跟进');
-    else if (res && res.skipped==='pickup')         toast('✓ 已标记派送中');
-    else toast('已标记派送中 · 通知遇到问题（查 WhatsApp Log）');
-  } catch(e){ toast('已标记派送中 · 通知失败'); }
+    if (res && res.channels && res.channels.length) toast((zh?'✓ 已通知顾客 · 派送中 ':'✓ Customer notified · on the way ')+'('+res.channels.join(' + ')+')');
+    else if (res && res.alreadySent)                toast(zh?'✓ 已通知过了':'✓ Already sent');
+    else if (res && res.csFlag)                     toast(zh?'顾客没有联系方式 — 已标记跟进':'No customer contact — flagged for follow-up');
+    else if (res && res.skipped==='pickup')         toast(zh?'✓ 已标记派送中':'✓ Marked on the way');
+    else toast(zh?'已标记派送中 · 通知遇到问题（查 WhatsApp Log）':'Marked on the way · notify issue (check WhatsApp Log)');
+  } catch(e){ toast(zh?'已标记派送中 · 通知失败':'Marked on the way · notify failed'); }
 }
 // "On the way" is sent in a ROLLING WINDOW, not all at once: only the next N
 // undelivered stops are notified, so a customer hears "on the way" when the
@@ -7126,7 +7145,7 @@ function saveCakeSuppliers(){ try{ _lsSet('flori-cake-sup',JSON.stringify(CAKE_S
 function _fillCakeSupplier(sel){
   const el=document.getElementById('cake-supplier'); if(!el) return;
   el.innerHTML = CAKE_SUPPLIERS.map(s=>'<option value="'+esc(s.name)+'"'+(s.name===sel?' selected':'')+'>'+esc(s.name)+'</option>').join('')
-    + '<option value="__other__"'+(sel==='__other__'?' selected':'')+'>其他 Other</option>';
+    + '<option value="__other__"'+(sel==='__other__'?' selected':'')+'>'+(LANG==='zh'?'其他':'Other')+'</option>';
 }
 function _cakeToggle(){ const on=document.getElementById('cake-on').checked; document.getElementById('cake-fields').style.display=on?'':'none'; }
 function _cakeSupplierChange(){
@@ -7165,7 +7184,7 @@ function saveCake(){
   saveOrders(o); closeModal('m-cake');
   renderHome(); renderOrders(); if(typeof renderDriver==='function') renderDriver();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);
-  toast('✓ 蛋糕已更新');
+  toast(LANG==='zh'?'✓ 蛋糕已更新':'✓ Cake updated');
 }
 function _cakeNav(addr){ const q=encodeURIComponent(addr); return /Android/i.test(navigator.userAgent||'') ? ('google.navigation:q='+q) : ('https://www.google.com/maps/dir/?api=1&destination='+q); }
 // Auto-detect: an order needs cake collection if any Shopify line item's product type
@@ -7177,20 +7196,21 @@ function _effCake(o){ if(o && o.cake) return o.cake; if(_orderHasCake(o)) return
 function _cakeOrdersFor(iso){ return ORDERS.filter(o => _effCake(o) && _drvIsOnDate(o, iso)); }
 function _cakeCollected(o){ return !!(o && o.cake && o.cake.collected); }
 function _drvCakeList(iso){
+  const zh=LANG==='zh';
   const list=_cakeOrdersFor(iso); if(!list.length) return '';
   const doneN = list.filter(_cakeCollected).length;
-  const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||'待定供应商'); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
+  const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||(zh?'待定供应商':'Supplier TBD')); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
   let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
-    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">今日需拿蛋糕 · <span style="color:'+(doneN===list.length?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+' 已取</span></div>';
+    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">'+(zh?'今日需拿蛋糕':'Cakes to collect today')+' · <span style="color:'+(doneN===list.length?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+(zh?' 已取':' collected')+'</span></div>';
   Object.keys(bySup).forEach(sup=>{
     const g=bySup[sup];
-    const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+' 导航</a>' : '';
+    const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+(zh?' 导航':' Navigate')+'</a>' : '';
     h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
-      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+' 个</span></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+(zh?' 个':'')+'</span></div>'
       +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
-      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const done=!!ec.collected; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto&&!done?' · <span style="color:#B86050;font-weight:600">选择供应商</span>':'');
+      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const done=!!ec.collected; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto&&!done?' · <span style="color:#B86050;font-weight:600">'+(zh?'选择供应商':'Pick supplier')+'</span>':'');
           return '<div style="display:flex;align-items:center;gap:7px;margin-top:4px'+(done?';opacity:.6':'')+'">'
-            +'<button onclick="event.stopPropagation();toggleCakeCollected(\''+o.id+'\')" title="'+(done?'取消 undo':'标记已取 collected')+'" aria-label="mark cake collected" style="width:21px;height:21px;flex:none;border:1.5px solid '+(done?'#3B7D3B':'#C9B36B')+';background:'+(done?'#3B7D3B':'#fff')+';color:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'+(done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</button>'
+            +'<button onclick="event.stopPropagation();toggleCakeCollected(\''+o.id+'\')" title="'+(done?(zh?'取消':'Undo'):(zh?'标记已取':'Mark collected'))+'" aria-label="mark cake collected" style="width:21px;height:21px;flex:none;border:1.5px solid '+(done?'#3B7D3B':'#C9B36B')+';background:'+(done?'#3B7D3B':'#fff')+';color:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'+(done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</button>'
             +'<span style="font-size:11px;color:#8a7a55;min-width:0'+(done?';text-decoration:line-through':'')+'">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</span>'
           +'</div>'; }).join('')
       +'</div>'+nav+'</div>';
@@ -7207,7 +7227,7 @@ function toggleCakeCollected(id){
   if(typeof renderHome==='function') renderHome();
   if(typeof renderDriver==='function') renderDriver();
   if(_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
-  toast(o.cake.collected?'✓ 蛋糕已取 collected':'已取消 undone');
+  toast(o.cake.collected?(LANG==='zh'?'✓ 蛋糕已取':'✓ Cake collected'):(LANG==='zh'?'已取消':'Undone'));
 }
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
@@ -7781,7 +7801,7 @@ function recipientBlock(r, i){
   return `<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px;margin-bottom:10px;position:relative;background:var(--c-surface)">
     ${i>0?`<button type="button" onclick="removeRecipient(${i})" title="Remove" style="position:absolute;top:8px;right:8px;border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`:''}
     <div class="fg fg-2">
-      <div class="ff"><input value="${esc(r.name||'')}" oninput="recipSet(${i},'name',this.value)" placeholder="Name e.g. 太太 Mei..."></div>
+      <div class="ff"><input value="${esc(r.name||'')}" oninput="recipSet(${i},'name',this.value)" placeholder="Name e.g. Mrs Mei..."></div>
       <div class="ff" style="position:relative"><input value="${esc(r.phone||'')}" autocomplete="off" oninput="recipPhoneInput(${i},this.value)" placeholder="Phone number"><div id="rcp-sug-${i}" class="rcp-sug" style="display:none"></div></div>
     </div>
     ${card}
@@ -8499,7 +8519,7 @@ function editInv(id) {
   // Reverse recipe lookup — which designs use this material (synced from Recipes).
   const _uw=document.getElementById('i-usedin-wrap'), _ue=document.getElementById('i-usedin');
   if(_uw&&_ue){ const used=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id));
-    _ue.innerHTML = used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:3px 10px;margin:0 6px 6px 0;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">还没有设计用到 · not used in any design yet</span>';
+    _ue.innerHTML = used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:3px 10px;margin:0 6px 6px 0;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">'+(LANG==='zh'?'还没有设计用到':'Not used in any design yet')+'</span>';
     _uw.style.display=''; }
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-adjust-qty').value = '1';
@@ -8615,8 +8635,8 @@ function setPhotoZone(zoneId, hiddenId, src) {
     const tbtn = 'width:28px;height:28px;border:none;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0';
     zone.innerHTML = `<img src="${src}" onclick="openZoom('${ss}')" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px);cursor:zoom-in">`
       + `<div style="position:absolute;bottom:6px;right:6px;display:flex;gap:6px;z-index:3">`
-        + `<label title="Change 更换" style="${tbtn}">${di('camera',15)}<input type="file" accept="image/*" style="display:none" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')"></label>`
-        + `<button type="button" title="Delete 删除" onclick="event.stopPropagation();setPhotoZone('${zoneId}','${hiddenId}','')" style="${tbtn}">${di('trash',15)}</button>`
+        + `<label title="${LANG==='zh'?'更换':'Change'}" style="${tbtn}">${di('camera',15)}<input type="file" accept="image/*" style="display:none" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')"></label>`
+        + `<button type="button" title="${LANG==='zh'?'删除':'Delete'}" onclick="event.stopPropagation();setPhotoZone('${zoneId}','${hiddenId}','')" style="${tbtn}">${di('trash',15)}</button>`
       + `</div>`;
   } else {
     zone.innerHTML = `<div class="photo-zone-icon" style="color:var(--c-muted)">${di('camera',22)}</div><div class="photo-zone-lbl">Tap, drag &amp; drop, or paste</div><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'${zoneId}','${hiddenId}')">`;
@@ -9691,10 +9711,10 @@ function _renderDP(order, localOrder) {
       html += '<div style="border:1.5px solid #E6C65A;border-radius:var(--r-lg);padding:10px 13px;background:#FBF3D9;margin-bottom:10px;display:flex;align-items:center;gap:10px'+(_done?';opacity:.7':'')+'">'
         +'<button onclick="toggleCakeCollected(\''+localOrder.id+'\')" title="'+(_done?'undo':'mark collected')+'" aria-label="mark cake collected" style="width:28px;height:28px;flex:none;border:1.5px solid '+(_done?'#3B7D3B':'#C9B36B')+';background:'+(_done?'#3B7D3B':'#fff')+';border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'
           +(_done?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#956A40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21v-7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v7"/><path d="M4 16c1 .6 2 .6 3 0s2-.6 3 0 2 .6 3 0 2-.6 3 0 2 .6 3 0"/><path d="M12 8V6"/><circle cx="12" cy="4.3" r="1"/></svg>')+'</button>'
-        +'<div style="flex:1;min-width:0;font-size:12.5px'+(_done?';text-decoration:line-through':'')+'">'+(_done?'<b style="color:#3B7D3B">蛋糕已取 Collected</b> · ':'')+(_ck
-            ? ('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':''))
-            : '检测到蛋糕 · <b style="color:#B86050">选择供应商</b><div style="font-size:11px;color:var(--c-muted)">Cake detected from Shopify — pick a supplier</div>')+'</div>'
-        +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'选择')+'</button>'
+        +'<div style="flex:1;min-width:0;font-size:12.5px'+(_done?';text-decoration:line-through':'')+'">'+(_done?'<b style="color:#3B7D3B">'+(LANG==='zh'?'蛋糕已取':'Collected')+'</b> · ':'')+(_ck
+            ? ((LANG==='zh'?'要取蛋糕 · ':'Cake to collect · ')+'<b>'+esc(_ck.supplier||(LANG==='zh'?'待定供应商':'Supplier TBD'))+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':''))
+            : ((LANG==='zh'?'检测到蛋糕 · <b style="color:#B86050">选择供应商</b>':'Cake detected · <b style="color:#B86050">pick a supplier</b>')+'<div style="font-size:11px;color:var(--c-muted)">Cake detected from Shopify — pick a supplier</div>'))+'</div>'
+        +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?(LANG==='zh'?'编辑':'Edit'):(LANG==='zh'?'选择':'Pick'))+'</button>'
       +'</div>';
     }
   }
