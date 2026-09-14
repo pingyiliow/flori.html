@@ -3510,7 +3510,7 @@ function _invListHTML(){
     });
     html+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
     units.forEach(u=>{ html += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
-    html+='<button class="stk-add" onclick="openAddInv(\''+cat+'\')">+ Add</button></div>';
+    html+='</div>';
   });
   return html;
 }
@@ -3629,7 +3629,7 @@ function _stkViewInv(i){
   const moves=Array.isArray(i.moves)?i.moves:[];
   let h='<div class="skv-hd">'+_stkThumb(i.photo,_invIcon(i.cat),true)
     +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(i.name)+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'inv\',\''+i.id+'\')">'+esc(_catLabel(i.cat||'other'))+' '+di('gear',11)+'</button></div></div>'
-    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')">'+di('x',15)+'</button></div>';
+    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   h+='<div class="skv-body">';
   h+='<div class="skv-qbar"><span class="skv-qlbl">在库 In stock'+(_invLow(i)?' · <span style="color:var(--c-red)">low</span>':'')+'</span>'
     +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><b class="'+(_invLow(i)?'low':'')+'" style="'+(_invLow(i)?'color:var(--c-red)':'')+'">'+(i.qty||0)+'</b><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
@@ -3654,7 +3654,7 @@ function _stkViewShop(p){
   const catLbl = SHOP_ITEM_CAT[p.id] ? _catLabel(SHOP_ITEM_CAT[p.id]) : '分类 category';
   let h='<div class="skv-hd">'+_stkThumb(p.image,'box',true)
     +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(p.title)+' '+tag+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'shop\',\''+p.id+'\')">'+esc(catLbl)+' '+di('gear',11)+'</button></div></div>'
-    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')">'+di('x',15)+'</button></div>';
+    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   h+='<div class="skv-body">';
   h+='<div class="skv-qbar"><span class="skv-qlbl">'+(single?'在库 In stock':(p.variants.length+' 款 · 共 total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+(single?(p.variants[0]?p.variants[0].qty||0:0):p.total)+'</b></div>';
   h+='<div class="skv-sec">款式库存 Stock <span style="font-weight:400;text-transform:none;letter-spacing:0">· 点 +/− 同步 Shopify</span></div>';
