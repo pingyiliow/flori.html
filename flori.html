@@ -3070,7 +3070,7 @@ function renderHome() {
   // Needs attention — the actionable stuff (command-center, not a duplicate order list).
   const _attRow = (ic,col,txt,act)=>`<div onclick="${act}" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer"><span style="color:${col};display:inline-flex">${di(ic,16)}</span><span style="flex:1;font-size:12.5px;font-weight:600">${txt}</span><span style="color:var(--c-border2);font-size:15px">›</span></div>`;
   const att = [];
-  const cakeToday = todayO.filter(o => _effCake(o) && !o.fulfilled).length;
+  const cakeToday = todayO.filter(o => _effCake(o) && !o.fulfilled && !_cakeCollected(o)).length;
   if (cakeToday)      att.push(_attRow('note','#956A40',''+cakeToday+' 单要取蛋糕 · cakes to collect',"goPage('driver')"));
   if (urgentT.length) att.push(_attRow('warn','#c0392b',urgentT.length+' urgent order'+(urgentT.length>1?'s':''),"goPage('orders')"));
   if (unassignedDel)  att.push(_attRow('nav','#b46a1e',unassignedDel+' deliver'+(unassignedDel>1?'ies':'y')+' not on a route',"goPage('driver')"));
@@ -3103,7 +3103,7 @@ function renderHome() {
     + '</div>'
   ) : '';
   // Cakes to collect today — the mockup's right-column card (text/SVG only, no emoji).
-  const _cakes = todayO.filter(o => _effCake(o) && !o.fulfilled);
+  const _cakes = todayO.filter(o => _effCake(o) && !o.fulfilled && !_cakeCollected(o));
   const _ce = document.getElementById('home-cakes');
   if (_ce) _ce.innerHTML = _cakes.length ? (
     '<div class="card" style="padding:16px 18px">'
@@ -6611,7 +6611,7 @@ function saveCake(){
                    : (sel==='__new__'||sel==='') ? '' : sel;
     const address=document.getElementById('cake-address').value.trim();
     const remark=document.getElementById('cake-remark').value.trim();
-    o.cake={ supplier:supplier||'', address:address||'', remark:remark||'' };
+    o.cake={ supplier:supplier||'', address:address||'', remark:remark||'', collected: !!(o.cake && o.cake.collected) };
     // teach a saved supplier its address the first time it's entered
     if(supplier && address){ const s=CAKE_SUPPLIERS.find(x=>x.name===supplier); if(s && s.address!==address){ s.address=address; saveCakeSuppliers(); } }
   }
@@ -6628,21 +6628,39 @@ function _orderHasCake(o){ return !!(o && o.lineItems && o.lineItems.some(li => 
 // cake so it flows through the collection lists as 待定供应商.
 function _effCake(o){ if(o && o.cake) return o.cake; if(_orderHasCake(o)) return { supplier:'', address:'', remark:'', auto:true }; return null; }
 function _cakeOrdersFor(iso){ return ORDERS.filter(o => _effCake(o) && _drvIsOnDate(o, iso)); }
+function _cakeCollected(o){ return !!(o && o.cake && o.cake.collected); }
 function _drvCakeList(iso){
   const list=_cakeOrdersFor(iso); if(!list.length) return '';
+  const doneN = list.filter(_cakeCollected).length;
   const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||'待定供应商'); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
   let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
-    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">今日需拿蛋糕 · '+list.length+' 单</div>';
+    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">今日需拿蛋糕 · <span style="color:'+(doneN===list.length?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+' 已取</span></div>';
   Object.keys(bySup).forEach(sup=>{
     const g=bySup[sup];
     const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+' 导航</a>' : '';
     h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
       +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+' 个</span></div>'
       +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
-      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto?' · <span style="color:#B86050;font-weight:600">选择供应商</span>':''); return '<div style="font-size:11px;color:#8a7a55;margin-top:2px">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</div>'; }).join('')
+      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const done=!!ec.collected; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto&&!done?' · <span style="color:#B86050;font-weight:600">选择供应商</span>':'');
+          return '<div style="display:flex;align-items:center;gap:7px;margin-top:4px'+(done?';opacity:.6':'')+'">'
+            +'<button onclick="event.stopPropagation();toggleCakeCollected(\''+o.id+'\')" title="'+(done?'取消 undo':'标记已取 collected')+'" aria-label="mark cake collected" style="width:21px;height:21px;flex:none;border:1.5px solid '+(done?'#3B7D3B':'#C9B36B')+';background:'+(done?'#3B7D3B':'#fff')+';color:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'+(done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</button>'
+            +'<span style="font-size:11px;color:#8a7a55;min-width:0'+(done?';text-decoration:line-through':'')+'">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</span>'
+          +'</div>'; }).join('')
       +'</div>'+nav+'</div>';
   });
   return h+'</div>';
+}
+// Mark a cake order collected (or undo). Auto-detected cakes get a real cake record so
+// the collected flag persists; stored on order.cake (jsonb, no new column).
+function toggleCakeCollected(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  if(!o.cake) o.cake={ supplier:'', address:'', remark:'', auto:true };
+  o.cake.collected = !o.cake.collected;
+  saveOrders(o);
+  if(typeof renderHome==='function') renderHome();
+  if(typeof renderDriver==='function') renderDriver();
+  if(_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast(o.cake.collected?'✓ 蛋糕已取 collected':'已取消 undone');
 }
 function renderDriver(){
   const pc = document.getElementById('driver-pc'); if (!pc) return;
@@ -9080,9 +9098,11 @@ function _renderDP(order, localOrder) {
   { const _ck = localOrder.cake;
     const _auto = !_ck && _orderHasCake(localOrder);
     if (_ck || _auto) {
-      html += '<div style="border:1.5px solid #E6C65A;border-radius:var(--r-lg);padding:10px 13px;background:#FBF3D9;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
-        +'<span style="flex:none;display:inline-flex;color:#956A40"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21v-7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v7"/><path d="M4 16c1 .6 2 .6 3 0s2-.6 3 0 2 .6 3 0 2-.6 3 0 2 .6 3 0"/><path d="M12 8V6"/><circle cx="12" cy="4.3" r="1"/></svg></span>'
-        +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck
+      const _done = _cakeCollected(localOrder);
+      html += '<div style="border:1.5px solid #E6C65A;border-radius:var(--r-lg);padding:10px 13px;background:#FBF3D9;margin-bottom:10px;display:flex;align-items:center;gap:10px'+(_done?';opacity:.7':'')+'">'
+        +'<button onclick="toggleCakeCollected(\''+localOrder.id+'\')" title="'+(_done?'undo':'mark collected')+'" aria-label="mark cake collected" style="width:28px;height:28px;flex:none;border:1.5px solid '+(_done?'#3B7D3B':'#C9B36B')+';background:'+(_done?'#3B7D3B':'#fff')+';border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'
+          +(_done?'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#956A40" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21v-7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v7"/><path d="M4 16c1 .6 2 .6 3 0s2-.6 3 0 2 .6 3 0 2-.6 3 0 2 .6 3 0"/><path d="M12 8V6"/><circle cx="12" cy="4.3" r="1"/></svg>')+'</button>'
+        +'<div style="flex:1;min-width:0;font-size:12.5px'+(_done?';text-decoration:line-through':'')+'">'+(_done?'<b style="color:#3B7D3B">蛋糕已取 Collected</b> · ':'')+(_ck
             ? ('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':''))
             : '检测到蛋糕 · <b style="color:#B86050">选择供应商</b><div style="font-size:11px;color:var(--c-muted)">Cake detected from Shopify — pick a supplier</div>')+'</div>'
         +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'选择')+'</button>'
