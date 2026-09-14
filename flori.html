@@ -1739,16 +1739,18 @@ function getType(attrs) {
   return 'delivery'; // default
 }
 
-async function shopifyGQL(query, variables) {
+async function shopifyGQL(query, variables, opts) {
   // The Shopify token is managed entirely server-side — staff never connect
   // Shopify on their device. We send the store URL plus the logged-in user's
   // Supabase session so /api/query will mint+use the token only for staff.
+  // opts.refreshToken forces the server to bust its cached token and re-mint —
+  // used right after the app's Shopify scopes change so the new scopes apply now.
   const url = localStorage.getItem('flori-url') || '';
   let authToken = '';
   try { if (hasSB()) { const { data } = await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_) {}
   let r;
   try {
-    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken }) });
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken, refreshToken: !!(opts && opts.refreshToken) }) });
   } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
   let text = ''; try { text = await r.text(); } catch(_) {}
   if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
@@ -3727,16 +3729,24 @@ async function shopStockAdjust(pid, vIdx, delta){
   if((v.qty||0)+delta < 0) return;
   const locId=await _shopLocation(); if(!locId){ toast(zh?'找不到 Shopify 仓库位置':'No Shopify location found'); return; }
   _shopAdjBusy=true; toast(zh?'更新 Shopify 库存…':'Updating Shopify stock…');
+  const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
+  const vars={ input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId }] } };
+  const isScopeErr=msg=>/access denied|access scope|write_inventory|not approved/i.test(msg||'');
+  const run=async (refresh)=>{ const res=await shopifyGQL(m, vars, refresh?{refreshToken:true}:undefined); const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); return res; };
   try{
-    const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
-    const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId }] } });
-    const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
-    if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+    try{ await run(false); }
+    catch(e1){
+      // Likely a stale cached token from before the scopes changed → force a fresh
+      // mint once and retry, so the click self-heals without waiting for the cache.
+      if(!isScopeErr(e1&&e1.message)) throw e1;
+      toast(zh?'刷新权限中…':'Refreshing permission…');
+      await run(true);
+    }
     v.qty=(v.qty||0)+delta; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
     renderInventory(); if(typeof _stkRefresh==='function')_stkRefresh(); toast(zh?'✓ 已同步 Shopify':'✓ Synced to Shopify');
   }catch(e){
     let msg=(e&&e.message)||'error';
-    if(/access denied|access scope|write_inventory|not approved/i.test(msg)) msg = zh?'需要开启 write_inventory 权限（见设置）':'Needs the write_inventory permission — see setup note';
+    if(isScopeErr(msg)) msg = zh?'仍缺 write_inventory 权限 — 请重新安装/授权 app（可能需几分钟生效）':'Still missing write_inventory — reinstall/re-approve the app (can take a few minutes)';
     toast((zh?'更新失败: ':'Update failed: ')+msg);
   }
   finally{ _shopAdjBusy=false; }
