@@ -112,12 +112,12 @@
     <div class="pc" style="padding-bottom:0;gap:20px">
       <div class="page-hdr">
         <div>
-          <div class="page-title">Daily Orders</div>
+          <div class="page-title">Orders</div>
         </div>
         <div class="btn-row">
           <input id="order-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
           <button class="btn btn-ghost" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> By Product</button>
-          <button class="btn btn-primary" onclick="openAddOrder()">+ Add Order</button>
+          <button class="btn btn-primary" onclick="openAddOrder()">+ New order</button>
         </div>
       </div>
 
@@ -145,25 +145,25 @@
 
     <!-- Filters -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;gap:12px">
         <div class="filters" id="filters">
           <button class="f-btn on" data-f="today">Today</button>
-          <button class="f-btn" data-f="pending">Pending</button>
-          <button class="f-btn" data-f="ready">Ready</button>
-          <button class="f-btn" data-f="fulfilled">Fulfilled</button>
-          <button class="f-btn" data-f="overdue">Overdue</button>
+          <button class="f-btn" data-f="tomorrow">Tomorrow</button>
+          <button class="f-btn" data-f="week">This Week</button>
           <button class="f-btn" data-f="all">All</button>
         </div>
-        <div style="display:flex;align-items:center;gap:4px;padding:0 4px;border-left:1px solid var(--c-border)">
-          <button class="f-btn on" data-ft="all" id="ft-all">All</button>
-          <button class="f-btn" data-ft="pickup" id="ft-pickup">
-            <span style="font-size:8px;background:var(--c-blue-bg);color:var(--c-blue);padding:1px 4px;border-radius:2px">P</span>
-            Pickup <span id="count-pickup" style="font-size:9px;opacity:.6"></span>
-          </button>
-          <button class="f-btn" data-ft="delivery" id="ft-delivery">
-            <span style="font-size:8px;background:var(--c-amber-bg);color:var(--c-amber);padding:1px 4px;border-radius:2px">D</span>
-            Delivery <span id="count-delivery" style="font-size:9px;opacity:.6"></span>
-          </button>
+        <div class="fbar">
+          <span class="fbar-l">Status</span>
+          <button class="chip on" data-fs="all">All</button>
+          <button class="chip" data-fs="pending">Pending</button>
+          <button class="chip" data-fs="ready">Ready</button>
+          <button class="chip" data-fs="done">Done</button>
+          <button class="chip" data-fs="overdue">Overdue</button>
+          <span class="fbar-sep"></span>
+          <span class="fbar-l">Type</span>
+          <button class="chip on" data-ft="all" id="ft-all">All</button>
+          <button class="chip" data-ft="pickup" id="ft-pickup">Pickup <span class="chip-c" id="count-pickup"></span></button>
+          <button class="chip" data-ft="delivery" id="ft-delivery">Delivery <span class="chip-c" id="count-delivery"></span></button>
         </div>
       </div>
       <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
@@ -2554,7 +2554,7 @@ function rehydrateOrders() {
 }
 
 /* ─── Rendering ──────────────────────────────────────────────── */
-let orderFilter = 'today', typeFilter = 'all';
+let orderFilter = 'today', typeFilter = 'all', statusFilter = 'all';
 let prodMode = false;   // Production mode: group the orders list by product, not date
 function toggleProdMode(){
   prodMode = !prodMode;
@@ -2596,36 +2596,31 @@ function filteredOrders() {
 
   let list = ORDERS;
 
+  // ── TIME dimension (the tabs: Today / Tomorrow / This Week / All) ──
   if (calFilter) {
-    // A specific calendar date is picked — show ALL orders for that date,
-    // regardless of the status tab (otherwise "Today" + another date = empty).
+    // A specific calendar date is picked — show that date's orders (status/type still apply).
     const [cy,cm,cd] = calFilter.split('-').map(Number);
     list = list.filter(o => o.dateObj && o.dateObj.getFullYear()===cy && o.dateObj.getMonth()===cm-1 && o.dateObj.getDate()===cd);
   } else if (orderFilter === 'today') {
-    // Today: show orders dated today (by dueDate) OR created today (for fulfilled with no dueDate)
     const todayStr = tdi(t0);
-    list = list.filter(o => {
-      if (o.dateObj && o.dateObj >= t0 && o.dateObj < t1) return true; // has delivery date = today
-      if (o.fulfilled && o.createdAt && o.createdAt.slice(0,10) === todayStr) return true; // fulfilled today
-      return false;
-    });
-  } else if (orderFilter === 'pending') {
-    // Pending: today+future unfulfilled not-ready
-    list = list.filter(o => (!o.dateObj || o.dateObj >= t0) && !o.fulfilled && !o.ready);
-  } else if (orderFilter === 'ready') {
-    // Ready: marked ready, not yet fulfilled
-    list = list.filter(o => o.ready && !o.fulfilled);
-  } else if (orderFilter === 'fulfilled') {
-    // Fulfilled: past fulfilled only (last 30 days), not today
-    list = list.filter(o => o.fulfilled && o.dateObj && o.dateObj < t0 && o.dateObj >= thirtyDaysAgo);
-  } else if (orderFilter === 'overdue') {
-    // Overdue: past unfulfilled orders
-    list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
-  } else {
-    // All: everything today+future (no past clutter)
-    list = list.filter(o => !o.dateObj || o.dateObj >= t0);
+    list = list.filter(o => (o.dateObj && o.dateObj >= t0 && o.dateObj < t1) || (o.fulfilled && o.createdAt && o.createdAt.slice(0,10) === todayStr));
+  } else if (orderFilter === 'tomorrow') {
+    const t2 = new Date(t0.getTime()+2*86400000);
+    list = list.filter(o => o.dateObj && o.dateObj >= t1 && o.dateObj < t2);
+  } else if (orderFilter === 'week') {
+    // This calendar week (Mon–Sun) — includes earlier this week so Overdue can surface.
+    const dow=t0.getDay(), mon=new Date(t0.getTime()-((dow+6)%7)*86400000), nextMon=new Date(mon.getTime()+7*86400000);
+    list = list.filter(o => o.dateObj && o.dateObj >= mon && o.dateObj < nextMon);
   }
+  // 'all' → no time filter (every loaded order)
 
+  // ── STATUS dimension (filter bar) ──
+  if (statusFilter === 'pending')      list = list.filter(o => !o.fulfilled && !o.ready);
+  else if (statusFilter === 'ready')   list = list.filter(o => o.ready && !o.fulfilled);
+  else if (statusFilter === 'done')    list = list.filter(o => o.fulfilled);
+  else if (statusFilter === 'overdue') list = list.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled);
+
+  // ── TYPE dimension (filter bar) ──
   if (typeFilter === 'pickup')   list = list.filter(o => o.type === 'pickup');
   if (typeFilter === 'delivery') list = list.filter(o => o.type === 'delivery');
   return list;
@@ -4813,7 +4808,7 @@ async function loadFulfilledRecent(){
 document.querySelectorAll('[data-f]').forEach(btn => {
   btn.addEventListener('click', () => {
     orderFilter=btn.dataset.f; calFilter=null;
-    if (orderFilter==='fulfilled') loadFulfilledRecent();
+    if (orderFilter==='all' || orderFilter==='week') loadFulfilledRecent();
     const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
     const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
     if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';
@@ -4823,6 +4818,7 @@ document.querySelectorAll('[data-f]').forEach(btn => {
   });
 });
 document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; renderOrders(); }); });
+document.querySelectorAll('[data-fs]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-fs]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); statusFilter=btn.dataset.fs; if(statusFilter==='done') loadFulfilledRecent(); renderOrders(); }); });
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */

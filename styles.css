@@ -70,7 +70,7 @@ img{display:block;max-width:100%}
   padding:env(safe-area-inset-top) 0 0 0;gap:0;
   position:sticky;top:0;z-index:200;
 }
-.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-surface);border-right:1px solid var(--c-border);display:flex;align-items:center;gap:11px;padding:0 22px;flex-shrink:0}
+.hdr-logo-zone{width:var(--sidebar);height:var(--hdr);background:var(--c-surface);display:flex;align-items:center;gap:11px;padding:0 22px;flex-shrink:0}
 .hdr-logo-mark{height:38px;width:38px;object-fit:contain;flex-shrink:0}
 .hdr-bloom{font-family:var(--f-head);font-size:19px;font-weight:700;color:var(--c-burg);letter-spacing:-.01em;line-height:1}
 .hdr-flow{font-family:var(--f-head);font-size:19px;font-weight:500;color:var(--c-blush);letter-spacing:-.01em;line-height:1}
@@ -405,9 +405,18 @@ body.role-driver .shell{grid-template-columns:1fr}
 
 /* ── filter tabs ─────────────────────────────────────────────── */
 .filters{display:flex;gap:6px;flex-wrap:wrap}
-.f-btn{padding:5px 14px;border-radius:20px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:11px;font-weight:500;color:var(--c-muted);letter-spacing:.04em;transition:all .12s;}
-.f-btn:hover{color:var(--c-ink);border-color:var(--c-border2)}
-.f-btn.on{background:var(--c-burg);border-color:var(--c-burg);color:var(--c-bg)}
+.f-btn{padding:8px 17px;border-radius:99px;border:none;background:var(--c-surface);font-size:13.5px;font-weight:700;color:var(--c-muted);letter-spacing:0;transition:all .12s;box-shadow:var(--sh)}
+.f-btn:hover{color:var(--c-ink)}
+.f-btn.on{background:var(--c-burg);color:var(--c-bg)}
+/* orders filter bar (status + type) */
+.fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:9px 13px;box-shadow:var(--sh)}
+.fbar-l{font-size:11px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em}
+.fbar-sep{width:1px;height:20px;background:var(--c-border);margin:0 3px}
+.chip{border:1.5px solid var(--c-border);border-radius:99px;padding:6px 13px;font-size:13px;font-weight:600;background:var(--c-surface);color:var(--c-muted);display:inline-flex;align-items:center;gap:6px;transition:all .12s}
+.chip:hover{border-color:var(--c-border2);color:var(--c-ink)}
+.chip.on{background:var(--c-ink);color:var(--c-bg);border-color:var(--c-ink)}
+.chip-c{font-size:11px;opacity:.7}
+.chip-c:empty{display:none}
 
 /* ── empty state ─────────────────────────────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--c-muted)}
