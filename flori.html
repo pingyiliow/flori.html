@@ -488,10 +488,10 @@
             <div class="ff" style="grid-column:1/-1"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
             <div class="ff"><label class="ff-l">Phone</label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
             <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
-            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
-            <div class="ff" style="grid-column:1/-1"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 贴上 Lalamove 分享的追踪链接</span></label>
+            <div class="ff" id="o-addr-wrap" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
+            <div class="ff" id="o-lala-wrap" style="grid-column:1/-1"><label class="ff-l">Lalamove 追踪链接 <span style="color:var(--c-muted);font-weight:400">可选 · 贴上 Lalamove 分享的追踪链接</span></label>
               <input id="o-lala" type="url" placeholder="https://track.lalamove.com/..." oninput="_oLalaSync()">
-              <a id="o-lala-open" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12px;color:var(--c-burg);font-weight:600;text-decoration:none">🔗 打开追踪 Track Lalamove ↗</a></div>
+              <a id="o-lala-open" href="#" target="_blank" rel="noopener" style="display:none;margin-top:6px;font-size:12px;color:var(--c-burg);font-weight:600;text-decoration:none">打开追踪 Track Lalamove ↗</a></div>
           </div>
         </div>
       </div>
@@ -503,7 +503,7 @@
         <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
         <div class="ff">
           <label class="ff-l">Type</label>
-          <select id="o-type">
+          <select id="o-type" onchange="_oTypeChange()">
             <option value="delivery">Delivery</option>
             <option value="pickup">Self Collect / Pickup</option>
           </select>
@@ -7798,9 +7798,18 @@ function _oLalaSync(){
   const v=(inp.value||'').trim();
   if(/^https?:\/\//i.test(v)){ a.href=v; a.style.display='inline-block'; } else { a.style.display='none'; }
 }
+// Lalamove tracking + delivery address only make sense for a delivery order — hide
+// them for Self Collect / Pickup.
+function _oTypeChange(){
+  const t=(document.getElementById('o-type')||{}).value;
+  const isPickup = t==='pickup';
+  const lw=document.getElementById('o-lala-wrap'); if(lw) lw.style.display = isPickup ? 'none' : '';
+  const aw=document.getElementById('o-addr-wrap'); if(aw) aw.style.display = isPickup ? 'none' : '';
+}
 function openAddOrder(){
   ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  _oLalaSync();
+  const _ty=document.getElementById('o-type'); if(_ty) _ty.value='delivery';
+  _oLalaSync(); _oTypeChange();
   document.getElementById('o-edit-id').value='';
   document.getElementById('o-modal-ttl').textContent='Add Order';
   const sum=document.getElementById('o-cust-summary'); if(sum) sum.textContent='Customer details';
@@ -8417,7 +8426,7 @@ function editOrder(id) {
   document.getElementById('o-time').value=o.dueTime||'';
   document.getElementById('o-type').value=o.type||'delivery';
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
-  const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync();
+  const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync(); _oTypeChange();
   const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
@@ -8861,7 +8870,15 @@ function openDP(id) {
   if(_migrateCoverToProduct(o)) saveOrders(o);   // attach legacy cover to its product, persist once
   _dpId = id;
   document.getElementById('dp-ttl').textContent = o.name;
-  document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '');
+  document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '') + (o.dueTime ? ' · ' + o.dueTime : '');
+  const _st = document.getElementById('dp-status');
+  if (_st){
+    const s = o.fulfilled ? 'done' : (o.otwAt ? 'otw' : 'ready');
+    const pk = o.type==='pickup';
+    const map = { done:[pk?'Picked up':'Delivered','var(--c-sage-bg)','var(--c-sage)'], otw:['On the way','#EDE9FB','#5B4B9A'],
+      ready:[o.priority==='urgent'?'Urgent':'Ready', o.priority==='urgent'?'#FBEAD9':'var(--c-sage-bg)', o.priority==='urgent'?'#B4571E':'var(--c-sage)'] };
+    const m = map[s]; _st.textContent = m[0]; _st.style.background = m[1]; _st.style.color = m[2]; _st.style.display='';
+  }
   document.getElementById('dp').classList.add('on');
   document.getElementById('dp-ov').classList.add('on');
 
@@ -9191,32 +9208,42 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── On the way / Delivered / Edit / Delete at bottom ──
+  // ── Action bar: one primary status button + a ⋯ overflow menu ──
+  // Declutters the old five-button stack. Not fulfilled → Mark delivered/picked up
+  // (dark) + On the way (lavender, delivery only) + ⋯. Fulfilled → Edit + ⋯.
+  const isPickup = localOrder.type === 'pickup';
+  html += '<div class="dp-act" style="position:relative">';
   if (!localOrder.fulfilled) {
-    // "On the way" — dispatch step for Lalamove/manual delivery: sends the customer a
-    // live-tracking (Lalamove link) WhatsApp + email. Not for pickup orders.
-    if (localOrder.type !== 'pickup') {
-      html += `<button onclick="openOTWModal('${localOrder.id}')" style="width:100%;padding:12px;background:#EAF3FF;color:#1B4F9C;border:1.5px solid #B9D4F5;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;transition:all .12s" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EAF3FF'">
-        ${di('truck',15)} On the way 派送中${localOrder.otwAt?' · 已发':''}
-      </button>`;
-    }
-    html += `<button onclick="markDelivered('${localOrder.id}')" style="width:100%;padding:13px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:background .12s" onmouseover="this.style.background='#3A080C'" onmouseout="this.style.background='var(--c-burg)'">
-      ${localOrder.type==='pickup' ? di('bag',15)+' Mark as Picked Up' : di('check',15)+' Mark as Delivered'}
-    </button>`;
+    html += `<button onclick="markDelivered('${localOrder.id}')" class="dp-actbtn dp-actbtn-dark">${isPickup ? di('bag',16)+' Mark picked up' : di('check',16)+' Mark delivered'}</button>`;
+    if (!isPickup) html += `<button onclick="openOTWModal('${localOrder.id}')" class="dp-actbtn dp-actbtn-lav" title="On the way${localOrder.otwAt?' · sent':''}" aria-label="On the way">${di('truck',16)}</button>`;
+  } else {
+    html += `<button onclick="closeDP();editOrder('${localOrder.id}')" class="dp-actbtn" style="background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-ink)">${di('edit',15)} Edit order</button>`;
   }
-  html += `<div style="display:flex;gap:10px;margin-top:0;padding-top:0;border-top:none">
-    <button onclick="closeDP();editOrder('${localOrder.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
-      ${di('edit',13)} Edit Order
-    </button>
-    <button onclick="closeDP();openRepeat('${localOrder.id}')" title="Repeat — duplicate this order to other dates" aria-label="Repeat order" style="display:flex;align-items:center;justify-content:center;padding:10px 14px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-ink);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-burg)';this.style.color='var(--c-burg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-ink)'">
-      ${di('sync',15)}
-    </button>
-    <button onclick="closeDP();delOrder('${localOrder.id}')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer;transition:all .12s" onmouseover="this.style.borderColor='var(--c-red)';this.style.color='var(--c-red)';this.style.background='var(--c-red-bg)'" onmouseout="this.style.borderColor='var(--c-border)';this.style.color='var(--c-muted)';this.style.background='var(--c-surface)'">
-      ${di('trash',13)} Delete
-    </button>
-  </div>`;
+  html += `<button onclick="toggleDpMenu(event)" class="dp-actbtn dp-actbtn-more" aria-label="More actions">⋯</button>`;
+  html += _dpMenuHtml(localOrder);
+  html += '</div>';
 
   document.getElementById('dp-body').innerHTML = html;
+}
+// The ⋯ overflow menu for the order panel: Edit, Repeat, View in Shopify, Delete.
+function _dpMenuHtml(o){
+  const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+  const shopUrl = o.src==='shopify' && handle ? `https://admin.shopify.com/store/${handle}/orders/${shopId(o.id)}` : '';
+  return '<div id="dp-menu" class="dp-menu" hidden>'
+    + `<button class="dp-mi" onclick="closeDpMenu();closeDP();editOrder('${o.id}')">${di('edit',16)} Edit order</button>`
+    + `<button class="dp-mi" onclick="closeDpMenu();closeDP();openRepeat('${o.id}')">${di('sync',16)} Repeat order</button>`
+    + (shopUrl ? `<button class="dp-mi" onclick="closeDpMenu();window.open('${shopUrl}','_blank','noopener')">${di('nav',16)} View in Shopify</button>` : '')
+    + `<button class="dp-mi del" onclick="closeDpMenu();closeDP();delOrder('${o.id}')">${di('trash',16)} Delete</button>`
+  + '</div>';
+}
+function closeDpMenu(){ const m=document.getElementById('dp-menu'); if(m) m.hidden=true; }
+function toggleDpMenu(ev){
+  if(ev) ev.stopPropagation();
+  const m=document.getElementById('dp-menu'); if(!m) return;
+  if(!m.hidden){ m.hidden=true; return; }
+  m.hidden=false;
+  setTimeout(()=>{ const h=e=>{ const mm=document.getElementById('dp-menu'); if(mm && !mm.contains(e.target)){ mm.hidden=true; document.removeEventListener('click',h); } };
+    document.addEventListener('click',h); },10);
 }
 
 function _renderDPManual(o) {
@@ -9334,13 +9361,13 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
 <div class="dp" id="dp">
   <div class="dp-hdr">
     <div style="min-width:0">
-      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-        <div style="font-family:var(--f-head);font-size:18px;font-style:italic;font-weight:400;color:var(--c-bg)" id="dp-ttl">Order Detail</div>
-        <a id="dp-shopify-link" target="_blank" rel="noopener" style="display:none;font-size:10px;color:var(--c-dpink);text-decoration:underline;white-space:nowrap">↗ View in Shopify</a>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-family:var(--f-head);font-size:26px;font-weight:800;letter-spacing:-.01em;color:var(--c-ink)" id="dp-ttl">Order Detail</div>
+        <span id="dp-status" class="dp-status" style="display:none"></span>
       </div>
-      <div style="font-size:11px;color:var(--c-dpink);margin-top:2px" id="dp-sub"></div>
+      <div style="font-size:12.5px;color:var(--c-muted);margin-top:3px" id="dp-sub"></div>
     </div>
-    <button class="sp-x" aria-label="Close" onclick="closeDP()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <button class="sp-x" aria-label="Close" onclick="closeDP()" style="color:var(--c-ink)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
   <div class="dp-body" id="dp-body">
     <div class="dp-loading">Loading…</div>
