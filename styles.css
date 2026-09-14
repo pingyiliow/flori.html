@@ -430,6 +430,35 @@ body.role-driver .shell{grid-template-columns:1fr}
 .fp-row .fbar-l{font-size:11px}
 .fp-chips{display:flex;flex-wrap:wrap;gap:7px}
 
+/* unified stock detail popup */
+.skv-hd{display:flex;gap:13px;align-items:flex-start;padding:18px 20px 14px}
+.skv-th{width:60px;height:60px;border-radius:12px;background:var(--c-bg);flex:none;display:flex;align-items:center;justify-content:center;color:#b7a06a;overflow:hidden}
+.skv-th img{width:100%;height:100%;object-fit:cover}
+.skv-nm{font-family:var(--f-head);font-size:20px;font-weight:800;line-height:1.15}
+.skv-cat{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--c-muted);background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:3px 11px;cursor:pointer}
+.skv-cat:hover{border-color:var(--c-border2);color:var(--c-ink)}
+.skv-x{width:32px;height:32px;border:none;border-radius:50%;background:var(--c-bg);color:var(--c-ink);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center}
+.skv-body{padding:2px 20px 18px;max-height:56vh;overflow-y:auto}
+.skv-qbar{display:flex;align-items:center;justify-content:space-between;background:var(--c-bg);border-radius:14px;padding:12px 15px;margin-bottom:12px}
+.skv-qlbl{font-size:12px;color:var(--c-muted)}
+.skv-step{display:inline-flex;align-items:center;gap:10px}
+.skv-step button{width:32px;height:32px;border-radius:9px;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-ink);font-size:17px;cursor:pointer;line-height:1;padding:0}
+.skv-step .plus{background:var(--c-ink);color:var(--c-bg);border:none}
+.skv-step b{font-family:var(--f-head);font-size:24px;font-weight:800;min-width:22px;text-align:center}
+.skv-row{display:flex;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px solid var(--c-border);font-size:13.5px}
+.skv-k{color:var(--c-muted)}
+.skv-sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin:15px 0 7px 2px}
+.skv-chip{display:inline-flex;align-items:center;gap:5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:3px 10px;margin:0 6px 6px 0;font-size:12px}
+.skv-dot{width:6px;height:6px;border-radius:50%;flex:none}
+.skv-mv{display:flex;justify-content:space-between;font-size:12px;padding:3px 2px;color:var(--c-muted)}
+.skv-vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px solid var(--c-border)}
+.skv-vn{font-size:13.5px;font-weight:600;min-width:0}
+.skv-mstep{display:inline-flex;align-items:center;gap:8px;flex:none}
+.skv-mstep button{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-ink);font-size:14px;cursor:pointer;line-height:1;padding:0}
+.skv-mstep .plus{background:var(--c-ink);color:var(--c-bg);border:none}
+.skv-mstep b{font-family:var(--f-head);font-size:17px;font-weight:800;min-width:18px;text-align:center}
+.skv-foot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--c-border)}
+
 /* shopify stock cards — full width, variant chip grid */
 .stk-shop-list{display:flex;flex-direction:column;gap:10px;max-width:760px}
 .stk-shop{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;box-shadow:var(--sh)}

@@ -677,6 +677,13 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Stock item detail (manual + Shopify) ═════════ -->
+<div id="m-stkview" class="modal">
+  <div class="mc" style="max-width:400px;padding:0;overflow:hidden">
+    <div id="stkview-body"></div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Shopify item category ════════════════════════ -->
 <div id="m-shopcat" class="modal">
   <div class="mc" style="max-width:340px">
@@ -3455,7 +3462,7 @@ function _invCard(i){
   // red "低 · 该补货" prompt appears when the item is at/below its reorder point.
   const sub=[i.unit||'', i.size||'', (i.price!=null&&i.price!==''?('RM '+_invPriceStr(i.price)):'')].filter(Boolean).join(' · ');
   return '<div class="stk-card '+(low?'low':'')+'">'
-    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="editInv(\''+i.id+'\')">'+_invThumb(i.photo,_invIcon(i.cat))
+    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')">'+_invThumb(i.photo,_invIcon(i.cat))
       +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+(low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 5px">低 · 该补货</span>':'')+'</div><div class="stk-unit">'+esc(sub)+'</div></div></div>'
     +'<div style="display:flex;align-items:center;gap:6px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)+'</div>'
   +'</div>';
@@ -3472,7 +3479,7 @@ function _invFamCard(u){
     u.items.slice().sort((a,b)=> _invSort==='qty'?((b.qty||0)-(a.qty||0)):String(a.color||a.name).localeCompare(String(b.color||b.name))).forEach(i=>{
       const low=_invLow(i);
       h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(low?';background:#FFF5F5':'')+'">'+_invThumb(i.photo,ic,30)
-        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="editInv(\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低 · 该补货</span>':'')+'</div>'
+        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低 · 该补货</span>':'')+'</div>'
         +'<span class="stk-qty '+(low?'low':'')+'" style="font-size:17px;min-width:20px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)
       +'</div>';
     });
@@ -3569,7 +3576,7 @@ async function shopStockAdjust(pid, vIdx, delta){
     const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
     if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
     v.qty=(v.qty||0)+delta; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
-    renderInventory(); toast('✓ 已同步 Shopify');
+    renderInventory(); if(typeof _stkRefresh==='function')_stkRefresh(); toast('✓ 已同步 Shopify');
   }catch(e){ toast('更新失败: '+(e&&e.message||'error')); }
   finally{ _shopAdjBusy=false; }
 }
@@ -3590,35 +3597,95 @@ function _shopStockAgo(){
 function _shopStockCard(p){
   const ic=_invIcon('other');
   const tag='<span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
-  const cat=_shopGear(p.id);
-  if(p.variants.length<=1){
-    const v=p.variants[0]||{qty:0}, low=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
-    const price=(v&&v.price!=null&&v.price!=='')?('RM '+_invPriceStr(v.price)):'';
-    return '<div class="stk-shop"><div style="display:flex;align-items:center;gap:11px">'+_invThumb(p.image,ic)
-      +'<div style="flex:1;min-width:0"><div class="stk-name" style="white-space:normal">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+esc(price)+'</div></div>'
-      +cat
-      +_shopStepper(p.id,0,(v.qty||0),low,false)+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;flex:none">缺</span>':'')
-    +'</div></div>';
-  }
-  const key='shop|'+p.id, ek=key.replace(/'/g,"\\'"), expanded=_shopExpanded.has(key), low=p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
-  let h='<div class="stk-shop" style="padding:0;overflow:hidden">'
-    +'<div style="display:flex;align-items:center;gap:11px;padding:12px 14px">'
-      +'<div onclick="_shopToggle(\''+ek+'\')" style="display:flex;align-items:center;gap:11px;flex:1;min-width:0;cursor:pointer">'+_invThumb(p.image,ic)
-        +'<div style="flex:1;min-width:0"><div class="stk-name" style="white-space:normal">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+p.variants.length+' 款 · 共 '+p.total+(low?' <span style="color:var(--c-red)">· 有低</span>':'')+'</div></div></div>'
-      +cat
-      +'<span onclick="_shopToggle(\''+ek+'\')" style="color:var(--c-muted);font-size:14px;cursor:pointer;flex:none">'+(expanded?'▴':'▾')+'</span>'
+  const single=p.variants.length<=1;
+  const v0=p.variants[0]||{qty:0};
+  const total = single ? (v0.qty||0) : p.total;
+  const low = p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
+  const sub = single ? ((v0.price!=null&&v0.price!=='')?('RM '+_invPriceStr(v0.price)):'') : (p.variants.length+' 款 · 共 '+p.total);
+  return '<div class="stk-card" onclick="openStkView(\'shop\',\''+p.id+'\')">'
+    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">'+_invThumb(p.image,ic)
+      +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+esc(sub)+'</div></div></div>'
+    +'<span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right;flex:none">'+total+'</span>'
+  +'</div>';
+}
+
+/* ─── Unified stock detail popup (manual + Shopify) ─────────────────── */
+let _stkViewKind=null, _stkViewId=null;
+function openStkView(kind, id){
+  const el=document.getElementById('stkview-body'); if(!el) return;
+  _stkViewKind=kind; _stkViewId=id;
+  el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
+  openModal('m-stkview');
+}
+function _stkRefresh(){ if(document.getElementById('m-stkview') && document.getElementById('m-stkview').classList.contains('on') && _stkViewId!=null) openStkView(_stkViewKind, _stkViewId); }
+function _stkThumb(src, ic, zoom){
+  if(src){ const ss=String(src).replace(/'/g,"\\'"); return '<span class="skv-th"'+(zoom?' onclick="openZoom(\''+ss+'\')" style="cursor:zoom-in"':'')+'><img src="'+src+'" onerror="this.style.display=\'none\'"></span>'; }
+  return '<span class="skv-th">'+di(ic||'box',24)+'</span>';
+}
+function _stkRow(k,v){ return v!=null&&v!==''?('<div class="skv-row"><span class="skv-k">'+k+'</span><span>'+v+'</span></div>'):''; }
+function _stkViewInv(i){
+  if(!i) return '<div style="padding:24px">Not found</div>';
+  const used=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id));
+  const moves=Array.isArray(i.moves)?i.moves:[];
+  let h='<div class="skv-hd">'+_stkThumb(i.photo,_invIcon(i.cat),true)
+    +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(i.name)+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'inv\',\''+i.id+'\')">'+esc(_catLabel(i.cat||'other'))+' '+di('gear',11)+'</button></div></div>'
+    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')">'+di('x',15)+'</button></div>';
+  h+='<div class="skv-body">';
+  h+='<div class="skv-qbar"><span class="skv-qlbl">在库 In stock'+(_invLow(i)?' · <span style="color:var(--c-red)">low</span>':'')+'</span>'
+    +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><b class="'+(_invLow(i)?'low':'')+'" style="'+(_invLow(i)?'color:var(--c-red)':'')+'">'+(i.qty||0)+'</b><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
+  h+=_stkRow('Reorder at 补货点', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
+  h+=_stkRow('SKU 货号', i.sku?esc(i.sku):'');
+  h+=_stkRow('Size 尺寸', i.size?esc(i.size):'');
+  h+=_stkRow('Price 到货价', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  h+=_stkRow('Family 款式', i.family?esc(i.family):'');
+  h+=_stkRow('Color 颜色', i.color?esc(i.color):'');
+  if(i.notes) h+='<div class="skv-sec">Notes 备注</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
+  h+='<div class="skv-sec">用于设计 Used in designs</div>';
+  h+= used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span class="skv-chip"><span class="skv-dot" style="background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">还没有设计用到 · not used yet</span>';
+  if(moves.length){ h+='<div class="skv-sec">近期记录 Recent</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?('订单 '+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?'＋收货 ':(m.type==='auto'?'－订单 ':'－用掉 '); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
+  h+='</div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' Edit details 编辑</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
+  return h;
+}
+function _stkViewShop(p){
+  if(!p) return '<div style="padding:24px">Not found</div>';
+  const single=p.variants.length<=1;
+  const tag='<span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
+  const catLbl = SHOP_ITEM_CAT[p.id] ? _catLabel(SHOP_ITEM_CAT[p.id]) : '分类 category';
+  let h='<div class="skv-hd">'+_stkThumb(p.image,'box',true)
+    +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(p.title)+' '+tag+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'shop\',\''+p.id+'\')">'+esc(catLbl)+' '+di('gear',11)+'</button></div></div>'
+    +'<button class="skv-x" onclick="closeModal(\'m-stkview\')">'+di('x',15)+'</button></div>';
+  h+='<div class="skv-body">';
+  h+='<div class="skv-qbar"><span class="skv-qlbl">'+(single?'在库 In stock':(p.variants.length+' 款 · 共 total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+(single?(p.variants[0]?p.variants[0].qty||0:0):p.total)+'</b></div>';
+  h+='<div class="skv-sec">款式库存 Stock <span style="font-weight:400;text-transform:none;letter-spacing:0">· 点 +/− 同步 Shopify</span></div>';
+  p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
+    h+='<div class="skv-vrow"><span class="skv-vn">'+esc(single&&(!v.title||v.title==='Default Title')?p.title:v.title)+(out?' <span style="color:var(--c-red);font-size:10px">缺</span>':'')+'</span>'
+      +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><b style="'+(l?'color:var(--c-red)':'')+'">'+(v.qty||0)+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
     +'</div>';
-  if(expanded){
-    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;padding:0 14px 14px">';
-    p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
-      h+='<div style="border:1.5px solid '+(l?'#EF9A9A':'var(--c-border)')+';border-radius:9px;padding:6px 5px;background:'+(l?'#FFF5F5':'var(--c-bg)')+';text-align:center">'
-        +'<div style="font-size:10.5px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px">'+esc(v.title)+(out?' · 缺':'')+'</div>'
-        +'<div style="display:flex;justify-content:center">'+_shopStepper(p.id,vi,(v.qty||0),l,true)+'</div>'
-      +'</div>';
-    });
-    h+='</div>';
-  }
-  return h+'</div>';
+  });
+  h+='</div>';
+  h+='<div class="skv-foot"><button class="btn btn-ghost" style="flex:1" onclick="openCatPick(\'shop\',\''+p.id+'\')">'+di('gear',13)+' Category 分类</button><button class="btn btn-primary" style="flex:1" onclick="syncShopifyStock(true)">'+di('sync',13)+' Refresh 刷新</button></div>';
+  return h;
+}
+function stkAdjInv(id, delta){ invAdjust(id, delta, delta>0?'in':'out'); _stkRefresh(); }
+function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm('Delete '+(it.name||'this item')+'? 删除？')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory(); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
+// Category picker — shared by manual items (sets item.cat) and Shopify items (SHOP_ITEM_CAT).
+let _catPickKind=null, _catPickId=null;
+function openCatPick(kind, id){
+  _catPickKind=kind; _catPickId=id;
+  const nm=document.getElementById('shopcat-name');
+  const cur = kind==='shop' ? (SHOP_ITEM_CAT[id]||'') : ((INVENTORY.find(x=>x.id===id)||{}).cat||'');
+  if(nm) nm.textContent = kind==='shop' ? (((SHOPIFY_STOCK||[]).find(x=>x.id===id)||{}).title||'') : ((INVENTORY.find(x=>x.id===id)||{}).name||'');
+  const sel=document.getElementById('shopcat-sel');
+  if(sel) sel.innerHTML=(kind==='shop'?'<option value="">未分类 Unassigned</option>':'')+INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===cur?' selected':'')+'>'+esc(c.label)+'</option>').join('');
+  openModal('m-shopcat');
+}
+function openShopCat(pid){ openCatPick('shop', pid); }   // back-compat
+function saveShopCatModal(){
+  const val=(document.getElementById('shopcat-sel')||{}).value||'';
+  if(_catPickKind==='shop'){ setShopCat(_catPickId, val); }
+  else if(_catPickKind==='inv'){ const it=INVENTORY.find(x=>x.id===_catPickId); if(it){ it.cat=val||'other'; _invSaveOne(it); renderInventory(); } }
+  closeModal('m-shopcat'); _stkRefresh();
 }
 // Manual category assignment for Shopify-tracked items (productId → category key).
 // You pick the category yourself; unassigned items sit in a "未分类" group.
