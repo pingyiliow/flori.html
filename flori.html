@@ -3489,14 +3489,12 @@ function _invUnitInfo(u){
   return { name:u.item.name||'', qty:u.item.qty||0, low:_invLow(u.item) };
 }
 function _invCard(i){
-  const low=_invLow(i);
-  // Reorder point is NOT shown normally (was confusing "补5" on every card); only a
-  // red "低 · 该补货" prompt appears when the item is at/below its reorder point.
-  const sub=[i.unit||'', i.size||'', (i.price!=null&&i.price!==''?('RM '+_invPriceStr(i.price)):'')].filter(Boolean).join(' · ');
-  return '<div class="stk-card '+(low?'low':'')+'">'
-    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')">'+_invThumb(i.photo,_invIcon(i.cat))
-      +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+(low?' <span style="font-size:9px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 5px">低 · 该补货</span>':'')+'</div><div class="stk-unit">'+esc(sub)+'</div></div></div>'
-    +'<div style="display:flex;align-items:center;gap:6px;flex:none"><span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)+'</div>'
+  const qty=i.qty||0, low=_invLow(i), zero=qty<=0;
+  const qCol = zero ? 'color:var(--c-muted)' : (low ? 'color:var(--c-red)' : '');
+  return '<div class="stk-card '+(low?'low':'')+(zero?' zero':'')+'" onclick="openStkView(\'inv\',\''+i.id+'\')">'
+    +_invThumb(i.photo,_invIcon(i.cat))
+    +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+'</div></div>'
+    +'<span class="stk-qty" style="flex:none;'+qCol+'">'+qty+'</span>'
   +'</div>';
 }
 function _invFamCard(u){
@@ -3628,16 +3626,15 @@ function _shopStockAgo(){
 }
 function _shopStockCard(p){
   const ic=_invIcon('other');
-  const tag='<span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
   const single=p.variants.length<=1;
-  const v0=p.variants[0]||{qty:0};
-  const total = single ? (v0.qty||0) : p.total;
+  const total = single ? ((p.variants[0]||{}).qty||0) : p.total;
   const low = p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
-  const sub = single ? ((v0.price!=null&&v0.price!=='')?('RM '+_invPriceStr(v0.price)):'') : (p.variants.length+' 款 · 共 '+p.total);
-  return '<div class="stk-card" onclick="openStkView(\'shop\',\''+p.id+'\')">'
-    +'<div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">'+_invThumb(p.image,ic)
-      +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+esc(sub)+'</div></div></div>'
-    +'<span class="stk-qty '+(low?'low':'')+'" style="min-width:22px;text-align:right;flex:none">'+total+'</span>'
+  const zero = total<=0;
+  const qCol = zero ? 'color:var(--c-muted)' : (low ? 'color:var(--c-red)' : '');
+  return '<div class="stk-card '+(low?'low':'')+(zero?' zero':'')+'" onclick="openStkView(\'shop\',\''+p.id+'\')">'
+    +_invThumb(p.image,ic)
+    +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+'</div></div>'
+    +'<span class="stk-qty" style="flex:none;'+qCol+'">'+total+'</span>'
   +'</div>';
 }
 
