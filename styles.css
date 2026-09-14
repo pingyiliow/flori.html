@@ -480,6 +480,9 @@ body.role-driver .shell{grid-template-columns:1fr}
 .ssr-add{flex:none;padding:7px 13px;border:none;border-radius:8px;background:var(--c-ink);color:var(--c-bg);font-size:12px;font-weight:600;cursor:pointer}
 .ssr-added{flex:none;font-size:12px;font-weight:600;color:#3B7A57}
 
+.stk-shop-sync{font-size:10.5px;color:var(--c-muted);margin:2px 0 10px 2px}
+.stk-shop-sync a{color:var(--c-burg);cursor:pointer;font-weight:600}
+
 /* shopify stock cards — full width, variant chip grid */
 .stk-shop-list{display:flex;flex-direction:column;gap:10px;max-width:760px}
 .stk-shop{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;box-shadow:var(--sh)}

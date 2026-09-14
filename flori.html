@@ -3579,7 +3579,8 @@ function _invTotalStrip(){
     +'</div>';
 }
 function _invChips(){
-  const present=[...new Set(INVENTORY.map(i=>i.cat||'other'))].sort((a,b)=>_catIndex(a)-_catIndex(b));
+  const shopCats=(SHOPIFY_STOCK&&SHOPIFY_STOCK.length)?SHOPIFY_STOCK.map(p=>SHOP_ITEM_CAT[p.id]).filter(c=>c&&INV_CATS.some(x=>x.key===c)):[];
+  const present=[...new Set(INVENTORY.map(i=>i.cat||'other').concat(shopCats))].sort((a,b)=>_catIndex(a)-_catIndex(b));
   const chip=(c,label,low)=>{ const on=_invCat===c;
     return '<button type="button" onclick="invCat(\''+c+'\')" style="cursor:pointer;font-size:12px;padding:5px 13px;border-radius:20px;white-space:nowrap;border:1.5px solid '+(on?'var(--c-burg)':'var(--c-border)')+';background:'+(on?'var(--c-burg)':'var(--c-surface)')+';color:'+(on?'var(--c-bg)':'var(--c-muted)')+'">'+esc(label)+(low?' <b style="color:'+(on?'#fff':'var(--c-red)')+'">'+low+'</b>':'')+'</button>'; };
   let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('',(LANG==='zh'?'全部':'All'),0);
@@ -3619,21 +3620,42 @@ function _invFamCard(u){
   }
   return h+'</div>';
 }
+// Unified stock list: manual materials + Shopify-synced items grouped TOGETHER by
+// category, so a category header appears once and holds both kinds of card.
 function _invListHTML(){
+  const zh=LANG==='zh';
   const q=(_invSearch||'').trim().toLowerCase();
-  const items=INVENTORY.filter(i=>{
+  // ── manual items ──
+  const mitems=INVENTORY.filter(i=>{
     if(_invCat && (i.cat||'other')!==_invCat) return false;
     if(q){ const hay=[i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
   });
-  if(!items.length) return '<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(LANG==='zh'?'没有符合的':'No match')+'</div>';
-  const byCat={}; items.forEach(i=>{(byCat[i.cat||'other']=byCat[i.cat||'other']||[]).push(i);});
-  const cats=Object.keys(byCat).sort((a,b)=>_catIndex(a)-_catIndex(b));
-  let html='';
-  cats.forEach(cat=>{
-    const fams={}, singles=[];
-    byCat[cat].forEach(i=>{ const fk=(i.family||'').trim(); if(fk) (fams[fk]=fams[fk]||[]).push(i); else singles.push(i); });
-    let units=[];
+  const mByCat={}; mitems.forEach(i=>{(mByCat[i.cat||'other']=mByCat[i.cat||'other']||[]).push(i);});
+  // ── Shopify items (assigned category, else Unassigned) ──
+  const sReady = !!(SHOPIFY_STOCK && SHOPIFY_STOCK.length);
+  const sByCat={}; const sUnassigned=[];
+  if(sReady){
+    SHOPIFY_STOCK.forEach(p=>{
+      if(q){ const hay=(p.title+' '+(p.variants||[]).map(v=>v.title).join(' ')).toLowerCase(); if(hay.indexOf(q)===-1) return; }
+      const ck=SHOP_ITEM_CAT[p.id]; const cat=(ck && INV_CATS.some(x=>x.key===ck))?ck:null;
+      if(_invCat){ if(cat===_invCat) (sByCat[cat]=sByCat[cat]||[]).push(p); return; }
+      if(cat) (sByCat[cat]=sByCat[cat]||[]).push(p); else sUnassigned.push(p);
+    });
+  }
+  // ── sync status line (only on the All view) ──
+  let sync='';
+  if(!_invCat){
+    if(sReady) sync='<div class="stk-shop-sync">Shopify · '+esc(_shopStockAgo())+' · <a onclick="syncShopifyStock(true)">'+(zh?'刷新':'Refresh')+'</a></div>';
+    else if(_shopStockLoading || !_shopStockAt) sync='<div class="stk-shop-sync">'+(zh?'正在同步 Shopify 库存…':'Syncing Shopify stock…')+'</div>';
+    else if(_shopStockErr) sync='<div class="stk-shop-sync">'+(zh?'Shopify 同步失败：':'Shopify sync failed: ')+esc(_shopStockErr)+' · <a onclick="syncShopifyStock(true)">'+(zh?'重试':'Retry')+'</a></div>';
+  }
+  // ── merge categories ──
+  const catKeys=Array.from(new Set(Object.keys(mByCat).concat(Object.keys(sByCat)))).sort((a,b)=>_catIndex(a)-_catIndex(b));
+  let body='';
+  catKeys.forEach(cat=>{
+    let units=[]; const fams={}, singles=[];
+    (mByCat[cat]||[]).forEach(i=>{ const fk=(i.family||'').trim(); if(fk) (fams[fk]=fams[fk]||[]).push(i); else singles.push(i); });
     Object.keys(fams).forEach(k=>{ const list=fams[k]; if(list.length>1) units.push({type:'fam',key:cat+'|'+k,name:k,items:list}); else singles.push(list[0]); });
     singles.forEach(i=>units.push({type:'one',item:i}));
     units.sort((A,B)=>{ const a=_invUnitInfo(A), b=_invUnitInfo(B);
@@ -3641,11 +3663,20 @@ function _invListHTML(){
       if(_invSort==='qty') return b.qty-a.qty;
       return a.name.localeCompare(b.name);
     });
-    html+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
-    units.forEach(u=>{ html += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
-    html+='</div>';
+    const shopCards=sByCat[cat]||[];
+    if(!units.length && !shopCards.length) return;
+    body+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
+    units.forEach(u=>{ body += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
+    shopCards.forEach(p=>{ body+=_shopStockCard(p); });
+    body+='</div>';
   });
-  return html;
+  if(sUnassigned.length){
+    body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未分类':'Unassigned')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'点每个设置分类':'pick a category on each')+'</span></div><div class="stk-grid">';
+    sUnassigned.forEach(p=>{ body+=_shopStockCard(p); });
+    body+='</div>';
+  }
+  if(!body && q) return sync+'<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(zh?'没有符合的':'No match')+'</div>';
+  return sync+body;
 }
 // ── Shopify-synced stock (LIVE two-way mirror) ─────────────────────────────
 // These Shopify products show on the stock page with LIVE quantities pulled
@@ -4063,8 +4094,8 @@ function _shopStockHTML(){
 
 function renderInventory() {
   const cont = document.getElementById('inv-body'); if(!cont) return;
-  const shop = _shopStockHTML();
-  if (!INVENTORY.length && !shop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
+  const hasShop = !!(SHOPIFY_STOCK && SHOPIFY_STOCK.length) || _shopStockLoading || !!_shopStockErr;
+  if (!INVENTORY.length && !hasShop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   cont.innerHTML =
     '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
       +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="'+(LANG==='zh'?'搜索 名字/款式/颜色/SKU…':'Search name / family / colour / SKU…')+'" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
@@ -4074,7 +4105,6 @@ function renderInventory() {
     +'</div>'
     + _invChips()
     + _invTotalStrip()
-    + shop
     + '<div id="inv-list">'+_invListHTML()+'</div>';
 }
 
