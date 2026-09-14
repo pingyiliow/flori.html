@@ -222,7 +222,7 @@
       <div id="stock-pane-rec" style="display:none">
         <div class="page-hdr" style="margin-bottom:0">
           <div style="font-size:11px;color:var(--c-muted)">What each design is built from — deducts materials when the order comes in</div>
-          <button class="btn btn-primary" onclick="openRecipe()">+ New design</button>
+          <button class="btn btn-primary" onclick="openBom()">+ New design</button>
         </div>
         <div style="position:relative;margin:12px 0">
           <input id="rec-search" type="search" placeholder="Search a design…" oninput="renderRecipes()" style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
@@ -2264,11 +2264,11 @@ function renderRecipes(){
   el.innerHTML = list.length ? list.map(r=>{
     const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
     const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
-    return '<div class="rec-card" onclick="openRecipe(\''+r.id+'\')"><div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
+    return '<div class="rec-card" onclick="openBom(\''+r.id+'\')"><div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:16px 2px">No design matches.</div>';
 }
 let _recEdit=null, _rbomMatResults=[], _rbomNameResults=[], _rbomNameT=null;
-function openRecipe(id){
+function openBom(id){
   _recEdit = id ? JSON.parse(JSON.stringify(RECIPES.find(r=>r.id===id)||{})) : { id:'rec-'+Date.now(), name:'', source:'website', components:[], since:Date.now() };
   if(!Array.isArray(_recEdit.components)) _recEdit.components=[];
   document.getElementById('rbom-ttl').textContent = id?'Edit design':'New design';
