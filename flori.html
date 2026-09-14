@@ -9211,22 +9211,24 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Action bar: one primary status button + a ⋯ overflow menu ──
-  // Declutters the old five-button stack. Not fulfilled → Mark delivered/picked up
-  // (dark) + On the way (lavender, delivery only) + ⋯. Fulfilled → Edit + ⋯.
-  const isPickup = localOrder.type === 'pickup';
-  html += '<div class="dp-act" style="position:relative">';
-  if (!localOrder.fulfilled) {
-    html += `<button onclick="markDelivered('${localOrder.id}')" class="dp-actbtn dp-actbtn-dark">${isPickup ? di('bag',16)+' Mark picked up' : di('check',16)+' Mark delivered'}</button>`;
-    if (!isPickup) html += `<button onclick="openOTWModal('${localOrder.id}')" class="dp-actbtn dp-actbtn-lav" title="On the way${localOrder.otwAt?' · sent':''}" aria-label="On the way">${di('truck',16)}</button>`;
-  } else {
-    html += `<button onclick="closeDP();editOrder('${localOrder.id}')" class="dp-actbtn" style="background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-ink)">${di('edit',15)} Edit order</button>`;
-  }
-  html += `<button onclick="toggleDpMenu(event)" class="dp-actbtn dp-actbtn-more" aria-label="More actions">⋯</button>`;
-  html += _dpMenuHtml(localOrder);
-  html += '</div>';
-
   document.getElementById('dp-body').innerHTML = html;
+
+  // ── Action bar: one primary status button + a ⋯ overflow menu ──
+  // Rendered into the pinned footer (not the scrolling body) so it's always visible.
+  // Not fulfilled → Mark delivered/picked up (dark) + On the way (lavender, delivery
+  // only) + ⋯. Fulfilled → Edit + ⋯.
+  const isPickup = localOrder.type === 'pickup';
+  let foot = '<div class="dp-act" style="position:relative">';
+  if (!localOrder.fulfilled) {
+    foot += `<button onclick="markDelivered('${localOrder.id}')" class="dp-actbtn dp-actbtn-dark">${isPickup ? di('bag',16)+' Mark picked up' : di('check',16)+' Mark delivered'}</button>`;
+    if (!isPickup) foot += `<button onclick="openOTWModal('${localOrder.id}')" class="dp-actbtn dp-actbtn-lav" title="On the way${localOrder.otwAt?' · sent':''}" aria-label="On the way">${di('truck',16)}</button>`;
+  } else {
+    foot += `<button onclick="closeDP();editOrder('${localOrder.id}')" class="dp-actbtn" style="background:var(--c-surface);border:1.5px solid var(--c-border);color:var(--c-ink)">${di('edit',15)} Edit order</button>`;
+  }
+  foot += `<button onclick="toggleDpMenu(event)" class="dp-actbtn dp-actbtn-more" aria-label="More actions">⋯</button>`;
+  foot += _dpMenuHtml(localOrder);
+  foot += '</div>';
+  const _ft = document.getElementById('dp-foot'); if (_ft) _ft.innerHTML = foot;
 }
 // The ⋯ overflow menu for the order panel: Edit, Repeat, View in Shopify, Delete.
 function _dpMenuHtml(o){
@@ -9299,6 +9301,7 @@ function _renderDPManual(o) {
   }
 
   document.getElementById('dp-body').innerHTML = html;
+  const _ft = document.getElementById('dp-foot'); if (_ft) _ft.innerHTML = '';
 }
 
 function init() {
@@ -9375,6 +9378,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
   <div class="dp-body" id="dp-body">
     <div class="dp-loading">Loading…</div>
   </div>
+  <div class="dp-foot" id="dp-foot"></div>
 </div>
 
 <!-- ══ MODAL — Flower Recipe ══════════════════════════════════ -->
