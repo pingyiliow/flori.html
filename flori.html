@@ -80,23 +80,30 @@
       <img src="/logo-mark.png" alt="Bamboo Flower Club" class="h-hero-logo">
     </div>
     <div class="h-stats">
-      <div class="h-stat t-pending"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><div class="h-stat-n" id="s-today">–</div><div class="h-stat-l">Pending</div></div>
-      <div class="h-stat t-ready"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><div class="h-stat-n" id="s-pu">–</div><div class="h-stat-l">Ready</div></div>
-      <div class="h-stat t-done"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="14" height="12" rx="2"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg></span><div class="h-stat-n" id="s-de">–</div><div class="h-stat-l">Delivered</div></div>
-      <div class="h-stat t-total"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg></span><div class="h-stat-n" id="s-total">–</div><div class="h-stat-l">Total</div></div>
+      <div class="h-stat t-total"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><div class="h-stat-n" id="s-due">–</div><div class="h-stat-l">Due today</div></div>
+      <div class="h-stat t-done"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="14" height="12" rx="2"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg></span><div class="h-stat-n" id="s-otw">–</div><div class="h-stat-l">On the way</div></div>
+      <div class="h-stat t-ready"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><div class="h-stat-n" id="s-ready">–</div><div class="h-stat-l">Ready</div></div>
+      <div class="h-stat t-pending"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9.5V13l2.2 1.5"/><path d="M5 3 2.5 5.5"/><path d="m19 3 2.5 2.5"/></svg></span><div class="h-stat-n" id="s-over">–</div><div class="h-stat-l">Overdue</div></div>
     </div>
-    <div class="pc" style="padding-top:16px;gap:20px">
+    <div class="pc" style="padding-top:16px;gap:18px">
       <div id="crm-reminders"></div>
       <div id="h-attention"></div>
-      <div id="home-followups"></div>
-      <div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <div class="h-sec-ttl">Today's run</div>
-          <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all →</button>
+      <div class="h-cols">
+        <div class="h-col-main">
+          <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div class="h-sec-ttl">Today's run</div>
+              <button class="btn btn-ghost btn-sm" onclick="goPage('orders')">View all →</button>
+            </div>
+            <div id="home-list" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div id="home-followups"></div>
         </div>
-        <div id="home-list" style="display:flex;flex-direction:column;gap:8px"></div>
+        <div class="h-col-side">
+          <div id="home-cakes"></div>
+          <div id="h-week"></div>
+        </div>
       </div>
-      <div id="h-week"></div>
     </div>
   </div>
 
@@ -2992,10 +2999,11 @@ function renderHome() {
   const urgentT   = todayO.filter(o => !o.fulfilled && o.priority==='urgent');
   const revToday  = todayO.reduce((s,o)=>s+(orderTotal(o)||0),0);
   const unassignedDel = todayO.filter(o=>(o.type||'delivery')==='delivery' && !o.routeId && !o.fulfilled).length;
-  document.getElementById('s-total').textContent = todayO.length;
-  document.getElementById('s-today').textContent = pendingT.length;
-  document.getElementById('s-pu').textContent    = readyT.length;
-  document.getElementById('s-de').textContent    = fulfilledT.length;
+  const onwayCnt   = ORDERS.filter(o => o.otwAt && !o.fulfilled).length;
+  const readyCnt   = ORDERS.filter(o => o.ready && !o.fulfilled).length;
+  const overdueCnt = ORDERS.filter(o => o.dateObj && isPast(o.dateObj) && !o.fulfilled).length;
+  const _sv=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  _sv('s-due', todayO.length); _sv('s-otw', onwayCnt); _sv('s-ready', readyCnt); _sv('s-over', overdueCnt);
   // Hero — time-based greeting + date
   const now=new Date(), h=now.getHours();
   const greet = h<12 ? 'Good morning' : h<18 ? 'Good afternoon' : 'Good evening';
@@ -3047,18 +3055,26 @@ function renderHome() {
       }).join('')
     + '</div>'
   ) : '';
-  // This week — revenue per day (last 7 days) from loaded orders. Hidden if no data.
-  const _week=[]; let _weekTot=0;
-  for (let dd=6; dd>=0; dd--){
-    const day=new Date(t0.getTime()-dd*86400000), dayEnd=new Date(day.getTime()+86400000);
-    const rev=ORDERS.filter(o=>o.dateObj && o.dateObj>=day && o.dateObj<dayEnd).reduce((s,o)=>s+(orderTotal(o)||0),0);
-    _week.push({day,rev}); _weekTot+=rev;
-  }
-  const _wkMax=Math.max(1,..._week.map(x=>x.rev)), _dn=['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const _bars=_week.map(x=>`<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%"><div title="RM ${Math.round(x.rev)}" style="width:62%;height:${Math.max(3,Math.round(x.rev/_wkMax*100))}%;background:#e3b9a0;border-radius:3px 3px 0 0"></div><span style="font-size:9px;color:var(--c-muted)">${_dn[x.day.getDay()]}</span></div>`).join('');
+  // Cakes to collect today — the mockup's right-column card (text/SVG only, no emoji).
+  const _cakes = todayO.filter(o => o.cake && !o.fulfilled);
+  const _ce = document.getElementById('home-cakes');
+  if (_ce) _ce.innerHTML = _cakes.length ? (
+    '<div class="card" style="padding:16px 18px">'
+    + '<div style="display:flex;align-items:center;gap:9px;background:var(--p-butter);color:var(--p-butter-ink);border-radius:12px;padding:11px 14px;font-weight:700;font-size:13.5px">'+di('note',16)+' '+_cakes.length+' cake'+(_cakes.length>1?'s':'')+' to collect today</div>'
+    + '<div style="margin-top:12px;display:flex;flex-direction:column;gap:9px">'
+    + _cakes.map(o=>{ const c=o.cake||{}; const tm=o.dueTime||''; return '<div style="font-size:12.5px;color:var(--c-muted);font-weight:500;line-height:1.5">• <span style="color:var(--c-ink);font-weight:700">'+(tm?esc(tm)+' · ':'')+esc(c.supplier||'Cake')+'</span>'+(c.remark?' — '+esc(c.remark):'')+'</div>'; }).join('')
+    + '</div></div>'
+  ) : '';
+  // Today's progress — donut (done / in progress / to do), replacing the week bar chart.
+  const _dTot = todayO.length;
+  const _dDone = fulfilledT.length;
+  const _dProg = readyT.length + todayO.filter(o=>o.otwAt && !o.fulfilled).length;
+  const _donePct = _dTot ? _dDone/_dTot*100 : 0, _progPct = _dTot ? _dProg/_dTot*100 : 0;
   const _wel=document.getElementById('h-week');
-  if (_wel) _wel.innerHTML = _weekTot>0
-    ? `<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px"><div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><span class="h-sec-ttl">This week</span><span style="font-size:11px;color:var(--c-muted)">revenue</span><span style="margin-left:auto;font-size:14px;font-weight:800;color:var(--c-burg)">RM ${Math.round(_weekTot).toLocaleString('en-MY')}</span></div><div style="display:flex;align-items:flex-end;gap:6px;height:52px">${_bars}</div></div>`
+  if (_wel) _wel.innerHTML = _dTot
+    ? '<div class="card" style="padding:20px 18px;text-align:center"><div class="h-sec-ttl" style="margin-bottom:10px">Today\'s progress</div>'
+      + '<div class="donut" style="background:conic-gradient(var(--p-mint-ink) 0 '+_donePct+'%,var(--p-lav-ink) '+_donePct+'% '+(_donePct+_progPct)+'%,var(--c-border) '+(_donePct+_progPct)+'% 100%)"><div class="donut-in"><b>'+Math.round(_donePct)+'%</b><span>done</span></div></div>'
+      + '<div class="donut-leg"><span><i style="background:var(--p-mint-ink)"></i>Done</span><span><i style="background:var(--p-lav-ink)"></i>In progress</span><span><i style="background:var(--c-border2)"></i>To do</span></div></div>'
     : '';
   // Follow-up alert
   const fw=document.getElementById('h-fualert-wrap');
@@ -9228,11 +9244,11 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
 
 
 <!-- ══ LOGIN SCREEN ══════════════════════════════════════════ -->
-<div id="app-loading" style="position:fixed;inset:0;background:var(--c-burg-dk);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
-  <div style="font-family:Georgia,serif;font-size:26px;font-weight:700;color:#EEE4DA;letter-spacing:.02em">Bamboo <span style="color:#C8A49F">Flower Club</span></div>
-  <div style="font-size:12px;color:rgba(238,228,218,.5);letter-spacing:.1em;text-transform:uppercase">Loading…</div>
+<div id="app-loading" style="position:fixed;inset:0;background:var(--c-bg);z-index:9998;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+  <div style="font-family:var(--f-head);font-size:28px;font-weight:800;color:var(--c-ink);letter-spacing:-.01em">Bamboo <span style="color:var(--c-blush)">Flower Club</span></div>
+  <div style="font-size:12px;color:var(--c-muted);letter-spacing:.14em;text-transform:uppercase;font-weight:600">Loading…</div>
 </div>
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-burg-dk);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0">
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--c-bg);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:0">
   <div style="width:min(360px,90vw);display:flex;flex-direction:column;align-items:center;gap:24px;padding:40px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
     <!-- Logo -->
     <div style="font-family:var(--f-head);font-size:26px;font-weight:700;color:var(--c-burg);letter-spacing:.02em">
