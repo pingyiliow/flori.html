@@ -242,11 +242,11 @@
         </div>
         <button class="btn btn-primary" onclick="openAddFollowup()">+ Add Customer</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1.5px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden;background:var(--c-surface)">
-        <div style="padding:18px 20px;border-right:1px solid var(--c-border)"><div id="fu-total" style="font-family:var(--f-head);font-size:32px;font-weight:600;color:var(--c-ink)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:6px">Total</div></div>
-        <div style="padding:18px 20px;border-right:1px solid var(--c-border)"><div id="fu-followup-pending" style="font-family:var(--f-head);font-size:32px;font-weight:600;color:var(--c-blush)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:6px">Follow-up</div></div>
-        <div style="padding:18px 20px;border-right:1px solid var(--c-border)"><div id="fu-pending" style="font-family:var(--f-head);font-size:32px;font-weight:600;color:var(--c-amber)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:6px">Unpaid</div></div>
-        <div style="padding:18px 20px"><div id="fu-paid" style="font-family:var(--f-head);font-size:32px;font-weight:600;color:var(--c-burg)">0</div><div style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--c-muted);margin-top:6px">Completed</div></div>
+      <div class="fu-tiles">
+        <div class="fu-tile t-follow"><div class="fu-n" id="fu-t-follow">0</div><div class="fu-l">To follow up</div></div>
+        <div class="fu-tile t-ready"><div class="fu-n" id="fu-t-ready">0</div><div class="fu-l">Ready</div></div>
+        <div class="fu-tile t-unpaid"><div class="fu-n" id="fu-t-unpaid">0</div><div class="fu-l">Unpaid</div></div>
+        <div class="fu-tile t-done"><div class="fu-n" id="fu-t-done">0</div><div class="fu-l">Completed</div></div>
       </div>
       <div class="filters" id="fu-filters">
         <button class="f-btn on" data-fu="all">All</button>
@@ -4388,9 +4388,10 @@ async function createShopifyDraft() {
 
 function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
-  const totalAll=FOLLOWUPS.length, fuPending=FOLLOWUPS.filter(x=>x.status!=='completed').length, payPending=FOLLOWUPS.filter(x=>x.payment==='pending'&&x.status!=='completed').length, completed=FOLLOWUPS.filter(x=>x.status==='completed').length;
-  const fuTotal=document.getElementById('fu-total'), fuPaid=document.getElementById('fu-paid'), fuPend=document.getElementById('fu-pending'), fuFuP=document.getElementById('fu-followup-pending');
-  if(fuTotal) fuTotal.textContent=totalAll; if(fuFuP) fuFuP.textContent=fuPending; if(fuPend) fuPend.textContent=payPending; if(fuPaid) fuPaid.textContent=completed;
+  const fuPending=FOLLOWUPS.filter(x=>x.status!=='completed').length, payPending=FOLLOWUPS.filter(x=>x.payment==='pending'&&x.status!=='completed').length, completed=FOLLOWUPS.filter(x=>x.status==='completed').length;
+  const pendingOnly=FOLLOWUPS.filter(x=>x.status==='pending').length, readyCount=FOLLOWUPS.filter(x=>x.status==='ready').length;
+  const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+  _fs('fu-t-follow',pendingOnly); _fs('fu-t-ready',readyCount); _fs('fu-t-unpaid',payPending); _fs('fu-t-done',completed);
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
   // An entry is "archived" once it's marked completed OR its delivery date has

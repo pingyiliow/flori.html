@@ -429,6 +429,17 @@ body.role-driver .shell{grid-template-columns:1fr}
 .fp-row .fbar-l{font-size:11px}
 .fp-chips{display:flex;flex-wrap:wrap;gap:7px}
 
+/* follow-up list stat tiles (pastel pipeline) */
+.fu-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.fu-tile{border-radius:16px;padding:15px 16px}
+.fu-n{font-family:var(--f-head);font-size:30px;font-weight:800;line-height:1}
+.fu-l{font-size:12px;font-weight:600;margin-top:6px}
+.fu-tile.t-follow{background:var(--p-lav);color:var(--p-lav-ink)}
+.fu-tile.t-ready{background:var(--c-sage-bg);color:var(--c-sage)}
+.fu-tile.t-unpaid{background:var(--p-peach);color:var(--p-peach-ink)}
+.fu-tile.t-done{background:var(--c-bg);color:var(--c-muted)}
+@media(max-width:560px){.fu-tiles{grid-template-columns:repeat(2,1fr)}}
+
 /* driver order-detail view (mockup style) */
 .drvd-wrap{max-width:520px;margin:0 auto}
 .drvd-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
