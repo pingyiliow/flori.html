@@ -365,7 +365,6 @@
         <button class="btn btn-ghost" onclick="disconnectShopify()">Disconnect store</button>
       </div>
       <div id="cfg-oauth" style="display:flex;flex-direction:column;gap:10px">
-        <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head)">Enter your store URL and click Connect. Approve on Shopify in one click.</div>
         <div class="ff">
           <label class="ff-l">Store URL</label>
           <input id="cfg-url" type="text" placeholder="your-store.myshopify.com" style="font-family:monospace;font-size:12px">
@@ -388,7 +387,6 @@
     </div>
     <div>
       <div class="sp-section-ttl">Delivery start point</div>
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">The default origin routes measure and optimize from. Each route can still override it in Driver.</div>
       <div style="display:flex;gap:8px;align-items:center">
         <div id="cfg-start-lbl" style="flex:1;min-width:0;font-size:12px;color:var(--c-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">…</div>
         <button class="btn btn-ghost btn-sm" onclick="editGlobalStart()" style="white-space:nowrap">Edit</button>
@@ -396,67 +394,50 @@
     </div>
     <div data-role-gate="wanotify">
       <div class="sp-section-ttl">WhatsApp Log</div>
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Delivery-notification send log and the "no phone" follow-up queue.</div>
       <button class="btn btn-ghost" onclick="closeSP();goPage('wanotify')" style="width:100%"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg> Open WhatsApp Log<span id="nb-wanotify" style="display:none;margin-left:6px" class="nav-badge">0</span></button>
-    </div>
-    <div>
-      <div class="sp-section-ttl">Import an Order</div>
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">Pull a specific older order into the list by its number (for orders outside the normal sync window).</div>
-      <div style="display:flex;gap:8px">
-        <input id="import-order-num" type="text" placeholder="e.g. 121827" autocomplete="off"
-               onkeydown="if(event.key==='Enter'){importOrderByName(this.value);this.value='';}"
-               style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-        <button class="btn btn-primary btn-sm" onclick="(()=>{const el=document.getElementById('import-order-num');importOrderByName(el.value);el.value='';})()">Import</button>
-      </div>
-      <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px">
-        <div class="ff" style="flex:1"><label class="ff-l">Import all orders since</label><input id="import-from-date" type="date"></div>
-        <button id="import-year-btn" class="btn btn-ghost" onclick="importOrdersSince(document.getElementById('import-from-date').value)" style="white-space:nowrap">Import orders</button>
-      </div>
-      <div style="font-size:10px;color:var(--c-muted);margin-top:4px">e.g. set 2025-01-01 to pull last year + this year (may take a minute).</div>
-    </div>
-    <div>
-      <div class="sp-section-ttl">Customers (CRM)</div>
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;font-style:italic;font-family:var(--f-head);margin-bottom:8px">One-time import of your existing Shopify customers into the CRM (merges on phone number; customers without a phone are skipped). New orders sync automatically after this.</div>
-      <button id="crm-import-btn" class="btn btn-ghost" onclick="importCustomersFromShopify()" style="width:100%">Import customers from Shopify</button>
-      <div id="crm-import-status" style="font-size:11px;color:var(--c-muted);margin-top:6px"></div>
     </div>
     <div>
       <div class="sp-section-ttl">Account</div>
       <div style="font-size:12px;color:var(--c-muted);margin-bottom:8px" id="sp-user-email"></div>
-      <button class="btn btn-ghost" onclick="signOut()" style="width:100%">Sign Out</button>
-    </div>
-
-    <div>
-      <div class="sp-section-ttl">Language</div>
       <div class="btn-row">
         <button class="btn btn-ghost" onclick="setLang('en')">English</button>
         <button class="btn btn-ghost" onclick="setLang('zh')">简体中文</button>
       </div>
+      <button class="btn btn-ghost" onclick="signOut()" style="width:100%;margin-top:8px">Sign Out</button>
     </div>
-    <div>
-      <div class="sp-section-ttl">Keyboard Shortcuts</div>
-      <table style="font-size:12px;color:var(--c-muted);width:100%;border-collapse:collapse">
-        <tr><td style="padding:4px 0">Dashboard</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">1</code></td></tr>
-        <tr><td style="padding:4px 0">Orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">2</code></td></tr>
-        <tr><td style="padding:4px 0">Inventory</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">3</code></td></tr>
-        <tr><td style="padding:4px 0">Purchase List</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">4</code></td></tr>
-        <tr><td style="padding:4px 0">Sync orders</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">R</code></td></tr>
-        <tr><td style="padding:4px 0">Settings</td><td style="text-align:right"><code style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:3px;padding:1px 5px;font-size:11px">S</code></td></tr>
-      </table>
-    </div>
-    <div>
-      <div class="sp-section-ttl">Data</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button class="btn btn-ghost" onclick="exportData()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>  Export all data</button>
-        <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>  Clear all local data</button>
+
+    <details class="sp-more">
+      <summary class="sp-more-sum">Import from Shopify</summary>
+      <div class="sp-more-body">
+        <label class="ff-l">Import one order by number</label>
+        <div style="display:flex;gap:8px;margin-top:5px">
+          <input id="import-order-num" type="text" placeholder="e.g. 121827" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){importOrderByName(this.value);this.value='';}"
+                 style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <button class="btn btn-primary btn-sm" onclick="(()=>{const el=document.getElementById('import-order-num');importOrderByName(el.value);el.value='';})()">Import</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:12px">
+          <div class="ff" style="flex:1"><label class="ff-l">Import all orders since</label><input id="import-from-date" type="date"></div>
+          <button id="import-year-btn" class="btn btn-ghost" onclick="importOrdersSince(document.getElementById('import-from-date').value)" style="white-space:nowrap">Import orders</button>
+        </div>
+        <button id="crm-import-btn" class="btn btn-ghost" onclick="importCustomersFromShopify()" style="width:100%;margin-top:12px">Import customers to CRM</button>
+        <div id="crm-import-status" style="font-size:11px;color:var(--c-muted);margin-top:6px"></div>
       </div>
-    </div>
-    <div>
-      <div class="sp-section-ttl">About</div>
-      <div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);line-height:1.7">
-        Bamboo Flower Club v1.0 · Florist Studio<br>Built for Bamboo Green Florist (M) Sdn Bhd
+    </details>
+
+    <details class="sp-more">
+      <summary class="sp-more-sum">Data &amp; more</summary>
+      <div class="sp-more-body">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-ghost" onclick="exportData()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>  Export all data</button>
+          <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>  Clear all local data</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--c-muted);line-height:1.6;margin-top:12px">
+          Shortcuts: <code class="sp-kbd">1</code> Home · <code class="sp-kbd">2</code> Orders · <code class="sp-kbd">3</code> Stock · <code class="sp-kbd">R</code> Sync · <code class="sp-kbd">S</code> Settings
+        </div>
+        <div style="font-size:11.5px;color:var(--c-muted);margin-top:10px">Bamboo Flower Club v1.0 · Bamboo Green Florist (M) Sdn Bhd</div>
       </div>
-    </div>
+    </details>
   </div>
 </div>
 
