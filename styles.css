@@ -387,6 +387,7 @@ body.role-driver .shell{grid-template-columns:1fr}
 
 .photo-zone{border:2px dashed var(--c-border2);border-radius:var(--r);background:var(--c-bg);padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;cursor:pointer;transition:all .15s;position:relative;min-height:100px;}
 .photo-zone:hover{border-color:var(--c-burg);background:var(--c-burg-lt)}
+.photo-zone.drag{border-color:var(--c-burg);background:var(--c-burg-lt)}
 .photo-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
 .photo-zone img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:calc(var(--r) - 1px)}
 .photo-zone-icon{font-size:26px;opacity:.5}

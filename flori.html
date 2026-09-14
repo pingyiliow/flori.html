@@ -637,9 +637,9 @@
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes 备注</label><textarea id="i-notes" placeholder="Supplier 供应商…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
-          <div class="photo-zone" id="i-photo-zone" style="min-height:90px">
+          <div class="photo-zone" id="i-photo-zone" style="min-height:90px" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'i-photo-zone','i-photo')">
             <div class="photo-zone-icon" style="color:var(--c-muted)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-            <div class="photo-zone-lbl">Tap to add a photo</div>
+            <div class="photo-zone-lbl">Tap, drag &amp; drop, or paste</div>
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'i-photo-zone','i-photo')">
           </div>
         </div>
@@ -742,9 +742,9 @@
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><input id="p-notes" type="text" placeholder="Supplier / price / delivery day"></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="p-photo">
-          <div class="photo-zone" id="p-photo-zone" style="min-height:90px">
+          <div class="photo-zone" id="p-photo-zone" style="min-height:90px" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'p-photo-zone','p-photo')">
             <div class="photo-zone-icon" style="color:var(--c-muted)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
-            <div class="photo-zone-lbl">Tap to add a photo</div>
+            <div class="photo-zone-lbl">Tap, drag &amp; drop, or paste</div>
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'p-photo-zone','p-photo')">
           </div>
         </div>
@@ -7994,6 +7994,30 @@ function storePhoto(file, cb) {
   });
 }
 
+// Shared .photo-zone (inventory / purchase modals): accept a File from tap, drag-drop
+// or paste, store it and show it in the zone.
+function _photoZoneFile(file, zoneId, hiddenId){
+  if(!file || !/^image\//.test(file.type||'')){ toast('Not an image'); return; }
+  toast('Uploading…');
+  storePhoto(file, src => { setPhotoZone(zoneId, hiddenId, src); toast('✓ Photo added'); });
+}
+function photoZoneDrop(e, zoneId, hiddenId){
+  e.preventDefault(); e.stopPropagation();
+  const el=document.getElementById(zoneId); if(el) el.classList.remove('drag');
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  _photoZoneFile(f, zoneId, hiddenId);
+}
+// Paste an image into whichever photo-zone modal is currently open.
+document.addEventListener('paste', function(e){
+  const specs = [['m-inv','i-photo-zone','i-photo'], ['m-pur','p-photo-zone','p-photo']];
+  for(const [modalId, zoneId, hiddenId] of specs){
+    const m=document.getElementById(modalId);
+    if(m && m.classList.contains('on')){
+      const items=(e.clipboardData&&e.clipboardData.items)||[];
+      for(const it of items){ if(it.type && it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f){ e.preventDefault(); _photoZoneFile(f, zoneId, hiddenId); return; } } }
+    }
+  }
+});
 function handlePhotoUpload(input, zoneId, hiddenId) {
   const file = input.files[0]; if (!file) return;
   toast('Uploading…');
