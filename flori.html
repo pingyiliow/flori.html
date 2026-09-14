@@ -201,20 +201,34 @@
     <div class="pc">
       <!-- Tab switcher -->
       <div class="stock-tabs">
-        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Inventory</button>
-        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> To Buy</button>
+        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Materials</button>
+        <button class="stock-tab" id="stock-tab-rec" onclick="switchStockTab('rec')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Recipes</button>
+        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> To buy</button>
       </div>
 
-      <!-- Inventory pane -->
+      <!-- Materials pane -->
       <div id="stock-pane-inv">
         <div class="page-hdr" style="margin-bottom:0">
           <div style="font-size:11px;color:var(--c-muted)">Track stems, materials & supplies</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost btn-sm" onclick="openCatManager()">管理分类</button>
-            <button class="btn btn-primary" onclick="openAddInv()">+ Add Item</button>
+            <button class="btn btn-primary" onclick="openAddInv()">+ Add material</button>
           </div>
         </div>
         <div id="inv-body"></div>
+      </div>
+
+      <!-- Recipes pane -->
+      <div id="stock-pane-rec" style="display:none">
+        <div class="page-hdr" style="margin-bottom:0">
+          <div style="font-size:11px;color:var(--c-muted)">What each design is built from — deducts materials when the order comes in</div>
+          <button class="btn btn-primary" onclick="openRecipe()">+ New design</button>
+        </div>
+        <div style="position:relative;margin:12px 0">
+          <input id="rec-search" type="search" placeholder="Search a design…" oninput="renderRecipes()" style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+          <div id="rec-prod-results" class="rcp-sug" style="display:none"></div>
+        </div>
+        <div id="rec-body"></div>
       </div>
 
       <!-- Purchase pane -->
@@ -634,11 +648,6 @@
         <div class="ff"><label class="ff-l">Size 尺寸</label><input id="i-size" type="text" placeholder="e.g. 6寸 / 20cm"></div>
         <div class="ff"><label class="ff-l">到货价格 Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="每个 / 每卷"></div>
         <div class="ff"><label class="ff-l">补货点 Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="低过就提醒 (default 5)"></div>
-        <div class="ff" style="grid-column:1/-1">
-          <label class="ff-l">共用产品 Shared with products <span style="color:var(--c-muted);font-weight:400">选填 · 送达时自动扣库存 auto-deducts on delivery</span></label>
-          <div style="position:relative"><input id="i-link-search" type="text" placeholder="Find a Shopify design that uses this item…" autocomplete="off" oninput="invLinkSearch(this.value)"><div id="i-link-results" class="rcp-sug" style="display:none"></div></div>
-          <div id="i-linked-list" style="margin-top:8px"></div>
-        </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes 备注</label><textarea id="i-notes" placeholder="Supplier 供应商…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
@@ -662,6 +671,30 @@
         <button class="btn btn-primary" style="flex:1" onclick="saveInv()">Save Item</button>
         <button class="btn btn-ghost" id="i-del-btn" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteInvItem()">Delete</button>
         <button class="btn btn-ghost" onclick="closeModal('m-inv')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Recipe (design → materials) ═══════════════════ -->
+<div id="m-rbom" class="modal">
+  <div class="mc" style="max-width:460px">
+    <div class="mc-hdr"><div class="mc-ttl" id="rbom-ttl">New design</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-rbom')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div class="ff"><label class="ff-l">Design name 设计名称</label>
+        <div style="position:relative"><input id="rbom-name" type="text" placeholder="Search a website design, or type an omakase name…" autocomplete="off" oninput="rbomNameSearch(this.value)"><div id="rbom-name-results" class="rcp-sug" style="display:none"></div></div>
+      </div>
+      <div class="oseg-row" style="margin:11px 0 4px">
+        <button type="button" id="rbom-src-web" class="oseg on" onclick="rbomSetSrc('website')">Website</button>
+        <button type="button" id="rbom-src-oma" class="oseg" onclick="rbomSetSrc('omakase')">Omakase</button>
+      </div>
+      <div class="osec" style="margin:16px 0 8px">Materials used 用料</div>
+      <div id="rbom-comps"></div>
+      <div style="position:relative;margin-top:8px"><input id="rbom-mat-search" type="text" placeholder="+ Add a material from stock…" autocomplete="off" oninput="rbomMatSearch(this.value)"><div id="rbom-mat-results" class="rcp-sug" style="display:none"></div></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="saveRecipeBom()">Save design</button>
+        <button class="btn btn-ghost" id="rbom-del" style="display:none;color:var(--c-red);border-color:var(--c-red)" onclick="deleteRecipeBom()">Delete</button>
+        <button class="btn btn-ghost" onclick="closeModal('m-rbom')">Cancel</button>
       </div>
     </div>
   </div>
@@ -1255,6 +1288,7 @@ async function showApp() {
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   loadInvCats();       // editable stock categories (shared settings)
   loadCakeSuppliers(); // editable cake-supplier list (shared settings)
+  loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyRecipes==='function') _applyRecipes(); }); // design→materials recipes
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -2182,34 +2216,114 @@ function _invRenderMoves(i){
         return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span style="color:var(--c-muted)">'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join('')
     : '<div style="font-size:11px;color:var(--c-muted)">还没有记录 no movements yet</div>';
 }
-// Bill-of-materials auto-deduct: a stock item linked to Shopify product titles is
-// consumed when a linked order is delivered. Deducts the ordered quantity, once per
-// order (guarded by a move carrying that order id), and logs which order.
-function _applyBOM(){
-  if(typeof INVENTORY==='undefined' || typeof ORDERS==='undefined') return;
-  const linked = INVENTORY.filter(i => Array.isArray(i.linked) && i.linked.length);
-  if(!linked.length) return;
-  const linkSets = linked.map(i => new Set(i.linked.map(t=>String(t).trim())));
-  const cutoff = Date.now() - 90*86400000;   // ignore very old orders
-  let changed = false;
-  ORDERS.forEach(o => {
-    if(!o.fulfilled) return;
-    const when = o.deliveredAt ? new Date(o.deliveredAt).getTime() : (o.dateObj ? o.dateObj.getTime() : Date.now());
+/* ─── Recipes (bill of materials) ─────────────────────────────────
+   A recipe = a design (website product OR omakase, not on the site) and the
+   materials it consumes. When a matching order comes in, each material is
+   auto-deducted (qty per component × order line qty), once per order-line,
+   logged with the order number. Stored as a shared settings blob (no new table). */
+let RECIPES = [];
+function loadRecipes(){ try{ RECIPES = JSON.parse(localStorage.getItem('flori-recipes')||'[]'); }catch(e){ RECIPES=[]; } }
+async function loadRecipesSB(){ if(!hasSB()) return; try{ const v=await sbGetVal('recipes'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null; if(Array.isArray(arr)){ RECIPES=arr; try{ _lsSet('flori-recipes',JSON.stringify(arr)); }catch(_){} } }catch(_){} }
+function saveRecipes(){ try{ _lsSet('flori-recipes',JSON.stringify(RECIPES)); }catch(_){} if(hasSB()) sbSet('recipes', JSON.stringify(RECIPES)); }
+// Auto-deduct materials for every non-cancelled order whose line item matches a recipe.
+function _applyRecipes(){
+  if(typeof INVENTORY==='undefined' || typeof ORDERS==='undefined' || !RECIPES.length) return;
+  const byName={}; RECIPES.forEach(r=>{ if(r && r.name) byName[String(r.name).trim()] = r; });
+  const cutoff = Date.now() - 120*86400000;
+  let changed=false;
+  ORDERS.forEach(o=>{
+    if(o.cancelled) return;
+    const when = o.dateObj ? o.dateObj.getTime() : (o.createdAt ? new Date(o.createdAt).getTime() : Date.now());
     if(when < cutoff) return;
-    linked.forEach((item, idx) => {
-      item.moves = Array.isArray(item.moves) ? item.moves : [];
-      if(item.moves.some(m => m.orderId === o.id)) return;   // already deducted for this order
-      const need = (o.lineItems||[]).reduce((s,li) => s + (linkSets[idx].has(String(li.title||'').trim()) ? (li.quantity||1) : 0), 0);
-      if(need > 0){
+    (o.lineItems||[]).forEach(li=>{
+      const r = byName[String(li.title||'').trim()]; if(!r || !Array.isArray(r.components)) return;
+      if(r.since && when < r.since) return;   // only deduct orders from when the recipe was set up onward (no retroactive double-count)
+      const lq = li.quantity||1;
+      r.components.forEach(c=>{
+        const item = INVENTORY.find(x=>x.id===c.mid); if(!item) return;
+        item.moves = Array.isArray(item.moves) ? item.moves : [];
+        const rkey = o.id+'|'+String(li.title||'')+'|'+c.mid;
+        if(item.moves.some(m=>m.rkey===rkey)) return;   // already deducted for this order-line-material
+        const need = (c.qty||1)*lq;
         item.qty = (item.qty||0) - need;
-        item.moves.unshift({ ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'' });
-        if(item.moves.length > 60) item.moves = item.moves.slice(0,60);
-        changed = true;
-      }
+        item.moves.unshift({ ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'', rkey });
+        if(item.moves.length > 80) item.moves = item.moves.slice(0,80);
+        changed=true;
+      });
     });
   });
   if(changed){ saveInventory(); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
 }
+function _applyBOM(){ _applyRecipes(); }   // back-compat alias for existing call sites
+function renderRecipes(){
+  const el=document.getElementById('rec-body'); if(!el) return;
+  const q=(document.getElementById('rec-search') ? document.getElementById('rec-search').value : '').trim().toLowerCase();
+  if(!RECIPES.length){ el.innerHTML='<div class="empty" style="padding:44px 16px;text-align:center;color:var(--c-muted);font-size:13px">还没有配方 · No recipes yet.<br>Tap <b>+ New design</b> — website or omakase — and list the materials it uses.</div>'; return; }
+  let list=RECIPES.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  if(q) list=list.filter(r=>String(r.name||'').toLowerCase().includes(q));
+  el.innerHTML = list.length ? list.map(r=>{
+    const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
+    const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
+    return '<div class="rec-card" onclick="openRecipe(\''+r.id+'\')"><div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
+  }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:16px 2px">No design matches.</div>';
+}
+let _recEdit=null, _rbomMatResults=[], _rbomNameResults=[], _rbomNameT=null;
+function openRecipe(id){
+  _recEdit = id ? JSON.parse(JSON.stringify(RECIPES.find(r=>r.id===id)||{})) : { id:'rec-'+Date.now(), name:'', source:'website', components:[], since:Date.now() };
+  if(!Array.isArray(_recEdit.components)) _recEdit.components=[];
+  document.getElementById('rbom-ttl').textContent = id?'Edit design':'New design';
+  document.getElementById('rbom-name').value = _recEdit.name||'';
+  rbomSetSrc(_recEdit.source||'website');
+  document.getElementById('rbom-del').style.display = id?'':'none';
+  const ms=document.getElementById('rbom-mat-search'); if(ms) ms.value='';
+  ['rbom-name-results','rbom-mat-results'].forEach(x=>{const e=document.getElementById(x);if(e){e.style.display='none';e.innerHTML='';}});
+  _rbomRenderComps();
+  openModal('m-rbom');
+}
+function rbomSetSrc(s){ _recEdit.source=s; const w=document.getElementById('rbom-src-web'),o=document.getElementById('rbom-src-oma'); if(w)w.classList.toggle('on',s==='website'); if(o)o.classList.toggle('on',s==='omakase'); }
+function _rbomRenderComps(){
+  const el=document.getElementById('rbom-comps'); if(!el) return;
+  const comps=_recEdit.components||[];
+  el.innerHTML = comps.length ? comps.map((c,i)=>{ const inv=INVENTORY.find(x=>x.id===c.mid); const stock=inv?(inv.qty||0):null;
+    return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+'</div>'+(stock!=null?'<div style="font-size:11px;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">'+stock+' in stock</div>':'<div style="font-size:11px;color:#b46a1e">not in materials</div>')+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
+  }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 2px">No materials yet — add below.</div>';
+}
+function rbomQty(i,d){ const c=_recEdit.components[i]; if(!c) return; c.qty=Math.max(1,(c.qty||1)+d); _rbomRenderComps(); }
+function rbomRemove(i){ _recEdit.components.splice(i,1); _rbomRenderComps(); }
+function rbomMatSearch(q){
+  const box=document.getElementById('rbom-mat-results'); if(!box) return;
+  q=String(q||'').trim().toLowerCase();
+  if(!q){ box.style.display='none'; box.innerHTML=''; return; }
+  const rows=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>String(i.name||'').toLowerCase().includes(q)).slice(0,12);
+  _rbomMatResults=rows;
+  box.innerHTML = rows.length ? rows.map((i,k)=>'<div class="rcp-sug-row" onmousedown="rbomMatPick('+k+')">'+esc(i.name)+' <span style="color:var(--c-muted);float:right">'+(i.qty||0)+' '+esc(i.unit||'')+'</span></div>').join('') : '<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">Not in materials — add it in the Materials tab first</div>';
+  box.style.display='';
+}
+function rbomMatPick(k){ const i=_rbomMatResults[k]; if(!i) return; if(!_recEdit.components.some(c=>c.mid===i.id)) _recEdit.components.push({mid:i.id,name:i.name,qty:1}); _rbomRenderComps(); const box=document.getElementById('rbom-mat-results'); if(box){box.style.display='none';box.innerHTML='';} const inp=document.getElementById('rbom-mat-search'); if(inp) inp.value=''; }
+function rbomNameSearch(q){
+  _recEdit.name = q;
+  const box=document.getElementById('rbom-name-results'); if(!box) return;
+  q=String(q||'').trim(); if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
+  clearTimeout(_rbomNameT);
+  _rbomNameT=setTimeout(async ()=>{
+    let rows=[];
+    try{ const data=await shopifyGQL(`{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title } } } }`); rows=(data.products?.edges||[]).map(e=>e.node.title).filter(Boolean); }catch(_){}
+    _rbomNameResults=rows;
+    box.innerHTML = rows.length ? ('<div style="padding:5px 12px;font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em">Website designs</div>'+rows.map((t,i)=>'<div class="rcp-sug-row" onmousedown="rbomNamePick('+i+')">'+esc(t)+'</div>').join('')) : '';
+    box.style.display = rows.length?'':'none';
+  },300);
+}
+function rbomNamePick(i){ const t=_rbomNameResults[i]; if(!t) return; _recEdit.name=t; document.getElementById('rbom-name').value=t; rbomSetSrc('website'); const box=document.getElementById('rbom-name-results'); if(box){box.style.display='none';box.innerHTML='';} }
+function saveRecipeBom(){
+  const name=(document.getElementById('rbom-name').value||'').trim();
+  if(!name){ toast('Design name required'); return; }
+  _recEdit.name=name;
+  const idx=RECIPES.findIndex(r=>r.id===_recEdit.id);
+  if(idx>=0) RECIPES[idx]=_recEdit; else RECIPES.push(_recEdit);
+  saveRecipes(); closeModal('m-rbom'); renderRecipes(); if(typeof _applyRecipes==='function')_applyRecipes(); toast('✓ 配方已保存 Recipe saved');
+}
+function deleteRecipeBom(){ if(!confirm('Delete this design recipe? 删除配方？')) return; RECIPES=RECIPES.filter(r=>r.id!==_recEdit.id); saveRecipes(); closeModal('m-rbom'); renderRecipes(); toast('Deleted'); }
+document.addEventListener('click', e=>{ if(e.target.closest('#rbom-name,#rbom-name-results,#rbom-mat-search,#rbom-mat-results')) return; ['rbom-name-results','rbom-mat-results'].forEach(x=>{const b=document.getElementById(x); if(b&&b.style.display!=='none') b.style.display='none';}); });
 // Adjust stock by delta and log who/when/±how much (capped to the last 40 moves).
 function invAdjust(id, delta, type){
   const i = INVENTORY.find(x => x.id === id); if(!i) return;
@@ -3196,11 +3310,10 @@ function renderOrders() {
 }
 
 function switchStockTab(tab) {
-  const isInv = tab === 'inv';
-  document.getElementById('stock-pane-inv').style.display = isInv ? '' : 'none';
-  document.getElementById('stock-pane-pur').style.display = isInv ? 'none' : '';
-  document.getElementById('stock-tab-inv').classList.toggle('on', isInv);
-  document.getElementById('stock-tab-pur').classList.toggle('on', !isInv);
+  const panes = { inv:'stock-pane-inv', rec:'stock-pane-rec', pur:'stock-pane-pur' };
+  const tabs  = { inv:'stock-tab-inv',  rec:'stock-tab-rec',  pur:'stock-tab-pur'  };
+  Object.keys(panes).forEach(k => { const p=document.getElementById(panes[k]); if(p) p.style.display = k===tab?'':'none'; const t=document.getElementById(tabs[k]); if(t) t.classList.toggle('on', k===tab); });
+  if(tab==='rec') renderRecipes();
 }
 
 // Editable categories — fully user-managed (add / rename / delete, no locked
@@ -8243,7 +8356,7 @@ function saveOrder() {
     custEmail: document.getElementById('o-cust-email')?.value.trim()||null
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
-  saveOrders(entry); closeModal('m-order');
+  saveOrders(entry); if(typeof _applyRecipes==='function')_applyRecipes(); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
