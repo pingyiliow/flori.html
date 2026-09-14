@@ -696,17 +696,19 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Recipe detail (view first) ═══════════════════ -->
+<div id="m-recview" class="modal">
+  <div class="mc" style="max-width:400px;padding:0;overflow:hidden">
+    <div id="recview-body"></div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Recipe (design → materials) ═══════════════════ -->
 <div id="m-rbom" class="modal">
   <div class="mc" style="max-width:460px">
     <div class="mc-hdr"><div class="mc-ttl" id="rbom-ttl">New design</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-rbom')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
-      <div class="osec" style="margin-top:2px">Design source 设计来源</div>
-      <div class="oseg-row" style="margin-bottom:14px">
-        <button type="button" id="rbom-src-web" class="oseg on" onclick="rbomSetSrc('website')">Website 网站</button>
-        <button type="button" id="rbom-src-oma" class="oseg" onclick="rbomSetSrc('omakase')">Omakase 定制</button>
-      </div>
-      <div class="ff" style="position:relative"><label class="ff-l" id="rbom-name-lbl">Find your website design</label>
+      <div class="ff" style="position:relative"><label class="ff-l">网站产品 Find your website design</label>
         <input id="rbom-name" type="text" placeholder="Search a Shopify design…" autocomplete="off" oninput="rbomNameSearch(this.value)">
         <div id="rbom-name-results" class="rcp-sug" style="display:none"></div>
       </div>
@@ -2292,7 +2294,8 @@ function renderRecipes(){
   el.innerHTML = list.length ? list.map(r=>{
     const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
     const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
-    return '<div class="rec-card" onclick="openBom(\''+r.id+'\')"><div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
+    const th = r.image ? '<span style="width:44px;height:44px;border-radius:9px;overflow:hidden;flex:none;background:var(--c-bg)"><img src="'+r.image+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '';
+    return '<div class="rec-card" onclick="openRecipeView(\''+r.id+'\')">'+th+'<div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:16px 2px">No design matches.</div>';
 }
 let _recEdit=null, _rbomMatResults=[], _rbomNameResults=[], _rbomNameT=null;
@@ -2301,7 +2304,7 @@ function openBom(id){
   if(!Array.isArray(_recEdit.components)) _recEdit.components=[];
   document.getElementById('rbom-ttl').textContent = id?'Edit design':'New design';
   document.getElementById('rbom-name').value = _recEdit.name||'';
-  rbomSetSrc(_recEdit.source||'website');
+  _recEdit.source='website';
   document.getElementById('rbom-del').style.display = id?'':'none';
   const ms=document.getElementById('rbom-mat-search'); if(ms) ms.value='';
   ['rbom-name-results','rbom-mat-results'].forEach(x=>{const e=document.getElementById(x);if(e){e.style.display='none';e.innerHTML='';}});
@@ -2335,20 +2338,19 @@ function rbomMatSearch(q){
 }
 function rbomMatPick(k){ const i=_rbomMatResults[k]; if(!i) return; if(!_recEdit.components.some(c=>c.mid===i.id)) _recEdit.components.push({mid:i.id,name:i.name,qty:1}); _rbomRenderComps(); const box=document.getElementById('rbom-mat-results'); if(box){box.style.display='none';box.innerHTML='';} const inp=document.getElementById('rbom-mat-search'); if(inp) inp.value=''; }
 function rbomNameSearch(q){
-  _recEdit.name = q;
+  _recEdit.name = q; _recEdit.image = null;   // free-typed name loses the linked image until re-picked
   const box=document.getElementById('rbom-name-results'); if(!box) return;
-  if(_recEdit.source !== 'website'){ box.style.display='none'; box.innerHTML=''; return; }   // omakase = free text, no lookup
   q=String(q||'').trim(); if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
   clearTimeout(_rbomNameT);
   _rbomNameT=setTimeout(async ()=>{
     let rows=[];
-    try{ const data=await shopifyGQL(`{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title } } } }`); rows=(data.products?.edges||[]).map(e=>e.node.title).filter(Boolean); }catch(_){}
+    try{ const data=await shopifyGQL(`{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title featuredImage{url} } } } }`); rows=(data.products?.edges||[]).map(e=>({ title:e.node.title, image:(e.node.featuredImage&&e.node.featuredImage.url)||null })).filter(r=>r.title); }catch(_){}
     _rbomNameResults=rows;
-    box.innerHTML = rows.length ? ('<div style="padding:5px 12px;font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em">Website designs</div>'+rows.map((t,i)=>'<div class="rcp-sug-row" onmousedown="rbomNamePick('+i+')">'+esc(t)+'</div>').join('')) : '';
+    box.innerHTML = rows.length ? ('<div style="padding:5px 12px;font-size:10px;color:var(--c-muted);text-transform:uppercase;letter-spacing:.08em">Website designs</div>'+rows.map((r,i)=>'<div class="rcp-sug-row" onmousedown="rbomNamePick('+i+')" style="display:flex;align-items:center;gap:9px">'+(r.image?'<img src="'+r.image+'" style="width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none">':'')+'<span>'+esc(r.title)+'</span></div>').join('')) : '';
     box.style.display = rows.length?'':'none';
   },300);
 }
-function rbomNamePick(i){ const t=_rbomNameResults[i]; if(!t) return; _recEdit.name=t; document.getElementById('rbom-name').value=t; rbomSetSrc('website'); const box=document.getElementById('rbom-name-results'); if(box){box.style.display='none';box.innerHTML='';} }
+function rbomNamePick(i){ const r=_rbomNameResults[i]; if(!r) return; _recEdit.name=r.title; _recEdit.image=r.image||null; _recEdit.source='website'; document.getElementById('rbom-name').value=r.title; const box=document.getElementById('rbom-name-results'); if(box){box.style.display='none';box.innerHTML='';} }
 function saveRecipeBom(){
   const name=(document.getElementById('rbom-name').value||'').trim();
   if(!name){ toast('Design name required'); return; }
@@ -2358,6 +2360,36 @@ function saveRecipeBom(){
   saveRecipes(); closeModal('m-rbom'); renderRecipes(); if(typeof _applyRecipes==='function')_applyRecipes(); toast('✓ 配方已保存 Recipe saved');
 }
 function deleteRecipeBom(){ if(!confirm('Delete this design recipe? 删除配方？')) return; RECIPES=RECIPES.filter(r=>r.id!==_recEdit.id); saveRecipes(); closeModal('m-rbom'); renderRecipes(); toast('Deleted'); }
+// Recipe detail popup — view first (design picture from Shopify + its materials), Edit within.
+let _recViewId=null;
+function openRecipeView(id){
+  const el=document.getElementById('recview-body'); if(!el) return;
+  const r=RECIPES.find(x=>x.id===id); if(!r) return;
+  _recViewId=id; el.innerHTML=_recView(r); openModal('m-recview');
+  // Lazy-fetch the Shopify picture for older recipes that were saved before images were stored.
+  if(!r.image && r.name && typeof shopifyGQL==='function'){
+    shopifyGQL(`{ products(first:1, query:${JSON.stringify('title:'+r.name)}) { edges { node { featuredImage{url} } } } }`).then(d=>{
+      const url=d&&d.products&&d.products.edges&&d.products.edges[0]&&d.products.edges[0].node.featuredImage&&d.products.edges[0].node.featuredImage.url;
+      if(url){ r.image=url; saveRecipes(); if(_recViewId===id){ el.innerHTML=_recView(r); } renderRecipes(); }
+    }).catch(()=>{});
+  }
+}
+function _recView(r){
+  const img = r.image ? '<span class="skv-th" onclick="openZoom(\''+String(r.image).replace(/'/g,"\\'")+'\')" style="cursor:zoom-in"><img src="'+r.image+'" onerror="this.style.display=\'none\'"></span>' : '<span class="skv-th">'+di('note',24)+'</span>';
+  const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
+  let h='<div class="skv-hd">'+img
+    +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(r.name)+'</div><div style="margin-top:6px">'+pill+'</div></div>'
+    +'<button class="skv-x" onclick="closeModal(\'m-recview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+  h+='<div class="skv-body"><div class="skv-sec">用料 Materials · 订单来时扣库存</div>';
+  const comps=r.components||[];
+  h+= comps.length ? comps.map(c=>{ const inv=INVENTORY.find(x=>x.id===c.mid); const stock=inv?(inv.qty||0):null;
+      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+(stock!=null?' <span style="font-size:11px;font-weight:400;color:'+(inv&&_invLow(inv)?'var(--c-red)':'var(--c-muted)')+'">· '+stock+' 库存</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
+    : '<span style="color:var(--c-muted);font-size:12px">还没设置用料 · no materials set</span>';
+  h+='</div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-recview\');openBom(\''+r.id+'\')">'+di('edit',14)+' Edit design 编辑</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="closeModal(\'m-recview\');_recDelete(\''+r.id+'\')">'+di('trash',14)+'</button></div>';
+  return h;
+}
+function _recDelete(id){ if(!confirm('Delete this design recipe? 删除配方？')) return; RECIPES=RECIPES.filter(r=>r.id!==id); saveRecipes(); renderRecipes(); toast('Deleted'); }
 document.addEventListener('click', e=>{ if(e.target.closest('#rbom-name,#rbom-name-results,#rbom-mat-search,#rbom-mat-results')) return; ['rbom-name-results','rbom-mat-results'].forEach(x=>{const b=document.getElementById(x); if(b&&b.style.display!=='none') b.style.display='none';}); });
 // Adjust stock by delta and log who/when/±how much (capped to the last 40 moves).
 function invAdjust(id, delta, type){
