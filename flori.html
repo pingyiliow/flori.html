@@ -5403,12 +5403,54 @@ function _recRow(r, isDone){
     +   meta
     + '</div></div>';
 }
+// Staff order records — every order attributed to a staff member via a follow-up's
+// Staff field, joined to the live order for its amount + date. "Just a record", grouped
+// by month; no commission math.
+function _staffOrderRecords(){
+  const byNo = {};
+  (typeof ORDERS!=='undefined'?ORDERS:[]).forEach(o=>{ const d=String(o.name||'').replace(/[^0-9]/g,''); if(d) byNo[d]=o; });
+  const recs = [];
+  (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f=>{
+    if(!f || !f.staff || !String(f.staff).trim()) return;
+    if(!(f.orderNo || f.status==='completed')) return;   // only real orders, not open leads
+    const dig = String(f.orderNo||'').replace(/[^0-9]/g,'');
+    const o = dig ? byNo[dig] : null;
+    const dObj = (o && o.dateObj) ? o.dateObj : (f.dueDate ? pd(f.dueDate) : (f.createdAt ? new Date(f.createdAt) : null));
+    recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:(o&&o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:dObj });
+  });
+  return recs;
+}
+function _staffOrdersHTML(){
+  const recs = _staffOrderRecords();
+  if(!recs.length) return '<div style="text-align:center;color:var(--c-muted);padding:48px 16px;font-size:13px;max-width:640px">No staff orders yet. Add a Staff name on a follow-up and complete it — it shows up here, grouped by month.</div>';
+  const groups = {};
+  recs.forEach(r=>{ const d=(r.date instanceof Date && !isNaN(r.date))?r.date:null; const key=d?(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')):'0000-00'; (groups[key]=groups[key]||[]).push(r); });
+  const keys = Object.keys(groups).sort().reverse();
+  const monthName = k => { if(k==='0000-00') return 'No date'; const p=k.split('-'); return new Date(+p[0],+p[1]-1,1).toLocaleDateString('en-MY',{month:'long',year:'numeric'}); };
+  const av = s => String(s||'?').trim().slice(0,2).toUpperCase();
+  let h = '<div style="max-width:640px">';
+  keys.forEach(k=>{
+    const list = groups[k].sort((a,b)=>((b.date?b.date.getTime():0)-(a.date?a.date.getTime():0)));
+    const total = list.reduce((s,r)=>s+(r.amount||0),0);
+    h += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><div style="font-size:13px;font-weight:700">'+monthName(k)+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+list.length+' order'+(list.length>1?'s':'')+(total>0?' · '+_recMoney(total):'')+'</div></div>';
+    h += '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;overflow:hidden;margin-bottom:20px">';
+    h += list.map((r,i)=> '<div style="display:flex;align-items:center;gap:11px;padding:11px 14px;'+(i?'border-top:1px solid var(--c-border);':'')+'">'
+      + '<span style="width:34px;height:34px;border-radius:50%;background:var(--p-lav);color:var(--p-lav-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:none">'+esc(av(r.staff))+'</span>'
+      + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">'+esc(r.staff)+' <span style="color:var(--c-muted);font-weight:400">· '+esc(r.customer||'—')+'</span></div>'
+      + '<div style="font-size:11.5px;color:var(--c-muted)">'+esc(r.orderNo||'—')+(r.date?' · '+r.date.toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'')+'</div></div>'
+      + (r.amount!=null?'<div style="font-size:13.5px;font-weight:700;white-space:nowrap">'+_recMoney(r.amount)+'</div>':'')
+    + '</div>').join('');
+    h += '</div>';
+  });
+  return h + '</div>';
+}
 function renderRecords(){
   const pc = document.getElementById('records-pc'); if(!pc) return;
-  const kinds = ['all','payable','refund','document'];
-  const kindLabel = { all:'All', payable:'Payables', refund:'Refunds', document:'Documents' };
+  const kinds = ['all','payable','refund','document','staff'];
+  const kindLabel = { all:'All', payable:'Payables', refund:'Refunds', document:'Documents', staff:'Staff orders' };
   const counts = { all: RECORDS.filter(r => !r.done).length };
   ['payable','refund','document'].forEach(k => counts[k] = RECORDS.filter(r => !r.done && r.kind === k).length);
+  counts.staff = _staffOrderRecords().length;
 
   const filtered = RECORDS.filter(r => _recFilter === 'all' || r.kind === _recFilter);
   const open = filtered.filter(r => !r.done).sort((a,b) => {
@@ -5429,6 +5471,9 @@ function renderRecords(){
     h += '<button onclick="recSetFilter(\''+k+'\')" style="cursor:pointer;font-size:12px;padding:5px 12px;border-radius:20px;border:1.5px solid '+(on?'var(--c-ink)':'var(--c-border)')+';background:'+(on?'var(--c-ink)':'transparent')+';color:'+(on?'#fff':'var(--c-muted)')+'">'+kindLabel[k]+' · '+(counts[k]||0)+'</button>';
   });
   h += '</div>';
+
+  // Staff orders — a month-grouped record of every order attributed to a staff member.
+  if(_recFilter === 'staff'){ h += _staffOrdersHTML(); pc.innerHTML = h; return; }
 
   if(owed > 0 && (_recFilter === 'all' || _recFilter === 'payable')) h += '<div style="font-size:12px;color:var(--c-muted);margin-bottom:12px">Outstanding to pay: <span style="color:var(--c-ink);font-weight:700">'+_recMoney(owed)+'</span></div>';
 
@@ -9041,6 +9086,10 @@ function _renderDP(order, localOrder) {
   // order-level Shopify attributes when no follow-up is linked (e.g. online orders).
   const _ordNoDigits = String(order.name || localOrder.name || '').replace(/[^0-9]/g,'');
   const _fuLink = _ordNoDigits ? (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).find(f => f.orderNo && String(f.orderNo).replace(/[^0-9]/g,'') === _ordNoDigits) : null;
+  // Staff tag — who this order came in through (from the linked follow-up). Small, and it
+  // feeds the Records → Staff orders list.
+  const _staff = (localOrder.staff && String(localOrder.staff).trim()) || (_fuLink && _fuLink.staff && String(_fuLink.staff).trim()) || '';
+  if (_staff) html += '<div style="margin-bottom:2px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 11px;border-radius:99px;background:var(--p-butter,#F1E7C9);color:#8a6d24">'+di('user',12)+' Staff: '+esc(_staff)+'</span></div>';
   const _flowerIns = getAttr('Flower Instructions');
   const _cardMsg   = getAttr('Card Message');
   const _remark    = getAttr('Remark');
