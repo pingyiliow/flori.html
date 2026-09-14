@@ -139,8 +139,6 @@
       </div>
     </div>
 
-    <!-- Day summary pills -->
-    <div id="ord-summary" style="display:flex;gap:7px;flex-wrap:wrap"></div>
 
     <!-- Filters -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
@@ -1696,7 +1694,11 @@ function _mergeShopItems(stored, shop, removed){
   // order was removed there, so drop it here too. EXCEPT items added/edited in the app
   // (local:true — an app-only line item, or a product renamed in Edit Order whose title no
   // longer matches Shopify) — those are app-managed and Shopify doesn't know them.
-  const kept = stored.filter(i => i && (shopTitles.has(i.title) || i.local === true));
+  const _shopByTitle = {}; shop.forEach(i => { if (i && i.title != null) _shopByTitle[i.title] = i; });
+  // Keep stored items still present in Shopify (or app-local), backfilling productType
+  // from the fresh Shopify item so cake auto-detection works on kept items too.
+  const kept = stored.filter(i => i && (shopTitles.has(i.title) || i.local === true))
+    .map(i => { const s = _shopByTitle[i.title]; return (s && s.productType && !i.productType) ? { ...i, productType: s.productType } : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
   const have = new Set(kept.map(i => i.title));
   const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
@@ -1784,7 +1786,7 @@ function _mapShopifyOrder(n){
     // exclude it so it doesn't reappear in BloomFlow. (Older queries without currentQuantity
     // leave it undefined → item kept, preserving prior behavior.)
     .filter(e => e.node.currentQuantity == null || e.node.currentQuantity > 0)
-    .map(e => ({ title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR' }));
+    .map(e => ({ title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR', productType: e.node.product?.productType || '' }));
   // BloomFlow-added photos ride along as the 'BloomFlow Photos' order attribute (durable R2
   // links). Attach them to the first line item so the card/panel show them (itemPhotos
   // prefers the images array over the product image).
@@ -1808,7 +1810,7 @@ async function importOrderByName(rawName){
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
       id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
@@ -1852,7 +1854,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}}
+          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -1900,14 +1902,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -3058,7 +3060,7 @@ function renderHome() {
   // Needs attention — the actionable stuff (command-center, not a duplicate order list).
   const _attRow = (ic,col,txt,act)=>`<div onclick="${act}" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer"><span style="color:${col};display:inline-flex">${di(ic,16)}</span><span style="flex:1;font-size:12.5px;font-weight:600">${txt}</span><span style="color:var(--c-border2);font-size:15px">›</span></div>`;
   const att = [];
-  const cakeToday = todayO.filter(o => o.cake && !o.fulfilled).length;
+  const cakeToday = todayO.filter(o => _effCake(o) && !o.fulfilled).length;
   if (cakeToday)      att.push(_attRow('note','#956A40',''+cakeToday+' 单要取蛋糕 · cakes to collect',"goPage('driver')"));
   if (urgentT.length) att.push(_attRow('warn','#c0392b',urgentT.length+' urgent order'+(urgentT.length>1?'s':''),"goPage('orders')"));
   if (unassignedDel)  att.push(_attRow('nav','#b46a1e',unassignedDel+' deliver'+(unassignedDel>1?'ies':'y')+' not on a route',"goPage('driver')"));
@@ -3091,13 +3093,13 @@ function renderHome() {
     + '</div>'
   ) : '';
   // Cakes to collect today — the mockup's right-column card (text/SVG only, no emoji).
-  const _cakes = todayO.filter(o => o.cake && !o.fulfilled);
+  const _cakes = todayO.filter(o => _effCake(o) && !o.fulfilled);
   const _ce = document.getElementById('home-cakes');
   if (_ce) _ce.innerHTML = _cakes.length ? (
     '<div class="card" style="padding:16px 18px">'
     + '<div style="display:flex;align-items:center;gap:9px;background:var(--p-butter);color:var(--p-butter-ink);border-radius:12px;padding:11px 14px;font-weight:700;font-size:13.5px">'+di('note',16)+' '+_cakes.length+' cake'+(_cakes.length>1?'s':'')+' to collect today</div>'
     + '<div style="margin-top:12px;display:flex;flex-direction:column;gap:9px">'
-    + _cakes.map(o=>{ const c=o.cake||{}; const tm=o.dueTime||''; return '<div style="font-size:12.5px;color:var(--c-muted);font-weight:500;line-height:1.5">• <span style="color:var(--c-ink);font-weight:700">'+(tm?esc(tm)+' · ':'')+esc(c.supplier||'Cake')+'</span>'+(c.remark?' — '+esc(c.remark):'')+'</div>'; }).join('')
+    + _cakes.map(o=>{ const c=_effCake(o)||{}; const tm=o.dueTime||''; const who=c.supplier||(c.auto?'选择供应商':'Cake'); return '<div style="font-size:12.5px;color:var(--c-muted);font-weight:500;line-height:1.5">• <span style="color:var(--c-ink);font-weight:700">'+(tm?esc(tm)+' · ':'')+esc(who)+'</span>'+(c.remark?' — '+esc(c.remark):'')+'</div>'; }).join('')
     + '</div></div>'
   ) : '';
   // Today's progress — donut (done / in progress / to do), replacing the week bar chart.
@@ -3125,16 +3127,6 @@ function renderOrders() {
   const cntDe = document.getElementById('count-delivery');
   if (cntPu) cntPu.textContent = allF.filter(o=>o.type==='pickup').length || '';
   if (cntDe) cntDe.textContent = allF.filter(o=>o.type==='delivery').length || '';
-  // Day summary pills (counts for the current view).
-  const _os = document.getElementById('ord-summary');
-  if (_os) {
-    const sP=list.filter(o=>orderState(o)==='pending').length, sR=list.filter(o=>orderState(o)==='ready').length, sF=list.filter(o=>orderState(o)==='fulfilled').length;
-    const pill=(n,l,bg,bd,c)=>`<span style="background:${bg};border:1px solid ${bd};border-radius:8px;padding:5px 11px;font-size:11px;color:${c}"><b style="font-size:13px">${n}</b> ${l}</span>`;
-    _os.innerHTML = pill(list.length,'orders','var(--c-surface)','var(--c-border)','var(--c-muted)')
-      + (sP?pill(sP,'pending','#fdeceb','#f2cfcc','#c0392b'):'')
-      + (sR?pill(sR,'ready','#eef6ee','#c9e3cc','#2e7d46'):'')
-      + (sF?pill(sF,'done','#f1f1ef','#ddd','#6b6a63'):'');
-  }
   if (!list.length) {
     tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('grid',34)}</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
@@ -6543,7 +6535,7 @@ function _cakeSupplierChange(){
 function openCakeModal(id){
   const o=ORDERS.find(x=>String(x.id)===String(id)); if(!o) return;
   document.getElementById('cake-order-id').value=id;
-  const ck=o.cake, on=!!ck, supplier=ck?(ck.supplier||''):'', known=CAKE_SUPPLIERS.some(s=>s.name===supplier);
+  const ck=o.cake, on=!!ck || _orderHasCake(o), supplier=ck?(ck.supplier||''):'', known=CAKE_SUPPLIERS.some(s=>s.name===supplier);
   document.getElementById('cake-on').checked=on;
   document.getElementById('cake-fields').style.display=on?'':'none';
   _fillCakeSupplier(known?supplier:(supplier?'__other__':''));
@@ -6573,10 +6565,16 @@ function saveCake(){
   toast('✓ 蛋糕已更新');
 }
 function _cakeNav(addr){ const q=encodeURIComponent(addr); return /Android/i.test(navigator.userAgent||'') ? ('google.navigation:q='+q) : ('https://www.google.com/maps/dir/?api=1&destination='+q); }
-function _cakeOrdersFor(iso){ return ORDERS.filter(o => o.cake && _drvIsOnDate(o, iso)); }
+// Auto-detect: an order needs cake collection if any Shopify line item's product type
+// is "Cake" (every cake product in the catalog carries productType "Cake").
+function _orderHasCake(o){ return !!(o && o.lineItems && o.lineItems.some(li => /^cake$/i.test(String((li&&li.productType)||'').trim()))); }
+// Effective cake record: the manually-set one, or an auto stub for a detected-but-unassigned
+// cake so it flows through the collection lists as 待定供应商.
+function _effCake(o){ if(o && o.cake) return o.cake; if(_orderHasCake(o)) return { supplier:'', address:'', remark:'', auto:true }; return null; }
+function _cakeOrdersFor(iso){ return ORDERS.filter(o => _effCake(o) && _drvIsOnDate(o, iso)); }
 function _drvCakeList(iso){
   const list=_cakeOrdersFor(iso); if(!list.length) return '';
-  const bySup={}; list.forEach(o=>{ const k=(o.cake.supplier||'待定供应商'); if(!bySup[k]) bySup[k]={addr:o.cake.address||'',orders:[]}; if(o.cake.address) bySup[k].addr=o.cake.address; bySup[k].orders.push(o); });
+  const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||'待定供应商'); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
   let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
     +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">今日需拿蛋糕 · '+list.length+' 单</div>';
   Object.keys(bySup).forEach(sup=>{
@@ -6585,7 +6583,7 @@ function _drvCakeList(iso){
     h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
       +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+' 个</span></div>'
       +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
-      +g.orders.map(o=>{ const rk=(o.cake&&o.cake.remark)?' · <span style="color:#B86050;font-weight:600">'+esc2(o.cake.remark)+'</span>':''; return '<div style="font-size:11px;color:#8a7a55;margin-top:2px">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</div>'; }).join('')
+      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto?' · <span style="color:#B86050;font-weight:600">选择供应商</span>':''); return '<div style="font-size:11px;color:#8a7a55;margin-top:2px">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</div>'; }).join('')
       +'</div>'+nav+'</div>';
   });
   return h+'</div>';
@@ -9007,13 +9005,20 @@ function _renderDP(order, localOrder) {
     </div>`;
   }
 
-  // ── Cake collection: flag this order so the driver's "今日需拿蛋糕" list picks it up ──
+  // ── Cake collection ──
+  // Auto-detected from Shopify (any line item's product type is "Cake") or manually
+  // flagged. Non-cake orders (wreaths, condolence flowers) show nothing here.
   { const _ck = localOrder.cake;
-    html += '<div style="border:1.5px solid '+(_ck?'#E6C65A':'var(--c-border)')+';border-radius:var(--r-lg);padding:10px 13px;background:'+(_ck?'#FBF3D9':'var(--c-surface)')+';margin-bottom:10px;display:flex;align-items:center;gap:10px">'
-      +'<span style="flex:none;display:inline-flex;color:#956A40"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21v-7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v7"/><path d="M4 16c1 .6 2 .6 3 0s2-.6 3 0 2 .6 3 0 2-.6 3 0 2 .6 3 0"/><path d="M12 8V6"/><circle cx="12" cy="4.3" r="1"/></svg></span>'
-      +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck?('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':'')):'<span style="color:var(--c-muted)">这单要取蛋糕吗？</span>')+'</div>'
-      +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'标记')+'</button>'
-    +'</div>';
+    const _auto = !_ck && _orderHasCake(localOrder);
+    if (_ck || _auto) {
+      html += '<div style="border:1.5px solid #E6C65A;border-radius:var(--r-lg);padding:10px 13px;background:#FBF3D9;margin-bottom:10px;display:flex;align-items:center;gap:10px">'
+        +'<span style="flex:none;display:inline-flex;color:#956A40"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21h16"/><path d="M6 21v-7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v7"/><path d="M4 16c1 .6 2 .6 3 0s2-.6 3 0 2 .6 3 0 2-.6 3 0 2 .6 3 0"/><path d="M12 8V6"/><circle cx="12" cy="4.3" r="1"/></svg></span>'
+        +'<div style="flex:1;min-width:0;font-size:12.5px">'+(_ck
+            ? ('要取蛋糕 · <b>'+esc(_ck.supplier||'待定供应商')+'</b>'+(_ck.address?'<div style="font-size:11px;color:var(--c-muted)">'+esc(_ck.address)+'</div>':'')+(_ck.remark?'<div style="font-size:11px;color:#B86050;font-weight:600">'+di('note',11)+' '+esc(_ck.remark)+'</div>':''))
+            : '检测到蛋糕 · <b style="color:#B86050">选择供应商</b><div style="font-size:11px;color:var(--c-muted)">Cake detected from Shopify — pick a supplier</div>')+'</div>'
+        +'<button class="btn btn-ghost btn-sm" onclick="openCakeModal(\''+localOrder.id+'\')" style="flex:none">'+(_ck?'编辑':'选择')+'</button>'
+      +'</div>';
+    }
   }
 
   // ── Order-form details for the florist: per-item photos + card message + flower
@@ -9234,9 +9239,11 @@ function _renderDP(order, localOrder) {
 function _dpMenuHtml(o){
   const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
   const shopUrl = o.src==='shopify' && handle ? `https://admin.shopify.com/store/${handle}/orders/${shopId(o.id)}` : '';
+  const noCake = !o.cake && !_orderHasCake(o);
   return '<div id="dp-menu" class="dp-menu" hidden>'
     + `<button class="dp-mi" onclick="closeDpMenu();closeDP();editOrder('${o.id}')">${di('edit',16)} Edit order</button>`
     + `<button class="dp-mi" onclick="closeDpMenu();closeDP();openRepeat('${o.id}')">${di('sync',16)} Repeat order</button>`
+    + (noCake ? `<button class="dp-mi" onclick="closeDpMenu();openCakeModal('${o.id}')">${di('note',16)} Mark cake collection</button>` : '')
     + (shopUrl ? `<button class="dp-mi" onclick="closeDpMenu();window.open('${shopUrl}','_blank','noopener')">${di('nav',16)} View in Shopify</button>` : '')
     + `<button class="dp-mi del" onclick="closeDpMenu();closeDP();delOrder('${o.id}')">${di('trash',16)} Delete</button>`
   + '</div>';
