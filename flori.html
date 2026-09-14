@@ -902,25 +902,28 @@ Address: 12 Jalan Bunga, Penang"></textarea>
 
       <!-- MANUAL TAB -->
       <div id="fu-pane-manual" style="display:none">
+        <div class="osec">Sender (your customer)</div>
         <div class="fg fg-2">
-          <!-- Sender -->
-          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border)">Sender (Your Customer)</div>
           <div class="ff" style="position:relative"><label class="ff-l">Sender Name</label><input id="fu-name" type="text" placeholder="e.g. John" autocomplete="off" oninput="fuCustSearch('name',this.value)"><div id="fu-cust-sug-name" class="rcp-sug" style="display:none"></div></div>
           <div class="ff" style="position:relative"><label class="ff-l">Sender Phone / WhatsApp</label><input id="fu-contact" type="text" placeholder="+60 12-345 6789" autocomplete="off" oninput="fuCustSearch('contact',this.value)"><div id="fu-cust-sug-contact" class="rcp-sug" style="display:none"></div></div>
           <div class="ff" style="grid-column:1/-1;position:relative"><label class="ff-l">Sender Email</label><input id="fu-email" type="email" placeholder="john@email.com" autocomplete="off" oninput="fuCustSearch('email',this.value)"><div id="fu-cust-sug-email" class="rcp-sug" style="display:none"></div></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Staff (if order is via a staff member)</label><input id="fu-staff" type="text" placeholder="Staff name — e.g. order from a staff's friend"></div>
+        </div>
 
-          <!-- Recipient -->
-          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border);margin-top:4px">Recipient</div>
+        <div class="osec" style="margin-top:18px">Recipient</div>
+        <div class="fg fg-2">
           <div class="ff"><label class="ff-l">Recipient Name</label><input id="fu-recip-name" type="text" placeholder="e.g. Qian"></div>
           <div class="ff"><label class="ff-l">Recipient Phone</label><input id="fu-recip-phone" type="text" placeholder="+60 16-550 5686"></div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, Building, City, Postcode"></div>
+          <div class="ff" id="fu-addr-wrap" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, Building, City, Postcode"></div>
+        </div>
 
-          <!-- Order -->
-          <div style="grid-column:1/-1;font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--c-dpink);padding-bottom:4px;border-bottom:1px solid var(--c-border);margin-top:4px">Order</div>
-          <div class="ff"><label class="ff-l">Fulfilment</label>
-            <select id="fu-fulfil"><option value="delivery">Delivery</option><option value="pickup">Self Collect</option></select>
-          </div>
+        <div class="osec" style="margin-top:18px">Order</div>
+        <input type="hidden" id="fu-fulfil" value="delivery">
+        <div class="oseg-row" style="margin-bottom:12px">
+          <button type="button" id="fu-fulfil-del" class="oseg on" onclick="_fuFulfilSet('delivery')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><rect x="1" y="4" width="14" height="12" rx="2"/><path d="M15 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2"/><circle cx="17.5" cy="18.5" r="2"/></svg> Delivery</button>
+          <button type="button" id="fu-fulfil-pick" class="oseg" onclick="_fuFulfilSet('pickup')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Self collect</button>
+        </div>
+        <div class="fg fg-2">
           <div class="ff"><label class="ff-l">Order Date</label><input id="fu-order-date" type="date"></div>
           <div class="ff"><label class="ff-l">Delivery / Pickup Date</label><input id="fu-due-date" type="date"></div>
           <div class="ff"><label class="ff-l">Delivery / Pickup Time</label><input id="fu-due-time" type="text" placeholder="e.g. 2pm – 4pm" autocomplete="off"></div>
@@ -1168,8 +1171,19 @@ async function sbUpsert(table, rows) {
   let batch = [], size = 0, failed = false, errMsg = '';
   const flush = async () => {
     if (!batch.length) return;
-    const { error } = await sb.from(table).upsert(batch, { onConflict: 'id' });
-    if (error) { failed = true; errMsg = error.message; console.error('sbUpsert', table, error.message); }
+    // Resilient to schema drift: if the DB is missing a column the row carries (a
+    // migration not yet run on this project), PostgREST returns "Could not find the
+    // 'X' column …". Drop that column and retry, so a status/payment change still
+    // saves even when a newer optional column is absent — instead of the whole save
+    // failing silently and the change getting reverted on the next refresh.
+    let payload = batch, tries = 0;
+    while (true) {
+      const { error } = await sb.from(table).upsert(payload, { onConflict: 'id' });
+      if (!error) break;
+      const m = /Could not find the '([^']+)' column/.exec(error.message) || /'([^']+)' column/.exec(error.message);
+      if (m && m[1] && tries++ < 15) { const col = m[1]; payload = payload.map(r => { const c = { ...r }; delete c[col]; return c; }); continue; }
+      failed = true; errMsg = error.message; console.error('sbUpsert', table, error.message); break;
+    }
     batch = []; size = 0;
   };
   for (const r of rows) {
@@ -3511,7 +3525,7 @@ function _fuClearFields() {
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
-  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value='delivery';
+  _fuFulfilSet('delivery');
   const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
   _fuItems = [{ name:'', images:[] }]; _fuActiveItem = 0; fuRenderItems();   // reset product rows
 }
@@ -3819,7 +3833,7 @@ function parseAndFill() {
   if (parsed.dueDate) set('fu-due-date', parsed.dueDate);
   if (parsed.dueTime) set('fu-due-time', parsed.dueTime);
   if (parsed.amount)  set('fu-amount',   parsed.amount);
-  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = parsed.fulfil || 'delivery';
+  _fuFulfilSet(parsed.fulfil || 'delivery');
   if (parsed.channel) { const ch = document.getElementById('fu-channel'); if(ch) ch.value = parsed.channel; }
   if (parsed.payment) { const pm = document.getElementById('fu-payment'); if(pm) pm.value = parsed.payment; }
 
@@ -3862,7 +3876,7 @@ function editFollowup(id) {
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
   const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
-  const fu = document.getElementById('fu-fulfil'); if(fu) fu.value = f.fulfil || 'delivery';
+  _fuFulfilSet(f.fulfil || 'delivery');
   const od = document.getElementById('fu-order-date'); if(od) od.value = f.orderDate||'';
   const dd = document.getElementById('fu-due-date');   if(dd) dd.value = f.dueDate||'';
   const dt = document.getElementById('fu-due-time');   if(dt) dt.value = f.dueTime||'';
@@ -7852,6 +7866,15 @@ function _oTypeChange(){
   const sec=document.getElementById('o-deliv-sec'); if(sec) sec.style.display = isPickup ? 'none' : '';
   const del=document.getElementById('o-type-del'); if(del) del.classList.toggle('on', !isPickup);
   const pik=document.getElementById('o-type-pick'); if(pik) pik.classList.toggle('on', isPickup);
+}
+// Follow-up modal: same segmented Delivery / Self-collect toggle. Sets the hidden
+// fu-fulfil, syncs button state, and hides the delivery address for pickup.
+function _fuFulfilSet(v){
+  const el=document.getElementById('fu-fulfil'); if(el) el.value=v;
+  const pk = v==='pickup';
+  const d=document.getElementById('fu-fulfil-del'); if(d) d.classList.toggle('on', !pk);
+  const p=document.getElementById('fu-fulfil-pick'); if(p) p.classList.toggle('on', pk);
+  const aw=document.getElementById('fu-addr-wrap'); if(aw) aw.style.display = pk ? 'none' : '';
 }
 function openAddOrder(){
   ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
