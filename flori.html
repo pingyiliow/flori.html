@@ -1088,8 +1088,13 @@ function imgItemDot(el){ try { el.outerHTML = '<span class="o-item-dot" style="d
 /* ─── Roles (CRM) ────────────────────────────────────────────────
    Role lives in the Supabase `profiles` table (admin | cs | florist).
    Tabs are gated by role; unknown/missing role falls back to florist. */
-let currentUserRole = 'florist';
+let currentUserRole = 'florist';   // primary (first) role — kept for existing references
+let currentUserRoles = ['florist']; // a user may hold several, e.g. "driver, florist"
 let currentUserName = '';
+// A profile's role can list several roles ("driver, florist" / "driver florist"). Parse
+// into a lowercase list so a person can hold both a making role and the driver role.
+function _parseRoles(v){ const a=String(v||'').split(/[,\s/|]+/).map(s=>s.trim().toLowerCase()).filter(Boolean); return a.length?a:['florist']; }
+function hasRole(r){ return currentUserRoles.includes(r); }
 const TAB_ACCESS = {
   home:      ['admin','cs','florist'],
   orders:    ['admin','cs','florist'],
@@ -1101,7 +1106,7 @@ const TAB_ACCESS = {
   records:   ['admin'],            // admin-only checklist: payables, refunds, document requests
   driver:    ['admin','driver'],   // driver-role users see ONLY this page
 };
-function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || r.includes(currentUserRole); }
+function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || currentUserRoles.some(x => r.includes(x)); }
 async function getUserRole(){
   try {
     if (!hasSB() || !currentUser) return { role:'florist', name:'' };
@@ -1114,11 +1119,12 @@ async function getUserRole(){
 function applyRoleGating(){
   document.querySelectorAll('[data-pg]').forEach(el => {
     const roles = TAB_ACCESS[el.dataset.pg];
-    if (roles) el.style.display = roles.includes(currentUserRole) ? '' : 'none';
+    if (roles) el.style.display = currentUserRoles.some(x => roles.includes(x)) ? '' : 'none';
   });
-  // Driver-only role has a single accessible page → hide the sidebar + mobile nav entirely
-  // (a one-tab nav is just clutter). CSS `.role-driver` reclaims the layout space.
-  document.body.classList.toggle('role-driver', currentUserRole === 'driver');
+  // A PURE driver (no other role) has a single accessible page → hide the sidebar +
+  // mobile nav entirely. A driver who is also a florist keeps the nav to switch pages.
+  const pureDriver = currentUserRoles.length > 0 && currentUserRoles.every(x => x === 'driver');
+  document.body.classList.toggle('role-driver', pureDriver);
   document.querySelectorAll('[data-role-gate]').forEach(el => {
     el.style.display = canAccess(el.dataset.roleGate) ? '' : 'none';
   });
@@ -1246,7 +1252,8 @@ async function showApp() {
   loadData(); setLang(LANG);
   // Load this user's role and gate the nav before the first paint.
   const _profile = await getUserRole();
-  currentUserRole = (_profile && _profile.role) || 'florist';
+  currentUserRoles = _parseRoles(_profile && _profile.role);
+  currentUserRole = currentUserRoles[0];
   currentUserName = (_profile && _profile.name) || (currentUser ? currentUser.email : '');
   applyRoleGating();
   // Preload customers for admin/cs so the dashboard birthday/anniversary widget
@@ -1282,8 +1289,9 @@ async function showApp() {
   }
   document.getElementById('app-loading').style.display = 'none';
   renderAll();
-  // Drivers land straight on their stop list — every other page is gated away for them.
-  if (currentUserRole === 'driver') goPage('driver');
+  // A pure driver lands straight on their stop list (every other page is gated away).
+  // A driver who is also a florist lands on Home and can switch to Delivery from the nav.
+  if (currentUserRoles.length > 0 && currentUserRoles.every(x => x === 'driver')) goPage('driver');
   // Auto-sync from Shopify on load so a page refresh shows current
   // fulfilment status (not just the last cached state).
   syncOrders().catch(()=>{});
@@ -5460,7 +5468,7 @@ function _drvAddr(o){ return o.address || o.manualAddr || ''; }
 function _drvStatus(o){ return o.fulfilled ? 'done' : (o.otwAt ? 'otw' : 'pending'); }
 function _drvRoutesFor(iso){
   let rts = ROUTES.filter(r => r.date === iso);
-  if (currentUserRole === 'driver') rts = rts.filter(r => !r.driver || r.driver === currentUserName);
+  if (hasRole('driver') && !hasRole('admin')) rts = rts.filter(r => !r.driver || r.driver === currentUserName);
   return rts;
 }
 function driverTab(t){ _drvTab = t; _drvReorderRoute = null; _drvDetail = null; renderDriver(); }
@@ -6141,7 +6149,7 @@ function _drvItemsView(rt){
 // only sees Reorder + Auto-sort; admins get the full set.
 function openRouteManage(routeId){
   const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = hasRole('admin');
   const pending = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
   const canOpt = pending.filter(o => o.lat != null).length >= 2;
   const unassigned = _drvStops(_drvDateISO()).filter(o => !o.routeId && !o.fulfilled).length;
@@ -6175,7 +6183,7 @@ function _rmDo(action, routeId){
   else if (action === 'delete')   deleteRoutePrompt(routeId);
 }
 function _drvRouteDetail(rt){
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = hasRole('admin');
   const iso = _drvDateISO();
   const stops = _drvStopsForRoute(rt.id);
   const pending = stops.filter(o => !o.fulfilled);
@@ -6372,7 +6380,7 @@ function _gpsActiveRoute(){
   return (ROUTES||[]).find(r => r.startedAt && r.date === iso && (
     (r.driver && currentUserName && r.driver === currentUserName) ||
     (r.startedBy && r.startedBy === currentUserName) ||
-    (currentUserRole === 'driver' && !r.driver)
+    (hasRole('driver') && !r.driver)
   )) || null;
 }
 function _gpsTick(pos){
@@ -6617,7 +6625,7 @@ function renderDriver(){
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
   const routes = _drvRoutesFor(iso);
-  const isAdmin = currentUserRole === 'admin';
+  const isAdmin = hasRole('admin');
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
   // A driver only sees their own (or any-driver) routes — count/show only those stops, not
   // every delivery for the day; admins see everything (incl. unassigned).
