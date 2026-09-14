@@ -6636,12 +6636,15 @@ function renderDriver(){
     ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;margin-bottom:12px;max-width:560px"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:700">Deliveries</span><span style="margin-left:auto;font-size:13px;font-weight:700">'+done+' <span style="color:var(--c-muted);font-weight:400">/ '+myStops.length+'</span></span></div>'+_drvBar(done, myStops.length)+'</div>'
     : '';
 
-  const unassigned = isAdmin ? stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq) : [];
-  const unassignedBlock = () => isAdmin && (unassigned.length || !routes.length)
+  // Today's unassigned deliveries — the day's unclaimed pool. Admins can assign them to
+  // a route; drivers see the same list read-only (as "Pending deliveries") so they can
+  // pick one up and deliver it even before anyone builds a route.
+  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
+  const unassignedBlock = () => (unassigned.length || (isAdmin && !routes.length))
     ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
-      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Unassigned, '+unassigned.length+'</div>'
+      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">'+(isAdmin?'Unassigned, ':'Pending deliveries, ')+unassigned.length+'</div>'
       + (unassigned.length ? unassigned.map(o =>
-          _drvRow(o) + (routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">add to route</option>'
+          _drvRow(o) + (isAdmin && routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">add to route</option>'
             + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' - '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
         ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
       + '</div>'
