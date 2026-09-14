@@ -16,10 +16,14 @@ export default function handler(req, res) {
   const state       = crypto.randomBytes(16).toString('hex');
   const redirectUri = `${appUrl}/api/callback`;
   // write_draft_orders is required by createShopifyDraft (Follow-up → Shopify Draft).
+  // write_inventory + read_locations power the Stock page's two-way Shopify write-back
+  // (adjust a Shopify item's qty in-app → update the live store). read_inventory is
+  // harmless and future-proofs inventory reads.
   // NOTE: the server token used by /api/query is minted via client-credentials, so
   // its scopes come from the app's configuration in the Shopify dashboard — this
-  // list only applies to the OAuth authorize flow. Keep them in sync.
-  const scopes      = 'read_orders,read_products,read_customers,write_draft_orders';
+  // list only applies to the OAuth authorize flow. Keep them in sync: the dashboard
+  // Admin API access scopes MUST also include write_inventory & read_locations.
+  const scopes      = 'read_orders,read_products,read_customers,write_draft_orders,read_inventory,write_inventory,read_locations';
 
   res.setHeader('Set-Cookie',
     `flori_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`

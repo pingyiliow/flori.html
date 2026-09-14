@@ -211,7 +211,7 @@
         <div class="page-hdr" style="margin-bottom:0">
           <div style="font-size:11px;color:var(--c-muted)">Track stems, materials & supplies</div>
           <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="openCatManager()">管理分类</button>
+            <button class="btn btn-ghost btn-sm" onclick="openCatManager()">Manage categories</button>
             <button class="btn btn-primary" onclick="openAddInv()">+ Add material</button>
           </div>
         </div>
@@ -636,28 +636,28 @@
         <button type="button" id="i-src-s" class="i-seg" onclick="invSrc('s')">Shopify 商品</button>
       </div>
       <div id="i-shop-pane" style="display:none">
-        <div class="ff"><input id="i-shop-q" type="text" placeholder="搜索名称 或 粘贴商品链接 · name or product link" oninput="shopSearchDebounced(this.value)"></div>
-        <div id="i-shop-results" style="margin-top:10px"><div class="stk-shop-hint">输入名称，或粘贴商品链接<br>type a product name, or paste its link</div></div>
-        <div style="font-size:11px;color:var(--c-muted);margin-top:12px;line-height:1.55">加入的商品会实时显示 Shopify 库存，可在详情卡里增减（双向同步）。<br>Added products show live Shopify stock — adjust from the item's popup.</div>
+        <div class="ff"><input id="i-shop-q" type="text" placeholder="Search name or paste product link" oninput="shopSearchDebounced(this.value)"></div>
+        <div id="i-shop-results" style="margin-top:10px"><div class="stk-shop-hint">Type a product name, or paste its link</div></div>
+        <div style="font-size:11px;color:var(--c-muted);margin-top:12px;line-height:1.55">Added products show live Shopify stock — adjust from the item's popup.</div>
       </div>
       <div id="i-tabs" style="display:none;gap:6px;margin-bottom:12px">
-        <button type="button" id="i-tab-d" onclick="invTab('d')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg)">详情 Details</button>
-        <button type="button" id="i-tab-s" onclick="invTab('s')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-muted)">库存 Stock</button>
+        <button type="button" id="i-tab-d" onclick="invTab('d')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg)">Details</button>
+        <button type="button" id="i-tab-s" onclick="invTab('s')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-muted)">Stock</button>
       </div>
       <div class="fg fg-2" id="i-form">
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name 名称</label><input id="i-name" type="text" placeholder="e.g. Red Roses · 红玫瑰"></div>
-        <div class="ff"><label class="ff-l">Category 分类</label>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Item Name</label><input id="i-name" type="text" placeholder="e.g. Red Roses"></div>
+        <div class="ff"><label class="ff-l">Category</label>
           <select id="i-cat" onchange="invCatSelect(this)"></select>
         </div>
-        <div class="ff"><label class="ff-l">款式 Family <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-family" type="text" placeholder="e.g. 玫瑰 (同款多色归一组)"></div>
-        <div class="ff"><label class="ff-l">颜色 Color <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-color" type="text" placeholder="e.g. 红 / 粉 / 白"></div>
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">SKU 货号 <span style="color:var(--c-muted);font-weight:400">选填</span></label><input id="i-sku" type="text" placeholder="e.g. FL-ROSE-RD"></div>
-        <div class="ff"><label class="ff-l">Quantity 数量</label><input id="i-qty" type="number" value="0" min="0"></div>
-        <div class="ff"><label class="ff-l">Unit 单位</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
-        <div class="ff"><label class="ff-l">Size 尺寸</label><input id="i-size" type="text" placeholder="e.g. 6寸 / 20cm"></div>
-        <div class="ff"><label class="ff-l">到货价格 Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="每个 / 每卷"></div>
-        <div class="ff"><label class="ff-l">补货点 Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="低过就提醒 (default 5)"></div>
-        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes 备注</label><textarea id="i-notes" placeholder="Supplier 供应商…"></textarea></div>
+        <div class="ff"><label class="ff-l">Family <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-family" type="text" placeholder="e.g. Rose (group colours)"></div>
+        <div class="ff"><label class="ff-l">Color <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-color" type="text" placeholder="e.g. Red / Pink / White"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">SKU <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sku" type="text" placeholder="e.g. FL-ROSE-RD"></div>
+        <div class="ff"><label class="ff-l">Quantity</label><input id="i-qty" type="number" value="0" min="0"></div>
+        <div class="ff"><label class="ff-l">Unit</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
+        <div class="ff"><label class="ff-l">Size</label><input id="i-size" type="text" placeholder="e.g. 20cm"></div>
+        <div class="ff"><label class="ff-l">Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="per stem / per roll"></div>
+        <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
           <div class="photo-zone" id="i-photo-zone" style="min-height:90px" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'i-photo-zone','i-photo')">
@@ -666,15 +666,15 @@
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'i-photo-zone','i-photo')">
           </div>
         </div>
-        <div class="ff" id="i-usedin-wrap" style="grid-column:1/-1;display:none"><label class="ff-l">用于设计 Used in designs</label><div id="i-usedin" style="line-height:1.6"></div></div>
+        <div class="ff" id="i-usedin-wrap" style="grid-column:1/-1;display:none"><label class="ff-l">Used in designs</label><div id="i-usedin" style="line-height:1.6"></div></div>
       </div>
       <div id="i-adjust-sec" style="display:none;border-top:1px solid var(--c-border);margin-top:12px;padding-top:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <input id="i-adjust-qty" type="number" min="1" value="1" style="width:66px;padding:9px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);text-align:center;font-size:14px">
-          <button type="button" style="flex:1;padding:11px;border:none;border-radius:8px;background:var(--c-burg);color:var(--c-bg);font-size:13px;font-weight:600;cursor:pointer" onclick="invAdjustFromModal(1)">＋ 收货 Receive</button>
-          <button type="button" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px;font-weight:600;cursor:pointer" onclick="invAdjustFromModal(-1)">− 用掉 Use</button>
+          <button type="button" style="flex:1;padding:11px;border:none;border-radius:8px;background:var(--c-burg);color:var(--c-bg);font-size:13px;font-weight:600;cursor:pointer" onclick="invAdjustFromModal(1)">＋ Receive</button>
+          <button type="button" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px;font-weight:600;cursor:pointer" onclick="invAdjustFromModal(-1)">− Use</button>
         </div>
-        <div style="font-size:10px;color:var(--c-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px">近期记录 Recent</div>
+        <div style="font-size:10px;color:var(--c-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px">Recent</div>
         <div id="i-moves"></div>
       </div>
       <div class="btn-row">
@@ -696,11 +696,29 @@
 <!-- ══ MODAL — Shopify item category ════════════════════════ -->
 <div id="m-shopcat" class="modal">
   <div class="mc" style="max-width:340px">
-    <div class="mc-hdr"><div class="mc-ttl">设置分类 Category</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-shopcat')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Set category</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-shopcat')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <div id="shopcat-name" style="font-weight:700;font-size:14px;margin-bottom:12px"></div>
-      <div class="ff"><label class="ff-l">Category 分类</label><select id="shopcat-sel"></select></div>
+      <div class="ff"><label class="ff-l">Category</label><select id="shopcat-sel"></select></div>
       <div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" style="flex:1" onclick="saveShopCatModal()">Save</button><button class="btn btn-ghost" onclick="closeModal('m-shopcat')">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL — Shopify item local details (never touches Shopify) ═══ -->
+<div id="m-shopmeta" class="modal">
+  <div class="mc" style="max-width:380px">
+    <div class="mc-hdr"><div class="mc-ttl">Edit details</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-shopmeta')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div id="shopmeta-name" style="font-weight:700;font-size:14px;margin-bottom:4px"></div>
+      <div style="font-size:11px;color:var(--c-muted);margin-bottom:14px">These are your own notes only — Shopify product &amp; stock are never changed.</div>
+      <div class="fg fg-2">
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">SKU</label><input id="shopmeta-sku" type="text" placeholder="e.g. VASE-CLR-S"></div>
+        <div class="ff"><label class="ff-l">Size</label><input id="shopmeta-size" type="text" placeholder="e.g. 20cm"></div>
+        <div class="ff"><label class="ff-l">Reorder at</label><input id="shopmeta-reorder" type="number" min="0" placeholder="low alert (default 1)"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="shopmeta-notes" placeholder="Supplier, shelf, remarks…"></textarea></div>
+      </div>
+      <div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" style="flex:1" onclick="saveShopMeta()">Save details</button><button class="btn btn-ghost" onclick="closeModal('m-shopmeta')">Cancel</button></div>
     </div>
   </div>
 </div>
@@ -739,12 +757,12 @@
 <!-- ══ MODAL — Manage Categories ═════════════════════════════ -->
 <div id="m-cats" class="modal">
   <div class="mc" style="max-width:380px">
-    <div class="mc-hdr"><div class="mc-ttl">管理分类 Categories</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cats')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Categories</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-cats')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
-      <div style="font-size:11px;color:var(--c-muted);margin-bottom:8px;line-height:1.5">改名、删除、或加新分类。删除有货品的分类，那些货品会移到「其他」。跨设备同步。</div>
+      <div style="font-size:11px;color:var(--c-muted);margin-bottom:8px;line-height:1.5">Rename, delete, or add a category. Deleting a category with items moves them to Other. Syncs across devices.</div>
       <div id="cats-list"></div>
-      <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="catAdd()">＋ 新分类 New category</button>
-      <div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="closeModal('m-cats')">完成 Done</button></div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="catAdd()">＋ New category</button>
+      <div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="closeModal('m-cats')">Done</button></div>
     </div>
   </div>
 </div>
@@ -1327,6 +1345,7 @@ async function showApp() {
   loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyRecipes==='function') _applyRecipes(); }); // design→materials recipes
   loadShopCat();       // manual category assignment for Shopify-tracked items
   loadShopStockIds();  // user-added Shopify products tracked as stock (shared settings)
+  loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -1490,6 +1509,23 @@ const I18N_ZH = {
   'Self-collect':'自取',
   'Save details':'保存资料','+ Add recipient':'+ 新增收件人','+ another email':'+ 添加电邮',
   'No entries':'暂无记录','No orders found':'未找到订单','Order date':'下单日期',
+  // Stock page — categories, add-item modal, Shopify search & detail popup
+  'Manage categories':'管理分类','Categories':'分类','Set category':'设置分类','Done':'完成',
+  'Details':'详情','Family':'款式','Color':'颜色','SKU':'货号','Optional':'选填',
+  'Unit':'单位','Size':'尺寸','Price (RM)':'价格 (RM)','Reorder at':'补货点','Used in designs':'用于设计',
+  '＋ Receive':'＋ 收货','− Use':'− 用掉','Recent':'近期记录','＋ New category':'＋ 新分类',
+  'Manual':'手动','Shopify':'Shopify','Edit details':'编辑资料','Save details':'保存资料',
+  'Remove from stock':'从库存移除','Set category ':'设置分类',
+  'Search name / family / colour / SKU…':'搜索 名字/款式/颜色/SKU…',
+  'Search name or paste product link':'搜索名字 或 粘贴商品链接',
+  'Type a product name, or paste its link':'输入名称，或粘贴商品链接',
+  'Added products show live Shopify stock — adjust from the item\'s popup.':'加入的商品会实时显示 Shopify 库存，可在详情卡里增减。',
+  'These are your own notes only — Shopify product & stock are never changed.':'这些只是你自己的备注 — 不会改动 Shopify 的商品或库存。',
+  // Add-item placeholders
+  'e.g. Red Roses':'例：红玫瑰','e.g. Rose (group colours)':'例：玫瑰（同款多色归一组）',
+  'e.g. Red / Pink / White':'例：红 / 粉 / 白','stems / pcs / rolls':'枝 / 个 / 卷',
+  'e.g. 20cm':'例：20cm','per stem / per roll':'每枝 / 每卷','alert below (default 5)':'低过就提醒（默认 5）',
+  'Supplier…':'供应商…','Notes':'备注','Item Name':'名称','Quantity':'数量',
 };
 
 // Auto-translate the live DOM. Runs on language switch and (via a MutationObserver)
@@ -3417,11 +3453,11 @@ function saveInvCats(){ try{ _lsSet('flori-inv-cats',JSON.stringify(INV_CATS)); 
 function _fillCatSelect(sel){
   const el=document.getElementById('i-cat'); if(!el) return;
   el.innerHTML = INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===sel?' selected':'')+'>'+esc(c.label)+'</option>').join('')
-    + '<option value="__new__">＋ 新分类 New…</option>';
+    + '<option value="__new__">'+(LANG==='zh'?'＋ 新分类…':'＋ New category…')+'</option>';
 }
 function invCatSelect(el){
   if(el.value!=='__new__') return;
-  const name=(prompt('新分类名称 New category:')||'').trim();
+  const name=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim();
   if(name){ const key=_catNewKey(); INV_CATS.push({key,label:name}); saveInvCats(); _fillCatSelect(key); }
   else _fillCatSelect(INV_CATS[0]?INV_CATS[0].key:'other');
 }
@@ -3436,7 +3472,7 @@ function _renderCatsList(){
       +'<button onclick="catDelete(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-red);padding:4px" title="删除">'+di('trash',15)+'</button>'
     +'</div>'; }).join('') || '<div style="font-size:12px;color:var(--c-muted);padding:8px 0">还没有分类</div>';
 }
-function catAdd(){ const n=(prompt('新分类名称 New category:')||'').trim(); if(!n) return; INV_CATS.push({key:_catNewKey(),label:n}); saveInvCats(); _renderCatsList(); renderInventory(); }
+function catAdd(){ const n=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim(); if(!n) return; INV_CATS.push({key:_catNewKey(),label:n}); saveInvCats(); _renderCatsList(); renderInventory(); }
 function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt('改名 Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; saveInvCats(); _renderCatsList(); renderInventory(); }
 function catDelete(key){
   const c=INV_CATS.find(x=>x.key===key); if(!c) return;
@@ -3482,15 +3518,15 @@ function _invTotalStrip(){
   let qty=0, val=0;
   INVENTORY.forEach(i=>{ qty+=(i.qty||0); if(i.price!=null&&i.price!=='') val+=(i.qty||0)*Number(i.price); });
   return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--c-burg);color:var(--c-bg);border-radius:12px;padding:11px 16px;margin-bottom:14px">'
-    +'<div><div style="font-size:10px;opacity:.7">总数量 Total qty</div><div style="font-size:16px;font-weight:700">'+qty+'</div></div>'
-    +'<div style="text-align:right"><div style="font-size:10px;opacity:.7">库存总值 (成本)</div><div style="font-size:16px;font-weight:700">RM '+val.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'
+    +'<div><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'总数量':'Total qty')+'</div><div style="font-size:16px;font-weight:700">'+qty+'</div></div>'
+    +'<div style="text-align:right"><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'库存总值 (成本)':'Stock value (cost)')+'</div><div style="font-size:16px;font-weight:700">RM '+val.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'
     +'</div>';
 }
 function _invChips(){
   const present=[...new Set(INVENTORY.map(i=>i.cat||'other'))].sort((a,b)=>_catIndex(a)-_catIndex(b));
   const chip=(c,label,low)=>{ const on=_invCat===c;
     return '<button type="button" onclick="invCat(\''+c+'\')" style="cursor:pointer;font-size:12px;padding:5px 13px;border-radius:20px;white-space:nowrap;border:1.5px solid '+(on?'var(--c-burg)':'var(--c-border)')+';background:'+(on?'var(--c-burg)':'var(--c-surface)')+';color:'+(on?'var(--c-bg)':'var(--c-muted)')+'">'+esc(label)+(low?' <b style="color:'+(on?'#fff':'var(--c-red)')+'">'+low+'</b>':'')+'</button>'; };
-  let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('','全部',0);
+  let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('',(LANG==='zh'?'全部':'All'),0);
   present.forEach(c=>{ const low=INVENTORY.filter(i=>(i.cat||'other')===c && _invLow(i)).length; h+=chip(c,_invCatLabel(c),low); });
   return h+'</div>';
 }
@@ -3519,7 +3555,7 @@ function _invFamCard(u){
     u.items.slice().sort((a,b)=> _invSort==='qty'?((b.qty||0)-(a.qty||0)):String(a.color||a.name).localeCompare(String(b.color||b.name))).forEach(i=>{
       const low=_invLow(i);
       h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(low?';background:#FFF5F5':'')+'">'+_invThumb(i.photo,ic,30)
-        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">低 · 该补货</span>':'')+'</div>'
+        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">'+(LANG==='zh'?'低':'Low')+'</span>':'')+'</div>'
         +'<span class="stk-qty '+(low?'low':'')+'" style="font-size:17px;min-width:20px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)
       +'</div>';
     });
@@ -3619,12 +3655,13 @@ async function syncShopifyStock(force){
 let _shopSearchSeq=0, _shopSearchTmr=null;
 function shopSearchDebounced(v){ clearTimeout(_shopSearchTmr); _shopSearchTmr=setTimeout(function(){ shopSearchProducts(v); }, 350); }
 async function shopSearchProducts(term){
+  const zh=LANG==='zh';
   const box=document.getElementById('i-shop-results'); if(!box) return;
   term=(term||'').trim();
-  if(term.length<2){ box.innerHTML='<div class="stk-shop-hint">输入名称，或粘贴商品链接<br>type a product name, or paste its link</div>'; return; }
-  if(typeof hasSB==='function' && !hasSB()){ box.innerHTML='<div class="stk-shop-hint">登录后可搜索 · sign in to search Shopify</div>'; return; }
+  if(term.length<2){ box.innerHTML='<div class="stk-shop-hint">'+(zh?'输入名称，或粘贴商品链接':'Type a product name, or paste its link')+'</div>'; return; }
+  if(typeof hasSB==='function' && !hasSB()){ box.innerHTML='<div class="stk-shop-hint">'+(zh?'登录后可搜索':'Sign in to search Shopify')+'</div>'; return; }
   const seq=++_shopSearchSeq;
-  box.innerHTML='<div class="stk-shop-hint">搜索中… Searching…</div>';
+  box.innerHTML='<div class="stk-shop-hint">'+(zh?'搜索中…':'Searching…')+'</div>';
   // A pasted URL like …/products/<handle> → look it up by handle; else title match.
   const m=term.match(/\/products\/([a-z0-9\-_%]+)/i);
   const filter = m ? ('handle:'+decodeURIComponent(m[1])) : ('title:*'+term.replace(/["\\*]/g,' ').trim()+'*');
@@ -3633,23 +3670,25 @@ async function shopSearchProducts(term){
     const d=await shopifyGQL(q);
     if(seq!==_shopSearchSeq) return;
     const rows=((d&&d.products&&d.products.edges)||[]).map(function(e){ return e.node; });
-    box.innerHTML = rows.length ? rows.map(_shopSearchRow).join('') : '<div class="stk-shop-hint">找不到该商品 · no product matched</div>';
-  }catch(e){ if(seq!==_shopSearchSeq) return; box.innerHTML='<div class="stk-shop-hint">搜索失败 · '+esc((e&&e.message)||'error')+'</div>'; }
+    box.innerHTML = rows.length ? rows.map(_shopSearchRow).join('') : '<div class="stk-shop-hint">'+(zh?'找不到该商品':'No product matched')+'</div>';
+  }catch(e){ if(seq!==_shopSearchSeq) return; box.innerHTML='<div class="stk-shop-hint">'+(zh?'搜索失败 · ':'Search failed · ')+esc((e&&e.message)||'error')+'</div>'; }
 }
 function _shopSearchRow(n){
+  const zh=LANG==='zh';
   const tracked = SHOP_STOCK_IDS.indexOf(n.id)>=0;
   const img = (n.featuredImage&&n.featuredImage.url) ? '<img src="'+esc(n.featuredImage.url)+'" alt="">' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>';
   const qty = (n.totalInventory==null?'—':n.totalInventory);
   return '<div class="ssr"><span class="ssr-th">'+img+'</span>'
-    +'<span class="ssr-mid"><span class="ssr-nm">'+esc(n.title)+'</span><span class="ssr-q">Shopify 库存 '+qty+'</span></span>'
-    +(tracked ? '<span class="ssr-added">已加入 ✓</span>'
-              : '<button type="button" class="ssr-add" onclick="pickShopStock(\''+n.id+'\',this)">＋ 加入</button>')
+    +'<span class="ssr-mid"><span class="ssr-nm">'+esc(n.title)+'</span><span class="ssr-q">'+(zh?'Shopify 库存 ':'Shopify stock ')+qty+'</span></span>'
+    +(tracked ? '<span class="ssr-added">'+(zh?'已加入 ✓':'Added ✓')+'</span>'
+              : '<button type="button" class="ssr-add" onclick="pickShopStock(\''+n.id+'\',this)">'+(zh?'＋ 加入':'＋ Add')+'</button>')
   +'</div>';
 }
 function pickShopStock(gid, btn){
+  const zh=LANG==='zh';
   if(addShopStockId(gid)){
-    if(btn) btn.outerHTML='<span class="ssr-added">已加入 ✓</span>';
-    toast('已加入库存 · added to stock');
+    if(btn) btn.outerHTML='<span class="ssr-added">'+(zh?'已加入 ✓':'Added ✓')+'</span>';
+    toast(zh?'已加入库存':'Added to stock');
     syncShopifyStock(true);
   }
 }
@@ -3666,31 +3705,40 @@ function invSrc(mode){
 // Two-way write-back: adjusting a Shopify item's qty here updates the LIVE store stock
 // (customers see it). Needs the variant's inventoryItem id + a store location.
 let _shopLocId = null;
+// If the store's locations can't be read (needs read_locations scope), fall back to
+// the known single active location so write-back still works with just write_inventory.
+const SHOP_LOC_FALLBACK = 'gid://shopify/Location/60966371387'; // Bamboo Green Florist
 async function _shopLocation(){
   if(_shopLocId) return _shopLocId;
   try{ const d=await shopifyGQL(`{ locations(first:10){ edges{ node{ id name isActive } } } }`);
     const locs=((d.locations&&d.locations.edges)||[]).map(e=>e.node);
-    const active=locs.find(l=>l.isActive)||locs[0]; _shopLocId=active?active.id:null;
+    const active=locs.find(l=>l.isActive)||locs[0]; if(active) _shopLocId=active.id;
   }catch(e){ console.warn('shop location', e&&e.message); }
+  if(!_shopLocId) _shopLocId = SHOP_LOC_FALLBACK;   // fallback keeps write-back working
   return _shopLocId;
 }
 let _shopAdjBusy=false;
 async function shopStockAdjust(pid, vIdx, delta){
   if(_shopAdjBusy) return;
+  const zh=LANG==='zh';
   const p=(SHOPIFY_STOCK||[]).find(x=>x.id===pid); if(!p) return;
   const v=p.variants[vIdx]; if(!v){ return; }
-  if(!v.invItemId){ toast('Re-sync first (刷新) to enable editing'); return; }
+  if(!v.invItemId){ toast(zh?'先点刷新再编辑':'Tap refresh first to enable editing'); return; }
   if((v.qty||0)+delta < 0) return;
-  const locId=await _shopLocation(); if(!locId){ toast('No Shopify location found'); return; }
-  _shopAdjBusy=true; toast('更新 Shopify 库存…');
+  const locId=await _shopLocation(); if(!locId){ toast(zh?'找不到 Shopify 仓库位置':'No Shopify location found'); return; }
+  _shopAdjBusy=true; toast(zh?'更新 Shopify 库存…':'Updating Shopify stock…');
   try{
     const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
     const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId }] } });
     const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
     if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
     v.qty=(v.qty||0)+delta; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
-    renderInventory(); if(typeof _stkRefresh==='function')_stkRefresh(); toast('✓ 已同步 Shopify');
-  }catch(e){ toast('更新失败: '+(e&&e.message||'error')); }
+    renderInventory(); if(typeof _stkRefresh==='function')_stkRefresh(); toast(zh?'✓ 已同步 Shopify':'✓ Synced to Shopify');
+  }catch(e){
+    let msg=(e&&e.message)||'error';
+    if(/access denied|access scope|write_inventory|not approved/i.test(msg)) msg = zh?'需要开启 write_inventory 权限（见设置）':'Needs the write_inventory permission — see setup note';
+    toast((zh?'更新失败: ':'Update failed: ')+msg);
+  }
   finally{ _shopAdjBusy=false; }
 }
 function _shopStepper(pid, vIdx, qty, low, small){
@@ -3704,8 +3752,12 @@ function _shopStepper(pid, vIdx, qty, low, small){
 function _shopToggle(key){ if(_shopExpanded.has(key)) _shopExpanded.delete(key); else _shopExpanded.add(key); renderInventory(); }
 function _shopStockAgo(){
   if(!_shopStockAt) return '';
+  const zh=LANG==='zh';
   const s=Math.round((Date.now()-_shopStockAt)/1000);
-  if(s<60) return '刚刚同步'; const m=Math.round(s/60); if(m<60) return m+' 分钟前'; return Math.round(m/60)+' 小时前';
+  if(s<60) return zh?'刚刚同步':'just now';
+  const m=Math.round(s/60);
+  if(m<60) return zh?(m+' 分钟前'):(m+'m ago');
+  return zh?(Math.round(m/60)+' 小时前'):(Math.round(m/60)+'h ago');
 }
 function _shopStockCard(p){
   const ic=_invIcon('other');
@@ -3742,50 +3794,70 @@ function _stkViewInv(i){
   let h='<div class="skv-hd">'+_stkThumb(i.photo,_invIcon(i.cat),true)
     +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(i.name)+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'inv\',\''+i.id+'\')">'+esc(_catLabel(i.cat||'other'))+'</button></div></div>'
     +'<button class="skv-x" onclick="closeModal(\'m-stkview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+  const zh=LANG==='zh';
   h+='<div class="skv-body">';
-  h+='<div class="skv-qbar"><span class="skv-qlbl">在库 In stock'+(_invLow(i)?' · <span style="color:var(--c-red)">low</span>':'')+'</span>'
+  h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
     +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><b class="'+(_invLow(i)?'low':'')+'" style="'+(_invLow(i)?'color:var(--c-red)':'')+'">'+(i.qty||0)+'</b><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
-  h+=_stkRow('Reorder at 补货点', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
-  h+=_stkRow('SKU 货号', i.sku?esc(i.sku):'');
-  h+=_stkRow('Size 尺寸', i.size?esc(i.size):'');
-  h+=_stkRow('Price 到货价', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
-  h+=_stkRow('Family 款式', i.family?esc(i.family):'');
-  h+=_stkRow('Color 颜色', i.color?esc(i.color):'');
-  if(i.notes) h+='<div class="skv-sec">Notes 备注</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
-  h+='<div class="skv-sec">用于设计 Used in designs</div>';
-  h+= used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span class="skv-chip"><span class="skv-dot" style="background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">还没有设计用到 · not used yet</span>';
-  if(moves.length){ h+='<div class="skv-sec">近期记录 Recent</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?('订单 '+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?'＋收货 ':(m.type==='auto'?'－订单 ':'－用掉 '); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
+  h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
+  h+=_stkRow('SKU', i.sku?esc(i.sku):'');
+  h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
+  h+=_stkRow(zh?'到货价':'Price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  h+=_stkRow(zh?'款式':'Family', i.family?esc(i.family):'');
+  h+=_stkRow(zh?'颜色':'Color', i.color?esc(i.color):'');
+  if(i.notes) h+='<div class="skv-sec">'+(zh?'备注':'Notes')+'</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
+  h+='<div class="skv-sec">'+(zh?'用于设计':'Used in designs')+'</div>';
+  h+= used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span class="skv-chip"><span class="skv-dot" style="background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">'+(zh?'还没有设计用到':'Not used in any design yet')+'</span>';
+  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
-  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' Edit details 编辑</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
   return h;
 }
 function _stkViewShop(p){
   if(!p) return '<div style="padding:24px">Not found</div>';
+  const zh=LANG==='zh';
   const single=p.variants.length<=1;
+  const meta=shopMeta(p.id);
+  const lowAt=(meta.reorder!=null?meta.reorder:SHOP_STOCK_LOW);
   const tag='<span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
-  const catLbl = SHOP_ITEM_CAT[p.id] ? _catLabel(SHOP_ITEM_CAT[p.id]) : '选择分类 category';
+  const catLbl = SHOP_ITEM_CAT[p.id] ? _catLabel(SHOP_ITEM_CAT[p.id]) : (zh?'选择分类':'Set category');
   let h='<div class="skv-hd">'+_stkThumb(p.image,'box',true)
     +'<div style="flex:1;min-width:0"><div class="skv-nm">'+esc(p.title)+' '+tag+'</div><div style="margin-top:6px"><button class="skv-cat" onclick="openCatPick(\'shop\',\''+p.id+'\')">'+esc(catLbl)+'</button></div></div>'
     +'<div style="display:flex;gap:6px;flex:none">'
-      +'<button class="skv-x" onclick="syncShopifyStock(true)" title="Refresh 刷新" aria-label="Refresh"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>'
+      +'<button class="skv-x" onclick="syncShopifyStock(true)" title="'+(zh?'刷新':'Refresh')+'" aria-label="Refresh"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>'
       +'<button class="skv-x" onclick="closeModal(\'m-stkview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
     +'</div></div>';
   h+='<div class="skv-body">';
-  h+='<div class="skv-qbar"><span class="skv-qlbl">'+(single?'在库 In stock':(p.variants.length+' 款 · 共 total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+(single?(p.variants[0]?p.variants[0].qty||0:0):p.total)+'</b></div>';
-  h+='<div class="skv-sec">款式库存 Stock <span style="font-weight:400;text-transform:none;letter-spacing:0">· 点 +/− 同步 Shopify</span></div>';
-  p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
-    h+='<div class="skv-vrow"><span class="skv-vn">'+esc(single&&(!v.title||v.title==='Default Title')?p.title:v.title)+(out?' <span style="color:var(--c-red);font-size:10px">缺</span>':'')+'</span>'
-      +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><b style="'+(l?'color:var(--c-red)':'')+'">'+(v.qty||0)+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
-    +'</div>';
-  });
-  h+='<div style="text-align:center;margin-top:16px"><a onclick="removeStkShop(\''+p.id+'\')" style="color:var(--c-muted);font-size:11.5px;cursor:pointer">从库存移除 Remove from stock</a></div>';
+  if(single){
+    const q0=p.variants[0]?(p.variants[0].qty||0):0, low0=q0<=lowAt;
+    h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(zh?' · 点 +/− 同步 Shopify':'')+'</span>'
+      +'<div class="skv-step"><button onclick="shopStockAdjust(\''+p.id+'\',0,-1)">−</button><b class="'+(low0?'low':'')+'" style="'+(low0?'color:var(--c-red)':'')+'">'+q0+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\',0,1)">+</button></div></div>';
+  } else {
+    h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?(p.variants.length+' 款 · 共'):(p.variants.length+' variants · total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+p.total+'</b></div>';
+  }
+  if(meta.sku||meta.size||meta.notes){
+    h+='<div class="skv-sec">'+(zh?'资料':'Details')+'</div>';
+    h+=_stkRow('SKU', esc(meta.sku||''));
+    h+=_stkRow(zh?'尺寸':'Size', esc(meta.size||''));
+    h+=_stkRow(zh?'备注':'Notes', esc(meta.notes||''));
+  }
+  if(!single){
+    h+='<div class="skv-sec">'+(zh?'款式库存':'Stock by variant')+' <span style="font-weight:400;text-transform:none;letter-spacing:0">· '+(zh?'点 +/− 同步 Shopify':'tap +/− to sync Shopify')+'</span></div>';
+    p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=lowAt, out=(v.qty||0)<=0;
+      h+='<div class="skv-vrow"><span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
+        +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><b style="'+(l?'color:var(--c-red)':'')+'">'+(v.qty||0)+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
+      +'</div>';
+    });
+  }
   h+='</div>';
+  h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="openShopMeta(\''+p.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button></div>';
+  h+='<div style="text-align:center;padding:0 0 14px"><a onclick="removeStkShop(\''+p.id+'\')" style="color:var(--c-muted);font-size:11.5px;cursor:pointer">'+(zh?'从库存移除':'Remove from stock')+'</a></div>';
   return h;
 }
 function removeStkShop(gid){
+  const zh=LANG==='zh';
   const p=(SHOPIFY_STOCK||[]).find(x=>x.id===gid);
-  if(!confirm('从库存列表移除 '+((p&&p.title)||'this product')+'？\n(Shopify 里的商品和库存不受影响 · your Shopify product & stock are untouched)')) return;
-  removeShopStockId(gid); closeModal('m-stkview'); renderInventory(); toast('已移除 · removed from stock');
+  if(!confirm((zh?'从库存列表移除 ':'Remove from stock list: ')+((p&&p.title)||'this product')+'?\n('+(zh?'Shopify 里的商品和库存不受影响':'your Shopify product & stock are untouched')+')')) return;
+  removeShopStockId(gid); closeModal('m-stkview'); renderInventory(); toast(zh?'已移除':'Removed from stock');
 }
 function stkAdjInv(id, delta){ invAdjust(id, delta, delta>0?'in':'out'); _stkRefresh(); }
 function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm('Delete '+(it.name||'this item')+'? 删除？')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory(); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
@@ -3797,7 +3869,7 @@ function openCatPick(kind, id){
   const cur = kind==='shop' ? (SHOP_ITEM_CAT[id]||'') : ((INVENTORY.find(x=>x.id===id)||{}).cat||'');
   if(nm) nm.textContent = kind==='shop' ? (((SHOPIFY_STOCK||[]).find(x=>x.id===id)||{}).title||'') : ((INVENTORY.find(x=>x.id===id)||{}).name||'');
   const sel=document.getElementById('shopcat-sel');
-  if(sel) sel.innerHTML=(kind==='shop'?'<option value="">未分类 Unassigned</option>':'')+INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===cur?' selected':'')+'>'+esc(c.label)+'</option>').join('');
+  if(sel) sel.innerHTML=(kind==='shop'?'<option value="">'+(LANG==='zh'?'未分类':'Unassigned')+'</option>':'')+INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===cur?' selected':'')+'>'+esc(c.label)+'</option>').join('');
   openModal('m-shopcat');
 }
 function openShopCat(pid){ openCatPick('shop', pid); }   // back-compat
@@ -3813,6 +3885,32 @@ let SHOP_ITEM_CAT = (function(){ try{ const v=JSON.parse(localStorage.getItem('f
 async function loadShopCat(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_item_cat'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ SHOP_ITEM_CAT=o; try{ _lsSet('flori-shop-cat',JSON.stringify(o)); }catch(_){} if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){} }
 function saveShopCat(){ try{ _lsSet('flori-shop-cat',JSON.stringify(SHOP_ITEM_CAT)); }catch(_){} if(hasSB()) sbSet('shop_item_cat', JSON.stringify(SHOP_ITEM_CAT)); }
 function setShopCat(pid, cat){ if(cat) SHOP_ITEM_CAT[pid]=cat; else delete SHOP_ITEM_CAT[pid]; saveShopCat(); renderInventory(); }
+// Local details for Shopify-tracked items (productId → {sku,size,notes,reorder}).
+// Purely your own annotations — NEVER written to Shopify. Persisted in a shared
+// settings blob so all devices see the same SKUs/notes.
+let SHOP_ITEM_META = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-shop-meta')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadShopMeta(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_item_meta'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ SHOP_ITEM_META=o; try{ _lsSet('flori-shop-meta',JSON.stringify(o)); }catch(_){} if(document.getElementById('m-stkview')&&document.getElementById('m-stkview').classList.contains('on')) _stkRefresh(); } }catch(_){} }
+function saveShopMetaStore(){ try{ _lsSet('flori-shop-meta',JSON.stringify(SHOP_ITEM_META)); }catch(_){} if(hasSB()) sbSet('shop_item_meta', JSON.stringify(SHOP_ITEM_META)); }
+function shopMeta(pid){ return SHOP_ITEM_META[pid] || {}; }
+let _shopMetaPid=null;
+function openShopMeta(pid){
+  _shopMetaPid=pid;
+  const p=(SHOPIFY_STOCK||[]).find(x=>x.id===pid), m=shopMeta(pid);
+  const nm=document.getElementById('shopmeta-name'); if(nm) nm.textContent = p?p.title:'';
+  const set=(id,val)=>{ const el=document.getElementById(id); if(el) el.value = (val==null?'':val); };
+  set('shopmeta-sku', m.sku); set('shopmeta-size', m.size); set('shopmeta-reorder', m.reorder); set('shopmeta-notes', m.notes);
+  openModal('m-shopmeta');
+}
+function saveShopMeta(){
+  if(_shopMetaPid==null) return;
+  const g=id=>{ const el=document.getElementById(id); return el?el.value.trim():''; };
+  const m={ sku:g('shopmeta-sku'), size:g('shopmeta-size'), notes:g('shopmeta-notes') };
+  const ro=g('shopmeta-reorder'); if(ro!=='') m.reorder=Math.max(0, parseInt(ro,10)||0);
+  if(!m.sku && !m.size && !m.notes && m.reorder==null) delete SHOP_ITEM_META[_shopMetaPid];
+  else SHOP_ITEM_META[_shopMetaPid]=m;
+  saveShopMetaStore(); closeModal('m-shopmeta'); _stkRefresh(); renderInventory();
+  toast(LANG==='zh'?'已保存':'Saved');
+}
 // Small gear on a Shopify card → opens a category picker (kept off the card face to
 // avoid clutter). Shows the assigned category label when set.
 function _shopGear(pid){
@@ -3820,23 +3918,16 @@ function _shopGear(pid){
   return '<button onclick="event.stopPropagation();openShopCat(\''+pid+'\')" title="设置分类 category" style="border:none;background:none;cursor:pointer;color:var(--c-muted);display:inline-flex;align-items:center;gap:4px;flex:none">'
     +(c?'<span style="font-size:10.5px">'+esc(_catLabel(c))+'</span>':'')+di('gear',15)+'</button>';
 }
-let _shopCatPid=null;
-function openShopCat(pid){
-  _shopCatPid=pid;
-  const p=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).find(x=>x.id===pid);
-  const nm=document.getElementById('shopcat-name'); if(nm) nm.textContent = p?p.title:'';
-  const sel=document.getElementById('shopcat-sel'); const cur=SHOP_ITEM_CAT[pid]||'';
-  if(sel) sel.innerHTML='<option value="">未分类 Unassigned</option>'+INV_CATS.map(c=>'<option value="'+esc(c.key)+'"'+(c.key===cur?' selected':'')+'>'+esc(c.label)+'</option>').join('');
-  openModal('m-shopcat');
-}
-function saveShopCatModal(){ if(_shopCatPid!=null){ const sel=document.getElementById('shopcat-sel'); setShopCat(_shopCatPid, sel?sel.value:''); } closeModal('m-shopcat'); }
+// (Duplicate openShopCat/saveShopCatModal removed — the shared openCatPick above
+//  is the single source of truth; the old copy broke Save on Shopify items.)
 function _shopStockHTML(){
-  if(_invCat && _invCat!=='') return '';   // not a manual category — only on 全部
+  const zh=LANG==='zh';
+  if(_invCat && _invCat!=='') return '';   // not a manual category — only on All
   if(!SHOPIFY_STOCK.length){
     if(_shopStockLoading || !_shopStockAt)
-      return '<div class="stk-cat">Shopify 同步</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">正在同步 Shopify 库存…</div>';
+      return '<div class="stk-cat">Shopify</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">'+(zh?'正在同步 Shopify 库存…':'Syncing Shopify stock…')+'</div>';
     if(_shopStockErr)
-      return '<div class="stk-cat">Shopify 同步</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">同步失败：'+esc(_shopStockErr)+' · <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">重试</a></div>';
+      return '<div class="stk-cat">Shopify</div><div style="text-align:center;color:var(--c-muted);padding:14px 0;font-size:12px">'+(zh?'同步失败：':'Sync failed: ')+esc(_shopStockErr)+' · <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">'+(zh?'重试':'Retry')+'</a></div>';
     return '';
   }
   const qq=(_invSearch||'').trim().toLowerCase();
@@ -3846,7 +3937,7 @@ function _shopStockHTML(){
   const groups={}, unassigned=[];
   prods.forEach(p=>{ const c=SHOP_ITEM_CAT[p.id]; if(c && INV_CATS.some(x=>x.key===c)) (groups[c]=groups[c]||[]).push(p); else unassigned.push(p); });
   const shopTag='<span style="font-size:9px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
-  const refreshBit='<span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">刷新</a></span>';
+  const refreshBit='<span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--c-muted)">'+esc(_shopStockAgo())+' <a onclick="syncShopifyStock(true)" style="color:var(--c-burg);cursor:pointer;font-weight:600">'+(zh?'刷新':'Refresh')+'</a></span>';
   let h='';
   Object.keys(groups).sort((a,b)=>_catIndex(a)-_catIndex(b)).forEach(cat=>{
     h+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
@@ -3854,7 +3945,7 @@ function _shopStockHTML(){
     h+='</div>';
   });
   if(unassigned.length){
-    h+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">未分类 Unassigned <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· pick a category on each</span>'+refreshBit+'</div><div class="stk-grid">';
+    h+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未分类':'Unassigned')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'点每个设置分类':'pick a category on each')+'</span>'+refreshBit+'</div><div class="stk-grid">';
     unassigned.forEach(p=>{ h+=_shopStockCard(p); });
     h+='</div>';
   }
@@ -3867,9 +3958,9 @@ function renderInventory() {
   if (!INVENTORY.length && !shop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
   cont.innerHTML =
     '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
-      +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="搜索 名字/款式/颜色/SKU…" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
+      +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="'+(LANG==='zh'?'搜索 名字/款式/颜色/SKU…':'Search name / family / colour / SKU…')+'" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
       +'<select onchange="invSort(this.value)" style="border:1.5px solid var(--c-border);border-radius:10px;padding:8px;background:var(--c-surface);color:var(--c-ink);font-size:12px">'
-        +[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少']].map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
+        +(LANG==='zh'?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少']]:[['low','Low stock first'],['name','Name A→Z'],['qty','Qty high→low']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
       +'</select>'
     +'</div>'
     + _invChips()
