@@ -418,6 +418,16 @@ body.role-driver .shell{grid-template-columns:1fr}
 .chip-c{font-size:11px;opacity:.7}
 .chip-c:empty{display:none}
 
+/* filter icon button + popover */
+.filter-ico-btn{position:relative;display:inline-flex;align-items:center;gap:7px;padding:8px 15px;border-radius:99px;border:none;background:var(--c-surface);font-size:13.5px;font-weight:700;color:var(--c-muted);cursor:pointer;box-shadow:var(--sh);transition:all .12s}
+.filter-ico-btn:hover{color:var(--c-ink)}
+.filter-ico-btn.on{background:var(--c-ink);color:var(--c-bg)}
+.filter-dot{position:absolute;top:5px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--c-blush)}
+.filter-panel{position:absolute;top:calc(100% + 8px);left:0;z-index:100;min-width:min(340px,92vw);background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;box-shadow:var(--sh-lg);padding:14px 15px;display:flex;flex-direction:column;gap:14px}
+.fp-row{display:flex;flex-direction:column;gap:8px}
+.fp-row .fbar-l{font-size:11px}
+.fp-chips{display:flex;flex-wrap:wrap;gap:7px}
+
 /* ── empty state ─────────────────────────────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--c-muted)}
 .empty-ico{font-size:34px;opacity:.4;margin-bottom:10px}

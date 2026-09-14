@@ -116,7 +116,6 @@
         </div>
         <div class="btn-row">
           <input id="order-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
-          <button class="btn btn-ghost" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> By Product</button>
           <button class="btn btn-primary" onclick="openAddOrder()">+ New order</button>
         </div>
       </div>
@@ -145,25 +144,45 @@
 
     <!-- Filters -->
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <div class="filters" id="filters">
           <button class="f-btn on" data-f="today">Today</button>
           <button class="f-btn" data-f="tomorrow">Tomorrow</button>
           <button class="f-btn" data-f="week">This Week</button>
           <button class="f-btn" data-f="all">All</button>
         </div>
-        <div class="fbar">
-          <span class="fbar-l">Status</span>
-          <button class="chip on" data-fs="all">All</button>
-          <button class="chip" data-fs="pending">Pending</button>
-          <button class="chip" data-fs="ready">Ready</button>
-          <button class="chip" data-fs="done">Done</button>
-          <button class="chip" data-fs="overdue">Overdue</button>
-          <span class="fbar-sep"></span>
-          <span class="fbar-l">Type</span>
-          <button class="chip on" data-ft="all" id="ft-all">All</button>
-          <button class="chip" data-ft="pickup" id="ft-pickup">Pickup <span class="chip-c" id="count-pickup"></span></button>
-          <button class="chip" data-ft="delivery" id="ft-delivery">Delivery <span class="chip-c" id="count-delivery"></span></button>
+        <div style="position:relative">
+          <button id="filter-toggle-btn" class="filter-ico-btn" onclick="toggleFilterPanel()" aria-label="Filters" title="Filters">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            <span>Filter</span>
+            <span class="filter-dot" id="filter-dot" hidden></span>
+          </button>
+          <div id="filter-panel" class="filter-panel" hidden>
+            <div class="fp-row">
+              <span class="fbar-l">Status</span>
+              <div class="fp-chips">
+                <button class="chip on" data-fs="all">All</button>
+                <button class="chip" data-fs="pending">Pending</button>
+                <button class="chip" data-fs="ready">Ready</button>
+                <button class="chip" data-fs="done">Done</button>
+                <button class="chip" data-fs="overdue">Overdue</button>
+              </div>
+            </div>
+            <div class="fp-row">
+              <span class="fbar-l">Type</span>
+              <div class="fp-chips">
+                <button class="chip on" data-ft="all" id="ft-all">All</button>
+                <button class="chip" data-ft="pickup" id="ft-pickup">Pickup <span class="chip-c" id="count-pickup"></span></button>
+                <button class="chip" data-ft="delivery" id="ft-delivery">Delivery <span class="chip-c" id="count-delivery"></span></button>
+              </div>
+            </div>
+            <div class="fp-row">
+              <span class="fbar-l">View</span>
+              <div class="fp-chips">
+                <button class="chip" id="prod-mode-btn" onclick="toggleProdMode()" title="Production mode — group by product for batch making"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/></svg> By Product</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
@@ -2559,8 +2578,26 @@ let prodMode = false;   // Production mode: group the orders list by product, no
 function toggleProdMode(){
   prodMode = !prodMode;
   const b = document.getElementById('prod-mode-btn');
-  if (b){ b.classList.toggle('btn-primary', prodMode); b.classList.toggle('btn-ghost', !prodMode); b.innerHTML = prodMode ? di('calendar',14)+' By Date' : di('factory',14)+' By Product'; }
+  if (b){ b.classList.toggle('on', prodMode); b.innerHTML = prodMode ? di('calendar',13)+' By Date' : di('factory',13)+' By Product'; }
+  if (typeof _updFilterDot==='function') _updFilterDot();
   renderOrders();
+}
+// Show a dot on the Filter button whenever any non-default filter is active.
+function _updFilterDot(){
+  const dot=document.getElementById('filter-dot'); if(!dot) return;
+  const active = (typeof statusFilter!=='undefined'&&statusFilter!=='all') || (typeof typeFilter!=='undefined'&&typeFilter!=='all') || (typeof prodMode!=='undefined'&&prodMode);
+  dot.hidden = !active;
+}
+// Collapse Status / Type / View controls into a popover.
+function toggleFilterPanel(){
+  const panel=document.getElementById('filter-panel'), btn=document.getElementById('filter-toggle-btn');
+  if(!panel) return;
+  const open = !panel.hidden;
+  if(open){ panel.hidden=true; if(btn) btn.classList.remove('on'); return; }
+  panel.hidden=false; if(btn) btn.classList.add('on');
+  setTimeout(()=>{ const h=e=>{ const p=document.getElementById('filter-panel'), b=document.getElementById('filter-toggle-btn');
+    if(p && b && !p.contains(e.target) && !b.contains(e.target)){ p.hidden=true; b.classList.remove('on'); document.removeEventListener('click',h); } };
+    document.addEventListener('click',h); },10);
 }
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
 let fuFilter = 'all';
@@ -3323,7 +3360,7 @@ const SHOP_STOCK_IDS = [
 let SHOPIFY_STOCK = [];
 let _shopStockAt = 0, _shopStockLoading = false, _shopStockErr = '';
 const _shopExpanded = new Set();
-const SHOP_STOCK_LOW = 3;   // flag a variant at/below this as low
+const SHOP_STOCK_LOW = 1;   // flag a variant at/below this as low
 
 async function syncShopifyStock(force){
   if (_shopStockLoading) return;
@@ -4820,8 +4857,8 @@ document.querySelectorAll('[data-f]').forEach(btn => {
     renderCalendar(); renderOrders();
   });
 });
-document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; renderOrders(); }); });
-document.querySelectorAll('[data-fs]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-fs]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); statusFilter=btn.dataset.fs; if(statusFilter==='done') loadFulfilledRecent(); renderOrders(); }); });
+document.querySelectorAll('[data-ft]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-ft]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); typeFilter=btn.dataset.ft; if(typeof _updFilterDot==='function')_updFilterDot(); renderOrders(); }); });
+document.querySelectorAll('[data-fs]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('[data-fs]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); statusFilter=btn.dataset.fs; if(typeof _updFilterDot==='function')_updFilterDot(); if(statusFilter==='done') loadFulfilledRecent(); renderOrders(); }); });
 document.querySelectorAll('#fu-filters [data-fu]').forEach(btn => { btn.addEventListener('click', () => { document.querySelectorAll('#fu-filters [data-fu]').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); fuFilter=btn.dataset.fu; renderFollowup(); }); });
 
 /* ─── Customers (CRM) ─────────────────────────────────────────── */
