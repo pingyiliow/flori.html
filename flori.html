@@ -3529,11 +3529,11 @@ async function syncShopifyStock(force){
   _shopStockLoading = true;
   try {
     const ids = SHOP_STOCK_IDS.map(id=>'"'+id+'"').join(',');
-    const q = `{ nodes(ids:[${ids}]){ ... on Product { id title handle featuredImage{url} variants(first:100){edges{node{title inventoryQuantity price}}} } } }`;
+    const q = `{ nodes(ids:[${ids}]){ ... on Product { id title handle featuredImage{url} variants(first:100){edges{node{title inventoryQuantity price inventoryItem{id}}}} } } }`;
     const data = await shopifyGQL(q);
     const nodes = (data && data.nodes) || [];
     SHOPIFY_STOCK = nodes.filter(Boolean).map(p=>{
-      const variants=((p.variants&&p.variants.edges)||[]).map(e=>({ title:e.node.title, qty:(e.node.inventoryQuantity==null?0:e.node.inventoryQuantity), price:e.node.price }));
+      const variants=((p.variants&&p.variants.edges)||[]).map(e=>({ title:e.node.title, qty:(e.node.inventoryQuantity==null?0:e.node.inventoryQuantity), price:e.node.price, invItemId:(e.node.inventoryItem&&e.node.inventoryItem.id)||null }));
       return { id:p.id, title:p.title, handle:p.handle, image:(p.featuredImage&&p.featuredImage.url)||'', variants, total:variants.reduce((s,v)=>s+(v.qty||0),0) };
     });
     _shopStockAt = Date.now(); _shopStockErr = '';
@@ -3542,6 +3542,44 @@ async function syncShopifyStock(force){
     _shopStockLoading = false;
     const pg=document.getElementById('pg-stock'); if(pg && pg.classList.contains('on')) renderInventory();
   }
+}
+// Two-way write-back: adjusting a Shopify item's qty here updates the LIVE store stock
+// (customers see it). Needs the variant's inventoryItem id + a store location.
+let _shopLocId = null;
+async function _shopLocation(){
+  if(_shopLocId) return _shopLocId;
+  try{ const d=await shopifyGQL(`{ locations(first:10){ edges{ node{ id name isActive } } } }`);
+    const locs=((d.locations&&d.locations.edges)||[]).map(e=>e.node);
+    const active=locs.find(l=>l.isActive)||locs[0]; _shopLocId=active?active.id:null;
+  }catch(e){ console.warn('shop location', e&&e.message); }
+  return _shopLocId;
+}
+let _shopAdjBusy=false;
+async function shopStockAdjust(pid, vIdx, delta){
+  if(_shopAdjBusy) return;
+  const p=(SHOPIFY_STOCK||[]).find(x=>x.id===pid); if(!p) return;
+  const v=p.variants[vIdx]; if(!v){ return; }
+  if(!v.invItemId){ toast('Re-sync first (刷新) to enable editing'); return; }
+  if((v.qty||0)+delta < 0) return;
+  const locId=await _shopLocation(); if(!locId){ toast('No Shopify location found'); return; }
+  _shopAdjBusy=true; toast('更新 Shopify 库存…');
+  try{
+    const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
+    const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId }] } });
+    const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
+    if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+    v.qty=(v.qty||0)+delta; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
+    renderInventory(); toast('✓ 已同步 Shopify');
+  }catch(e){ toast('更新失败: '+(e&&e.message||'error')); }
+  finally{ _shopAdjBusy=false; }
+}
+function _shopStepper(pid, vIdx, qty, low, small){
+  const sz=small?20:26, fs=small?13:15, qs=small?16:18;
+  return '<div style="display:inline-flex;align-items:center;gap:'+(small?4:6)+'px;flex:none" onclick="event.stopPropagation()">'
+    +'<button onclick="shopStockAdjust(\''+pid+'\','+vIdx+',-1)" style="width:'+sz+'px;height:'+sz+'px;border:1.5px solid var(--c-border);border-radius:'+(small?5:7)+'px;background:var(--c-surface);color:var(--c-ink);cursor:pointer;font-size:'+fs+'px;line-height:1;padding:0">−</button>'
+    +'<span class="'+(low?'':'')+'" style="min-width:'+(small?16:22)+'px;text-align:center;font-family:var(--f-head);font-weight:800;font-size:'+qs+'px;color:'+(low?'var(--c-red)':'var(--c-ink)')+'">'+qty+'</span>'
+    +'<button onclick="shopStockAdjust(\''+pid+'\','+vIdx+',1)" style="width:'+sz+'px;height:'+sz+'px;border:none;border-radius:'+(small?5:7)+'px;background:var(--c-ink);color:var(--c-bg);cursor:pointer;font-size:'+fs+'px;line-height:1;padding:0">+</button>'
+  +'</div>';
 }
 function _shopToggle(key){ if(_shopExpanded.has(key)) _shopExpanded.delete(key); else _shopExpanded.add(key); renderInventory(); }
 function _shopStockAgo(){
@@ -3559,7 +3597,7 @@ function _shopStockCard(p){
     return '<div class="stk-shop"><div style="display:flex;align-items:center;gap:11px">'+_invThumb(p.image,ic)
       +'<div style="flex:1;min-width:0"><div class="stk-name" style="white-space:normal">'+esc(p.title)+' '+tag+'</div><div class="stk-unit">'+esc(price)+'</div></div>'
       +cat
-      +'<span class="stk-qty '+(low?'low':'')+'" style="min-width:26px;text-align:right;font-size:20px;flex:none">'+(v.qty||0)+'</span>'+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;flex:none">缺</span>':'')
+      +_shopStepper(p.id,0,(v.qty||0),low,false)+(out?'<span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px;flex:none">缺</span>':'')
     +'</div></div>';
   }
   const key='shop|'+p.id, ek=key.replace(/'/g,"\\'"), expanded=_shopExpanded.has(key), low=p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
@@ -3571,11 +3609,11 @@ function _shopStockCard(p){
       +'<span onclick="_shopToggle(\''+ek+'\')" style="color:var(--c-muted);font-size:14px;cursor:pointer;flex:none">'+(expanded?'▴':'▾')+'</span>'
     +'</div>';
   if(expanded){
-    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:7px;padding:0 14px 14px">';
-    p.variants.forEach(v=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
-      h+='<div style="border:1.5px solid '+(l?'#EF9A9A':'var(--c-border)')+';border-radius:9px;padding:6px 4px;background:'+(l?'#FFF5F5':'var(--c-bg)')+';text-align:center">'
-        +'<div style="font-size:10.5px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(v.title)+'</div>'
-        +'<div style="font-family:var(--f-head);font-weight:800;font-size:18px;color:'+(l?'var(--c-red)':'var(--c-ink)')+'">'+(v.qty||0)+(out?'<span style="font-size:9px"> 缺</span>':'')+'</div>'
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:7px;padding:0 14px 14px">';
+    p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=SHOP_STOCK_LOW, out=(v.qty||0)<=0;
+      h+='<div style="border:1.5px solid '+(l?'#EF9A9A':'var(--c-border)')+';border-radius:9px;padding:6px 5px;background:'+(l?'#FFF5F5':'var(--c-bg)')+';text-align:center">'
+        +'<div style="font-size:10.5px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px">'+esc(v.title)+(out?' · 缺':'')+'</div>'
+        +'<div style="display:flex;justify-content:center">'+_shopStepper(p.id,vi,(v.qty||0),l,true)+'</div>'
       +'</div>';
     });
     h+='</div>';
