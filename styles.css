@@ -459,6 +459,20 @@ body.role-driver .shell{grid-template-columns:1fr}
 .skv-mstep b{font-family:var(--f-head);font-size:17px;font-weight:800;min-width:18px;text-align:center}
 .skv-foot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--c-border)}
 
+/* add-stock source toggle + shopify product search */
+.i-seg{flex:1;padding:9px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-muted)}
+.i-seg.on{border-color:var(--c-burg);background:var(--c-burg);color:var(--c-bg)}
+.stk-shop-hint{color:var(--c-muted);font-size:12px;line-height:1.5;padding:16px 2px;text-align:center}
+.ssr{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--c-border)}
+.ssr:last-child{border-bottom:none}
+.ssr-th{width:40px;height:40px;border-radius:9px;background:var(--c-bg);flex:none;display:flex;align-items:center;justify-content:center;color:#b7a06a;overflow:hidden}
+.ssr-th img{width:100%;height:100%;object-fit:cover}
+.ssr-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ssr-nm{font-size:13.5px;font-weight:600;line-height:1.25}
+.ssr-q{font-size:11px;color:var(--c-muted)}
+.ssr-add{flex:none;padding:7px 13px;border:none;border-radius:8px;background:var(--c-ink);color:var(--c-bg);font-size:12px;font-weight:600;cursor:pointer}
+.ssr-added{flex:none;font-size:12px;font-weight:600;color:#3B7A57}
+
 /* shopify stock cards — full width, variant chip grid */
 .stk-shop-list{display:flex;flex-direction:column;gap:10px;max-width:760px}
 .stk-shop{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 14px;box-shadow:var(--sh)}
