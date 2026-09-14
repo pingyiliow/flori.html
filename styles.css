@@ -445,6 +445,13 @@ body.role-driver .shell{grid-template-columns:1fr}
 .skv-step button{width:32px;height:32px;border-radius:9px;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-ink);font-size:17px;cursor:pointer;line-height:1;padding:0}
 .skv-step .plus{background:var(--c-ink);color:var(--c-bg);border:none}
 .skv-step b{font-family:var(--f-head);font-size:24px;font-weight:800;min-width:22px;text-align:center}
+/* tap-to-type quantity field (replaces the bold number in the popup steppers) */
+.skv-qin{font-family:var(--f-head);font-weight:800;font-size:24px;color:var(--c-ink);width:60px;text-align:center;border:1.5px solid transparent;border-radius:8px;background:transparent;padding:2px 0;-moz-appearance:textfield;cursor:text}
+.skv-qin:hover{border-color:var(--c-border)}
+.skv-qin:focus{border-color:var(--c-ink);background:var(--c-surface);outline:none}
+.skv-qin.sm{font-size:17px;width:44px}
+.skv-qin.low{color:var(--c-red)}
+.skv-qin::-webkit-outer-spin-button,.skv-qin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .skv-row{display:flex;justify-content:space-between;gap:10px;padding:8px 2px;border-bottom:1px solid var(--c-border);font-size:13.5px}
 .skv-k{color:var(--c-muted)}
 .skv-sec{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);margin:15px 0 7px 2px}

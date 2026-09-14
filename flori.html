@@ -3770,6 +3770,25 @@ async function shopStockAdjust(pid, vIdx, delta){
   }
   finally{ _shopAdjBusy=false; }
 }
+// Type an exact target qty into the field → compute the delta and write it once.
+async function shopStockSet(pid, vIdx, val){
+  const p=(SHOPIFY_STOCK||[]).find(x=>x.id===pid); if(!p) return;
+  const v=p.variants[vIdx]; if(!v) return;
+  let target=parseInt(val,10);
+  if(isNaN(target)||target<0){ _stkRefresh(); return; }   // bad input → revert display
+  const delta=target-(v.qty||0);
+  if(delta===0){ _stkRefresh(); return; }
+  await shopStockAdjust(pid, vIdx, delta);
+}
+// Manual item: type an exact qty → log the difference as one receive/use move.
+function stkSetInv(id, val){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return;
+  let target=parseInt(val,10);
+  if(isNaN(target)||target<0){ _stkRefresh(); return; }
+  const delta=target-(it.qty||0);
+  if(delta!==0) invAdjust(id, delta, delta>0?'in':'out');
+  _stkRefresh();
+}
 function _shopStepper(pid, vIdx, qty, low, small){
   const sz=small?20:26, fs=small?13:15, qs=small?16:18;
   return '<div style="display:inline-flex;align-items:center;gap:'+(small?4:6)+'px;flex:none" onclick="event.stopPropagation()">'
@@ -3826,7 +3845,7 @@ function _stkViewInv(i){
   const zh=LANG==='zh';
   h+='<div class="skv-body">';
   h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
-    +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><b class="'+(_invLow(i)?'low':'')+'" style="'+(_invLow(i)?'color:var(--c-red)':'')+'">'+(i.qty||0)+'</b><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
+    +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><input class="skv-qin'+(_invLow(i)?' low':'')+'" type="number" inputmode="numeric" value="'+(i.qty||0)+'" onclick="this.select()" onchange="stkSetInv(\''+i.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
   h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
@@ -3859,7 +3878,7 @@ function _stkViewShop(p){
   if(single){
     const q0=p.variants[0]?(p.variants[0].qty||0):0, low0=q0<=lowAt;
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(zh?' · 点 +/− 同步 Shopify':'')+'</span>'
-      +'<div class="skv-step"><button onclick="shopStockAdjust(\''+p.id+'\',0,-1)">−</button><b class="'+(low0?'low':'')+'" style="'+(low0?'color:var(--c-red)':'')+'">'+q0+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\',0,1)">+</button></div></div>';
+      +'<div class="skv-step"><button onclick="shopStockAdjust(\''+p.id+'\',0,-1)">−</button><input class="skv-qin'+(low0?' low':'')+'" type="number" inputmode="numeric" value="'+q0+'" onclick="this.select()" onchange="shopStockSet(\''+p.id+'\',0,this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="shopStockAdjust(\''+p.id+'\',0,1)">+</button></div></div>';
   } else {
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?(p.variants.length+' 款 · 共'):(p.variants.length+' variants · total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+p.total+'</b></div>';
   }
@@ -3873,7 +3892,7 @@ function _stkViewShop(p){
     h+='<div class="skv-sec">'+(zh?'款式库存':'Stock by variant')+' <span style="font-weight:400;text-transform:none;letter-spacing:0">· '+(zh?'点 +/− 同步 Shopify':'tap +/− to sync Shopify')+'</span></div>';
     p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=lowAt, out=(v.qty||0)<=0;
       h+='<div class="skv-vrow"><span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
-        +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><b style="'+(l?'color:var(--c-red)':'')+'">'+(v.qty||0)+'</b><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
+        +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><input class="skv-qin sm'+(l?' low':'')+'" type="number" inputmode="numeric" value="'+(v.qty||0)+'" onclick="this.select()" onchange="shopStockSet(\''+p.id+'\','+vi+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
       +'</div>';
     });
   }
