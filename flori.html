@@ -7017,6 +7017,13 @@ function _drvRouteDetail(rt){
   const done = stops.filter(o => o.fulfilled).sort(_byTime);   // delivered: earliest → latest time
   const reorder = _drvReorderRoute === rt.id;
   const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
+  // Live-location status on a started route: green when a fresh fix arrived, amber when
+  // stale or the driver hasn't shared yet (phone locked / app closed / location off).
+  const _agoTxt = seen==null ? '' : (seen<1?'just now':(seen<60?(seen+'m ago'):(Math.round(seen/60)+'h ago')));
+  const locBit = !rt.startedAt ? ''
+    : (seen==null
+        ? ' · <span style="color:#B4571E">'+di('pin',10)+' location not shared yet</span>'
+        : ' · <span style="color:'+(seen<=8?'#0F6E56':'#B4571E')+'">'+di('pin',10)+' '+(seen<1?'location live now':('location shared '+_agoTxt))+'</span>');
   const m = _routeMetrics[rt.id];
   const metric = (val, lbl) => '<div style="flex:1;background:var(--c-bg);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--c-ink);line-height:1.1">'+val+'</div><div style="font-size:10px;color:var(--c-muted);margin-top:2px">'+lbl+'</div></div>';
   const kmVal  = m ? (m.km != null ? m.km : '—') : '…';
@@ -7031,7 +7038,7 @@ function _drvRouteDetail(rt){
     + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
       + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
       + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
-      + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+(seen!=null?' · '+di('pin',10)+' '+seen+'m ago':'')+'</span>':'')+'</div></div>'
+      + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>':'')+locBit+'</div></div>'
       // Reorder mode shows a clear "Done" to exit; otherwise one "Manage" button
       // opens the action sheet with everything (reorder / auto-sort / add / edit / delete).
       + (reorder
