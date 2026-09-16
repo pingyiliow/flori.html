@@ -1194,6 +1194,32 @@ function applyRoleGating(){
   if (mm) mm.style.display = ['followup','customers','records'].some(canAccess) ? '' : 'none';
 }
 
+// Quota-resilient storage for the Supabase auth SESSION. The app caches a lot of
+// re-syncable data in localStorage; on a device where it fills up, an UNWRAPPED
+// localStorage.setItem for the tiny auth session throws QuotaExceededError and blocks
+// login entirely. This adapter frees the big re-syncable caches (Supabase is the source
+// of truth) and retries; if it still can't fit, it keeps the session in memory so login
+// always succeeds (session just isn't persisted across a reload on that device).
+const _authMemStore = {};
+function _freeLocalStorageCaches() {
+  try {
+    const keep = { 'bf-auth-session': 1, 'flori-lang': 1, 'flori-url': 1 };
+    const ks = [];
+    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && !keep[k]) ks.push(k); }
+    ks.forEach(k => { try { localStorage.removeItem(k); } catch (_) {} });
+  } catch (_) {}
+}
+const _safeAuthStorage = {
+  getItem: (k) => { try { const v = window.localStorage.getItem(k); return v != null ? v : (_authMemStore[k] || null); } catch (_) { return _authMemStore[k] || null; } },
+  setItem: (k, v) => {
+    try { window.localStorage.setItem(k, v); _authMemStore[k] = v; }
+    catch (e) {
+      try { _freeLocalStorageCaches(); window.localStorage.setItem(k, v); _authMemStore[k] = v; }
+      catch (_) { _authMemStore[k] = v; }   // last resort: memory only
+    }
+  },
+  removeItem: (k) => { try { window.localStorage.removeItem(k); } catch (_) {} delete _authMemStore[k]; },
+};
 function initSupabase() {
   if (!_SB_URL || _SB_URL === 'YOUR_SUPABASE_URL') return false;
   if (typeof supabase === 'undefined') {
@@ -1206,7 +1232,7 @@ function initSupabase() {
         persistSession: true,
         autoRefreshToken: true,
         storageKey: 'bf-auth-session',
-        storage: window.localStorage,
+        storage: _safeAuthStorage,   // quota-resilient (frees caches / falls back to memory)
         // Pass-through lock: supabase-js v2's default navigator.locks-based lock can
         // deadlock signInWithPassword FOREVER (no error) when a prior auth op or
         // another tab holds the lock — the exact "stuck on Signing in…" bug. This
