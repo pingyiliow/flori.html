@@ -19,7 +19,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 </head>
 <body>
 <div class="shell">
@@ -1207,6 +1207,11 @@ function initSupabase() {
         autoRefreshToken: true,
         storageKey: 'bf-auth-session',
         storage: window.localStorage,
+        // Pass-through lock: supabase-js v2's default navigator.locks-based lock can
+        // deadlock signInWithPassword FOREVER (no error) when a prior auth op or
+        // another tab holds the lock — the exact "stuck on Signing in…" bug. This
+        // no-op lock runs the operation directly instead of waiting on a global lock.
+        lock: (name, acquireTimeout, fn) => fn(),
       }
     });
     return true;
@@ -1304,7 +1309,20 @@ async function doLogin() {
   if (!hasSB()) { showLoginErr('App not configured — contact admin'); return; }
   const btn = document.querySelector('#login-screen button');
   btn.textContent = 'Signing in…'; btn.disabled = true;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  let data, error;
+  try {
+    const res = await Promise.race([
+      sb.auth.signInWithPassword({ email, password: pass }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('__timeout__')), 15000)),
+    ]);
+    data = res.data; error = res.error;
+  } catch (e) {
+    btn.textContent = 'Sign In'; btn.disabled = false;
+    showLoginErr((e && e.message === '__timeout__')
+      ? 'Sign-in timed out. Close any other tabs of this app, then try again (or open it in a private/incognito window).'
+      : ('Sign-in failed: ' + ((e && e.message) || 'error')));
+    return;
+  }
   btn.textContent = 'Sign In'; btn.disabled = false;
   if (error) { showLoginErr(error.message); return; }
   currentUser = data.user;
