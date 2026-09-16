@@ -6409,10 +6409,14 @@ let DRIVERS = [];
 async function loadDrivers(){
   if (!hasSB()) return DRIVERS;
   try {
-    // Assignable drivers = role='driver' PLUS anyone flagged is_driver (e.g. an admin
-    // who also drives). Lets one person hold both admin access and a driver name.
-    const { data } = await sb.from('profiles').select('name,role,is_driver').or('role.eq.driver,is_driver.eq.true');
-    DRIVERS = [...new Set((data||[]).map(d => (d.name||'').trim()).filter(Boolean))].sort();
+    // Assignable drivers = anyone whose role INCLUDES 'driver' (multi-role like
+    // "driver, florist" must count too — an exact role.eq.driver dropped them), PLUS
+    // anyone flagged is_driver (e.g. an admin who also drives). ilike '*driver*' is
+    // case-insensitive and matches the combined role string; final check via _parseRoles.
+    const { data } = await sb.from('profiles').select('name,role,is_driver').or('role.ilike.*driver*,is_driver.eq.true');
+    DRIVERS = [...new Set((data||[])
+      .filter(d => d.is_driver || (typeof _parseRoles==='function' ? _parseRoles(d.role).includes('driver') : /driver/i.test(d.role||'')))
+      .map(d => (d.name||'').trim()).filter(Boolean))].sort();
   } catch(_) {}
   return DRIVERS;
 }
