@@ -2154,7 +2154,7 @@ async function syncOrders() {
         let remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
-          const { data, error } = await sb.from('orders').select('*').in('id', chunk);
+          const { data, error } = await sb.from('orders').select(ORDER_COLS).in('id', chunk);
           if (!error && data) remote = remote.concat(data);
         }
         const byRemote = {}; remote.forEach(r => { byRemote[shopId(r.id)] = r; });
@@ -2259,7 +2259,7 @@ function _liteOrder(o){
   return c;
 }
 function _orderRow(o){
-  return {
+  const row = {
     id: o.id, name: o.name, src: o.src||'shopify',
     customer: o.customer, product: o.product,
     line_items: o.lineItems||[], image: o.image||null,
@@ -2277,6 +2277,13 @@ function _orderRow(o){
     proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null, cake: o.cake||null,
     delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null, delivered_by: o.deliveredBy||null
   };
+  // Bulk loads no longer fetch proof photos (egress), so an order held in memory may
+  // have proofPhoto(s)=null simply because they weren't loaded. OMIT those keys when
+  // empty so a full save never nulls out proof photos that still exist in the DB —
+  // they're only written when actually present (driver just added them).
+  if (!o.proofPhoto)  delete row.proof_photo;
+  if (!o.proofPhotos) delete row.proof_photos;
+  return row;
 }
 // saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
 // only those rows are upserted (a tiny request that can't be dragged down by other
@@ -2327,13 +2334,19 @@ function _invRow(i){
     notes:i.notes||null, photo:i.photo||null, moves:Array.isArray(i.moves)?i.moves:null,
     linked:Array.isArray(i.linked)?i.linked:null };
 }
+// Cache an array to localStorage WITHOUT base64 data: URIs (photos), so the offline
+// cache stays small and never trips the 5MB quota (which had blocked login). Photos
+// re-load from Supabase — the source of truth — and stay in memory for this session.
+function _lsSetLean(key, arr){
+  try { _lsSet(key, JSON.stringify(arr, (k,v)=> (typeof v==='string' && v.slice(0,5)==='data:') ? '' : v)); } catch(_){}
+}
 function saveInventory() {
-  _lsSet('flori-inventory', JSON.stringify(INVENTORY));
+  _lsSetLean('flori-inventory', INVENTORY);
   if (hasSB()) sbUpsert('inventory', INVENTORY.map(_invRow)).catch(console.error);
 }
 // Upsert just one item — used by the quick +/- adjust so a tap doesn't rewrite every row.
 function _invSaveOne(i){
-  _lsSet('flori-inventory', JSON.stringify(INVENTORY));
+  _lsSetLean('flori-inventory', INVENTORY);
   if (hasSB()) sbUpsert('inventory', [_invRow(i)]).catch(console.error);
 }
 function _invLow(i){ return (i.qty||0) <= (i.reorder!=null && i.reorder!=='' ? i.reorder : INV_LOW); }
@@ -2552,7 +2565,7 @@ function invAdjustFromModal(sign){
   invAdjust(id, sign*n, sign>0?'in':'out');
 }
 function savePurchases() {
-  _lsSet('flori-purchases', JSON.stringify(PURCHASES));
+  _lsSetLean('flori-purchases', PURCHASES);
   if (hasSB()) {
     sbUpsert('purchases', PURCHASES.map(p => ({
       id: p.id, name: p.name, qty: p.qty||null,
@@ -2600,6 +2613,31 @@ function _mapDbOrder(o){
     deliveredLat: o.delivered_lat??null, deliveredLng: o.delivered_lng??null, deliveredAt: o.delivered_at||null, deliveredBy: o.delivered_by||null
   };
 }
+// Columns pulled by every bulk order load. Deliberately EXCLUDES proof_photo &
+// proof_photos — those are base64 delivery photos (100s of KB each) that only the
+// driver's delivered-order detail needs. Pulling them on every launch/refresh/report
+// was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
+// thing that filled storage and blocked login). They are lazy-loaded per order via
+// _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by';
+// Fetch the (base64) proof photos for one order on demand, then re-render the open
+// detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
+// order is actually opened — so the photos leave Supabase once (on view), not on every
+// launch/refresh/report.
+async function _ensureProofPhotos(o){
+  if(!o || o._proofLoaded || !hasSB()) return;
+  o._proofLoaded = true;
+  try{
+    const { data, error } = await sb.from('orders').select('proof_photo,proof_photos').eq('id', o._rawId || o.id).maybeSingle();
+    if(error || !data) return;
+    o.proofPhoto = data.proof_photo || o.proofPhoto || null;
+    o.proofPhotos = data.proof_photos || o.proofPhotos || null;
+    const li = (typeof ORDERS!=='undefined'?ORDERS:[]).find(x=>x.id===o.id);
+    if(li && li!==o){ li.proofPhoto=o.proofPhoto; li.proofPhotos=o.proofPhotos; li._proofLoaded=true; }
+    if(typeof _drvDetail!=='undefined' && _drvDetail===o.id && typeof renderDriver==='function') renderDriver();
+    else if(typeof _dpId!=='undefined' && _dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||o, li||o);
+  }catch(_){}
+}
 // Only the recent/active slice of orders is read on launch + focus-refresh, so the
 // 5k+ historical rows aren't re-downloaded every time (big Supabase-egress saving).
 // Older fulfilled orders stay in the DB and load on demand when their date is picked.
@@ -2633,7 +2671,7 @@ async function sbGetRecentOrders(){
   try {
     let from = 0, all = [];
     while (true) {
-      const { data, error } = await sb.from('orders').select('*')
+      const { data, error } = await sb.from('orders').select(ORDER_COLS)
         .or(filter)
         .range(from, from + 999);
       if (error) { console.warn('sbGetRecentOrders', error.message); return all.length ? all : null; }
@@ -2683,7 +2721,7 @@ function _mergeDbOrders(rows){
 async function loadOrdersForDate(dateStr){
   if (!hasSB() || !dateStr) return;
   try {
-    const { data, error } = await sb.from('orders').select('*').eq('due_on', dateStr).range(0, 999);
+    const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('due_on', dateStr).range(0, 999);
     if (error) { console.warn('loadOrdersForDate', error.message); return; }
     if (_mergeDbOrders(data || [])) saveOrders();
   } catch(e){ console.warn('loadOrdersForDate', e); }
@@ -2763,17 +2801,17 @@ async function loadFromSupabase(opts = {}) {
         needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
-      _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
+      _lsSetLean('flori-followup', FOLLOWUPS);
       changed = true;
     }
     if (inventory && inventory.length) {
       INVENTORY = inventory;
-      _lsSet('flori-inventory', JSON.stringify(INVENTORY));
+      _lsSetLean('flori-inventory', INVENTORY);
       changed = true;
     }
     if (purchases && purchases.length) {
       PURCHASES = purchases;
-      _lsSet('flori-purchases', JSON.stringify(PURCHASES));
+      _lsSetLean('flori-purchases', PURCHASES);
       changed = true;
     }
     _lastRefresh = Date.now();
@@ -4176,7 +4214,7 @@ function renderPurchase() {
 let FOLLOWUPS = [];
 function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
 function saveFollowups() {
-  _lsSet('flori-followup', JSON.stringify(FOLLOWUPS));
+  _lsSetLean('flori-followup', FOLLOWUPS);
   if (hasSB()) {
     const rows = FOLLOWUPS.map(f => ({
       id: f.id, name: f.name, contact: f.contact||null,
@@ -5369,7 +5407,7 @@ async function loadOrdersForMonth(y, m){
   const start=y+'-'+String(m+1).padStart(2,'0')+'-01';
   const end=y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0');
   try {
-    const { data, error } = await sb.from('orders').select('*').gte('due_on',start).lte('due_on',end).range(0,999);
+    const { data, error } = await sb.from('orders').select(ORDER_COLS).gte('due_on',start).lte('due_on',end).range(0,999);
     if (error){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', error.message); return; }
     if (_mergeDbOrders(data||[])){ saveOrders(); renderCalendar(); }
   } catch(e){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', e); }
@@ -5563,7 +5601,7 @@ async function loadFulfilledRecent(){
   _fulfilledLoaded = true;
   const from = _dayISO(-30), to = _dayISO(0);
   try {
-    const { data, error } = await sb.from('orders').select('*').eq('fulfilled',true).gte('due_on',from).lte('due_on',to).range(0,999);
+    const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('fulfilled',true).gte('due_on',from).lte('due_on',to).range(0,999);
     if (error){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', error.message); return; }
     if (_mergeDbOrders(data||[])){ saveOrders(); renderOrders(); }
   } catch(e){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', e); }
@@ -6223,7 +6261,19 @@ function renderRecords(){
 let _drvDate = null;   // ISO 'YYYY-MM-DD' shown on the driver page; null = today. Supports any future/past date (on-demand loaded).
 const RECIP_WA_DEFAULT = 'Hello! Bamboo Green Florist — we have a delivery for you today ({time}). Please keep your phone reachable, our driver will contact you on arrival. 您好！我们今天有花礼送达给您（{time}），请保持电话畅通，司机抵达前会与您联系。';
 let _recipWaDraft = null;   // settings override, loaded lazily
-function _drvE164(raw){ let d=String(raw||'').replace(/\D/g,''); if(!d) return ''; if(d.startsWith('60')) return d; if(d.startsWith('0')) return '60'+d.slice(1); return '60'+d; }
+// E.164 digits (no +). Respects an existing international prefix (+ or 00) so a
+// non-Malaysian number like +44 7923 243013 is kept as 447923243013 instead of being
+// force-prefixed with 60. Only a bare local number is assumed Malaysian.
+function _phoneDigits(raw){
+  const s=String(raw||'').trim(); if(!s) return '';
+  const d=s.replace(/\D/g,''); if(!d) return '';
+  if(s.charAt(0)==='+') return d;                 // already international (+44…, +60…)
+  if(d.startsWith('00')) return d.slice(2);        // 00-prefixed international
+  if(d.startsWith('60')) return d;                 // Malaysia country code
+  if(d.startsWith('0'))  return '60'+d.slice(1);   // Malaysia local 01x → 601x
+  return '60'+d;                                    // bare number → assume Malaysia
+}
+function _drvE164(raw){ return _phoneDigits(raw); }
 function _drvDateISO(){ return _drvDate || tdi(today0()); }
 function _drvIsOnDate(o, iso){
   if (o.dateObj) return tdi(o.dateObj) === iso;
@@ -6597,7 +6647,7 @@ function driverView(v){ _drvView = v; _drvDetail = null; _drvReorderRoute = null
 let _drvDetailFromRoute = null;   // the route a stop-detail was opened from, so Back returns to it
 // Opening a stop must LEAVE route-detail (else renderDriver keeps showing the route and the
 // stop never opens — "can't click in to fulfill"). Remember the route so Back returns to it.
-function openStopDetail(id){ _drvDetailFromRoute = _drvRouteId || null; _drvRouteId = null; _drvDetail = id; renderDriver(); }
+function openStopDetail(id){ _drvDetailFromRoute = _drvRouteId || null; _drvRouteId = null; _drvDetail = id; renderDriver(); const o=(typeof ORDERS!=='undefined'?ORDERS:[]).find(x=>x.id===id); if(o && o.deliveredAt && !o._proofLoaded) _ensureProofPhotos(o); }
 function closeStopDetail(){ _drvDetail = null; if (_drvDetailFromRoute){ _drvRouteId = _drvDetailFromRoute; _drvDetailFromRoute = null; } renderDriver(); }
 let _drvRouteTab = 'stops';   // 'stops' | 'items' — route-detail sub-view
 function openRouteDetail(id){ _drvRouteId = id; _drvDetail = null; _drvRouteTab = 'stops'; renderDriver(); }
