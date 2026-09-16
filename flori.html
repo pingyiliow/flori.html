@@ -7400,13 +7400,23 @@ function _orderHasCake(o){ return !!(o && o.lineItems && o.lineItems.some(li => 
 function _effCake(o){ if(o && o.cake) return o.cake; if(_orderHasCake(o)) return { supplier:'', address:'', remark:'', auto:true }; return null; }
 function _cakeOrdersFor(iso){ return ORDERS.filter(o => _effCake(o) && _drvIsOnDate(o, iso)); }
 function _cakeCollected(o){ return !!(o && o.cake && o.cake.collected); }
+let _cakeCollapse = {};   // iso -> explicit user open/close override; default: collapsed once all collected
+function toggleCakeCard(iso){
+  const list=_cakeOrdersFor(iso); const allDone = list.length>0 && list.every(_cakeCollected);
+  const cur = (iso in _cakeCollapse) ? _cakeCollapse[iso] : allDone;
+  _cakeCollapse[iso] = !cur; renderDriver();
+}
 function _drvCakeList(iso){
   const zh=LANG==='zh';
   const list=_cakeOrdersFor(iso); if(!list.length) return '';
   const doneN = list.filter(_cakeCollected).length;
+  const allDone = doneN===list.length;
+  const collapsed = (iso in _cakeCollapse) ? _cakeCollapse[iso] : allDone;   // auto-collapse when all collected
   const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||(zh?'待定供应商':'Supplier TBD')); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
+  const chev = collapsed ? '&#9656;' : '&#9662;';   // ▸ / ▾
   let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
-    +'<div style="font-size:13px;font-weight:700;color:#6b4a1a;margin-bottom:6px">'+(zh?'今日需拿蛋糕':'Cakes to collect today')+' · <span style="color:'+(doneN===list.length?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+(zh?' 已取':' collected')+'</span></div>';
+    +'<div onclick="toggleCakeCard(\''+iso+'\')" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:#6b4a1a'+(collapsed?'':';margin-bottom:6px')+'"><span style="color:#b09338;font-size:11px">'+chev+'</span><span>'+(zh?'今日需拿蛋糕':'Cakes to collect today')+' · <span style="color:'+(allDone?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+(zh?' 已取':' collected')+'</span></span></div>';
+  if(collapsed) return h+'</div>';
   Object.keys(bySup).forEach(sup=>{
     const g=bySup[sup];
     const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+(zh?' 导航':' Navigate')+'</a>' : '';
@@ -7496,8 +7506,27 @@ function renderDriver(){
       + '</div>'
     : '';
 
+  // Newest routes first; a fully-delivered route collapses into a "Completed routes"
+  // section at the bottom (e.g. the morning route once it's done), so the active
+  // route(s) stay at the top.
+  const _rtNew  = (a,b) => String(b.createdAt||'').localeCompare(String(a.createdAt||'')) || String(b.id).localeCompare(String(a.id));
+  const _rtDone = rt => { const s=_drvStopsForRoute(rt.id); return s.length>0 && s.every(o=>o.fulfilled); };
+  const activeRoutes = routes.filter(r => !_rtDone(r)).sort(_rtNew);
+  const doneRoutes   = routes.filter(_rtDone).sort(_rtNew);
   const routeBlocks = routes.length
-    ? routes.map(rt => _drvRouteBlock(rt)).join('')
+    ? activeRoutes.map(rt => _drvRouteBlock(rt)).join('')
+      + (doneRoutes.length
+          ? '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted);margin:4px 2px 8px">'+(LANG==='zh'?'已完成路线':'Completed routes')+'</div>'
+            + doneRoutes.map(rt => { const s=_drvStopsForRoute(rt.id).slice().sort(bySeq);
+                return '<details style="margin-bottom:10px">'
+                  + '<summary style="cursor:pointer;list-style:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:8px">'
+                    + '<span style="width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+';flex:none"></span>'
+                    + '<span style="font-weight:700;font-size:13px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">· '+esc2(rt.driver)+'</span>':'')+'</span>'
+                    + '<span style="font-size:11px;color:'+DRV_C.done+';font-weight:700;flex:none">'+di('check',12)+' '+s.length+'/'+s.length+'</span>'
+                  + '</summary>'
+                  + '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:10px 10px 4px">'+(s.length?s.map(o=>_drvRow(o)).join(''):'')+'</div>'
+                + '</details>'; }).join('')
+          : '')
     : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">'+(isAdmin?'No routes yet - tap "+ New route".':'No deliveries assigned to you yet.')+'</div>';
   const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled).sort(_byTime) : [];   // delivered: earliest → latest time
   const deliveredBlock = doneUnrouted.length
