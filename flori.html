@@ -1402,12 +1402,13 @@ async function showApp() {
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   loadInvCats();       // editable stock categories (shared settings)
   loadCakeSuppliers(); // editable cake-supplier list (shared settings)
-  loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyRecipes==='function') _applyRecipes(); }); // design→materials recipes
+  loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyBOM==='function') _applyBOM(); }); // design→materials recipes + box auto-deduct
   loadShopCat();       // manual category assignment for Shopify-tracked items
   loadShopStockIds();  // user-added Shopify products tracked as stock (shared settings)
   loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
   loadShopDeductLog(); // idempotency ledger for recipe→Shopify auto-deductions
   loadStockShopCtl();  // box → Shopify availability links (drive out-of-stock from BloomFlow)
+  loadBoxDeductLog();  // idempotency ledger for box auto-decrement on order
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
     loadRecords().then(()=>{ if (document.getElementById('pg-records')?.classList.contains('on')) renderRecords(); });
@@ -1875,7 +1876,7 @@ function _mergeShopItems(stored, shop, removed){
   // Keep stored items still present in Shopify (or app-local), backfilling productType
   // from the fresh Shopify item so cake auto-detection works on kept items too.
   const kept = stored.filter(i => i && (shopTitles.has(i.title) || i.local === true))
-    .map(i => { const s = _shopByTitle[i.title]; return (s && s.productType && !i.productType) ? { ...i, productType: s.productType } : i; });
+    .map(i => { const s = _shopByTitle[i.title]; if(!s) return i; const patch={}; if(s.productType && !i.productType) patch.productType=s.productType; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; return Object.keys(patch).length ? {...i, ...patch} : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
   const have = new Set(kept.map(i => i.title));
   const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
@@ -1963,7 +1964,7 @@ function _mapShopifyOrder(n){
     // exclude it so it doesn't reappear in BloomFlow. (Older queries without currentQuantity
     // leave it undefined → item kept, preserving prior behavior.)
     .filter(e => e.node.currentQuantity == null || e.node.currentQuantity > 0)
-    .map(e => ({ title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR', productType: e.node.product?.productType || '' }));
+    .map(e => ({ title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR', productType: e.node.product?.productType || '', varInvItemId: e.node.variant?.inventoryItem?.id || null }));
   // BloomFlow-added photos ride along as the 'BloomFlow Photos' order attribute (durable R2
   // links). Attach them to the first line item so the card/panel show them (itemPhotos
   // prefers the images array over the product image).
@@ -1987,7 +1988,7 @@ async function importOrderByName(rawName){
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
       id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}}
+      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
@@ -2031,7 +2032,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}}
+          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -2079,14 +2080,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -2418,6 +2419,9 @@ function _applyRecipes(){
           shopQueue.push({ rkey, pid:_compPid(c), need:(c.qty||1)*lq, orderNo:o.name||'' });
           return;
         }
+        // If this material controls Shopify stock via a box-link, the box-deduction
+        // engine owns its count — skip it here so it isn't deducted twice.
+        if(typeof stockCtl==='function' && stockCtl(c.mid).length) return;
         const item = INVENTORY.find(x=>x.id===c.mid); if(!item) return;
         item.moves = Array.isArray(item.moves) ? item.moves : [];
         // Idempotent, and won't double-count an order the OLD link-based BOM already
@@ -2434,7 +2438,7 @@ function _applyRecipes(){
   if(changed){ saveInventory(); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
   if(shopQueue.length && typeof _flushShopDeducts==='function') _flushShopDeducts(shopQueue);
 }
-function _applyBOM(){ _applyRecipes(); }   // back-compat alias for existing call sites
+function _applyBOM(){ _applyRecipes(); if(typeof _applyBoxDeductions==='function') _applyBoxDeductions(); }   // recipes + box→Shopify auto-decrement
 function renderRecipes(){
   const el=document.getElementById('rec-body'); if(!el) return;
   const q=(document.getElementById('rec-search') ? document.getElementById('rec-search').value : '').trim().toLowerCase();
@@ -4182,6 +4186,45 @@ async function _pushStockToShopify(item, opts){
   finally{ _stkPushBusy[item.id]=false; }
 }
 function stkSyncNow(id){ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it, {toast:true}); }
+// Step 2: auto-decrement a box on each order of a linked variant, then re-push to Shopify.
+// Idempotency ledger keyed by orderId|variantInvItemId|boxItemId. addedAt on each link
+// prevents retroactive deduction of orders placed before the link existed.
+let BOX_DEDUCT_LOG = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-box-deduct')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadBoxDeductLog(){ if(!hasSB()) return; try{ const v=await sbGetVal('box_deduct_log'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ BOX_DEDUCT_LOG=o; try{ _lsSet('flori-box-deduct',JSON.stringify(o)); }catch(_){} } }catch(_){} }
+function saveBoxDeductLog(){ try{ _lsSet('flori-box-deduct',JSON.stringify(BOX_DEDUCT_LOG)); }catch(_){} if(hasSB()) sbSet('box_deduct_log', JSON.stringify(BOX_DEDUCT_LOG)); }
+function _applyBoxDeductions(){
+  if(typeof ORDERS==='undefined' || typeof INVENTORY==='undefined') return;
+  // reverse index: variant inventoryItem id → [{itemId, at}]
+  const rev={};
+  Object.keys(STOCK_SHOP_CTL||{}).forEach(itemId=>{ (STOCK_SHOP_CTL[itemId]||[]).forEach(link=>{ const at=link.addedAt||0; (link.invItemIds||[]).forEach(iid=>{ (rev[iid]=rev[iid]||[]).push({itemId,at}); }); }); });
+  if(!Object.keys(rev).length) return;
+  const cutoff = Date.now() - 120*86400000;
+  const touched=new Set(); let changed=false;
+  ORDERS.forEach(o=>{
+    if(o.cancelled) return;
+    const when = o.dateObj?o.dateObj.getTime():(o.createdAt?new Date(o.createdAt).getTime():Date.now());
+    if(when < cutoff) return;
+    (o.lineItems||[]).forEach(li=>{
+      const iid=li.varInvItemId; if(!iid) return;
+      const boxes=rev[iid]; if(!boxes) return;
+      const lq=li.quantity||1;
+      boxes.forEach(b=>{
+        if(when < (b.at||0)) return;                 // order predates the link
+        const rkey=o.id+'|'+iid+'|'+b.itemId;
+        if(BOX_DEDUCT_LOG[rkey]) return;             // already counted
+        const it=INVENTORY.find(x=>x.id===b.itemId); if(!it) return;
+        it.qty=(it.qty||0)-lq;
+        it.moves=Array.isArray(it.moves)?it.moves:[];
+        it.moves.unshift({ts:new Date().toISOString(), by:'auto', delta:-lq, type:'auto', orderId:o.id, orderNo:o.name||'', rkey});
+        if(it.moves.length>80) it.moves=it.moves.slice(0,80);
+        BOX_DEDUCT_LOG[rkey]={delta:-lq, ts:Date.now(), orderNo:o.name||''};
+        touched.add(b.itemId); changed=true;
+      });
+    });
+  });
+  if(changed){ saveBoxDeductLog(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
+  touched.forEach(id=>{ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it); });   // reflect the new count to Shopify
+}
 // Link editor: pick a Shopify product, then the theme/option value this box covers.
 let _stkCtlId=null, _stkCtlSearchT=null, _stkCtlResults=[], _stkCtlProduct=null, _stkCtlOpts=[];
 function openStkCtl(id){
@@ -4244,7 +4287,7 @@ function stkCtlAddLink(k){
   const invItemIds = matched.map(v=>v.inventoryItem&&v.inventoryItem.id).filter(Boolean);
   if(!invItemIds.length){ toast('No variants to link'); return; }
   const links = stockCtl(_stkCtlId).slice();
-  links.push({ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:sel.option||'(all)', value:sel.value||'all', invItemIds });
+  links.push({ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:sel.option||'(all)', value:sel.value||'all', invItemIds, addedAt:Date.now() });
   STOCK_SHOP_CTL[_stkCtlId]=links; saveStockShopCtl();
   ['stkctl-variants','stkctl-results'].forEach(x=>{ const e=document.getElementById(x); if(e) e.innerHTML=''; });
   const s=document.getElementById('stkctl-search'); if(s) s.value='';
@@ -9167,7 +9210,7 @@ function saveOrder() {
     custEmail: document.getElementById('o-cust-email')?.value.trim()||null
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
-  saveOrders(entry); if(typeof _applyRecipes==='function')_applyRecipes(); closeModal('m-order');
+  saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
@@ -10028,6 +10071,7 @@ async function _fetchOrderDetail(id, o) {
       billingAddress { phone }
       lineItems(first:50){ edges{ node{
         title quantity
+        variant { inventoryItem { id } }
         originalUnitPriceSet { shopMoney { amount currencyCode } }
         originalTotalSet     { shopMoney { amount currencyCode } }
       }}}
