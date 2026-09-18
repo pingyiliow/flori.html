@@ -1400,7 +1400,7 @@ async function showApp() {
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   loadInvCats();       // editable stock categories (shared settings)
   loadCakeSuppliers(); // editable cake-supplier list (shared settings)
-  loadRecipes(); loadRecipesSB().then(()=>{ if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyBOM==='function') _applyBOM(); }); // design→materials recipes + box auto-deduct
+  loadRecipes(); loadRecipesSB().then(()=>{ if(typeof _backfillLinkRecipes==='function') _backfillLinkRecipes(); if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyBOM==='function') _applyBOM(); }); // design→materials recipes + box auto-deduct
   loadShopCat();       // manual category assignment for Shopify-tracked items
   loadShopStockIds();  // user-added Shopify products tracked as stock (shared settings)
   loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
@@ -4160,7 +4160,7 @@ function shopMeta(pid){ return SHOP_ITEM_META[pid] || {}; }
 // When the item's qty changes, _pushStockToShopify writes that qty to every linked
 // variant's Shopify available (0 ⇒ out of stock). Needs the write_inventory scope.
 let STOCK_SHOP_CTL = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-shopctl')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
-async function loadStockShopCtl(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_shop_ctl'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SHOP_CTL=o; try{ _lsSet('flori-stock-shopctl',JSON.stringify(o)); }catch(_){} } }catch(_){} }
+async function loadStockShopCtl(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_shop_ctl'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SHOP_CTL=o; try{ _lsSet('flori-stock-shopctl',JSON.stringify(o)); }catch(_){} if(typeof _backfillLinkRecipes==='function') _backfillLinkRecipes(); } }catch(_){} }
 function saveStockShopCtl(){ try{ _lsSet('flori-stock-shopctl',JSON.stringify(STOCK_SHOP_CTL)); }catch(_){} if(hasSB()) sbSet('stock_shop_ctl', JSON.stringify(STOCK_SHOP_CTL)); }
 function stockCtl(id){ return Array.isArray(STOCK_SHOP_CTL[id]) ? STOCK_SHOP_CTL[id] : []; }
 function stockCtlCount(id){ return stockCtl(id).reduce((s,l)=>s+((l.invItemIds||[]).length),0); }
@@ -4402,6 +4402,30 @@ function _stkCtlReflectRecipe(productTitle, boxItemId, boxName, forVariant){
   else r.components.push({ mid:boxItemId, name:boxName, qty:1, forVariant:forVariant||'' });
   if(typeof saveRecipes==='function') saveRecipes();
   if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderRecipes==='function') renderRecipes();
+}
+// One-off backfill: make every existing box→product link show its theme/variant in the
+// design's recipe (and create the recipe entry if it was never reflected). Idempotent.
+let _linkRecipeBackfilled=false;
+function _backfillLinkRecipes(){
+  if(typeof RECIPES==='undefined' || typeof STOCK_SHOP_CTL==='undefined' || typeof INVENTORY==='undefined') return false;
+  let changed=false;
+  Object.keys(STOCK_SHOP_CTL||{}).forEach(itemId=>{
+    const it=INVENTORY.find(x=>x.id===itemId); if(!it) return;
+    (STOCK_SHOP_CTL[itemId]||[]).forEach(link=>{
+      const title=String(link.productTitle||'').trim(); if(!title) return;
+      const fv=(link.value&&link.value!=='all')?link.value:'';
+      let r=RECIPES.find(x=>String(x.name||'').trim()===title);
+      if(!r){ r={ id:'rec-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:link.productTitle, source:'website', components:[], since:Date.now() }; RECIPES.push(r); changed=true; }
+      r.components=Array.isArray(r.components)?r.components:[];
+      const ex=r.components.find(c=>c.mid===itemId);
+      if(!ex){ r.components.push({ mid:itemId, name:it.name, qty:1, forVariant:fv }); changed=true; }
+      else if((ex.forVariant||'')!==fv){ ex.forVariant=fv; changed=true; }
+    });
+  });
+  if(changed && typeof saveRecipes==='function') saveRecipes();
+  if(changed && document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderRecipes==='function') renderRecipes();
+  _linkRecipeBackfilled=true;
+  return changed;
 }
 let _shopMetaPid=null;
 function openShopMeta(pid){
