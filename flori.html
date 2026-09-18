@@ -2444,7 +2444,7 @@ function renderRecipes(){
   let list=RECIPES.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
   if(q) list=list.filter(r=>String(r.name||'').toLowerCase().includes(q));
   el.innerHTML = list.length ? list.map(r=>{
-    const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
+    const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)+(c.forVariant?' ('+esc(c.forVariant)+')':'')).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
     const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
     const th = r.image ? '<span style="width:44px;height:44px;border-radius:9px;overflow:hidden;flex:none;background:var(--c-bg)"><img src="'+r.image+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '';
     return '<div class="rec-card" onclick="openRecipeView(\''+r.id+'\')">'+th+'<div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
@@ -2475,8 +2475,9 @@ function _rbomRenderComps(){
   const comps=_recEdit.components||[];
   el.innerHTML = comps.length ? comps.map((c,i)=>{ const st=_compStock(c);
     const tag=_compIsShop(c)?' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>':'';
+    const vtag=c.forVariant?' <span style="font-size:9px;font-weight:600;color:#7A3FA6;background:#F3EDFA;border-radius:4px;padding:1px 6px;vertical-align:1px">'+esc(c.forVariant)+'</span>':'';
     const line = st.qty!=null ? '<div style="font-size:11px;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">'+st.qty+' in stock</div>' : '<div style="font-size:11px;color:#b46a1e">not in materials</div>';
-    return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+tag+'</div>'+line+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
+    return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+tag+vtag+'</div>'+line+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 2px">No materials yet — add below.</div>';
 }
 function rbomQty(i,d){ const c=_recEdit.components[i]; if(!c) return; c.qty=Math.max(1,(c.qty||1)+d); _rbomRenderComps(); }
@@ -2554,7 +2555,8 @@ function _recView(r){
   const comps=r.components||[];
   h+= comps.length ? comps.map(c=>{ const st=_compStock(c);
       const tag=_compIsShop(c)?' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>':'';
-      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+tag+(st.qty!=null?' <span style="font-size:11px;font-weight:400;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">· '+st.qty+(zh?' 库存':' in stock')+'</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
+      const vtag=c.forVariant?' <span style="font-size:9px;font-weight:600;color:#7A3FA6;background:#F3EDFA;border-radius:4px;padding:1px 6px;vertical-align:1px">'+esc(c.forVariant)+'</span>':'';
+      return '<div class="skv-vrow"><span class="skv-vn">'+esc(c.name)+tag+vtag+(st.qty!=null?' <span style="font-size:11px;font-weight:400;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">· '+st.qty+(zh?' 库存':' in stock')+'</span>':'')+'</span><span style="font-family:var(--f-head);font-weight:800;font-size:16px">×'+(c.qty||1)+'</span></div>'; }).join('')
     : '<span style="color:var(--c-muted);font-size:12px">'+(zh?'还没设置用料':'No materials set')+'</span>';
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-recview\');openBom(\''+r.id+'\')">'+di('edit',14)+' '+(zh?'编辑设计':'Edit design')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="closeModal(\'m-recview\');_recDelete(\''+r.id+'\')">'+di('trash',14)+'</button></div>';
@@ -4377,7 +4379,7 @@ function stkCtlSaveEditor(){
   const ptitle=_stkCtlProduct.title;
   _stkCtlProduct=null; _stkCtlEditIdx=-1; _stkCtlShowList(); if(typeof renderInventory==='function') renderInventory();
   _ensureShopifyTracked(invItemIds);                                 // turn on Shopify "track quantity" so 0 = out of stock
-  if(it) _stkCtlReflectRecipe(ptitle, it.id, it.name);               // show the material in that design's recipe too
+  if(it) _stkCtlReflectRecipe(ptitle, it.id, it.name, (value&&value!=='all')?value:'');   // show the material (+ which variant/theme) in that design's recipe
   if(it) _pushStockToShopify(it, {toast:true});
 }
 // Turn on Shopify inventory tracking for the linked variants (best-effort) so the
@@ -4390,12 +4392,14 @@ async function _ensureShopifyTracked(invItemIds){
 // Reflect a box→product link into the design's recipe so it appears under the design's
 // materials too (display only — the box is still deducted by the box-link, not recipes,
 // which skip Shopify-controlled materials to avoid double-counting).
-function _stkCtlReflectRecipe(productTitle, boxItemId, boxName){
+function _stkCtlReflectRecipe(productTitle, boxItemId, boxName, forVariant){
   if(typeof RECIPES==='undefined' || !productTitle) return;
   let r = RECIPES.find(x=>String(x.name||'').trim()===String(productTitle).trim());
   if(!r){ r={ id:'rec-'+Date.now()+Math.random().toString(36).slice(2,5), name:productTitle, source:'website', components:[], since:Date.now() }; RECIPES.push(r); }
   r.components = Array.isArray(r.components) ? r.components : [];
-  if(!r.components.some(c=>c.mid===boxItemId)) r.components.push({ mid:boxItemId, name:boxName, qty:1 });
+  const ex = r.components.find(c=>c.mid===boxItemId);
+  if(ex){ ex.forVariant = forVariant||''; }                                   // keep the variant/theme up to date
+  else r.components.push({ mid:boxItemId, name:boxName, qty:1, forVariant:forVariant||'' });
   if(typeof saveRecipes==='function') saveRecipes();
   if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderRecipes==='function') renderRecipes();
 }
