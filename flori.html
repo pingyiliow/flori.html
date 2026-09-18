@@ -4049,14 +4049,23 @@ function _stkViewInv(i){
   h+=_stkRow(zh?'款式':'Family', i.family?esc(i.family):'');
   h+=_stkRow(zh?'颜色':'Color', i.color?esc(i.color):'');
   if(i.notes) h+='<div class="skv-sec">'+(zh?'备注':'Notes')+'</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
-  if(used.length){ h+='<div class="skv-sec">'+(zh?'用于设计':'Used in designs')+'</div>';
-    h+= used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span class="skv-chip"><span class="skv-dot" style="background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join(''); }
-  { const _links=stockCtl(i.id), _vc=stockCtlCount(i.id);
-    h+='<div class="skv-sec">'+(zh?'用于产品 / 设计':'Used in products')+'</div>';
-    h+='<div style="font-size:12px;color:var(--c-muted);margin-bottom:9px;line-height:1.5">'+(_links.length
-        ? (zh?('用于 '+_vc+' 个款式 · 这个数量（'+(i.qty||0)+'）同时是内部库存和 Shopify，下单一起扣，0 = 一起缺货'):('Used in '+_vc+' variant'+(_vc>1?'s':'')+' — this count ('+(i.qty||0)+') is both internal stock and Shopify; each order counts it down, 0 = out of stock together.'))
-        : (zh?'还没设置 — 加上用到这个货的产品(可选到 variant)，下单会一起扣、缺货一起下架。':'Not set — add the products that use this (down to the variant); each order counts it down and they go out of stock together at 0.'))+'</div>';
-    h+='<div style="display:flex;gap:8px;margin-bottom:2px"><button class="btn btn-ghost btn-sm" onclick="openStkCtl(\''+i.id+'\')">'+(_links.length?(zh?'管理产品':'Manage products'):(zh?'+ 加产品':'+ Add products'))+'</button>'+(_links.length?'<button class="btn btn-ghost btn-sm" onclick="stkSyncNow(\''+i.id+'\')">'+di('sync',13)+' '+(zh?'立即同步':'Sync now')+'</button>':'')+'</div>'; }
+  // One unified "Used in products" — merges the Shopify-controlling links AND any recipe
+  // usage (deduped by product title), so the material has a single "used in" list.
+  { const _links=stockCtl(i.id);
+    const _lt=new Set(_links.map(l=>String(l.productTitle||'').trim()));
+    const _recOnly=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id)&&!_lt.has(String(r.name||'').trim()));
+    const _total=_links.length+_recOnly.length;
+    h+='<div class="skv-sec">'+(zh?'用于产品':'Used in products')+'</div>';
+    if(_total){
+      h+='<div style="margin-bottom:9px">'
+        + _links.map(l=>'<span class="skv-chip"><span class="skv-dot" style="background:#244E8C"></span>'+esc(l.productTitle||'')+(l.value&&l.value!=='all'?' <span style="font-size:9px;color:var(--c-muted)">'+esc(l.value)+'</span>':'')+'</span>').join('')
+        + _recOnly.map(r=>'<span class="skv-chip" style="opacity:.75"><span class="skv-dot" style="background:#B4571E"></span>'+esc(r.name||'')+' <span style="font-size:9px;color:#B4571E">'+(zh?'待设置':'set up')+'</span></span>').join('')
+        +'</div>';
+      h+='<div style="font-size:11.5px;color:var(--c-muted);margin-bottom:9px;line-height:1.5">'+(zh?('这个数量（'+(i.qty||0)+'）同时是内部库存和 Shopify，下单一起扣，0 = 一起缺货'):('This count ('+(i.qty||0)+') is both internal stock and Shopify — each order counts it down, 0 = out of stock together.'))+'</div>';
+    } else {
+      h+='<div style="font-size:12px;color:var(--c-muted);margin-bottom:9px;line-height:1.5">'+(zh?'还没设置 — 加上用到这个货的产品(可选到 variant)，下单会一起扣、缺货一起下架。':'Not set — add the products that use this (down to the variant); each order counts it down and they go out of stock together at 0.')+'</div>';
+    }
+    h+='<div style="display:flex;gap:8px;margin-bottom:2px"><button class="btn btn-ghost btn-sm" onclick="openStkCtl(\''+i.id+'\')">'+(_total?(zh?'管理产品':'Manage products'):(zh?'+ 加产品':'+ Add products'))+'</button>'+(_links.length?'<button class="btn btn-ghost btn-sm" onclick="stkSyncNow(\''+i.id+'\')">'+di('sync',13)+' '+(zh?'立即同步':'Sync now')+'</button>':'')+'</div>'; }
   if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
@@ -4240,16 +4249,48 @@ function _stkCtlShowList(){
 function _stkCtlRenderList(){
   const el=document.getElementById('stkctl-list'); if(!el) return;
   const links=stockCtl(_stkCtlId);
-  let h = links.length ? links.map((l,i)=>{
+  const lt=new Set(links.map(l=>String(l.productTitle||'').trim()));
+  const recOnly=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===_stkCtlId)&&!lt.has(String(r.name||'').trim()));
+  let h = links.map((l,i)=>{
     const sub = (l.value && l.value!=='all' && l.value!=='') ? esc(l.value) : (l.value==='all'?'Whole product':'');
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
       +'<div style="flex:1;min-width:0;cursor:pointer" onclick="stkCtlEdit('+i+')"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.productTitle||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+(sub?sub+' · ':'')+((l.invItemIds||[]).length)+' variants</div></div>'
       +'<button onclick="stkCtlEdit('+i+')" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;flex:none">Edit</button>'
       +'<button onclick="stkCtlRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-red);cursor:pointer;font-size:17px;line-height:1;flex:none">×</button>'
     +'</div>';
-  }).join('') : '<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0 4px">No products yet.</div>';
+  }).join('');
+  // Recipe usages not yet variant-linked — surface them here so nothing is hidden; Edit
+  // resolves the product in Shopify and lets you pick the variants (making it a live link).
+  h += recOnly.map(r=>{ const en=encodeURIComponent(r.name||'');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
+      +'<div style="flex:1;min-width:0;cursor:pointer" onclick="stkCtlEditRecipe(\''+en+'\')"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.name||'')+'</div><div style="font-size:11px;color:#B4571E">from recipe · tap to pick variants</div></div>'
+      +'<button onclick="stkCtlEditRecipe(\''+en+'\')" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;flex:none">Set up</button>'
+      +'<button onclick="stkCtlRemoveRecipe(\''+en+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-red);cursor:pointer;font-size:17px;line-height:1;flex:none">×</button>'
+    +'</div>';
+  }).join('');
+  if(!links.length && !recOnly.length) h='<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0 4px">No products yet.</div>';
   h += '<button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="stkCtlStartAdd()">+ Add product</button>';
   el.innerHTML=h;
+}
+async function stkCtlEditRecipe(nameEnc){
+  const name=decodeURIComponent(nameEnc); _stkCtlEditIdx=-1;
+  const el=document.getElementById('stkctl-list'); if(el) el.style.display='none';
+  const ed=document.getElementById('stkctl-editor'); if(!ed) return; ed.style.display='';
+  ed.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button onclick="_stkCtlShowList()" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer">‹ Back</button><span style="font-size:12px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(name)+'</span></div><div id="stkctl-checklist"><div class="stk-shop-hint">Finding product in Shopify…</div></div>';
+  try{
+    const d=await shopifyGQL('{ products(first:1, query:'+JSON.stringify('title:*'+name.replace(/["\\*]/g,' ').trim()+'*')+'){ edges{ node{ id title } } } }');
+    const n=(d&&d.products&&d.products.edges&&d.products.edges[0])?d.products.edges[0].node:null;
+    const cl=document.getElementById('stkctl-checklist');
+    if(!n){ if(cl) cl.innerHTML='<div class="stk-shop-hint">Not found in Shopify — this design may be off-website/omakase.</div>'; return; }
+    await _stkCtlLoadProduct(n.id, n.title, []);
+  }catch(e){ const cl=document.getElementById('stkctl-checklist'); if(cl) cl.innerHTML='<div class="stk-shop-hint">Failed · '+esc((e&&e.message)||'error')+'</div>'; }
+}
+function stkCtlRemoveRecipe(nameEnc){
+  const name=decodeURIComponent(nameEnc);
+  const r=(typeof RECIPES!=='undefined'?RECIPES:[]).find(x=>String(x.name||'').trim()===name.trim()); if(!r) return;
+  r.components=(r.components||[]).filter(c=>c.mid!==_stkCtlId);
+  if(typeof saveRecipes==='function') saveRecipes();
+  _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory();
 }
 function stkCtlRemove(i){ const links=stockCtl(_stkCtlId).slice(); links.splice(i,1); if(links.length) STOCK_SHOP_CTL[_stkCtlId]=links; else delete STOCK_SHOP_CTL[_stkCtlId]; saveStockShopCtl(); _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory(); }
 function stkCtlStartAdd(){
