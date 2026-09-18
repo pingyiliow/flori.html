@@ -726,14 +726,12 @@
 <!-- ══ MODAL — Box → Shopify availability links ═══════════════ -->
 <div id="m-stkctl" class="modal">
   <div class="mc" style="max-width:400px">
-    <div class="mc-hdr"><div class="mc-ttl">Controls Shopify stock</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-stkctl')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div class="mc-ttl">Used in products</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-stkctl')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <div id="stkctl-name" style="font-weight:700;font-size:14px;margin-bottom:3px"></div>
-      <div style="font-size:11px;color:var(--c-muted);margin-bottom:14px">This box's count is written to the linked Shopify variants — 0 makes them out of stock. Link the products/themes that use this box.</div>
-      <div id="stkctl-links"></div>
-      <div class="ff" style="margin-top:12px"><input id="stkctl-search" type="text" placeholder="Search a Shopify product to link…" oninput="stkCtlSearch(this.value)"></div>
-      <div id="stkctl-results" style="margin-top:6px"></div>
-      <div id="stkctl-variants"></div>
+      <div style="font-size:11px;color:var(--c-muted);margin-bottom:14px">The products that use this box. Each order counts it down; when it hits 0 they all go out of stock together.</div>
+      <div id="stkctl-list"></div>
+      <div id="stkctl-editor" style="display:none"></div>
       <div class="btn-row" style="margin-top:16px"><button class="btn btn-primary" style="flex:1" onclick="closeModal('m-stkctl')">Done</button></div>
     </div>
   </div>
@@ -4225,28 +4223,55 @@ function _applyBoxDeductions(){
   if(changed){ saveBoxDeductLog(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
   touched.forEach(id=>{ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it); });   // reflect the new count to Shopify
 }
-// Link editor: pick a Shopify product, then the theme/option value this box covers.
-let _stkCtlId=null, _stkCtlSearchT=null, _stkCtlResults=[], _stkCtlProduct=null, _stkCtlOpts=[];
+// "Used in products" editor: a list of linked products (each editable), and a variant
+// checklist to add/edit which variants (themes) of a product this box is used in.
+let _stkCtlId=null, _stkCtlSearchT=null, _stkCtlResults=[], _stkCtlProduct=null, _stkCtlEditIdx=-1;
 function openStkCtl(id){
-  _stkCtlId=id; _stkCtlProduct=null; _stkCtlOpts=[];
+  _stkCtlId=id; _stkCtlProduct=null; _stkCtlEditIdx=-1;
   const it=INVENTORY.find(x=>x.id===id);
   const nm=document.getElementById('stkctl-name'); if(nm) nm.textContent = it ? it.name+' · '+(it.qty||0)+' in stock' : '';
-  const s=document.getElementById('stkctl-search'); if(s) s.value='';
-  ['stkctl-results','stkctl-variants'].forEach(x=>{ const e=document.getElementById(x); if(e) e.innerHTML=''; });
-  _stkCtlRenderLinks(); openModal('m-stkctl');
+  _stkCtlShowList(); openModal('m-stkctl');
 }
-function _stkCtlRenderLinks(){
-  const el=document.getElementById('stkctl-links'); if(!el) return;
+function _stkCtlShowList(){
+  const ed=document.getElementById('stkctl-editor'); if(ed){ ed.style.display='none'; ed.innerHTML=''; }
+  const el=document.getElementById('stkctl-list'); if(el) el.style.display='';
+  _stkCtlRenderList();
+}
+function _stkCtlRenderList(){
+  const el=document.getElementById('stkctl-list'); if(!el) return;
   const links=stockCtl(_stkCtlId);
-  el.innerHTML = links.length
-    ? links.map((l,i)=>'<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.productTitle||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc((l.value==='all'?'Whole product':(l.option+': '+l.value)))+' · '+((l.invItemIds||[]).length)+' variants</div></div><button onclick="stkCtlRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-red);cursor:pointer;font-size:17px;line-height:1;flex:none">×</button></div>').join('')
-    : '<div style="font-size:11.5px;color:var(--c-muted)">Not linked yet — search a product below.</div>';
+  let h = links.length ? links.map((l,i)=>{
+    const sub = (l.value && l.value!=='all' && l.value!=='') ? esc(l.value) : (l.value==='all'?'Whole product':'');
+    return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
+      +'<div style="flex:1;min-width:0;cursor:pointer" onclick="stkCtlEdit('+i+')"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.productTitle||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+(sub?sub+' · ':'')+((l.invItemIds||[]).length)+' variants</div></div>'
+      +'<button onclick="stkCtlEdit('+i+')" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:4px 10px;font-size:11px;cursor:pointer;flex:none">Edit</button>'
+      +'<button onclick="stkCtlRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-red);cursor:pointer;font-size:17px;line-height:1;flex:none">×</button>'
+    +'</div>';
+  }).join('') : '<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0 4px">No products yet.</div>';
+  h += '<button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="stkCtlStartAdd()">+ Add product</button>';
+  el.innerHTML=h;
 }
-function stkCtlRemove(i){ const links=stockCtl(_stkCtlId).slice(); links.splice(i,1); if(links.length) STOCK_SHOP_CTL[_stkCtlId]=links; else delete STOCK_SHOP_CTL[_stkCtlId]; saveStockShopCtl(); _stkCtlRenderLinks(); if(typeof renderInventory==='function') renderInventory(); }
+function stkCtlRemove(i){ const links=stockCtl(_stkCtlId).slice(); links.splice(i,1); if(links.length) STOCK_SHOP_CTL[_stkCtlId]=links; else delete STOCK_SHOP_CTL[_stkCtlId]; saveStockShopCtl(); _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory(); }
+function stkCtlStartAdd(){
+  _stkCtlEditIdx=-1; _stkCtlProduct=null;
+  const el=document.getElementById('stkctl-list'); if(el) el.style.display='none';
+  const ed=document.getElementById('stkctl-editor'); if(!ed) return; ed.style.display='';
+  ed.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button onclick="_stkCtlShowList()" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer">‹ Back</button><span style="font-size:12px;color:var(--c-muted)">Add a product</span></div>'
+    +'<div class="ff"><input id="stkctl-search" type="text" placeholder="Search a Shopify product…" oninput="stkCtlSearch(this.value)"></div><div id="stkctl-results" style="margin-top:6px"></div><div id="stkctl-checklist"></div>';
+  setTimeout(function(){ const s=document.getElementById('stkctl-search'); if(s) s.focus(); },60);
+}
+async function stkCtlEdit(idx){
+  const links=stockCtl(_stkCtlId); const link=links[idx]; if(!link) return;
+  _stkCtlEditIdx=idx;
+  const el=document.getElementById('stkctl-list'); if(el) el.style.display='none';
+  const ed=document.getElementById('stkctl-editor'); if(!ed) return; ed.style.display='';
+  ed.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><button onclick="_stkCtlShowList()" style="border:1.5px solid var(--c-border);background:var(--c-surface);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer">‹ Back</button><span style="font-size:12px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(link.productTitle||'')+'</span></div><div id="stkctl-checklist"><div class="stk-shop-hint">Loading variants…</div></div>';
+  await _stkCtlLoadProduct(link.productId, link.productTitle, link.invItemIds||[]);
+}
 function stkCtlSearch(v){ clearTimeout(_stkCtlSearchT); _stkCtlSearchT=setTimeout(function(){ _stkCtlSearchRun(v); },350); }
 async function _stkCtlSearchRun(term){
   const box=document.getElementById('stkctl-results'); if(!box) return;
-  term=(term||'').trim(); const vb=document.getElementById('stkctl-variants'); if(vb) vb.innerHTML='';
+  term=(term||'').trim(); const cl=document.getElementById('stkctl-checklist'); if(cl) cl.innerHTML='';
   if(term.length<2){ box.innerHTML=''; return; }
   box.innerHTML='<div class="stk-shop-hint">Searching…</div>';
   const m=term.match(/\/products\/([a-z0-9\-_%]+)/i);
@@ -4259,40 +4284,80 @@ async function _stkCtlSearchRun(term){
 }
 async function stkCtlPickProduct(i){
   const n=_stkCtlResults[i]; if(!n) return;
-  const vbox=document.getElementById('stkctl-variants'); const rb=document.getElementById('stkctl-results'); if(rb) rb.innerHTML='';
+  const rb=document.getElementById('stkctl-results'); if(rb) rb.innerHTML='';
   const s=document.getElementById('stkctl-search'); if(s) s.value=n.title;
-  if(vbox) vbox.innerHTML='<div class="stk-shop-hint">Loading variants…</div>';
-  try{
-    const d=await shopifyGQL('{ product(id:'+JSON.stringify(n.id)+'){ options{ name values } variants(first:100){ edges{ node{ selectedOptions{ name value } inventoryItem{ id } } } } } }');
-    const p=d&&d.product; if(!p){ if(vbox) vbox.innerHTML='<div class="stk-shop-hint">Not found</div>'; return; }
-    const variants=((p.variants&&p.variants.edges)||[]).map(function(e){return e.node;});
-    _stkCtlProduct={ id:n.id, title:n.title, variants };
-    _stkCtlOpts=[];
-    let h='<div style="font-size:11px;color:var(--c-muted);margin:10px 0 4px">Which theme/option does this box cover?</div>';
-    (p.options||[]).forEach(opt=>{
-      h+='<div style="font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-muted);margin:9px 0 5px">'+esc(opt.name)+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
-      (opt.values||[]).forEach(val=>{ const cnt=variants.filter(v=>(v.selectedOptions||[]).some(s=>s.name===opt.name&&s.value===val)).length; const k=_stkCtlOpts.length; _stkCtlOpts.push({option:opt.name,value:val}); h+='<button type="button" class="i-seg" style="flex:none" onclick="stkCtlAddLink('+k+')">'+esc(val)+' <span style="opacity:.55">'+cnt+'</span></button>'; });
-      h+='</div>';
-    });
-    const kAll=_stkCtlOpts.length; _stkCtlOpts.push({option:'',value:''});
-    h+='<div style="margin-top:12px"><button type="button" class="i-seg" style="flex:none" onclick="stkCtlAddLink('+kAll+')">Whole product ('+variants.length+' variants)</button></div>';
-    if(vbox) vbox.innerHTML=h;
-  }catch(e){ if(vbox) vbox.innerHTML='<div class="stk-shop-hint">Failed to load variants · '+esc((e&&e.message)||'error')+'</div>'; }
+  const cl=document.getElementById('stkctl-checklist'); if(cl) cl.innerHTML='<div class="stk-shop-hint">Loading variants…</div>';
+  await _stkCtlLoadProduct(n.id, n.title, []);
 }
-function stkCtlAddLink(k){
+async function _stkCtlLoadProduct(pid, ptitle, preChecked){
+  const cl=document.getElementById('stkctl-checklist');
+  try{
+    const d=await shopifyGQL('{ product(id:'+JSON.stringify(pid)+'){ options{ name values } variants(first:100){ edges{ node{ title selectedOptions{ name value } inventoryItem{ id } } } } } }');
+    const p=d&&d.product; if(!p){ if(cl) cl.innerHTML='<div class="stk-shop-hint">Not found</div>'; return; }
+    const pre=new Set(preChecked||[]);
+    const variants=((p.variants&&p.variants.edges)||[]).map(function(e){ const v=e.node; const iid=v.inventoryItem&&v.inventoryItem.id; return { invItemId:iid||null, title:v.title||'', opts:v.selectedOptions||[], checked: iid?pre.has(iid):false }; }).filter(function(v){return v.invItemId;});
+    _stkCtlProduct={ id:pid, title:ptitle, options:(p.options||[]), variants };
+    _stkCtlRenderChecklist();
+  }catch(e){ if(cl) cl.innerHTML='<div class="stk-shop-hint">Failed · '+esc((e&&e.message)||'error')+'</div>'; }
+}
+function _stkCtlGroupKey(v){ return (v.opts && v.opts.length) ? v.opts[0].value : (v.title||''); }
+function _stkCtlRenderChecklist(){
+  const cl=document.getElementById('stkctl-checklist'); if(!cl || !_stkCtlProduct) return;
+  const vs=_stkCtlProduct.variants;
+  const nChecked=vs.filter(v=>v.checked).length;
+  const groups={}; vs.forEach((v,idx)=>{ const k=_stkCtlGroupKey(v); (groups[k]=groups[k]||[]).push(idx); });
+  const optName=(_stkCtlProduct.options&&_stkCtlProduct.options[0])?_stkCtlProduct.options[0].name:'';
+  let h='<div style="font-size:11px;color:var(--c-muted);margin:10px 0 6px">Tick the variants that use this box'+(optName?(' — grouped by '+esc(optName)):'')+':</div>';
+  Object.keys(groups).forEach(k=>{
+    const idxs=groups[k]; const allOn=idxs.every(i=>vs[i].checked); const single=idxs.length<=1;
+    h+='<div style="margin-bottom:8px"><label style="display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 0"><input type="checkbox" '+(allOn?'checked':'')+' onchange="stkCtlToggleGroup(\''+encodeURIComponent(k)+'\')" style="width:16px;height:16px;accent-color:var(--c-burg)"> '+esc(k||'—')+' <span style="font-weight:400;color:var(--c-muted)">('+idxs.length+')</span></label>';
+    if(!single) h+='<div style="padding-left:24px">'+idxs.map(i=>{ const v=vs[i]; const flav=(v.opts&&v.opts.length>1)?v.opts.slice(1).map(o=>o.value).join(' / '):v.title; return '<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--c-ink);cursor:pointer;padding:3px 0"><input type="checkbox" '+(v.checked?'checked':'')+' onchange="stkCtlToggleVar('+i+')" style="width:15px;height:15px;accent-color:var(--c-burg)"> '+esc(flav||v.title)+'</label>'; }).join('')+'</div>';
+    h+='</div>';
+  });
+  h+='<div class="btn-row" style="margin-top:12px"><button class="btn btn-primary" style="flex:1" onclick="stkCtlSaveEditor()">Save ('+nChecked+' selected)</button><button class="btn btn-ghost" onclick="_stkCtlShowList()">Cancel</button></div>';
+  cl.innerHTML=h;
+}
+function stkCtlToggleVar(i){ if(!_stkCtlProduct) return; const v=_stkCtlProduct.variants[i]; if(v){ v.checked=!v.checked; _stkCtlRenderChecklist(); } }
+function stkCtlToggleGroup(k){ if(!_stkCtlProduct) return; k=decodeURIComponent(k); const vs=_stkCtlProduct.variants; const idxs=vs.map((v,i)=>i).filter(i=>_stkCtlGroupKey(vs[i])===k); const allOn=idxs.every(i=>vs[i].checked); idxs.forEach(i=>{ vs[i].checked=!allOn; }); _stkCtlRenderChecklist(); }
+function stkCtlSaveEditor(){
   if(!_stkCtlProduct) return;
-  const sel=_stkCtlOpts[k]; if(!sel) return;
-  const variants=_stkCtlProduct.variants||[];
-  const matched = (sel.option&&sel.value) ? variants.filter(v=>(v.selectedOptions||[]).some(s=>s.name===sel.option&&s.value===sel.value)) : variants;
-  const invItemIds = matched.map(v=>v.inventoryItem&&v.inventoryItem.id).filter(Boolean);
-  if(!invItemIds.length){ toast('No variants to link'); return; }
-  const links = stockCtl(_stkCtlId).slice();
-  links.push({ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:sel.option||'(all)', value:sel.value||'all', invItemIds, addedAt:Date.now() });
+  const checked=_stkCtlProduct.variants.filter(v=>v.checked);
+  const invItemIds=checked.map(v=>v.invItemId).filter(Boolean);
+  if(!invItemIds.length){ toast('Tick at least one variant'); return; }
+  const groupVals=new Set(checked.map(v=>_stkCtlGroupKey(v)));
+  const allInProduct = invItemIds.length===_stkCtlProduct.variants.length;
+  const value = allInProduct ? 'all' : (groupVals.size===1 ? [...groupVals][0] : (invItemIds.length+' variants'));
+  const option = (groupVals.size===1 && !allInProduct && _stkCtlProduct.options[0]) ? _stkCtlProduct.options[0].name : '';
+  const links=stockCtl(_stkCtlId).slice();
+  const prevAt=(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) ? links[_stkCtlEditIdx].addedAt : Date.now();
+  const entry={ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:option, value:value, invItemIds:invItemIds, addedAt:(prevAt||Date.now()) };
+  if(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) links[_stkCtlEditIdx]=entry; else links.push(entry);
   STOCK_SHOP_CTL[_stkCtlId]=links; saveStockShopCtl();
-  ['stkctl-variants','stkctl-results'].forEach(x=>{ const e=document.getElementById(x); if(e) e.innerHTML=''; });
-  const s=document.getElementById('stkctl-search'); if(s) s.value='';
-  _stkCtlProduct=null; _stkCtlOpts=[]; _stkCtlRenderLinks(); if(typeof renderInventory==='function') renderInventory();
-  const it=INVENTORY.find(x=>x.id===_stkCtlId); if(it) _pushStockToShopify(it, {toast:true});   // push the current count now
+  const it=INVENTORY.find(x=>x.id===_stkCtlId);
+  const ptitle=_stkCtlProduct.title;
+  _stkCtlProduct=null; _stkCtlEditIdx=-1; _stkCtlShowList(); if(typeof renderInventory==='function') renderInventory();
+  _ensureShopifyTracked(invItemIds);                                 // turn on Shopify "track quantity" so 0 = out of stock
+  if(it) _stkCtlReflectRecipe(ptitle, it.id, it.name);               // show the material in that design's recipe too
+  if(it) _pushStockToShopify(it, {toast:true});
+}
+// Turn on Shopify inventory tracking for the linked variants (best-effort) so the
+// quantity we write actually produces an out-of-stock state. Also stop overselling.
+async function _ensureShopifyTracked(invItemIds){
+  if(!Array.isArray(invItemIds) || !invItemIds.length || (typeof hasSB==='function' && !hasSB())) return;
+  const m='mutation($id: ID!){ inventoryItemUpdate(id:$id, input:{tracked:true}){ userErrors{ message } } }';
+  for(const iid of invItemIds){ if(!iid) continue; try{ await shopifyGQL(m, { id:iid }); }catch(_){ /* needs write_products on some stores — box qty still writes */ } }
+}
+// Reflect a box→product link into the design's recipe so it appears under the design's
+// materials too (display only — the box is still deducted by the box-link, not recipes,
+// which skip Shopify-controlled materials to avoid double-counting).
+function _stkCtlReflectRecipe(productTitle, boxItemId, boxName){
+  if(typeof RECIPES==='undefined' || !productTitle) return;
+  let r = RECIPES.find(x=>String(x.name||'').trim()===String(productTitle).trim());
+  if(!r){ r={ id:'rec-'+Date.now()+Math.random().toString(36).slice(2,5), name:productTitle, source:'website', components:[], since:Date.now() }; RECIPES.push(r); }
+  r.components = Array.isArray(r.components) ? r.components : [];
+  if(!r.components.some(c=>c.mid===boxItemId)) r.components.push({ mid:boxItemId, name:boxName, qty:1 });
+  if(typeof saveRecipes==='function') saveRecipes();
+  if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderRecipes==='function') renderRecipes();
 }
 let _shopMetaPid=null;
 function openShopMeta(pid){
