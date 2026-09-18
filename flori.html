@@ -4055,18 +4055,16 @@ function _stkViewInv(i){
     const _lt=new Set(_links.map(l=>String(l.productTitle||'').trim()));
     const _recOnly=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id)&&!_lt.has(String(r.name||'').trim()));
     const _total=_links.length+_recOnly.length;
-    h+='<div class="skv-sec">'+(zh?'用于产品':'Used in products')+'</div>';
+    h+='<div class="skv-sec" style="display:flex;align-items:center;gap:6px">'+(zh?'用于产品':'Used in products')+'<a onclick="openStkCtl(\''+i.id+'\')" style="margin-left:auto;font-size:10.5px;color:var(--c-burg);cursor:pointer;font-weight:700;text-transform:none;letter-spacing:0">'+(_total?(zh?'管理':'Manage'):(zh?'+ 加产品':'+ Add'))+'</a></div>';
     if(_total){
-      h+='<div style="margin-bottom:9px">'
+      h+='<div onclick="openStkCtl(\''+i.id+'\')" style="margin-bottom:2px;cursor:pointer">'
         + _links.map(l=>'<span class="skv-chip"><span class="skv-dot" style="background:#244E8C"></span>'+esc(l.productTitle||'')+(l.value&&l.value!=='all'?' <span style="font-size:9px;color:var(--c-muted)">'+esc(l.value)+'</span>':'')+'</span>').join('')
         + _recOnly.map(r=>'<span class="skv-chip" style="opacity:.75"><span class="skv-dot" style="background:#B4571E"></span>'+esc(r.name||'')+' <span style="font-size:9px;color:#B4571E">'+(zh?'待设置':'set up')+'</span></span>').join('')
         +'</div>';
-      h+='<div style="font-size:11.5px;color:var(--c-muted);margin-bottom:9px;line-height:1.5">'+(zh?('这个数量（'+(i.qty||0)+'）同时是内部库存和 Shopify，下单一起扣，0 = 一起缺货'):('This count ('+(i.qty||0)+') is both internal stock and Shopify — each order counts it down, 0 = out of stock together.'))+'</div>';
     } else {
-      h+='<div style="font-size:12px;color:var(--c-muted);margin-bottom:9px;line-height:1.5">'+(zh?'还没设置 — 加上用到这个货的产品(可选到 variant)，下单会一起扣、缺货一起下架。':'Not set — add the products that use this (down to the variant); each order counts it down and they go out of stock together at 0.')+'</div>';
+      h+='<div onclick="openStkCtl(\''+i.id+'\')" style="font-size:12px;color:var(--c-muted);margin-bottom:2px;cursor:pointer">'+(zh?'还没设置 — 点这里加产品(可选 variant)':'Not set — tap to add products (down to the variant)')+'</div>';
     }
-    h+='<div style="display:flex;gap:8px;margin-bottom:2px"><button class="btn btn-ghost btn-sm" onclick="openStkCtl(\''+i.id+'\')">'+(_total?(zh?'管理产品':'Manage products'):(zh?'+ 加产品':'+ Add products'))+'</button></div>';
-    if(_links.length) h+='<div style="font-size:10.5px;color:var(--c-muted);margin-top:2px">'+(zh?'改数量会自动同步到 Shopify':'Auto-syncs to Shopify when the count changes')+'</div>'; }
+  }
   if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
@@ -9052,16 +9050,11 @@ function editInv(id) {
   document.getElementById('i-price').value = (i.price!=null && i.price!=='') ? i.price : '';
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
-  // Reverse recipe lookup — which designs use this material (synced from Recipes).
-  const _uw=document.getElementById('i-usedin-wrap'), _ue=document.getElementById('i-usedin');
-  if(_uw&&_ue){ const used=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id));
-    _ue.innerHTML = used.length ? used.map(r=>{ const c=r.components.find(x=>x.mid===i.id); const col=r.source==='omakase'?'#7A3FA6':'#244E8C'; return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:20px;padding:3px 10px;margin:0 6px 6px 0;font-size:12px"><span style="width:6px;height:6px;border-radius:50%;background:'+col+'"></span>'+esc(r.name)+(c&&c.qty>1?' <b>×'+c.qty+'</b>':'')+'</span>'; }).join('') : '<span style="color:var(--c-muted);font-size:11.5px">'+(LANG==='zh'?'还没有设计用到':'Not used in any design yet')+'</span>';
-    _uw.style.display=''; }
+  const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
-  document.getElementById('i-adjust-qty').value = '1';
-  _invRenderMoves(i);
-  document.getElementById('i-tabs').style.display = 'flex';   // Details / Stock tabs
-  invTab('d');
+  document.getElementById('i-tabs').style.display = 'none';   // no Details/Stock tabs — adjust qty from the detail popup
+  const _f=document.getElementById('i-form'); if(_f) _f.style.display='';
+  const _as=document.getElementById('i-adjust-sec'); if(_as) _as.style.display='none';
   document.getElementById('m-inv-ttl').textContent = 'Edit Stock Item';
   document.getElementById('i-del-btn').style.display = '';
   openModal('m-inv');
