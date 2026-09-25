@@ -1406,6 +1406,7 @@ async function showApp() {
   loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
   loadShopDeductLog(); // idempotency ledger for recipe→Shopify auto-deductions
   loadStockShopCtl();  // box → Shopify availability links (drive out-of-stock from BloomFlow)
+  loadStockSizes();    // per-item size buckets (multi-size boxes in one stock card)
   loadBoxDeductLog();  // idempotency ledger for box auto-decrement on order
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
@@ -2829,6 +2830,7 @@ async function loadFromSupabase(opts = {}) {
     }
     if (inventory && inventory.length) {
       INVENTORY = inventory;
+      if (typeof _hydrateSizes==='function') _hydrateSizes();   // reattach multi-size buckets from the sizes blob
       _lsSetLean('flori-inventory', INVENTORY);
       changed = true;
     }
@@ -4042,18 +4044,24 @@ function _stkViewInv(i){
     +'<button class="skv-x" onclick="closeModal(\'m-stkview\')" aria-label="Close"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   const zh=LANG==='zh';
   h+='<div class="skv-body">';
-  h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
-    +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><input class="skv-qin'+(_invLow(i)?' low':'')+'" type="number" inputmode="numeric" value="'+(i.qty||0)+'" onclick="this.select()" onchange="stkSetInv(\''+i.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
+  if(itemHasSizes(i)){
+    h+=_stkSizesHTML(i);
+  } else {
+    h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
+      +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><input class="skv-qin'+(_invLow(i)?' low':'')+'" type="number" inputmode="numeric" value="'+(i.qty||0)+'" onclick="this.select()" onchange="stkSetInv(\''+i.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
+    h+='<button class="skv-szadd-btn" onclick="stkAddSize(\''+i.id+'\')" style="margin-top:2px">'+di('plus',13)+' '+(zh?'分尺寸卖？加尺寸':'Sell in sizes? Add sizes')+'</button>';
+  }
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
-  h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
+  if(!itemHasSizes(i)) h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
   h+=_stkRow(zh?'到货价':'Price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
   h+=_stkRow(zh?'款式':'Family', i.family?esc(i.family):'');
   h+=_stkRow(zh?'颜色':'Color', i.color?esc(i.color):'');
   if(i.notes) h+='<div class="skv-sec">'+(zh?'备注':'Notes')+'</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
   // One unified "Used in products" — merges the Shopify-controlling links AND any recipe
   // usage (deduped by product title), so the material has a single "used in" list.
-  { const _links=stockCtl(i.id);
+  // Multi-size items show their links per-size (in _stkSizesHTML above) instead.
+  if(!itemHasSizes(i)){ const _links=stockCtl(i.id);
     const _lt=new Set(_links.map(l=>String(l.productTitle||'').trim()));
     const _recOnly=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id)&&!_lt.has(String(r.name||'').trim()));
     const _total=_links.length+_recOnly.length;
@@ -4067,7 +4075,7 @@ function _stkViewInv(i){
       h+='<div onclick="openStkCtl(\''+i.id+'\')" style="font-size:12px;color:var(--c-muted);margin-bottom:2px;cursor:pointer">'+(zh?'还没设置 — 点这里加产品(可选 variant)':'Not set — tap to add products (down to the variant)')+'</div>';
     }
   }
-  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
+  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+(m.size?(' <span style="color:var(--c-muted);font-weight:400">'+esc(m.size)+'</span>'):'')+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
   return h;
@@ -4164,27 +4172,141 @@ async function loadStockShopCtl(){ if(!hasSB()) return; try{ const v=await sbGet
 function saveStockShopCtl(){ try{ _lsSet('flori-stock-shopctl',JSON.stringify(STOCK_SHOP_CTL)); }catch(_){} if(hasSB()) sbSet('stock_shop_ctl', JSON.stringify(STOCK_SHOP_CTL)); }
 function stockCtl(id){ return Array.isArray(STOCK_SHOP_CTL[id]) ? STOCK_SHOP_CTL[id] : []; }
 function stockCtlCount(id){ return stockCtl(id).reduce((s,l)=>s+((l.invItemIds||[]).length),0); }
+// Per-item size buckets live in a shared settings blob (no new DB column), keyed by
+// inventory-item id: STOCK_SIZES[itemId] = [{id,label,qty,reorder}]. item.sizes is the
+// in-memory copy, rehydrated from the blob after inventory loads; item.qty stays the
+// rollup sum so the item's column still reflects total stock.
+let STOCK_SIZES = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-sizes')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadStockSizes(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_sizes'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SIZES=o; try{ _lsSet('flori-stock-sizes',JSON.stringify(o)); }catch(_){} if(typeof _hydrateSizes==='function'){ _hydrateSizes(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')&&typeof renderInventory==='function') renderInventory(); } } }catch(_){} }
+function saveStockSizes(){ try{ _lsSet('flori-stock-sizes',JSON.stringify(STOCK_SIZES)); }catch(_){} if(hasSB()) sbSet('stock_sizes', JSON.stringify(STOCK_SIZES)); }
+// Copy the persisted sizes onto each in-memory inventory item (called after INVENTORY loads).
+function _hydrateSizes(){
+  if(typeof INVENTORY==='undefined') return;
+  INVENTORY.forEach(it=>{ const s=STOCK_SIZES[it.id]; if(Array.isArray(s)&&s.length){ it.sizes=s; _rollupItemQty(it); } else if(it.sizes){ delete it.sizes; } });
+}
+// Persist one item's sizes back to the blob (paired with _invSaveOne for the rollup qty).
+function _persistSizes(it){ if(!it) return; if(itemHasSizes(it)) STOCK_SIZES[it.id]=it.sizes; else delete STOCK_SIZES[it.id]; saveStockSizes(); }
+// ── Multi-size boxes ────────────────────────────────────────────────────────
+// A box can hold several SIZES in ONE stock card. Each size is its own bucket:
+//   item.sizes = [{ id, label, qty, reorder }]
+// and each STOCK_SHOP_CTL link carries a `sizeId` tying it to one size. An item
+// with no `sizes` stays a plain single-count item (legacy) and its links carry no
+// sizeId. `item.qty` is kept as the rollup sum so existing low/badge/total logic
+// keeps working. Enabling sizes migrates the current qty + links into the first size.
+function itemSizes(it){ return (it && Array.isArray(it.sizes)) ? it.sizes : []; }
+function itemHasSizes(it){ return itemSizes(it).length>0; }
+function _sizeById(it, sid){ return itemSizes(it).find(s=>s.id===sid) || null; }
+function _rollupItemQty(it){ if(itemHasSizes(it)) it.qty = itemSizes(it).reduce((s,z)=>s+(parseInt(z.qty,10)||0),0); return it.qty||0; }
+function _newSizeId(){ return 'sz-'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function stockCtlForSize(id, sizeId){ return stockCtl(id).filter(l=>(l.sizeId||null)===(sizeId||null)); }
+// Enable sizes on a single-count item (Approach A): the current qty + reorder + all
+// existing product links become the FIRST size, then append a fresh empty size.
+function stkAddSize(id){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const zh=LANG==='zh';
+  if(!itemHasSizes(it)){
+    const first={ id:_newSizeId(), label:(it.size&&String(it.size).trim())||(zh?'尺寸 1':'Size 1'), qty:parseInt(it.qty,10)||0, reorder:(it.reorder!=null&&it.reorder!=='')?it.reorder:'' };
+    it.sizes=[first];
+    const links=stockCtl(id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[id]=links; saveStockShopCtl(); }
+  }
+  const n=itemSizes(it).length+1;
+  it.sizes.push({ id:_newSizeId(), label:(zh?'尺寸 ':'Size ')+n, qty:0, reorder:'' });
+  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+}
+function stkRenameSize(id, sid){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz) return;
+  const v=prompt(LANG==='zh'?'尺寸名称：':'Size name:', sz.label||''); if(v===null) return;
+  sz.label=v.trim()||sz.label; _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+}
+function stkDeleteSize(id, sid){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const zh=LANG==='zh';
+  const sizes=itemSizes(it); if(sizes.length<=1){ toast(zh?'至少保留一个尺寸':'Keep at least one size'); return; }
+  const sz=_sizeById(it,sid); if(!sz) return;
+  const nLinks=stockCtlForSize(id,sid).length;
+  if(!confirm((zh?'删除尺寸「':'Delete size "')+(sz.label||'')+(zh?'」？':'"?')+(nLinks?('\n'+(zh?('它连接的 '+nLinks+' 个产品会解除'):(nLinks+' linked product(s) will be unlinked'))):''))) return;
+  it.sizes=sizes.filter(s=>s.id!==sid);
+  const links=stockCtl(id).filter(l=>(l.sizeId||null)!==sid); if(links.length) STOCK_SHOP_CTL[id]=links; else delete STOCK_SHOP_CTL[id]; saveStockShopCtl();
+  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+  _pushStockToShopify(it);
+}
+function stkAdjSize(id, sid, delta){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz) return; const zh=LANG==='zh';
+  const before=parseInt(sz.qty,10)||0; let next=before+delta; if(next<0) next=0; const applied=next-before;
+  if(applied===0){ if(delta<0) toast(zh?'已经是 0':'Already at 0'); return; }
+  sz.qty=next;
+  it.moves=Array.isArray(it.moves)?it.moves:[];
+  it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:applied>0?'in':'out', size:sz.label||'' });
+  if(it.moves.length>40) it.moves=it.moves.slice(0,40);
+  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory(); if(typeof renderHome==='function') renderHome();
+  _pushStockToShopify(it, {sizeId:sid});
+}
+function stkSetSize(id, sid, val){
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz){ _stkRefresh(); return; }
+  let target=parseInt(val,10); if(isNaN(target)||target<0){ _stkRefresh(); return; }
+  const delta=target-(parseInt(sz.qty,10)||0); if(delta!==0) stkAdjSize(id,sid,delta); else _stkRefresh();
+}
+// The size-row block shown inside the stock modal for a multi-size item.
+function _stkSizesHTML(i){
+  const zh=LANG==='zh';
+  let h='<div class="skv-sec" style="margin-top:2px">'+(zh?'尺寸与库存':'Sizes & stock')+'</div>';
+  itemSizes(i).forEach(sz=>{
+    const q=parseInt(sz.qty,10)||0;
+    const lowAt=(sz.reorder!=null&&sz.reorder!=='')?sz.reorder:((i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW);
+    const low=q<=lowAt, out=q<=0;
+    const links=stockCtlForSize(i.id, sz.id);
+    h+='<div class="skv-szrow">'
+      +'<div class="skv-szhd">'
+        +'<button class="skv-szname" onclick="stkRenameSize(\''+i.id+'\',\''+sz.id+'\')" title="'+(zh?'改名':'Rename')+'">'+esc(sz.label||'—')+'</button>'
+        +(low?'<span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')
+        +'<div class="skv-step" style="margin-left:auto"><button onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',-1)">−</button><input class="skv-qin'+(low?' low':'')+'" type="number" inputmode="numeric" value="'+q+'" onclick="this.select()" onchange="stkSetSize(\''+i.id+'\',\''+sz.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',1)">+</button></div>'
+        +'<button class="skv-szdel" onclick="stkDeleteSize(\''+i.id+'\',\''+sz.id+'\')" aria-label="'+(zh?'删除尺寸':'Delete size')+'">'+di('trash',13)+'</button>'
+      +'</div>'
+      +'<div class="skv-szused">'
+        +'<span class="skv-szul">'+(zh?'用于':'Used in')+'</span>'
+        + links.map(l=>'<span class="skv-chip"><span class="skv-dot" style="background:#244E8C"></span>'+esc(l.productTitle||'')+(l.value&&l.value!=='all'?' <span style="font-size:9px;color:var(--c-muted)">'+esc(l.value)+'</span>':'')+'</span>').join('')
+        + '<button class="skv-szadd" onclick="openStkCtl(\''+i.id+'\',\''+sz.id+'\')">'+(links.length?(zh?'管理':'Manage'):('+ '+(zh?'加产品':'Add')))+'</button>'
+      +'</div>'
+      + (out&&links.length?'<div class="skv-szwarn">'+di('warn',12)+' '+(zh?('0 时这 '+links.length+' 个产品在 Shopify 显示缺货'):('At 0 these '+links.length+' product'+(links.length>1?'s':'')+' go out of stock'))+'</div>':'')
+    +'</div>';
+  });
+  h+='<button class="skv-szadd-btn" onclick="stkAddSize(\''+i.id+'\')">'+di('plus',13)+' '+(zh?'加尺寸':'Add another size')+'</button>';
+  return h;
+}
+// The [{iid, qty}] an item should currently set on Shopify. Size-aware: each linked
+// variant is set to ITS size's qty; a legacy single-count item sets item.qty on all
+// its links. `sizeId` (optional) limits to one size's links.
+function _stockShopTargets(item, sizeId){
+  const links=stockCtl(item.id); const out=[];
+  if(itemHasSizes(item)){
+    links.forEach(l=>{
+      if(sizeId && (l.sizeId||null)!==sizeId) return;
+      const sz=_sizeById(item, l.sizeId); if(!sz) return;              // orphan link (size deleted) — skip
+      const q=Math.max(0, parseInt(sz.qty,10)||0);
+      (l.invItemIds||[]).forEach(iid=>{ if(iid) out.push({iid, qty:q}); });
+    });
+  } else {
+    const q=Math.max(0, parseInt(item.qty,10)||0);
+    links.forEach(l=> (l.invItemIds||[]).forEach(iid=>{ if(iid) out.push({iid, qty:q}); }));
+  }
+  return out;
+}
 // Push a box's current qty to every Shopify variant it controls (absolute set).
 let _stkPushBusy = {};
 async function _pushStockToShopify(item, opts){
   opts = opts || {};
   if(!item) return;
-  const links = stockCtl(item.id); if(!links.length) return;
+  const targets = _stockShopTargets(item, opts.sizeId||null); if(!targets.length) return;
   if(typeof hasSB==='function' && !hasSB()) return;
   if(_stkPushBusy[item.id]) return; _stkPushBusy[item.id]=true;
   const zh = LANG==='zh';
   try{
     const locId = await _shopLocation(); if(!locId){ if(opts.toast) toast(zh?'找不到 Shopify 仓库位置':'No Shopify location found'); return; }
-    const qty = Math.max(0, parseInt(item.qty,10)||0);
-    const quantities = [];
-    links.forEach(l => (l.invItemIds||[]).forEach(iid => { if(iid) quantities.push({ inventoryItemId:iid, locationId:locId, quantity:qty }); }));
-    if(!quantities.length) return;
+    const quantities = targets.map(t => ({ inventoryItemId:t.iid, locationId:locId, quantity:t.qty }));
     const m = `mutation($input: InventorySetQuantitiesInput!){ inventorySetQuantities(input:$input){ userErrors{ field message } } }`;
     const run = async refresh => { const res = await shopifyGQL(m, { input:{ reason:'correction', name:'available', ignoreCompareQuantity:true, quantities } }, refresh?{refreshToken:true}:undefined); const ue=(res.inventorySetQuantities&&res.inventorySetQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); };
     try{ await run(false); }
     catch(e1){ if(!/access denied|access scope|write_inventory|not approved/i.test(e1&&e1.message||'')) throw e1; await run(true); }
     // Mirror onto the in-memory Shopify stock so the app's own cards reflect it too.
-    if(typeof SHOPIFY_STOCK!=='undefined'){ links.forEach(l => (l.invItemIds||[]).forEach(iid => { (SHOPIFY_STOCK||[]).forEach(p => { (p.variants||[]).forEach(v => { if(v.invItemId===iid){ v.qty=qty; } }); p.total=(p.variants||[]).reduce((s,v)=>s+(v.qty||0),0); }); })); }
+    if(typeof SHOPIFY_STOCK!=='undefined'){ const qByIid={}; targets.forEach(t=>{ qByIid[t.iid]=t.qty; }); (SHOPIFY_STOCK||[]).forEach(p=>{ (p.variants||[]).forEach(v=>{ if(v.invItemId!=null && qByIid[v.invItemId]!=null) v.qty=qByIid[v.invItemId]; }); p.total=(p.variants||[]).reduce((s,v)=>s+(v.qty||0),0); }); }
     if(opts.toast) toast((zh?'✓ 已更新 Shopify（'+quantities.length+' 款）':'✓ Shopify updated ('+quantities.length+' variants)'));
   }catch(e){
     let msg=(e&&e.message)||'error';
@@ -4204,7 +4326,7 @@ function _applyBoxDeductions(){
   if(typeof ORDERS==='undefined' || typeof INVENTORY==='undefined') return;
   // reverse index: variant inventoryItem id → [{itemId, at}]
   const rev={};
-  Object.keys(STOCK_SHOP_CTL||{}).forEach(itemId=>{ (STOCK_SHOP_CTL[itemId]||[]).forEach(link=>{ const at=link.addedAt||0; (link.invItemIds||[]).forEach(iid=>{ (rev[iid]=rev[iid]||[]).push({itemId,at}); }); }); });
+  Object.keys(STOCK_SHOP_CTL||{}).forEach(itemId=>{ (STOCK_SHOP_CTL[itemId]||[]).forEach(link=>{ const at=link.addedAt||0; const sizeId=link.sizeId||null; (link.invItemIds||[]).forEach(iid=>{ (rev[iid]=rev[iid]||[]).push({itemId,sizeId,at}); }); }); });
   if(!Object.keys(rev).length) return;
   const cutoff = Date.now() - 120*86400000;
   const touched=new Set(); let changed=false;
@@ -4218,28 +4340,32 @@ function _applyBoxDeductions(){
       const lq=li.quantity||1;
       boxes.forEach(b=>{
         if(when < (b.at||0)) return;                 // order predates the link
-        const rkey=o.id+'|'+iid+'|'+b.itemId;
+        const rkey=o.id+'|'+iid+'|'+b.itemId+(b.sizeId?('|'+b.sizeId):'');
         if(BOX_DEDUCT_LOG[rkey]) return;             // already counted
         const it=INVENTORY.find(x=>x.id===b.itemId); if(!it) return;
-        it.qty=(it.qty||0)-lq;
+        let szLabel='';
+        if(b.sizeId){ const sz=_sizeById(it,b.sizeId); if(!sz) return; sz.qty=(parseInt(sz.qty,10)||0)-lq; szLabel=sz.label||''; _rollupItemQty(it); }
+        else { it.qty=(it.qty||0)-lq; }
         it.moves=Array.isArray(it.moves)?it.moves:[];
-        it.moves.unshift({ts:new Date().toISOString(), by:'auto', delta:-lq, type:'auto', orderId:o.id, orderNo:o.name||'', rkey});
+        it.moves.unshift({ts:new Date().toISOString(), by:'auto', delta:-lq, type:'auto', orderId:o.id, orderNo:o.name||'', rkey, size:szLabel});
         if(it.moves.length>80) it.moves=it.moves.slice(0,80);
         BOX_DEDUCT_LOG[rkey]={delta:-lq, ts:Date.now(), orderNo:o.name||''};
         touched.add(b.itemId); changed=true;
       });
     });
   });
-  if(changed){ saveBoxDeductLog(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
+  if(changed){ saveBoxDeductLog(); if(typeof saveStockSizes==='function') saveStockSizes(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
   touched.forEach(id=>{ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it); });   // reflect the new count to Shopify
 }
 // "Used in products" editor: a list of linked products (each editable), and a variant
 // checklist to add/edit which variants (themes) of a product this box is used in.
-let _stkCtlId=null, _stkCtlSearchT=null, _stkCtlResults=[], _stkCtlProduct=null, _stkCtlEditIdx=-1;
-function openStkCtl(id){
-  _stkCtlId=id; _stkCtlProduct=null; _stkCtlEditIdx=-1;
+let _stkCtlId=null, _stkCtlSearchT=null, _stkCtlResults=[], _stkCtlProduct=null, _stkCtlEditIdx=-1, _stkCtlSizeId=null;
+function openStkCtl(id, sizeId){
+  _stkCtlId=id; _stkCtlSizeId=sizeId||null; _stkCtlProduct=null; _stkCtlEditIdx=-1;
   const it=INVENTORY.find(x=>x.id===id);
-  const nm=document.getElementById('stkctl-name'); if(nm) nm.textContent = it ? it.name+' · '+(it.qty||0)+' in stock' : '';
+  const sz = (it && _stkCtlSizeId) ? _sizeById(it, _stkCtlSizeId) : null;
+  const qShown = sz ? (parseInt(sz.qty,10)||0) : (it?(it.qty||0):0);
+  const nm=document.getElementById('stkctl-name'); if(nm) nm.textContent = it ? (it.name+(sz?(' · '+(sz.label||'')):'')+' · '+qShown+' in stock') : '';
   _stkCtlShowList(); openModal('m-stkctl');
 }
 function _stkCtlShowList(){
@@ -4249,10 +4375,16 @@ function _stkCtlShowList(){
 }
 function _stkCtlRenderList(){
   const el=document.getElementById('stkctl-list'); if(!el) return;
-  const links=stockCtl(_stkCtlId);
-  const lt=new Set(links.map(l=>String(l.productTitle||'').trim()));
-  const recOnly=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===_stkCtlId)&&!lt.has(String(r.name||'').trim()));
-  let h = links.map((l,i)=>{
+  const it=INVENTORY.find(x=>x.id===_stkCtlId);
+  const hasSizes = it && typeof itemHasSizes==='function' && itemHasSizes(it);
+  const allLinks=stockCtl(_stkCtlId);
+  // Scope to the open size when the item is multi-size; recipe-only rows only show
+  // on single-count items (recipes aren't per-size).
+  const view = allLinks.map((l,idx)=>({l,idx})).filter(o=> !hasSizes || (o.l.sizeId||null)===(_stkCtlSizeId||null));
+  const lt=new Set(view.map(o=>String(o.l.productTitle||'').trim()));
+  const recOnly = hasSizes ? [] : (typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===_stkCtlId)&&!lt.has(String(r.name||'').trim()));
+  let h = view.map(o=>{
+    const l=o.l, i=o.idx;
     const sub = (l.value && l.value!=='all' && l.value!=='') ? esc(l.value) : (l.value==='all'?'Whole product':'');
     return '<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--c-border)">'
       +'<div style="flex:1;min-width:0;cursor:pointer" onclick="stkCtlEdit('+i+')"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(l.productTitle||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+(sub?sub+' · ':'')+((l.invItemIds||[]).length)+' variants</div></div>'
@@ -4371,8 +4503,11 @@ function stkCtlSaveEditor(){
   const value = allInProduct ? 'all' : (groupVals.size===1 ? [...groupVals][0] : (invItemIds.length+' variants'));
   const option = (groupVals.size===1 && !allInProduct && _stkCtlProduct.options[0]) ? _stkCtlProduct.options[0].name : '';
   const links=stockCtl(_stkCtlId).slice();
-  const prevAt=(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) ? links[_stkCtlEditIdx].addedAt : Date.now();
+  const prevLink=(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) ? links[_stkCtlEditIdx] : null;
+  const prevAt=prevLink ? prevLink.addedAt : Date.now();
+  const sizeId=prevLink ? (prevLink.sizeId||_stkCtlSizeId||null) : (_stkCtlSizeId||null);   // tie the link to the open size
   const entry={ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:option, value:value, invItemIds:invItemIds, addedAt:(prevAt||Date.now()) };
+  if(sizeId) entry.sizeId=sizeId;
   if(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) links[_stkCtlEditIdx]=entry; else links.push(entry);
   STOCK_SHOP_CTL[_stkCtlId]=links; saveStockShopCtl();
   const it=INVENTORY.find(x=>x.id===_stkCtlId);

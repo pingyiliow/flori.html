@@ -464,6 +464,19 @@ body.role-driver .shell{grid-template-columns:1fr}
 .skv-mstep button{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-ink);font-size:14px;cursor:pointer;line-height:1;padding:0}
 .skv-mstep .plus{background:var(--c-ink);color:var(--c-bg);border:none}
 .skv-mstep b{font-family:var(--f-head);font-size:17px;font-weight:800;min-width:18px;text-align:center}
+.skv-szrow{border:1px solid var(--c-border);border-radius:12px;padding:11px 12px;margin-bottom:9px;background:var(--c-surface)}
+.skv-szhd{display:flex;align-items:center;gap:8px}
+.skv-szname{font-size:14px;font-weight:700;color:var(--c-ink);background:none;border:none;cursor:pointer;padding:0;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.skv-szname:hover{text-decoration:underline}
+.skv-szlow{font-size:10px;color:#8a5a12;background:#FBEEDA;border-radius:10px;padding:1px 7px;flex:none}
+.skv-szdel{border:none;background:none;color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;padding:2px}
+.skv-szdel:hover{color:var(--c-red)}
+.skv-szused{display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:10px;padding-top:9px;border-top:1px solid var(--c-border)}
+.skv-szul{font-size:10.5px;color:var(--c-muted);margin-right:1px}
+.skv-szadd{font-size:11px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:700;padding:0}
+.skv-szwarn{font-size:10.5px;color:#B4571E;margin-top:7px;display:flex;align-items:center;gap:4px}
+.skv-szadd-btn{width:100%;margin:2px 0 6px;padding:9px;border:1px dashed var(--c-border);border-radius:10px;background:none;color:var(--c-muted);font-size:12.5px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.skv-szadd-btn:hover{border-color:var(--c-burg);color:var(--c-burg)}
 .skv-foot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--c-border)}
 
 /* add-stock source toggle + shopify product search */
