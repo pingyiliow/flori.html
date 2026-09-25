@@ -657,10 +657,9 @@
         <div class="ff"><label class="ff-l">Size</label><input id="i-size" type="text" placeholder="e.g. 20cm"></div>
         <div class="ff"><label class="ff-l">Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="per stem / per roll"></div>
         <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
-        <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional · sell one box in several sizes</span></label>
+        <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional</span></label>
           <div id="i-sizes-list"></div>
           <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="invSizeAdd()">＋ Add size</button>
-          <div style="font-size:11px;color:var(--c-muted);margin-top:6px;line-height:1.5">Name each size (Large / Medium / Small) and its measurement here. Set each size's stock count and linked products from the item's stock popup.</div>
         </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
@@ -4054,7 +4053,6 @@ function _stkViewInv(i){
   } else {
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
       +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><input class="skv-qin'+(_invLow(i)?' low':'')+'" type="number" inputmode="numeric" value="'+(i.qty||0)+'" onclick="this.select()" onchange="stkSetInv(\''+i.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
-    h+='<button class="skv-szadd-btn" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')" style="margin-top:2px">'+di('plus',13)+' '+(zh?'分尺寸卖？加尺寸':'Sell in sizes? Add sizes')+'</button>';
   }
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
@@ -9210,7 +9208,7 @@ function openAddInv(cat) {
 let _invSizeEdit=[];
 function _renderInvSizeEditor(){
   const el=document.getElementById('i-sizes-list'); if(!el) return; const zh=LANG==='zh';
-  if(!_invSizeEdit.length){ el.innerHTML='<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0">'+(zh?'暂无尺寸 — 单一库存计数。加尺寸即可在一张卡里卖大/中/小。':'No sizes — single stock count. Add a size to sell L / M / S in one card.')+'</div>'; return; }
+  if(!_invSizeEdit.length){ el.innerHTML=''; return; }
   el.innerHTML=_invSizeEdit.map((s,idx)=>{
     const q=parseInt(s.qty,10)||0;
     return '<div class="i-szrow">'
