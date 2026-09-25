@@ -7065,8 +7065,13 @@ function _drvRow(o, opts){
     ? '<button onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="width:26px;height:26px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted);flex:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
     : '<span style="color:var(--c-muted);font-size:14px;flex:none">›</span>';
   const flame = o.priority==='urgent' ? ' <span title="urgent" style="color:#E65100">'+dif('bolt',12)+'</span>' : '';
+  // Cover thumbnail so the driver can see the arrangement before tapping in.
+  const _cov = (typeof orderPhotos==='function' ? orderPhotos(o)[0] : null) || o.image || null;
+  const thumb = _cov
+    ? '<img src="'+String(_cov).replace(/"/g,'&quot;')+'" loading="lazy" onerror="imgFlower(this)" style="width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none">'
+    : '<span style="width:38px;height:38px;border-radius:8px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-muted);flex:none">'+di('flower',18)+'</span>';
   return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
-    + handle + circle
+    + handle + circle + thumb
     + '<div style="flex:1;min-width:0">'
       + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o))+(o.dueTime?' · '+esc2(o.dueTime):'')+' · '+_drvStatusText(o)+'</div>'
@@ -7128,7 +7133,7 @@ function _drvDetailView(o){
     + (nav ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+'</div>' : '');
   // Items with per-line price on the right; overall total below.
   const itemRows = (o.lineItems && o.lineItems.length)
-    ? o.lineItems.map(li => { const q=li.quantity||1; const lt=(li.price!=null&&li.price!=='')?(cur+' '+_invPriceStr(parseFloat(li.price)*q)):''; return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:14.5px;padding:2px 0"><span style="min-width:0">'+esc2(li.title||'')+' <span style="color:var(--c-muted)">×'+q+'</span></span>'+(lt?'<span style="font-weight:600;white-space:nowrap">'+lt+'</span>':'')+'</div>'; }).join('')
+    ? o.lineItems.map((li,idx) => { const q=li.quantity||1; const lt=(li.price!=null&&li.price!=='')?(cur+' '+_invPriceStr(parseFloat(li.price)*q)):''; return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:14.5px;padding:2px 0"><span style="min-width:0">'+esc2(li.title||'')+' <span style="color:var(--c-muted)">×'+q+'</span></span>'+(lt?'<span style="font-weight:600;white-space:nowrap">'+lt+'</span>':'')+'</div>'+itemPhotoStrip(o.id, idx, li); }).join('')
     : '<div style="font-size:14.5px">'+esc2(o.product||'—')+'</div>';
   const totVal = (o.total!=null&&o.total!=='') ? (cur+' '+_invPriceStr(o.total)) : '';
   // Footer action buttons.
@@ -9775,6 +9780,19 @@ function zoomOrder(orderId,startSrc,e){
   openGallery(list, start, (o&&o.product)||'');
 }
 // ── Per-product reference photos, managed from the order detail panel ──
+// Reorderable photo strip for one line item: tap to zoom, ✕ to delete, drag to
+// reorder, ＋ Add (or drop) a new photo. Shared verbatim by the florist order
+// panel and the driver stop detail so the two never drift. liIdx<0 → no strip
+// (unsaved/derived items can't be edited safely).
+function itemPhotoStrip(orderId, liIdx, li){
+  if (liIdx < 0) return '';
+  const ph = itemPhotos(li);
+  const fb = String((li && li.image) || '').replace(/'/g,"\\'");
+  return '<div class="dp-item-photos">'
+    + ph.map((s,pi)=>'<div class="dp-ph" onpointerdown="dpPhPointerDown(event,\''+orderId+'\','+liIdx+','+pi+')" title="Drag to reorder"><img src="'+s+'" loading="lazy" alt="" onerror="_imgFallback(this,\''+fb+'\')" onclick="zoomItem(\''+orderId+'\','+liIdx+','+pi+',event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto(\''+orderId+'\','+liIdx+','+pi+',event)" aria-label="Delete photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>').join('')
+    + '<button class="dp-ph-add" onclick="addItemPhoto(\''+orderId+'\','+liIdx+')" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="addItemPhotoDrop(event,\''+orderId+'\','+liIdx+')" title="Add or drop a photo for this product">'+di('plus',13)+'<span>Add</span></button>'
+  + '</div>';
+}
 function addItemPhoto(orderId,itemIdx){
   const o=ORDERS.find(x=>x.id===orderId); if(!o||!o.lineItems||!o.lineItems[itemIdx]) return;
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
@@ -9815,6 +9833,7 @@ function _persistItemPhotos(o){
   o.image = (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || null;
   saveOrders(o); renderHome(); renderOrders();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
+  if(typeof _drvDetail!=='undefined' && _drvDetail===o.id && typeof renderDriver==='function') renderDriver();   // driver stop detail open → refresh its strip
   toast('✓ Photos updated');
 }
 // Drag-to-reorder a product's photos — pointer-based, so it works on mouse, phone
@@ -10418,10 +10437,7 @@ function _renderDP(order, localOrder) {
       // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
       // stored line items (liIdx>=0) so edits hit the right item.
       const liIdx = useLocal ? k : -1;
-      const ph = liIdx >= 0 ? itemPhotos(li) : [];
-      const strip = (liIdx>=0)
-        ? `<div class="dp-item-photos">${ph.map((s,pi)=>`<div class="dp-ph" onpointerdown="dpPhPointerDown(event,'${localOrder.id}',${liIdx},${pi})" title="Drag to reorder"><img src="${s}" loading="lazy" alt="" onerror="_imgFallback(this,'${String(li.image||'').replace(/'/g,"\\'")}')" onclick="zoomItem('${localOrder.id}',${liIdx},${pi},event)"><button class="dp-ph-del" onpointerdown="event.stopPropagation()" onclick="deleteItemPhoto('${localOrder.id}',${liIdx},${pi},event)" aria-label="Delete photo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}<button class="dp-ph-add" onclick="addItemPhoto('${localOrder.id}',${liIdx})" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="addItemPhotoDrop(event,'${localOrder.id}',${liIdx})" title="Add or drop a photo for this product">${di('plus',13)}<span>Add</span></button></div>`
-        : '';
+      const strip = itemPhotoStrip(localOrder.id, liIdx, li);
       // Per-item special instruction — tap to add/edit (only for stored line items).
       const noteHtml = (liIdx >= 0)
         ? `<div class="dp-item-note${li.note?'':' empty'}" onclick="editItemNote('${localOrder.id}',${liIdx})" title="Special instruction for this item">${li.note ? di('warn',11)+' '+esc(li.note) : di('plus',11)+' Add instruction'}</div>`
