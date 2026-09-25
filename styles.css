@@ -470,10 +470,14 @@ body.role-driver .shell{grid-template-columns:1fr}
 .skv-szname:hover{text-decoration:underline}
 .skv-szname2{font-size:14px;font-weight:700;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .skv-szmeas{font-size:11px;color:var(--c-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.i-szrow{display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap}
-.i-szname{flex:0 0 30%;min-width:88px;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
-.i-szmeasure{flex:1;min-width:120px;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
-.i-szqty{font-size:12px;color:var(--c-muted);min-width:20px;text-align:center;flex:none}
+.i-szcard{border:1px solid var(--c-border);border-radius:10px;padding:9px 10px;margin-bottom:8px;background:var(--c-surface)}
+.i-szc-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.i-szname{flex:1;min-width:0;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
+.i-szmeasure{width:100%;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px;margin-bottom:6px}
+.i-szc-prices{display:flex;gap:8px}
+.i-szc-prices label{flex:1;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--c-muted)}
+.i-szprice{flex:1;min-width:0;width:100%;padding:7px 8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
+.i-szqty{font-size:12px;color:var(--c-muted);min-width:18px;text-align:center;flex:none}
 .i-szdel{border:none;background:none;color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;padding:4px}
 .i-szdel:hover{color:var(--c-red)}
 .photo-zone.pz-sm{width:112px;height:112px;min-height:0;padding:8px}

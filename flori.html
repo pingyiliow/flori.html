@@ -655,8 +655,8 @@
         <div class="ff"><label class="ff-l">Quantity</label><input id="i-qty" type="number" value="0" min="0"></div>
         <div class="ff"><label class="ff-l">Unit</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
         <div class="ff"><label class="ff-l">Size</label><input id="i-size" type="text" placeholder="e.g. 20cm"></div>
-        <div class="ff"><label class="ff-l">Cost price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="what you pay"></div>
-        <div class="ff"><label class="ff-l">Selling price (RM) <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sell" type="number" step="0.01" min="0" placeholder="what you sell for"></div>
+        <div class="ff" id="i-price-ff"><label class="ff-l">Cost price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="what you pay"></div>
+        <div class="ff" id="i-sell-ff"><label class="ff-l">Selling price (RM) <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sell" type="number" step="0.01" min="0" placeholder="what you sell for"></div>
         <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
         <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional</span></label>
           <div id="i-sizes-list"></div>
@@ -4059,8 +4059,10 @@ function _stkViewInv(i){
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
   if(!itemHasSizes(i)) h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
-  h+=_stkRow(zh?'成本价':'Cost price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
-  h+=_stkRow(zh?'售价':'Selling price', (i.sell!=null&&i.sell!=='')?('RM '+_invPriceStr(i.sell)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  if(!itemHasSizes(i)){   // multi-size items carry cost/sell per size instead
+    h+=_stkRow(zh?'成本价':'Cost price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
+    h+=_stkRow(zh?'售价':'Selling price', (i.sell!=null&&i.sell!=='')?('RM '+_invPriceStr(i.sell)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  }
   h+=_stkRow(zh?'款式':'Family', i.family?esc(i.family):'');
   h+=_stkRow(zh?'颜色':'Color', i.color?esc(i.color):'');
   if(i.notes) h+='<div class="skv-sec">'+(zh?'备注':'Notes')+'</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
@@ -4260,6 +4262,13 @@ function stkSetSize(id, sid, val){
   let target=parseInt(val,10); if(isNaN(target)||target<0){ _stkRefresh(); return; }
   const delta=target-(parseInt(sz.qty,10)||0); if(delta!==0) stkAdjSize(id,sid,delta); else _stkRefresh();
 }
+// Small "Cost RM x · Sell RM y" line under a size (only the parts that are set).
+function _szPriceLine(sz, zh){
+  const pc=(sz.cost!=null&&sz.cost!=='')?('RM '+_invPriceStr(parseFloat(sz.cost))):'';
+  const ps=(sz.sell!=null&&sz.sell!=='')?('RM '+_invPriceStr(parseFloat(sz.sell))):'';
+  if(!pc&&!ps) return '';
+  return '<div class="skv-szmeas">'+(pc?((zh?'成本 ':'Cost ')+pc):'')+(pc&&ps?' · ':'')+(ps?((zh?'售价 ':'Sell ')+ps):'')+'</div>';
+}
 // The size-row block shown inside the stock modal for a multi-size item.
 function _stkSizesHTML(i){
   const zh=LANG==='zh';
@@ -4272,7 +4281,7 @@ function _stkSizesHTML(i){
     const links=stockCtlForSize(i.id, sz.id);
     h+='<div class="skv-szrow">'
       +'<div class="skv-szhd">'
-        +'<div style="min-width:0;flex:1"><div class="skv-szname2">'+esc(sz.label||'—')+(low?' <span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')+'</div>'+(sz.measure?'<div class="skv-szmeas">'+esc(sz.measure)+'</div>':'')+'</div>'
+        +'<div style="min-width:0;flex:1"><div class="skv-szname2">'+esc(sz.label||'—')+(low?' <span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')+'</div>'+(sz.measure?'<div class="skv-szmeas">'+esc(sz.measure)+'</div>':'')+_szPriceLine(sz,zh)+'</div>'
         +'<div class="skv-step"><button onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',-1)">−</button><input class="skv-qin'+(low?' low':'')+'" type="number" inputmode="numeric" value="'+q+'" onclick="this.select()" onchange="stkSetSize(\''+i.id+'\',\''+sz.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',1)">+</button></div>'
       +'</div>'
       +'<div class="skv-szused">'
@@ -9221,25 +9230,42 @@ function openAddInv(cat) {
 // linked products are managed from the stock popup. Working copy applied on save.
 let _invSizeEdit=[];
 function _renderInvSizeEditor(){
-  const el=document.getElementById('i-sizes-list'); if(!el) return; const zh=LANG==='zh';
-  if(!_invSizeEdit.length){ el.innerHTML=''; return; }
-  el.innerHTML=_invSizeEdit.map((s,idx)=>{
-    const q=parseInt(s.qty,10)||0;
-    return '<div class="i-szrow">'
-      +'<input class="i-szname" type="text" value="'+esc(s.label||'')+'" placeholder="'+(zh?'名称 (大/中/小)':'Name (L / M / S)')+'" oninput="invSizeField('+idx+',\'label\',this.value)">'
-      +'<input class="i-szmeasure" type="text" value="'+esc(s.measure||'')+'" placeholder="'+(zh?'尺寸 (如 Ø20×H10cm)':'Measurement (e.g. Ø20 × H10cm)')+'" oninput="invSizeField('+idx+',\'measure\',this.value)">'
-      +'<span class="i-szqty" title="'+(zh?'库存在弹窗调整':'stock is set in the popup')+'">'+q+'</span>'
-      +'<button type="button" class="i-szdel" onclick="invSizeDel('+idx+')" aria-label="'+(zh?'删除':'Delete')+'">'+di('trash',14)+'</button>'
-    +'</div>';
-  }).join('');
+  const el=document.getElementById('i-sizes-list'); const zh=LANG==='zh';
+  if(el){
+    el.innerHTML = !_invSizeEdit.length ? '' : _invSizeEdit.map((s,idx)=>{
+      const q=parseInt(s.qty,10)||0;
+      return '<div class="i-szcard">'
+        +'<div class="i-szc-top">'
+          +'<input class="i-szname" type="text" value="'+esc(s.label||'')+'" placeholder="'+(zh?'名称 (大/中/小)':'Name (L / M / S)')+'" oninput="invSizeField('+idx+',\'label\',this.value)">'
+          +'<span class="i-szqty" title="'+(zh?'库存在弹窗调整':'stock is set in the popup')+'">'+q+'</span>'
+          +'<button type="button" class="i-szdel" onclick="invSizeDel('+idx+')" aria-label="'+(zh?'删除':'Delete')+'">'+di('trash',14)+'</button>'
+        +'</div>'
+        +'<input class="i-szmeasure" type="text" value="'+esc(s.measure||'')+'" placeholder="'+(zh?'尺寸 (如 330×305×965mm)':'Measurement (e.g. 330×305×965mm)')+'" oninput="invSizeField('+idx+',\'measure\',this.value)">'
+        +'<div class="i-szc-prices">'
+          +'<label>'+(zh?'成本':'Cost')+' <input class="i-szprice" type="number" step="0.01" min="0" value="'+(s.cost!=null&&s.cost!==''?s.cost:'')+'" placeholder="RM" oninput="invSizeField('+idx+',\'cost\',this.value)"></label>'
+          +'<label>'+(zh?'售价':'Sell')+' <input class="i-szprice" type="number" step="0.01" min="0" value="'+(s.sell!=null&&s.sell!==''?s.sell:'')+'" placeholder="RM" oninput="invSizeField('+idx+',\'sell\',this.value)"></label>'
+        +'</div>'
+      +'</div>';
+    }).join('');
+  }
+  _invToggleItemPrice();
 }
-function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'' }); _renderInvSizeEditor(); }
+// Hide the item-level Cost/Selling fields when the item is split into sizes — each size
+// carries its own price then.
+function _invToggleItemPrice(){
+  const has=_invSizeEdit.length>0;
+  const pf=document.getElementById('i-price-ff'), sf=document.getElementById('i-sell-ff');
+  if(pf) pf.style.display=has?'none':'';
+  if(sf) sf.style.display=has?'none':'';
+}
+function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'', cost:'', sell:'' }); _renderInvSizeEditor(); }
 function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _renderInvSizeEditor(); }
 function invSizeField(idx,f,v){ if(_invSizeEdit[idx]) _invSizeEdit[idx][f]=v; }
 // Reconcile the editor's size list back onto the item (called from saveInv).
 function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
   const zh=LANG==='zh';
-  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||'') }));
+  const _numOrBlank=v=>{ v=(v==null?'':String(v).trim()); if(v==='') return ''; const n=parseFloat(v); return isNaN(n)?'':n; };
+  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||''), cost:_numOrBlank(s.cost), sell:_numOrBlank(s.sell) }));
   if(!clean.length){
     if(prevHadSizes){ const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ delete l.sizeId; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); } }   // revert to single count: unlink sizeId
     delete it.sizes; _persistSizes(it); return;
