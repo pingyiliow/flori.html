@@ -2836,6 +2836,12 @@ async function loadFromSupabase(opts = {}) {
     }
     if (inventory && inventory.length) {
       INVENTORY = inventory;
+      // Re-fetch the per-item size/sell blobs so a REFRESH hydrates FRESH sizes. A size
+      // qty edited on another device lives in these blobs (not the inventory row), and
+      // they're otherwise only pulled at launch — so a stale in-memory blob would
+      // overwrite the fresh count back to its old value on every refresh.
+      try { if (typeof loadStockSizes==='function') await loadStockSizes(); } catch(_){}
+      try { if (typeof loadStockSell==='function') await loadStockSell(); } catch(_){}
       if (typeof _hydrateSizes==='function') _hydrateSizes();   // reattach multi-size buckets from the sizes blob
       _lsSetLean('flori-inventory', INVENTORY);
       changed = true;
