@@ -657,10 +657,15 @@
         <div class="ff"><label class="ff-l">Size</label><input id="i-size" type="text" placeholder="e.g. 20cm"></div>
         <div class="ff"><label class="ff-l">Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="per stem / per roll"></div>
         <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
+        <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional · sell one box in several sizes</span></label>
+          <div id="i-sizes-list"></div>
+          <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="invSizeAdd()">＋ Add size</button>
+          <div style="font-size:11px;color:var(--c-muted);margin-top:6px;line-height:1.5">Name each size (Large / Medium / Small) and its measurement here. Set each size's stock count and linked products from the item's stock popup.</div>
+        </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="i-photo">
-          <div class="photo-zone" id="i-photo-zone" style="min-height:90px" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'i-photo-zone','i-photo')">
+          <div class="photo-zone pz-sm" id="i-photo-zone" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'i-photo-zone','i-photo')">
             <div class="photo-zone-icon" style="color:var(--c-muted)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
             <div class="photo-zone-lbl">Tap, drag &amp; drop, or paste</div>
             <input type="file" accept="image/*" onchange="handlePhotoUpload(this,'i-photo-zone','i-photo')">
@@ -4049,7 +4054,7 @@ function _stkViewInv(i){
   } else {
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(_invLow(i)?' · <span style="color:var(--c-red)">'+(zh?'低':'low')+'</span>':'')+'</span>'
       +'<div class="skv-step"><button onclick="stkAdjInv(\''+i.id+'\',-1)">−</button><input class="skv-qin'+(_invLow(i)?' low':'')+'" type="number" inputmode="numeric" value="'+(i.qty||0)+'" onclick="this.select()" onchange="stkSetInv(\''+i.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjInv(\''+i.id+'\',1)">+</button></div></div>';
-    h+='<button class="skv-szadd-btn" onclick="stkAddSize(\''+i.id+'\')" style="margin-top:2px">'+di('plus',13)+' '+(zh?'分尺寸卖？加尺寸':'Sell in sizes? Add sizes')+'</button>';
+    h+='<button class="skv-szadd-btn" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')" style="margin-top:2px">'+di('plus',13)+' '+(zh?'分尺寸卖？加尺寸':'Sell in sizes? Add sizes')+'</button>';
   }
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
@@ -4247,7 +4252,8 @@ function stkSetSize(id, sid, val){
 // The size-row block shown inside the stock modal for a multi-size item.
 function _stkSizesHTML(i){
   const zh=LANG==='zh';
-  let h='<div class="skv-sec" style="margin-top:2px">'+(zh?'尺寸与库存':'Sizes & stock')+'</div>';
+  let h='<div class="skv-sec" style="display:flex;align-items:center;gap:6px;margin-top:2px">'+(zh?'尺寸与库存':'Sizes & stock')
+    +'<a onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')" style="margin-left:auto;font-size:10.5px;color:var(--c-burg);cursor:pointer;font-weight:700;text-transform:none;letter-spacing:0">'+(zh?'编辑尺寸':'Edit sizes')+'</a></div>';
   itemSizes(i).forEach(sz=>{
     const q=parseInt(sz.qty,10)||0;
     const lowAt=(sz.reorder!=null&&sz.reorder!=='')?sz.reorder:((i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW);
@@ -4255,10 +4261,8 @@ function _stkSizesHTML(i){
     const links=stockCtlForSize(i.id, sz.id);
     h+='<div class="skv-szrow">'
       +'<div class="skv-szhd">'
-        +'<button class="skv-szname" onclick="stkRenameSize(\''+i.id+'\',\''+sz.id+'\')" title="'+(zh?'改名':'Rename')+'">'+esc(sz.label||'—')+'</button>'
-        +(low?'<span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')
-        +'<div class="skv-step" style="margin-left:auto"><button onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',-1)">−</button><input class="skv-qin'+(low?' low':'')+'" type="number" inputmode="numeric" value="'+q+'" onclick="this.select()" onchange="stkSetSize(\''+i.id+'\',\''+sz.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',1)">+</button></div>'
-        +'<button class="skv-szdel" onclick="stkDeleteSize(\''+i.id+'\',\''+sz.id+'\')" aria-label="'+(zh?'删除尺寸':'Delete size')+'">'+di('trash',13)+'</button>'
+        +'<div style="min-width:0;flex:1"><div class="skv-szname2">'+esc(sz.label||'—')+(low?' <span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')+'</div>'+(sz.measure?'<div class="skv-szmeas">'+esc(sz.measure)+'</div>':'')+'</div>'
+        +'<div class="skv-step"><button onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',-1)">−</button><input class="skv-qin'+(low?' low':'')+'" type="number" inputmode="numeric" value="'+q+'" onclick="this.select()" onchange="stkSetSize(\''+i.id+'\',\''+sz.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',1)">+</button></div>'
       +'</div>'
       +'<div class="skv-szused">'
         +'<span class="skv-szul">'+(zh?'用于':'Used in')+'</span>'
@@ -4268,7 +4272,6 @@ function _stkSizesHTML(i){
       + (out&&links.length?'<div class="skv-szwarn">'+di('warn',12)+' '+(zh?('0 时这 '+links.length+' 个产品在 Shopify 显示缺货'):('At 0 these '+links.length+' product'+(links.length>1?'s':'')+' go out of stock'))+'</div>':'')
     +'</div>';
   });
-  h+='<button class="skv-szadd-btn" onclick="stkAddSize(\''+i.id+'\')">'+di('plus',13)+' '+(zh?'加尺寸':'Add another size')+'</button>';
   return h;
 }
 // The [{iid, qty}] an item should currently set on Shopify. Size-aware: each linked
@@ -9189,6 +9192,7 @@ function openAddInv(cat) {
   document.getElementById('i-notes').value = '';
   const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
   _invLinked = []; _invRenderLinked();
+  _invSizeEdit = []; _renderInvSizeEditor();
   const _uw2=document.getElementById('i-usedin-wrap'); if(_uw2) _uw2.style.display='none';
   setPhotoZone('i-photo-zone', 'i-photo', '');
   document.getElementById('i-tabs').style.display = 'none';         // no Details/Stock tabs for a brand-new item
@@ -9199,6 +9203,44 @@ function openAddInv(cat) {
   const _src=document.getElementById('i-src'); if(_src) _src.style.display='flex';
   invSrc('m');   // default to manual entry; Shopify tab is opt-in
   openModal('m-inv');
+}
+// ── Sizes editor (inside the stock-item Edit form) ──────────────────────────
+// Names (Large/Medium/Small) + measurements live here; each size's stock count and
+// linked products are managed from the stock popup. Working copy applied on save.
+let _invSizeEdit=[];
+function _renderInvSizeEditor(){
+  const el=document.getElementById('i-sizes-list'); if(!el) return; const zh=LANG==='zh';
+  if(!_invSizeEdit.length){ el.innerHTML='<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0">'+(zh?'暂无尺寸 — 单一库存计数。加尺寸即可在一张卡里卖大/中/小。':'No sizes — single stock count. Add a size to sell L / M / S in one card.')+'</div>'; return; }
+  el.innerHTML=_invSizeEdit.map((s,idx)=>{
+    const q=parseInt(s.qty,10)||0;
+    return '<div class="i-szrow">'
+      +'<input class="i-szname" type="text" value="'+esc(s.label||'')+'" placeholder="'+(zh?'名称 (大/中/小)':'Name (L / M / S)')+'" oninput="invSizeField('+idx+',\'label\',this.value)">'
+      +'<input class="i-szmeasure" type="text" value="'+esc(s.measure||'')+'" placeholder="'+(zh?'尺寸 (如 Ø20×H10cm)':'Measurement (e.g. Ø20 × H10cm)')+'" oninput="invSizeField('+idx+',\'measure\',this.value)">'
+      +'<span class="i-szqty" title="'+(zh?'库存在弹窗调整':'stock is set in the popup')+'">'+q+'</span>'
+      +'<button type="button" class="i-szdel" onclick="invSizeDel('+idx+')" aria-label="'+(zh?'删除':'Delete')+'">'+di('trash',14)+'</button>'
+    +'</div>';
+  }).join('');
+}
+function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'' }); _renderInvSizeEditor(); }
+function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _renderInvSizeEditor(); }
+function invSizeField(idx,f,v){ if(_invSizeEdit[idx]) _invSizeEdit[idx][f]=v; }
+// Reconcile the editor's size list back onto the item (called from saveInv).
+function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
+  const zh=LANG==='zh';
+  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||'') }));
+  if(!clean.length){
+    if(prevHadSizes){ const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ delete l.sizeId; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); } }   // revert to single count: unlink sizeId
+    delete it.sizes; _persistSizes(it); return;
+  }
+  const remain=new Set(clean.map(s=>s.id));
+  if(!prevHadSizes){
+    const first=clean[0]; if((parseInt(first.qty,10)||0)===0) first.qty=parseInt(formQty,10)||0;   // Approach A: first size takes the old count
+    const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); }
+  } else {
+    const links=stockCtl(it.id).filter(l=>!l.sizeId || remain.has(l.sizeId));   // drop links whose size was removed
+    if(links.length) STOCK_SHOP_CTL[it.id]=links; else delete STOCK_SHOP_CTL[it.id]; saveStockShopCtl();
+  }
+  it.sizes=clean; _rollupItemQty(it); _persistSizes(it);
 }
 function editInv(id) {
   const _src2=document.getElementById('i-src'); if(_src2) _src2.style.display='none';
@@ -9219,6 +9261,7 @@ function editInv(id) {
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
+  _invSizeEdit = itemSizes(i).map(s=>({...s})); _renderInvSizeEditor();                   // load this item's sizes into the editor
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-tabs').style.display = 'none';   // no Details/Stock tabs — adjust qty from the detail popup
   const _f=document.getElementById('i-form'); if(_f) _f.style.display='';
@@ -9499,9 +9542,11 @@ function saveInv(){
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
     notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||'',
     linked:_invLinked.slice()};
-  if(editId){ const i=INVENTORY.find(x=>x.id===editId); if(i)Object.assign(i,data); }
-  else { INVENTORY.push({id:'inv-'+Date.now(),...data}); }
+  let item;
+  if(editId){ item=INVENTORY.find(x=>x.id===editId); if(item){ const prevHadSizes=itemHasSizes(item); Object.assign(item,data); _applyInvSizesFromEditor(item, prevHadSizes, data.qty); } }
+  else { item={id:'inv-'+Date.now(),...data}; INVENTORY.push(item); _applyInvSizesFromEditor(item, false, data.qty); }
   saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
+  if(item && typeof _pushStockToShopify==='function' && stockCtl(item.id).length) _pushStockToShopify(item);   // reflect seeded counts to Shopify
 }
 function savePur(){
   const name=document.getElementById('p-name').value.trim();

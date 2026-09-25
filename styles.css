@@ -468,6 +468,17 @@ body.role-driver .shell{grid-template-columns:1fr}
 .skv-szhd{display:flex;align-items:center;gap:8px}
 .skv-szname{font-size:14px;font-weight:700;color:var(--c-ink);background:none;border:none;cursor:pointer;padding:0;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .skv-szname:hover{text-decoration:underline}
+.skv-szname2{font-size:14px;font-weight:700;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.skv-szmeas{font-size:11px;color:var(--c-muted);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.i-szrow{display:flex;align-items:center;gap:6px;margin-bottom:7px;flex-wrap:wrap}
+.i-szname{flex:0 0 30%;min-width:88px;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
+.i-szmeasure{flex:1;min-width:120px;padding:8px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);color:var(--c-ink);font-size:13px}
+.i-szqty{font-size:12px;color:var(--c-muted);min-width:20px;text-align:center;flex:none}
+.i-szdel{border:none;background:none;color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;padding:4px}
+.i-szdel:hover{color:var(--c-red)}
+.photo-zone.pz-sm{width:112px;height:112px;min-height:0;padding:8px}
+.photo-zone.pz-sm .photo-zone-lbl{font-size:10px}
+.photo-zone.pz-sm .photo-zone-icon{font-size:20px}
 .skv-szlow{font-size:10px;color:#8a5a12;background:#FBEEDA;border-radius:10px;padding:1px 7px;flex:none}
 .skv-szdel{border:none;background:none;color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;padding:2px}
 .skv-szdel:hover{color:var(--c-red)}
