@@ -480,6 +480,15 @@ body.role-driver .shell{grid-template-columns:1fr}
 .i-szqty{font-size:12px;color:var(--c-muted);min-width:18px;text-align:center;flex:none}
 .i-szdel{border:none;background:none;color:var(--c-muted);cursor:pointer;flex:none;display:inline-flex;align-items:center;padding:4px}
 .i-szdel:hover{color:var(--c-red)}
+.i-szphotos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.i-szph{position:relative;width:52px;height:52px;flex:none}
+.i-szph img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);cursor:zoom-in;display:block}
+.i-szph-del{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--c-surface);background:var(--c-red);color:#fff;font-size:11px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+.i-szph-add{width:52px;height:52px;border-radius:8px;border:1.5px dashed var(--c-border2);background:var(--c-bg);color:var(--c-muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;flex:none;line-height:1}
+.i-szph-add span{font-size:8px}
+.i-szph-add:hover{border-color:var(--c-burg);color:var(--c-burg)}
+.skv-szpics{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.skv-szpics img{width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);cursor:zoom-in}
 .photo-zone.pz-sm{width:112px;height:112px;min-height:0;padding:8px}
 .photo-zone.pz-sm .photo-zone-lbl{font-size:10px}
 .photo-zone.pz-sm .photo-zone-icon{font-size:20px}

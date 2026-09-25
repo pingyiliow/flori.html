@@ -4284,6 +4284,7 @@ function _stkSizesHTML(i){
         +'<div style="min-width:0;flex:1"><div class="skv-szname2">'+esc(sz.label||'—')+(low?' <span class="skv-szlow">'+(zh?'低':'Low')+'</span>':'')+'</div>'+(sz.measure?'<div class="skv-szmeas">'+esc(sz.measure)+'</div>':'')+_szPriceLine(sz,zh)+'</div>'
         +'<div class="skv-step"><button onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',-1)">−</button><input class="skv-qin'+(low?' low':'')+'" type="number" inputmode="numeric" value="'+q+'" onclick="this.select()" onchange="stkSetSize(\''+i.id+'\',\''+sz.id+'\',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="stkAdjSize(\''+i.id+'\',\''+sz.id+'\',1)">+</button></div>'
       +'</div>'
+      + ((Array.isArray(sz.photos)&&sz.photos.length)?('<div class="skv-szpics">'+sz.photos.map(u=>{ const su=String(u).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<img src="'+String(u).replace(/"/g,'&quot;')+'" onclick="openZoom(\''+su+'\')" onerror="this.style.display=\'none\'">'; }).join('')+'</div>'):'')
       +'<div class="skv-szused">'
         +'<span class="skv-szul">'+(zh?'用于':'Used in')+'</span>'
         + links.map(l=>'<span class="skv-chip"><span class="skv-dot" style="background:#244E8C"></span>'+esc(l.productTitle||'')+(l.value&&l.value!=='all'?' <span style="font-size:9px;color:var(--c-muted)">'+esc(l.value)+'</span>':'')+'</span>').join('')
@@ -9245,6 +9246,7 @@ function _renderInvSizeEditor(){
           +'<label>'+(zh?'成本':'Cost')+' <input class="i-szprice" type="number" step="0.01" min="0" value="'+(s.cost!=null&&s.cost!==''?s.cost:'')+'" placeholder="RM" oninput="invSizeField('+idx+',\'cost\',this.value)"></label>'
           +'<label>'+(zh?'售价':'Sell')+' <input class="i-szprice" type="number" step="0.01" min="0" value="'+(s.sell!=null&&s.sell!==''?s.sell:'')+'" placeholder="RM" oninput="invSizeField('+idx+',\'sell\',this.value)"></label>'
         +'</div>'
+        +_invSizePhotoStripHTML(idx, s)
       +'</div>';
     }).join('');
   }
@@ -9258,14 +9260,36 @@ function _invToggleItemPrice(){
   if(pf) pf.style.display=has?'none':'';
   if(sf) sf.style.display=has?'none':'';
 }
-function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'', cost:'', sell:'' }); _renderInvSizeEditor(); }
+function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'', cost:'', sell:'', photos:[] }); _renderInvSizeEditor(); }
 function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _renderInvSizeEditor(); }
 function invSizeField(idx,f,v){ if(_invSizeEdit[idx]) _invSizeEdit[idx][f]=v; }
+// Per-size reference photos (in the Edit form): thumbnails with tap-to-zoom, ✕ delete
+// and a + Add tile. Uploads go through storePhoto (R2 URL), stored on size.photos.
+function _invSizePhotoStripHTML(idx, s){
+  const ph=Array.isArray(s.photos)?s.photos:[]; const zh=LANG==='zh';
+  return '<div class="i-szphotos">'
+    + ph.map((u,pi)=>{ const su=String(u).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); return '<div class="i-szph"><img src="'+String(u).replace(/"/g,'&quot;')+'" onclick="openZoom(\''+su+'\')" onerror="this.style.display=\'none\'"><button type="button" class="i-szph-del" onclick="invSizePhotoDel('+idx+','+pi+')" aria-label="'+(zh?'删除':'Delete')+'">×</button></div>'; }).join('')
+    + '<button type="button" class="i-szph-add" onclick="invSizePhotoAdd('+idx+')" title="'+(zh?'加图片':'Add photo')+'">'+di('plus',13)+'<span>'+(zh?'图片':'Photo')+'</span></button>'
+  + '</div>';
+}
+function invSizePhotoAdd(idx){
+  const s=_invSizeEdit[idx]; if(!s) return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
+  inp.onchange=function(){
+    const files=Array.from(inp.files||[]); if(!files.length) return;
+    if(!Array.isArray(s.photos)) s.photos=[];
+    toast(files.length>1?('Uploading '+files.length+' photos…'):'Uploading…');
+    let pending=files.length;
+    files.forEach(f=>storePhoto(f, src=>{ s.photos.push(src); if(--pending===0){ _renderInvSizeEditor(); toast('✓ Photo added'); } }));
+  };
+  inp.click();
+}
+function invSizePhotoDel(idx, pi){ const s=_invSizeEdit[idx]; if(!s||!Array.isArray(s.photos)) return; s.photos.splice(pi,1); _renderInvSizeEditor(); }
 // Reconcile the editor's size list back onto the item (called from saveInv).
 function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
   const zh=LANG==='zh';
   const _numOrBlank=v=>{ v=(v==null?'':String(v).trim()); if(v==='') return ''; const n=parseFloat(v); return isNaN(n)?'':n; };
-  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||''), cost:_numOrBlank(s.cost), sell:_numOrBlank(s.sell) }));
+  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||''), cost:_numOrBlank(s.cost), sell:_numOrBlank(s.sell), photos:Array.isArray(s.photos)?s.photos.filter(Boolean):[] }));
   if(!clean.length){
     if(prevHadSizes){ const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ delete l.sizeId; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); } }   // revert to single count: unlink sizeId
     delete it.sizes; _persistSizes(it); return;
