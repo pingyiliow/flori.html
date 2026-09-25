@@ -655,7 +655,8 @@
         <div class="ff"><label class="ff-l">Quantity</label><input id="i-qty" type="number" value="0" min="0"></div>
         <div class="ff"><label class="ff-l">Unit</label><input id="i-unit" type="text" placeholder="stems / pcs / rolls"></div>
         <div class="ff"><label class="ff-l">Size</label><input id="i-size" type="text" placeholder="e.g. 20cm"></div>
-        <div class="ff"><label class="ff-l">Price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="per stem / per roll"></div>
+        <div class="ff"><label class="ff-l">Cost price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="what you pay"></div>
+        <div class="ff"><label class="ff-l">Selling price (RM) <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sell" type="number" step="0.01" min="0" placeholder="what you sell for"></div>
         <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
         <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional</span></label>
           <div id="i-sizes-list"></div>
@@ -1411,6 +1412,7 @@ async function showApp() {
   loadShopDeductLog(); // idempotency ledger for recipe→Shopify auto-deductions
   loadStockShopCtl();  // box → Shopify availability links (drive out-of-stock from BloomFlow)
   loadStockSizes();    // per-item size buckets (multi-size boxes in one stock card)
+  loadStockSell();     // per-item selling price (cost price stays the item column)
   loadBoxDeductLog();  // idempotency ledger for box auto-decrement on order
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
@@ -4057,7 +4059,8 @@ function _stkViewInv(i){
   h+=_stkRow(zh?'补货点':'Reorder at', (i.reorder!=null&&i.reorder!=='')?String(i.reorder):'');
   h+=_stkRow('SKU', i.sku?esc(i.sku):'');
   if(!itemHasSizes(i)) h+=_stkRow(zh?'尺寸':'Size', i.size?esc(i.size):'');
-  h+=_stkRow(zh?'到货价':'Price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  h+=_stkRow(zh?'成本价':'Cost price', (i.price!=null&&i.price!=='')?('RM '+_invPriceStr(i.price)+(i.unit?(' / '+esc(i.unit)):'')):'');
+  h+=_stkRow(zh?'售价':'Selling price', (i.sell!=null&&i.sell!=='')?('RM '+_invPriceStr(i.sell)+(i.unit?(' / '+esc(i.unit)):'')):'');
   h+=_stkRow(zh?'款式':'Family', i.family?esc(i.family):'');
   h+=_stkRow(zh?'颜色':'Color', i.color?esc(i.color):'');
   if(i.notes) h+='<div class="skv-sec">'+(zh?'备注':'Notes')+'</div><div style="font-size:12.5px;color:var(--c-muted);white-space:pre-wrap;line-height:1.5">'+esc(i.notes)+'</div>';
@@ -4185,10 +4188,17 @@ function saveStockSizes(){ try{ _lsSet('flori-stock-sizes',JSON.stringify(STOCK_
 // Copy the persisted sizes onto each in-memory inventory item (called after INVENTORY loads).
 function _hydrateSizes(){
   if(typeof INVENTORY==='undefined') return;
-  INVENTORY.forEach(it=>{ const s=STOCK_SIZES[it.id]; if(Array.isArray(s)&&s.length){ it.sizes=s; _rollupItemQty(it); } else if(it.sizes){ delete it.sizes; } });
+  INVENTORY.forEach(it=>{ const s=STOCK_SIZES[it.id]; if(Array.isArray(s)&&s.length){ it.sizes=s; _rollupItemQty(it); } else if(it.sizes){ delete it.sizes; }
+    const sv=(typeof STOCK_SELL!=='undefined')?STOCK_SELL[it.id]:undefined; if(sv!=null && sv!=='') it.sell=sv; else if(it.sell!=null) delete it.sell; });
 }
 // Persist one item's sizes back to the blob (paired with _invSaveOne for the rollup qty).
 function _persistSizes(it){ if(!it) return; if(itemHasSizes(it)) STOCK_SIZES[it.id]=it.sizes; else delete STOCK_SIZES[it.id]; saveStockSizes(); }
+// Selling price per item — kept in a shared settings blob (no DB column). item.price
+// stays the COST price (existing column); item.sell is the selling price, blob-persisted.
+let STOCK_SELL = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-sell')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadStockSell(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_sell'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SELL=o; try{ _lsSet('flori-stock-sell',JSON.stringify(o)); }catch(_){} if(typeof _hydrateSizes==='function'){ _hydrateSizes(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')&&typeof renderInventory==='function') renderInventory(); } } }catch(_){} }
+function saveStockSell(){ try{ _lsSet('flori-stock-sell',JSON.stringify(STOCK_SELL)); }catch(_){} if(hasSB()) sbSet('stock_sell', JSON.stringify(STOCK_SELL)); }
+function _persistSell(it){ if(!it) return; if(it.sell!=null && it.sell!=='') STOCK_SELL[it.id]=it.sell; else delete STOCK_SELL[it.id]; saveStockSell(); }
 // ── Multi-size boxes ────────────────────────────────────────────────────────
 // A box can hold several SIZES in ONE stock card. Each size is its own bucket:
 //   item.sizes = [{ id, label, qty, reorder }]
@@ -9186,6 +9196,7 @@ function openAddInv(cat) {
   document.getElementById('i-unit').value = '';
   document.getElementById('i-size').value = '';
   document.getElementById('i-price').value = '';
+  const _se0=document.getElementById('i-sell'); if(_se0) _se0.value = '';
   document.getElementById('i-reorder').value = '';
   document.getElementById('i-notes').value = '';
   const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
@@ -9256,6 +9267,7 @@ function editInv(id) {
   document.getElementById('i-unit').value = i.unit || '';
   document.getElementById('i-size').value = i.size || '';
   document.getElementById('i-price').value = (i.price!=null && i.price!=='') ? i.price : '';
+  const _se=document.getElementById('i-sell'); if(_se) _se.value = (i.sell!=null && i.sell!=='') ? i.sell : '';
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
@@ -9530,6 +9542,7 @@ function saveInv(){
   if(!name){toast('Name required');return;}
   const editId=document.getElementById('i-edit-id').value;
   const _priceRaw=document.getElementById('i-price').value.trim();
+  const _sellRaw=(((document.getElementById('i-sell')||{}).value)||'').trim();
   const _reorderRaw=document.getElementById('i-reorder').value.trim();
   const data={name,cat:document.getElementById('i-cat').value,qty:parseInt(document.getElementById('i-qty').value)||0,unit:document.getElementById('i-unit').value.trim()||'pcs',
     sku:document.getElementById('i-sku').value.trim()||null,
@@ -9540,9 +9553,11 @@ function saveInv(){
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
     notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||'',
     linked:_invLinked.slice()};
+  const _sell=_sellRaw===''?null:(parseFloat(_sellRaw)||null);
   let item;
   if(editId){ item=INVENTORY.find(x=>x.id===editId); if(item){ const prevHadSizes=itemHasSizes(item); Object.assign(item,data); _applyInvSizesFromEditor(item, prevHadSizes, data.qty); } }
   else { item={id:'inv-'+Date.now(),...data}; INVENTORY.push(item); _applyInvSizesFromEditor(item, false, data.qty); }
+  if(item){ if(_sell!=null) item.sell=_sell; else delete item.sell; _persistSell(item); }   // selling price → blob (cost price stays the item column)
   saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
   if(item && typeof _pushStockToShopify==='function' && stockCtl(item.id).length) _pushStockToShopify(item);   // reflect seeded counts to Shopify
 }
