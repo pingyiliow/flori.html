@@ -4105,6 +4105,8 @@ function _stkViewShop(p){
     const q0=p.variants[0]?(p.variants[0].qty||0):0, low0=q0<=lowAt;
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?'在库':'In stock')+(zh?' · 点 +/− 同步 Shopify':'')+'</span>'
       +'<div class="skv-step"><button onclick="shopStockAdjust(\''+p.id+'\',0,-1)">−</button><input class="skv-qin'+(low0?' low':'')+'" type="number" inputmode="numeric" value="'+q0+'" onclick="this.select()" onchange="shopStockSet(\''+p.id+'\',0,this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="shopStockAdjust(\''+p.id+'\',0,1)">+</button></div></div>';
+    const sp0=p.variants[0]?p.variants[0].price:null;
+    h+=_stkRow(zh?'售价':'Selling price', (sp0!=null&&sp0!=='')?('RM '+_invPriceStr(parseFloat(sp0))):'');   // live Shopify price
   } else {
     h+='<div class="skv-qbar"><span class="skv-qlbl">'+(zh?(p.variants.length+' 款 · 共'):(p.variants.length+' variants · total'))+'</span><b style="font-family:var(--f-head);font-size:24px;font-weight:800">'+p.total+'</b></div>';
   }
@@ -4117,7 +4119,8 @@ function _stkViewShop(p){
   if(!single){
     h+='<div class="skv-sec">'+(zh?'款式库存':'Stock by variant')+' <span style="font-weight:400;text-transform:none;letter-spacing:0">· '+(zh?'点 +/− 同步 Shopify':'tap +/− to sync Shopify')+'</span></div>';
     p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=lowAt, out=(v.qty||0)<=0;
-      h+='<div class="skv-vrow"><span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
+      const pr=(v.price!=null&&v.price!=='')?' <span style="font-weight:400;color:var(--c-muted);font-size:11px">RM '+_invPriceStr(parseFloat(v.price))+'</span>':'';
+      h+='<div class="skv-vrow"><span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+pr+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
         +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><input class="skv-qin sm'+(l?' low':'')+'" type="number" inputmode="numeric" value="'+(v.qty||0)+'" onclick="this.select()" onchange="shopStockSet(\''+p.id+'\','+vi+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
       +'</div>';
     });
