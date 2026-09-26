@@ -4051,6 +4051,63 @@ function _stkThumb(src, ic, zoom){
   return '<span class="skv-th">'+di(ic||'box',24)+'</span>';
 }
 function _stkRow(k,v){ return v!=null&&v!==''?('<div class="skv-row"><span class="skv-k">'+k+'</span><span>'+v+'</span></div>'):''; }
+// ── One-time recovery: rebuild a size's count from its movement log ──────────
+// Counts lost to the old shared-blob clobber can be summed back from each size's
+// receive/use log (which lives on the row and survived). Sums deltas by size LABEL,
+// skipping any prior 'rebuild' entry so re-running never double-counts.
+function _sizeMoveSum(it, label){
+  if(!it || !Array.isArray(it.moves)) return null;
+  let sum=0, hit=false;
+  it.moves.forEach(m=>{ if(m && m.size===label && m.type!=='rebuild' && typeof m.delta==='number'){ sum+=m.delta; hit=true; } });
+  return hit ? Math.max(0, sum) : null;
+}
+// Sizes whose logged total is HIGHER than their current count (i.e. likely lost). Only
+// increases are offered — a truncated log could undercount but never proposes a wrong cut.
+function _recoverableSizes(){
+  const out=[];
+  (typeof INVENTORY!=='undefined'?INVENTORY:[]).forEach(it=>{
+    if(!itemHasSizes(it)) return;
+    itemSizes(it).forEach(sz=>{
+      const cur=parseInt(sz.qty,10)||0;
+      const rec=_sizeMoveSum(it, sz.label);
+      if(rec!=null && rec>cur) out.push({ id:it.id, itemName:it.name, sizeId:sz.id, label:sz.label, from:cur, to:rec });
+    });
+  });
+  return out;
+}
+function openSizeRecover(){
+  const rows=_recoverableSizes(); const zh=LANG==='zh';
+  if(!rows.length){ toast(zh?'没有可重建的':'Nothing to rebuild'); return; }
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--c-bg,#fff);border-radius:14px;max-width:440px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 44px rgba(0,0,0,.35)">'
+    +'<div style="padding:18px 20px 10px"><div style="font-size:16px;font-weight:700">'+(zh?'从记录重建库存':'Rebuild counts from history')+'</div>'
+    +'<div style="font-size:12px;color:var(--c-muted);margin-top:4px">'+(zh?'根据每个尺寸的收发记录累计。记录可能不完整，请核对数字。':'Summed from each size\'s movement log. The log may be incomplete — please double-check.')+'</div></div>'
+    +'<div id="srec-list" style="overflow:auto;padding:2px 20px">'+rows.map((r,i)=>'<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--c-border);cursor:pointer"><input type="checkbox" checked data-i="'+i+'" style="width:17px;height:17px;flex:none;accent-color:var(--c-burg)"><span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">'+esc(r.itemName)+'</span> <span style="font-size:11px;color:var(--c-muted)">'+esc(r.label)+'</span></span><span style="font-size:13px;white-space:nowrap"><span style="color:var(--c-muted)">'+r.from+'</span> → <span style="font-weight:700;color:#2E7D32">'+r.to+'</span></span></label>').join('')+'</div>'
+    +'<div style="display:flex;gap:10px;padding:16px 20px"><button id="srec-cancel" style="flex:1;padding:12px;background:var(--c-card,#f0f0f0);border:1px solid var(--c-border);border-radius:8px;font-size:14px;cursor:pointer">'+(zh?'取消':'Cancel')+'</button><button id="srec-ok" style="flex:2;padding:12px;background:var(--c-burg,#000);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">'+(zh?'重建选中':'Rebuild selected')+'</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  ov.querySelector('#srec-cancel').onclick=close;
+  ov.querySelector('#srec-ok').onclick=()=>{ const picked=[...ov.querySelectorAll('#srec-list input:checked')].map(c=>rows[+c.dataset.i]); close(); _applySizeRecover(picked); };
+}
+function _applySizeRecover(list){
+  if(!list||!list.length) return; const zh=LANG==='zh'; const touched=new Set();
+  list.forEach(r=>{
+    const it=INVENTORY.find(x=>x.id===r.id); if(!it) return; const sz=_sizeById(it,r.sizeId); if(!sz) return;
+    const before=parseInt(sz.qty,10)||0, applied=(r.to||0)-before; if(applied===0) return;
+    sz.qty=r.to;
+    it.moves=Array.isArray(it.moves)?it.moves:[];
+    it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:'rebuild', size:sz.label });
+    if(it.moves.length>80) it.moves=it.moves.slice(0,80);
+    _rollupItemQty(it); touched.add(it);
+  });
+  touched.forEach(it=>{ _persistSizes(it); _invSaveOne(it); if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); });
+  if(typeof renderInventory==='function') renderInventory();
+  if(typeof _stkRefresh==='function') _stkRefresh();
+  toast((zh?'已重建 ':'Rebuilt ')+touched.size+(zh?' 项':' item(s)'));
+}
 function _stkViewInv(i){
   if(!i) return '<div style="padding:24px">Not found</div>';
   const used=(typeof RECIPES!=='undefined'?RECIPES:[]).filter(r=>(r.components||[]).some(c=>c.mid===i.id));
@@ -4093,7 +4150,7 @@ function _stkViewInv(i){
       h+='<div onclick="openStkCtl(\''+i.id+'\')" style="font-size:12px;color:var(--c-muted);margin-bottom:2px;cursor:pointer">'+(zh?'还没设置 — 点这里加产品(可选 variant)':'Not set — tap to add products (down to the variant)')+'</div>';
     }
   }
-  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+(m.size?(' <span style="color:var(--c-muted);font-weight:400">'+esc(m.size)+'</span>'):'')+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
+  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.type==='rebuild'?(zh?'↻ 重建 ':'↻ rebuilt '):(m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used '))); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+(m.size?(' <span style="color:var(--c-muted);font-weight:400">'+esc(m.size)+'</span>'):'')+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
   return h;
@@ -4680,9 +4737,21 @@ function renderInventory() {
         +(LANG==='zh'?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少']]:[['low','Low stock first'],['name','Name A→Z'],['qty','Qty high→low']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
       +'</select>'
     +'</div>'
+    + _invRecoverBanner()
     + _invChips()
     + _invTotalStrip()
     + '<div id="inv-list">'+_invListHTML()+'</div>';
+}
+// One-time banner: offers to rebuild size counts that look lost (logged total > current).
+function _invRecoverBanner(){
+  const rec=(typeof _recoverableSizes==='function')?_recoverableSizes():[];
+  if(!rec.length) return '';
+  const zh=LANG==='zh';
+  return '<div onclick="openSizeRecover()" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1.5px solid #E8C77E;background:#FBF3DF;border-radius:10px;cursor:pointer;font-size:12.5px;color:#7A5B12">'
+    +'<span style="display:inline-flex;flex:none">'+di('warn',15)+'</span>'
+    +'<span style="flex:1">'+(zh?(rec.length+' 个尺寸库存可能在同步问题中丢失 — 点此从记录重建'):(rec.length+' size count'+(rec.length>1?'s':'')+' may have been lost — tap to rebuild from history'))+'</span>'
+    +'<span style="flex:none;color:#9a8f86">›</span>'
+  +'</div>';
 }
 
 function renderPurchase() {
