@@ -2355,7 +2355,12 @@ function _invRow(i){
     size:i.size||null, price:(i.price==null||i.price===''?null:Number(i.price)),
     reorder:(i.reorder==null||i.reorder===''?null:parseInt(i.reorder,10)),
     notes:i.notes||null, photo:i.photo||null, moves:Array.isArray(i.moves)?i.moves:null,
-    linked:Array.isArray(i.linked)?i.linked:null };
+    linked:Array.isArray(i.linked)?i.linked:null,
+    // Sizes (with per-size qty/cost/sell/photos) + item selling price ride ON THE ROW,
+    // so each item's live stock count persists & merges per-item across devices — the
+    // shared settings blobs clobbered concurrent stock counts. (Columns: sizes jsonb, sell numeric.)
+    sizes:(typeof itemHasSizes==='function' && itemHasSizes(i)) ? i.sizes : null,
+    sell:(i.sell==null||i.sell==='')?null:Number(i.sell) };
 }
 // Cache an array to localStorage WITHOUT base64 data: URIs (photos), so the offline
 // cache stays small and never trips the 5MB quota (which had blocked login). Photos
@@ -2836,14 +2841,13 @@ async function loadFromSupabase(opts = {}) {
     }
     if (inventory && inventory.length) {
       INVENTORY = inventory;
-      // Re-fetch the per-item size/sell blobs so a REFRESH hydrates FRESH sizes. A size
-      // qty edited on another device lives in these blobs (not the inventory row), and
-      // they're otherwise only pulled at launch — so a stale in-memory blob would
-      // overwrite the fresh count back to its old value on every refresh.
-      try { if (typeof loadStockSizes==='function') await loadStockSizes(); } catch(_){}
-      try { if (typeof loadStockSell==='function') await loadStockSell(); } catch(_){}
-      if (typeof _hydrateSizes==='function') _hydrateSizes();   // reattach multi-size buckets from the sizes blob
+      // Sizes/sell now come from the row itself (jsonb/numeric columns), so a refresh
+      // reflects another device's live stock count. _hydrateSizes rolls up per-size
+      // counts and backfills any legacy item still only in the settings blob — persist
+      // those onto their row once so the blob is no longer needed.
+      const _bf = (typeof _hydrateSizes==='function') ? _hydrateSizes() : [];
       _lsSetLean('flori-inventory', INVENTORY);
+      if (_bf && _bf.length && typeof _invSaveOne==='function') { _bf.forEach(it=>{ try{ _invSaveOne(it); }catch(_){} }); }
       changed = true;
     }
     if (purchases && purchases.length) {
@@ -4197,10 +4201,23 @@ let STOCK_SIZES = (function(){ try{ const v=JSON.parse(localStorage.getItem('flo
 async function loadStockSizes(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_sizes'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SIZES=o; try{ _lsSet('flori-stock-sizes',JSON.stringify(o)); }catch(_){} if(typeof _hydrateSizes==='function'){ _hydrateSizes(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')&&typeof renderInventory==='function') renderInventory(); } } }catch(_){} }
 function saveStockSizes(){ try{ _lsSet('flori-stock-sizes',JSON.stringify(STOCK_SIZES)); }catch(_){} if(hasSB()) sbSet('stock_sizes', JSON.stringify(STOCK_SIZES)); }
 // Copy the persisted sizes onto each in-memory inventory item (called after INVENTORY loads).
+// The ROW is the source of truth for sizes/sell now. Only fall back to the legacy
+// settings blob for items whose row still carries none (not yet migrated); returns the
+// list of items backfilled that way so the caller can persist them onto their row once.
 function _hydrateSizes(){
-  if(typeof INVENTORY==='undefined') return;
-  INVENTORY.forEach(it=>{ const s=STOCK_SIZES[it.id]; if(Array.isArray(s)&&s.length){ it.sizes=s; _rollupItemQty(it); } else if(it.sizes){ delete it.sizes; }
-    const sv=(typeof STOCK_SELL!=='undefined')?STOCK_SELL[it.id]:undefined; if(sv!=null && sv!=='') it.sell=sv; else if(it.sell!=null) delete it.sell; });
+  if(typeof INVENTORY==='undefined') return [];
+  const bf=[];
+  INVENTORY.forEach(it=>{
+    let did=false;
+    if(!Array.isArray(it.sizes) || !it.sizes.length){
+      const s=(typeof STOCK_SIZES!=='undefined')?STOCK_SIZES[it.id]:null;
+      if(Array.isArray(s)&&s.length){ it.sizes=s.map(z=>({...z})); did=true; }
+    }
+    if(Array.isArray(it.sizes)&&it.sizes.length) _rollupItemQty(it); else if('sizes' in it) delete it.sizes;
+    if(it.sell==null || it.sell===''){ const sv=(typeof STOCK_SELL!=='undefined')?STOCK_SELL[it.id]:undefined; if(sv!=null&&sv!=='') { it.sell=sv; did=true; } }
+    if(did) bf.push(it);
+  });
+  return bf;
 }
 // Persist one item's sizes back to the blob (paired with _invSaveOne for the rollup qty).
 function _persistSizes(it){ if(!it) return; if(itemHasSizes(it)) STOCK_SIZES[it.id]=it.sizes; else delete STOCK_SIZES[it.id]; saveStockSizes(); }
