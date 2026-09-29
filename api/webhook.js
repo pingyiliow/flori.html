@@ -95,6 +95,8 @@ export default async function handler(req, res) {
     price:    i.price,
     currency: order.currency || 'MYR',
     image:    i.image?.src || null,
+    variantTitle: i.variant_title || null,   // e.g. "10 Stalks / Red Roses"
+    sku:      i.sku || null,
   }));
 
   const customer = [
