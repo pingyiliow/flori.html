@@ -3371,7 +3371,10 @@ function orderCardConsolidated(o){
     const qty = (it.quantity > 1) ? ` <span class="ocx-qty">× ${it.quantity}</span>` : '';
     const p = parseFloat(it.price) || 0; const priceTxt = p > 0 ? `<span class="ocx-price">RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
     const on = o.fulfilled ? `event.stopPropagation()` : (multi ? `event.stopPropagation();toggleItemReady('${o.id}',${idx})` : `event.stopPropagation();toggleReady('${o.id}')`);
-    return `<div class="ocx-row">${thumb}<div class="ocx-pname">${esc(it.title||'–')}${qty}</div>${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>`;
+    const _vt = String(it.variantTitle||'').trim();
+    const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<div style="font-size:11px;font-weight:400;color:var(--c-sage,#5B7355);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${esc(_vt)}</div>` : '';
+    const nameCell = `<div class="ocx-pname" style="white-space:normal"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.title||'–')}${qty}</div>${vLine}</div>`;
+    return `<div class="ocx-row">${thumb}${nameCell}${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>`;
   }).join('');
   const cn = _cardNotes(o);
   const _tr = (s,n) => (s && s.length > n) ? s.slice(0,n)+'…' : s;
