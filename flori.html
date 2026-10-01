@@ -3504,11 +3504,14 @@ function renderHome() {
   if (ael) ael.innerHTML = att.length
     ? '<div class="h-sec-ttl" style="margin-bottom:8px">Needs attention</div><div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:2px 12px 6px">'+att.join('')+'</div>'
     : '';
-  // Up next — a peek at the next few upcoming orders (whole-order rows, no 1/2 split); the
-  // full list lives in Daily Orders. Replaces the old duplicate "Today's Schedule" list.
+  // Up next — a peek at the next few upcoming orders; a multi-product order shows each
+  // product as its own unit (own photo + ready tick, "1/2" tag). Full list in Daily Orders.
   const upNext = sortedOrders(todayO.filter(o=>!o.fulfilled)).slice(0,5);
   document.getElementById('home-list').innerHTML = upNext.length
-    ? upNext.map(o=>homeMiniCard(o)).join('')
+    ? upNext.map(o=>{
+        const its = (o.lineItems && o.lineItems.length>1) ? o.lineItems : null;
+        return its ? its.map((it,idx)=>homeMiniCard(o,it,idx)).join('') : homeMiniCard(o);
+      }).join('')
     : `<div class="empty" style="padding:28px 20px"><div class="empty-ico">${di('check',30)}</div><div class="empty-txt">All caught up for today</div></div>`;
   // Follow-ups card (mockup dashboard) — a few pending leads / chases.
   const _fus = (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').slice(0,3);
