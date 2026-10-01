@@ -914,6 +914,11 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
 @media(max-width:520px){.stk-grid{grid-template-columns:1fr}}
 .stk-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:11px;cursor:pointer;transition:all .12s;position:relative;min-height:66px}
+.stk-dcell{position:relative;padding-left:36px}
+.stk-dcell.dragging{opacity:.5}
+.stk-dcell.drop-target .stk-card{outline:2px dashed var(--c-burg);outline-offset:2px}
+.stk-dhandle{position:absolute;top:0;left:0;height:100%;width:34px;z-index:6;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-bg);color:var(--c-muted);display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;padding:0}
+.stk-dhandle:active{cursor:grabbing;color:var(--c-burg)}
 .stk-card:hover{border-color:var(--c-border2);box-shadow:0 2px 8px rgba(77,14,19,.08)}
 .stk-card.low{border-color:#E24B4A;background:var(--c-surface)}
 .stk-card.zero .stk-name{color:var(--c-muted)}

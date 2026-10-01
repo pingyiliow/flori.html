@@ -1413,6 +1413,7 @@ async function showApp() {
   loadStockShopCtl();  // box → Shopify availability links (drive out-of-stock from BloomFlow)
   loadStockSizes();    // per-item size buckets (multi-size boxes in one stock card)
   loadStockSell();     // per-item selling price (cost price stays the item column)
+  loadStockOrder();    // custom stock-list order per category
   loadBoxDeductLog();  // idempotency ledger for box auto-decrement on order
   if (canAccess('records')) {   // admin-only checklist (payables / refunds / document requests)
     subscribeRecords();
@@ -3689,7 +3690,65 @@ function invTab(t){
 }
 function invSort(s){ _invSort=s; renderInventory(); }
 function invCat(c){ _invCat=c; renderInventory(); }
-function invToggleFam(key){ if(_invExpanded.has(key)) _invExpanded.delete(key); else _invExpanded.add(key); renderInventory(); }
+// ── Custom stock-list order (per category) ──────────────────────────────────
+// A "Custom" sort lets the user drag items into any order within their category.
+// Stored as { [catKey]: [entryKey…] } in a shared settings blob. entryKey is the
+// item id (manual), the family-group key, or "shop:"+productId (Shopify item).
+let STOCK_ORDER = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-order')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
+async function loadStockOrder(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_order'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_ORDER=o; try{ _lsSet('flori-stock-order',JSON.stringify(o)); }catch(_){} if(_invSort==='custom' && document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){} }
+function saveStockOrder(){ try{ _lsSet('flori-stock-order',JSON.stringify(STOCK_ORDER)); }catch(_){} if(hasSB()) sbSet('stock_order', JSON.stringify(STOCK_ORDER)); }
+function _stkOrderSort(cat, entries){
+  const ord=Array.isArray(STOCK_ORDER[cat])?STOCK_ORDER[cat]:[]; const pos={}; ord.forEach((k,i)=>{ pos[k]=i; });
+  return entries.map((e,i)=>({e,i})).sort((a,b)=>{ const pa=pos[a.e.key]!=null?pos[a.e.key]:1e9, pb=pos[b.e.key]!=null?pos[b.e.key]:1e9; return (pa-pb) || (a.i-b.i); }).map(x=>x.e);
+}
+// One draggable grid cell wrapping a stock card + a drag handle (handle alone owns the
+// touch gesture, so the list still scrolls normally on mobile).
+function _stkDcell(cat, e){
+  const k=String(e.key).replace(/"/g,'&quot;');
+  return '<div class="stk-dcell" data-cat="'+esc(cat)+'" data-key="'+k+'">'
+    +'<button type="button" class="stk-dhandle" onpointerdown="_stkDragStart(event)" title="Drag to reorder" aria-label="Drag to reorder">'+di('reorder',14)+'</button>'
+    + e.html
+  +'</div>';
+}
+let _stkDrag=null, _stkDragSuppress=false;
+function _stkDragStart(ev){
+  if(ev.button!=null && ev.button>0) return;
+  const cell=ev.currentTarget.closest('.stk-dcell'); if(!cell) return;
+  ev.stopPropagation(); ev.preventDefault();
+  _stkDrag={ cell, cat:cell.dataset.cat, key:cell.dataset.key, sx:ev.clientX, sy:ev.clientY, dragging:false, target:null, pid:ev.pointerId };
+  window.addEventListener('pointermove', _stkDragMove, {passive:false});
+  window.addEventListener('pointerup', _stkDragUp);
+  window.addEventListener('pointercancel', _stkDragUp);
+}
+function _stkDragMove(ev){
+  if(!_stkDrag) return;
+  const dx=ev.clientX-_stkDrag.sx, dy=ev.clientY-_stkDrag.sy;
+  if(!_stkDrag.dragging){ if(Math.abs(dx)+Math.abs(dy)<6) return; _stkDrag.dragging=true; _stkDrag.cell.classList.add('dragging'); try{ _stkDrag.cell.setPointerCapture(_stkDrag.pid); }catch(_){} }
+  ev.preventDefault();
+  const over=document.elementFromPoint(ev.clientX,ev.clientY);
+  const cell=over&&over.closest?over.closest('.stk-dcell'):null;
+  if(_stkDrag.target && _stkDrag.target!==cell) _stkDrag.target.classList.remove('drop-target');
+  if(cell && cell!==_stkDrag.cell && cell.dataset.cat===_stkDrag.cat){ cell.classList.add('drop-target'); _stkDrag.target=cell; } else _stkDrag.target=null;
+}
+function _stkDragUp(){
+  window.removeEventListener('pointermove', _stkDragMove);
+  window.removeEventListener('pointerup', _stkDragUp);
+  window.removeEventListener('pointercancel', _stkDragUp);
+  const d=_stkDrag; _stkDrag=null; if(!d) return;
+  if(d.target) d.target.classList.remove('drop-target');
+  d.cell.classList.remove('dragging');
+  if(!d.dragging) return;
+  _stkDragSuppress=true; setTimeout(()=>{ _stkDragSuppress=false; }, 300);
+  if(!d.target || d.target===d.cell) return;
+  const grid=d.cell.parentElement; if(!grid) return;
+  const keys=[...grid.querySelectorAll('.stk-dcell')].filter(c=>c.dataset.cat===d.cat).map(c=>c.dataset.key);
+  const from=keys.indexOf(d.key), to=keys.indexOf(d.target.dataset.key);
+  if(from<0||to<0||from===to) return;
+  keys.splice(from,1); keys.splice(to,0,d.key);
+  STOCK_ORDER[d.cat]=keys; saveStockOrder();
+  renderInventory();
+}
+function invToggleFam(key){ if(_stkDragSuppress) return; if(_invExpanded.has(key)) _invExpanded.delete(key); else _invExpanded.add(key); renderInventory(); }
 function invOnSearch(v){ _invSearch=v||''; const el=document.getElementById('inv-list'); if(el) el.innerHTML=_invListHTML(); }   // update list only → keep search focus
 function _invCatLabel(cat){ return _catLabel(cat); }
 function _invPriceStr(p){ return Number(p).toFixed(2).replace(/\.00$/,''); }
@@ -3759,7 +3818,9 @@ function _invFamCard(u){
 // category, so a category header appears once and holds both kinds of card.
 function _invListHTML(){
   const zh=LANG==='zh';
+  const _custom = _invSort==='custom';
   const q=(_invSearch||'').trim().toLowerCase();
+  const _reorder = _custom && !q;   // drag handles only when not filtering (a search hides items → a partial save would lose their order)
   // ── manual items ──
   const mitems=INVENTORY.filter(i=>{
     if(_invCat && (i.cat||'other')!==_invCat) return false;
@@ -3800,18 +3861,23 @@ function _invListHTML(){
     });
     const shopCards=sByCat[cat]||[];
     if(!units.length && !shopCards.length) return;
-    body+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid">';
-    units.forEach(u=>{ body += u.type==='fam' ? _invFamCard(u) : _invCard(u.item); });
-    shopCards.forEach(p=>{ body+=_shopStockCard(p); });
+    const entries=[];
+    units.forEach(u=>{ entries.push({ key: u.type==='fam'?u.key:u.item.id, name:_invUnitInfo(u).name, html: u.type==='fam'?_invFamCard(u):_invCard(u.item) }); });
+    shopCards.forEach(p=>{ entries.push({ key:'shop:'+p.id, name:p.title||'', html:_shopStockCard(p) }); });
+    const ordered = _custom ? _stkOrderSort(cat, entries) : entries;
+    body+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
+    ordered.forEach(e=>{ body += _reorder ? _stkDcell(cat, e) : e.html; });
     body+='</div>';
   });
   if(sUnassigned.length){
-    body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未分类':'Unassigned')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'点每个设置分类':'pick a category on each')+'</span></div><div class="stk-grid">';
-    sUnassigned.forEach(p=>{ body+=_shopStockCard(p); });
+    body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未分类':'Unassigned')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'点每个设置分类':'pick a category on each')+'</span></div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
+    const uEntries=sUnassigned.map(p=>({ key:'shop:'+p.id, name:p.title||'', html:_shopStockCard(p) }));
+    (_custom?_stkOrderSort('__un__',uEntries):uEntries).forEach(e=>{ body += _reorder?_stkDcell('__un__',e):e.html; });
     body+='</div>';
   }
   if(!body && q) return sync+'<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(zh?'没有符合的':'No match')+'</div>';
-  return sync+body;
+  const hint = _custom ? '<div style="font-size:11.5px;color:var(--c-muted);margin:2px 0 10px;display:flex;align-items:center;gap:6px">'+di('reorder',14)+' '+(_reorder?(zh?'拖动手柄排序（每个分类内）':'Drag the handle to reorder within each category'):(zh?'清除搜索后可拖动排序':'Clear the search to drag-reorder'))+'</div>' : '';
+  return sync+hint+body;
 }
 // ── Shopify-synced stock (LIVE two-way mirror) ─────────────────────────────
 // These Shopify products show on the stock page with LIVE quantities pulled
@@ -4052,6 +4118,7 @@ function _shopStockCard(p){
 /* ─── Unified stock detail popup (manual + Shopify) ─────────────────── */
 let _stkViewKind=null, _stkViewId=null;
 function openStkView(kind, id){
+  if(_stkDragSuppress) return;   // a reorder drag just ended — don't open the card
   const el=document.getElementById('stkview-body'); if(!el) return;
   _stkViewKind=kind; _stkViewId=id;
   el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
@@ -4746,7 +4813,7 @@ function renderInventory() {
     '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
       +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="'+(LANG==='zh'?'搜索 名字/款式/颜色/SKU…':'Search name / family / colour / SKU…')+'" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
       +'<select onchange="invSort(this.value)" style="border:1.5px solid var(--c-border);border-radius:10px;padding:8px;background:var(--c-surface);color:var(--c-ink);font-size:12px">'
-        +(LANG==='zh'?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少']]:[['low','Low stock first'],['name','Name A→Z'],['qty','Qty high→low']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
+        +(LANG==='zh'?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少'],['custom','自定义排序']]:[['low','Low stock first'],['name','Name A→Z'],['qty','Qty high→low'],['custom','Custom order']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
       +'</select>'
     +'</div>'
     + _invRecoverBanner()
