@@ -3374,12 +3374,18 @@ function orderCardConsolidated(o){
     const _vt = String(it.variantTitle||'').trim();
     const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<div style="font-size:11px;font-weight:400;color:var(--c-sage,#5B7355);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${esc(_vt)}</div>` : '';
     const nameCell = `<div class="ocx-pname" style="white-space:normal"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.title||'–')}${qty}</div>${vLine}</div>`;
-    return `<div class="ocx-row">${thumb}${nameCell}${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>`;
+    // Per-product instruction shown under its OWN product (not merged into one card line).
+    const _nt = String(it.note||'').trim();
+    const noteHtml = _nt ? `<div class="ocx-inote">${di('warn',11)}<span>${esc(_nt.length>120?_nt.slice(0,120)+'…':_nt)}</span></div>` : '';
+    return `<div class="ocx-row">${thumb}${nameCell}${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>${noteHtml}`;
   }).join('');
   const cn = _cardNotes(o);
   const _tr = (s,n) => (s && s.length > n) ? s.slice(0,n)+'…' : s;
   let notes = '';
-  if (cn.flower) notes += `<div class="ocx-note">${di('flower',12)}<span>${esc(_tr(cn.flower,90))}</span></div>`;
+  // Per-item instructions now render under each product (ocx-inote). Only fall back to the
+  // combined flower line when NO line item carries its own note (e.g. followup-sourced).
+  const _anyItemNote = Array.isArray(o.lineItems) && o.lineItems.some(li=>li && String(li.note||'').trim());
+  if (cn.flower && !_anyItemNote) notes += `<div class="ocx-note">${di('flower',12)}<span>${esc(_tr(cn.flower,90))}</span></div>`;
   if (cn.remark) notes += `<div class="ocx-remark">${di('note',12)} ${esc(_tr(cn.remark,90))}</div>`;
   const cls = ['ocx']; if (o.fulfilled) cls.push('done'); else if (urgent) cls.push('urg'); else if (state === 'ready') cls.push('rdy');
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
@@ -7272,8 +7278,17 @@ async function optimizeRoute(id){
   toast('✓ Route optimized');
 }
 // Rough "area" for the compact row: the "13700 Perai" chunk of the one-line address.
+// The most useful "area" line for a driver: the postcode + town (e.g. "08000 Sungai
+// Petani", "12300 Butterworth"), not just the state. Finds a 5-digit Malaysian postcode
+// part and prefers the one whose town is a real place rather than a state name.
+const _MY_STATES = /^(pulau pinang|penang|kedah|perak|selangor|johor|kelantan|terengganu|pahang|perlis|melaka|malacca|negeri sembilan|sabah|sarawak|kuala lumpur|wilayah persekutuan|putrajaya|labuan)$/i;
 function _drvArea(o){
-  const parts = _drvAddr(o).split(',').map(s=>s.trim()).filter(Boolean);
+  const parts = _drvAddr(o).split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+  const withPc = parts.filter(p=>/\b\d{5}\b/.test(p));
+  const townOf = p => p.replace(/\d{5}/,'').replace(/[,]/g,' ').replace(/\s+/g,' ').trim();
+  // Prefer a postcode part whose town isn't just the state.
+  let best = withPc.find(p=>{ const t=townOf(p); return t && !_MY_STATES.test(t); }) || withPc[0];
+  if (best){ const m=best.match(/(\d{5})/); const town=townOf(best); return (m&&town)?(m[1]+' '+town):(town||best); }
   return parts.length > 1 ? parts[parts.length-2] : (parts[0]||'');
 }
 function _drvStatusText(o){
