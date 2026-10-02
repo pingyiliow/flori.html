@@ -4503,10 +4503,18 @@ function stkSyncNow(id){ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStoc
 // Idempotency ledger keyed by orderId|variantInvItemId|boxItemId. addedAt on each link
 // prevents retroactive deduction of orders placed before the link existed.
 let BOX_DEDUCT_LOG = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-box-deduct')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
-async function loadBoxDeductLog(){ if(!hasSB()) return; try{ const v=await sbGetVal('box_deduct_log'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ BOX_DEDUCT_LOG=o; try{ _lsSet('flori-box-deduct',JSON.stringify(o)); }catch(_){} } }catch(_){} }
-function saveBoxDeductLog(){ try{ _lsSet('flori-box-deduct',JSON.stringify(BOX_DEDUCT_LOG)); }catch(_){} if(hasSB()) sbSet('box_deduct_log', JSON.stringify(BOX_DEDUCT_LOG)); }
-function _applyBoxDeductions(){
+// Idempotency ledger. MERGE (union) server + local so a stale/clobbered blob can never
+// drop an already-applied rkey (which would re-deduct the box). Entries are add-only.
+async function loadBoxDeductLog(){ if(!hasSB()) return; try{ const v=await sbGetVal('box_deduct_log'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ BOX_DEDUCT_LOG=Object.assign({}, o, BOX_DEDUCT_LOG); try{ _lsSet('flori-box-deduct',JSON.stringify(BOX_DEDUCT_LOG)); }catch(_){} } }catch(_){} }
+async function saveBoxDeductLog(){ try{ _lsSet('flori-box-deduct',JSON.stringify(BOX_DEDUCT_LOG)); }catch(_){} if(hasSB()){ try{ const v=await sbGetVal('box_deduct_log'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object') BOX_DEDUCT_LOG=Object.assign({}, o, BOX_DEDUCT_LOG); }catch(_){} sbSet('box_deduct_log', JSON.stringify(BOX_DEDUCT_LOG)); } }
+let _boxDeductBusy=false;
+async function _applyBoxDeductions(){
   if(typeof ORDERS==='undefined' || typeof INVENTORY==='undefined') return;
+  if(_boxDeductBusy) return; _boxDeductBusy=true;
+  // Pull the FRESH ledger (union) before deducting so another device's already-applied
+  // keys are seen — otherwise a stale in-memory ledger re-deducts the same order.
+  try { if(typeof hasSB==='function' && hasSB() && typeof loadBoxDeductLog==='function') await loadBoxDeductLog(); } catch(_){}
+  try {
   // reverse index: variant inventoryItem id → [{itemId, at}]
   const rev={};
   Object.keys(STOCK_SHOP_CTL||{}).forEach(itemId=>{ (STOCK_SHOP_CTL[itemId]||[]).forEach(link=>{ const at=link.addedAt||0; const sizeId=link.sizeId||null; (link.invItemIds||[]).forEach(iid=>{ (rev[iid]=rev[iid]||[]).push({itemId,sizeId,at}); }); }); });
@@ -4539,6 +4547,7 @@ function _applyBoxDeductions(){
   });
   if(changed){ saveBoxDeductLog(); if(typeof saveStockSizes==='function') saveStockSizes(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
   touched.forEach(id=>{ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it); });   // reflect the new count to Shopify
+  } finally { _boxDeductBusy=false; }
 }
 // "Used in products" editor: a list of linked products (each editable), and a variant
 // checklist to add/edit which variants (themes) of a product this box is used in.
