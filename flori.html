@@ -4229,7 +4229,7 @@ function _stkViewInv(i){
       h+='<div onclick="openStkCtl(\''+i.id+'\')" style="font-size:12px;color:var(--c-muted);margin-bottom:2px;cursor:pointer">'+(zh?'还没设置 — 点这里加产品(可选 variant)':'Not set — tap to add products (down to the variant)')+'</div>';
     }
   }
-  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.type==='rebuild'?(zh?'↻ 重建 ':'↻ rebuilt '):(m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used '))); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+(m.size?(' <span style="color:var(--c-muted);font-weight:400">'+esc(m.size)+'</span>'):'')+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
+  if(moves.length){ h+='<div class="skv-sec">'+(zh?'近期记录':'Recent')+'</div>'+moves.slice(0,6).map(m=>{ const who=(m.type==='auto'&&m.orderNo)?((zh?'订单 ':'Order ')+esc(m.orderNo)):esc(m.by||''); const verb=m.type==='rebuild'?(zh?'↻ 重建 ':'↻ rebuilt '):(m.type==='fix'?(zh?'✓ 退回 ':'✓ fixed '):(m.delta>0?(zh?'＋收货 ':'+ in '):(m.type==='auto'?(zh?'－订单 ':'− order '):(zh?'－用掉 ':'− used ')))); return '<div class="skv-mv"><span style="color:'+(m.delta>0?'var(--c-forest)':'var(--c-red)')+';font-weight:600">'+verb+Math.abs(m.delta)+(m.size?(' <span style="color:var(--c-muted);font-weight:400">'+esc(m.size)+'</span>'):'')+'</span><span>'+who+' · '+_invMoveTime(m.ts)+'</span></div>'; }).join(''); }
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="stkDelete(\''+i.id+'\')">'+di('trash',14)+'</button></div>';
   return h;
@@ -4826,6 +4826,7 @@ function renderInventory() {
       +'</select>'
     +'</div>'
     + _invRecoverBanner()
+    + _boxDupBanner()
     + _invChips()
     + _invTotalStrip()
     + '<div id="inv-list">'+_invListHTML()+'</div>';
@@ -4840,6 +4841,75 @@ function _invRecoverBanner(){
     +'<span style="flex:1">'+(zh?(rec.length+' 个尺寸库存可能在同步问题中丢失 — 点此从记录重建'):(rec.length+' size count'+(rec.length>1?'s':'')+' may have been lost — tap to rebuild from history'))+'</span>'
     +'<span style="flex:none;color:#9a8f86">›</span>'
   +'</div>';
+}
+// ── One-time reconcile: undo duplicate box auto-deductions from the pre-fix ledger bug ──
+// The old stale/clobbered ledger could deduct the same order several times, leaving the
+// same rkey in an item's move log more than once. We scan for those duplicates and offer
+// to add the extra deductions back. Reconciled extras are flagged (m.recon) so the fix
+// can't be applied twice.
+function _boxDupScan(it){
+  const res={};
+  if(!Array.isArray(it.moves)) return res;
+  const groups={};
+  it.moves.forEach(m=>{ if(m && m.type==='auto' && m.rkey && !m.recon){ (groups[m.rkey]=groups[m.rkey]||[]).push(m); } });
+  Object.keys(groups).forEach(rk=>{
+    const arr=groups[rk]; if(arr.length<2) return;
+    const delta=Math.abs(parseInt(arr[0].delta,10)||0); if(!delta) return;
+    const extras=arr.slice(1);                                   // keep the first, the rest are duplicates
+    const sizeId=(rk.split('|')[3])||'';
+    const b=res[sizeId]=res[sizeId]||{addBack:0, orders:new Set(), label:(arr[0].size||''), extras:[]};
+    b.addBack += delta*extras.length; extras.forEach(m=>b.extras.push(m)); arr.forEach(m=>{ if(m.orderNo) b.orders.add(m.orderNo); });
+  });
+  return res;
+}
+function _boxDupReconcile(){
+  const rows=[];
+  (typeof INVENTORY!=='undefined'?INVENTORY:[]).forEach(it=>{ const sc=_boxDupScan(it); Object.keys(sc).forEach(sizeId=>{ const b=sc[sizeId]; if(b.addBack>0) rows.push({ id:it.id, itemName:it.name, sizeId:sizeId||null, label:b.label, orders:[...b.orders], addBack:b.addBack }); }); });
+  return rows;
+}
+function _boxDupBanner(){
+  const rows=(typeof _boxDupReconcile==='function')?_boxDupReconcile():[]; if(!rows.length) return '';
+  const zh=LANG==='zh'; const n=rows.reduce((s,r)=>s+r.addBack,0);
+  return '<div onclick="openBoxReconcile()" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1.5px solid #E8C77E;background:#FBF3DF;border-radius:10px;cursor:pointer;font-size:12.5px;color:#7A5B12">'
+    +'<span style="display:inline-flex;flex:none">'+di('warn',15)+'</span>'
+    +'<span style="flex:1">'+(zh?('发现重复扣减 — 可退回 '+n+' 件库存（点此查看）'):('Duplicate deductions found — tap to add back '+n+' unit'+(n>1?'s':'')+' across '+rows.length+' item'+(rows.length>1?'s':'')))+'</span>'
+    +'<span style="flex:none;color:#9a8f86">›</span>'
+  +'</div>';
+}
+function openBoxReconcile(){
+  const rows=_boxDupReconcile(); const zh=LANG==='zh';
+  if(!rows.length){ toast(zh?'没有重复扣减':'No duplicate deductions'); return; }
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--c-bg,#fff);border-radius:14px;max-width:460px;width:100%;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 12px 44px rgba(0,0,0,.35)">'
+    +'<div style="padding:18px 20px 10px"><div style="font-size:16px;font-weight:700">'+(zh?'退回重复扣减':'Add back duplicate deductions')+'</div>'
+    +'<div style="font-size:12px;color:var(--c-muted);margin-top:4px">'+(zh?'同一订单被重复扣减的次数会加回库存。只看最近的记录，请核对。':'Adds back deductions the same order was charged more than once. Only recent log entries are seen — please double-check.')+'</div></div>'
+    +'<div id="brec-list" style="overflow:auto;padding:2px 20px">'+rows.map((r,i)=>'<label style="display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--c-border);cursor:pointer"><input type="checkbox" checked data-i="'+i+'" style="width:17px;height:17px;flex:none;margin-top:2px;accent-color:var(--c-burg)"><span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:600">'+esc(r.itemName)+'</span>'+(r.label?' <span style="font-size:11px;color:var(--c-muted)">'+esc(r.label)+'</span>':'')+'<div style="font-size:11px;color:var(--c-muted);margin-top:1px">'+esc(r.orders.slice(0,4).join(', '))+(r.orders.length>4?' +'+(r.orders.length-4):'')+'</div></span><span style="font-size:14px;font-weight:700;color:#2E7D32;white-space:nowrap">+'+r.addBack+'</span></label>').join('')+'</div>'
+    +'<div style="display:flex;gap:10px;padding:16px 20px"><button id="brec-cancel" style="flex:1;padding:12px;background:var(--c-card,#f0f0f0);border:1px solid var(--c-border);border-radius:8px;font-size:14px;cursor:pointer">'+(zh?'取消':'Cancel')+'</button><button id="brec-ok" style="flex:2;padding:12px;background:var(--c-burg,#000);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">'+(zh?'退回选中':'Add back selected')+'</button></div>'
+  +'</div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  ov.querySelector('#brec-cancel').onclick=close;
+  ov.querySelector('#brec-ok').onclick=()=>{ const picked=[...ov.querySelectorAll('#brec-list input:checked')].map(c=>rows[+c.dataset.i]); close(); _applyBoxDupReconcile(picked); };
+}
+function _applyBoxDupReconcile(list){
+  if(!list||!list.length) return; const zh=LANG==='zh'; const touched=new Set();
+  list.forEach(r=>{
+    const it=INVENTORY.find(x=>x.id===r.id); if(!it) return;
+    const sc=_boxDupScan(it); const b=sc[r.sizeId||'']; if(!b||b.addBack<=0) return;
+    b.extras.forEach(m=>{ m.recon=true; });                      // mark duplicates handled (so re-running can't double-apply)
+    if(r.sizeId){ const sz=_sizeById(it,r.sizeId); if(!sz) return; sz.qty=(parseInt(sz.qty,10)||0)+b.addBack; _rollupItemQty(it); }
+    else { it.qty=(it.qty||0)+b.addBack; }
+    it.moves=Array.isArray(it.moves)?it.moves:[];
+    it.moves.unshift({ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:+b.addBack, type:'fix', orderNo:'reconcile', size:(b.label||'')});
+    if(it.moves.length>80) it.moves=it.moves.slice(0,80);
+    touched.add(it);
+  });
+  touched.forEach(it=>{ if(typeof _persistSizes==='function') _persistSizes(it); _invSaveOne(it); if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); });
+  if(typeof renderInventory==='function') renderInventory();
+  if(typeof _stkRefresh==='function') _stkRefresh();
+  toast((zh?'已退回 ':'Added back to ')+touched.size+(zh?' 项':' item(s)'));
 }
 
 function renderPurchase() {
