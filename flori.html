@@ -4593,7 +4593,7 @@ function _stkCtlRenderList(){
       +'<button onclick="stkCtlRemoveRecipe(\''+en+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-red);cursor:pointer;font-size:17px;line-height:1;flex:none">×</button>'
     +'</div>';
   }).join('');
-  if(!links.length && !recOnly.length) h='<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0 4px">No products yet.</div>';
+  if(!view.length && !recOnly.length) h='<div style="font-size:11.5px;color:var(--c-muted);padding:2px 0 4px">No products yet.</div>';
   h += '<button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="stkCtlStartAdd()">+ Add product</button>';
   el.innerHTML=h;
 }
