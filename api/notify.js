@@ -55,15 +55,19 @@ const GRAPH_VER   = 'v21.0';
 
 /* ─── pure helpers (unit-tested in the preview before shipping) ───────────── */
 
-// customer.phone -> E.164 WITHOUT '+', Malaysia-aware. '+60 12-345 6789', '012-345 6789'
-// and '60123456789' all normalize to '60123456789'. Mirrors flori.html/quiz.js normPhone
-// (digits only, local leading 0), then country-codes it for the Meta `to` field.
+// phone -> E.164 WITHOUT '+' for the Meta `to` field. Malaysia-aware but does NOT clobber
+// numbers that already carry a country code (e.g. a Singapore +65… relay-order buyer like
+// FlowerAdvisor). '+60 12-345 6789', '012-345 6789', '60123456789' -> '60123456789';
+// '+65 8591 4677' -> '6585914677' (kept, NOT turned into 606585914677).
 export function toE164MY(raw) {
-  let d = String(raw || '').replace(/\D/g, '');
+  const s = String(raw || '').trim();
+  const d = s.replace(/\D/g, '');
   if (!d) return '';
-  if (d.startsWith('60')) return d;              // already country-coded
-  if (d.startsWith('0'))  return '60' + d.slice(1);
-  return '60' + d;                               // bare local -> assume MY
+  if (s.startsWith('+')) return d;               // already international (Shopify stores +CC…)
+  if (d.startsWith('60')) return d;              // already MY country-coded
+  if (d.startsWith('0'))  return '60' + d.slice(1);  // MY local 01X… -> 60…
+  if (d.startsWith('1'))  return '60' + d;       // bare MY mobile (1X…) -> assume MY
+  return d;                                      // other country code (SG 65…, etc.) -> keep, don't force 60
 }
 
 // EasyRoutes payloads name the Shopify order id differently across versions. Take the
