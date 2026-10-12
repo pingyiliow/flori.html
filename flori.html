@@ -8814,7 +8814,21 @@ function renderDriver(){
   const deliveredBlock = doneUnrouted.length
     ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
     : '';
-  const listBody = _drvCakeList(iso) + overall + routeBlocks + unassignedBlock() + deliveredBlock;
+  // Admin-only: today's orders booked with Lalamove, each with a Manage button (status,
+  // driver, priority fee, cancel). Hidden from drivers. Only lists orders we hold a booking
+  // id for (this session / device) — those are the ones we can actually manage via the API.
+  const lalaBlock = isAdmin ? (()=>{
+    const booked = stops.filter(o => _lalaHasBooking(o));
+    if(!booked.length) return '';
+    return '<details open style="margin-bottom:14px"><summary style="cursor:pointer;list-style:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:8px">'
+      + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D8622E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
+      + '<span style="font-weight:700;font-size:13px;flex:1">Lalamove deliveries</span><span style="font-size:12px;color:var(--c-muted)">'+booked.length+'</span></summary>'
+      + '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:2px 10px 6px">'
+      + booked.map(o => '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--c-border)"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+'</div><div style="font-size:11px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o)||'')+'</div></div>'
+        + '<button onclick="manageLalamove(\''+o.id+'\')" style="flex:none;padding:7px 12px;border:1.5px solid var(--c-burg,#1a3d2b);border-radius:8px;background:var(--c-surface);color:var(--c-burg,#1a3d2b);font-size:12px;font-weight:700;cursor:pointer">Manage</button></div>').join('')
+      + '</div></details>';
+  })() : '';
+  const listBody = _drvCakeList(iso) + overall + lalaBlock + routeBlocks + unassignedBlock() + deliveredBlock;
 
   const mapWarn = _geoOff ? '<div style="font-size:11px;color:#E65100;margin:8px 0">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
   const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
