@@ -107,6 +107,12 @@ export default async function handler(req, res) {
   // Re-host defensively only if it's on some other host.
   let photoLink = null;
   if (photoIn) photoLink = isPublicR2(photoIn) ? photoIn : ((await hostPhotoOnR2(photoIn)) || photoIn);
+  // ALL proof photos for the EMAIL (email has no one-image limit). WhatsApp still gets the
+  // single photoLink above — which the app sends as a collage when there were several.
+  let photoLinks = Array.isArray(body.photoUrls)
+    ? body.photoUrls.filter(u => typeof u === 'string' && /^https?:\/\//i.test(u)).slice(0, 8)
+    : [];
+  if (!photoLinks.length && photoLink) photoLinks = [photoLink];
 
   // TEST GATE for batch safety (Start Route can hit many orders): when NOTIFY_TEST_ORDERS
   // or NOTIFY_TEST_PHONE is set, ONLY matching orders/phones actually send — everything
@@ -156,7 +162,7 @@ export default async function handler(req, res) {
 
   if (email) {
     if (await claim('email')) {
-      const msg = buildOrderEmail(type, order, { photoLink, statusUrl: order.order_status_url, trackUrl });
+      const msg = buildOrderEmail(type, order, { photoLink, photoLinks, statusUrl: order.order_status_url, trackUrl });
       const r = await sendEmailViaResend(email, msg);
       if (r && typeof r === 'object') { emSent = true; emId = r.id; } else emErr = String(r);
       await logNote(sb, { order_id: orderId, order_no: orderNo, template: 'email:' + type, phone: email, meta_message_id: emId, status: emSent ? 'sent' : 'error', error: emSent ? 'manual' : ('email_failed: ' + emErr) });

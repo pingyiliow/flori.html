@@ -7634,7 +7634,7 @@ function _drvDetailView(o){
 // to the customer (WhatsApp + email). Does NOT touch fulfillment.
 function replaceProof(id){
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
-  let photoUrls = [];
+  let photoUrls = [], photoB64s = [];
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   const canNotify = o.src==='shopify' && o.type!=='pickup';
@@ -7654,14 +7654,14 @@ function replaceProof(id){
   const zone = ov.querySelector('#rpZone'), thumbs = ov.querySelector('#rpThumbs');
   const renderThumbs = ()=>{
     thumbs.innerHTML = photoUrls.map((src,i)=>'<div style="position:relative;width:58px;height:58px;border-radius:7px;overflow:hidden;border:1px solid var(--c-border,#ccc)"><img src="'+src+'" style="width:100%;height:100%;object-fit:cover"><button data-i="'+i+'" class="rpRm" style="position:absolute;top:1px;right:1px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0">×</button></div>').join('');
-    thumbs.querySelectorAll('.rpRm').forEach(b=>{ b.onclick=()=>{ photoUrls.splice(+b.dataset.i,1); renderThumbs(); }; });
+    thumbs.querySelectorAll('.rpRm').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.i; photoUrls.splice(i,1); photoB64s.splice(i,1); renderThumbs(); }; });
   };
   const applyFiles = (files)=>{
     const imgs = Array.from(files||[]).filter(f=>/^image\//.test(f.type||''));
     if(!imgs.length){ toast('Not an image file'); return; }
     toast(imgs.length>1?('Uploading '+imgs.length+' photos…'):'Uploading…');
     let pending = imgs.length;
-    imgs.forEach(f=>storePhoto(f, src=>{ photoUrls.push(src); renderThumbs(); if(--pending===0) toast('✓ Photo'+(imgs.length>1?'s':'')+' added'); }));
+    imgs.forEach(f=>storePhoto(f, (src,b64)=>{ photoUrls.push(src); photoB64s.push(b64); renderThumbs(); if(--pending===0) toast('✓ Photo'+(imgs.length>1?'s':'')+' added'); }));
   };
   const onPaste = e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; const fs=[]; for(const it of items){ if(it.type&&it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f) fs.push(f); } } if(fs.length){ e.preventDefault(); applyFiles(fs); } };
   const close = ()=>{ document.removeEventListener('paste', onPaste); ov.remove(); };
@@ -7680,9 +7680,9 @@ function replaceProof(id){
     saveOrders(o);
     if (typeof renderDriver==='function') renderDriver();
     if (!notify){ toast('✓ Photo updated'); return; }
-    toast('Sending new photo to customer…');
+    toast('Sending new photo'+(photoUrls.length>1?'s':'')+' to customer…');
     try {
-      const res = await notifyCustomerManual(o, o.proofPhoto);
+      const res = await _notifyDeliveredPhotos(o, photoUrls, photoB64s);
       if (res && res.channels && res.channels.length) toast('✓ Photo updated · re-sent ('+res.channels.join(' + ')+')');
       else if (res && res.csFlag) toast('✓ Photo updated · no customer contact');
       else toast('✓ Photo updated · notify issue (check WhatsApp Log)');
@@ -9682,12 +9682,64 @@ function compressPhoto(file, maxPx, quality, callback) {
 let _r2Off = false;   // flips true once we learn R2 isn't configured (skip retries)
 function storePhoto(file, cb) {
   compressPhoto(file, 1200, 0.82, b64 => {
-    if (_r2Off) { cb(b64); return; }
+    // cb(url, b64): second arg is the compressed base64 so callers that need the raw
+    // image (e.g. building a proof-photo collage) have it without re-reading the file.
+    if (_r2Off) { cb(b64, b64); return; }
     fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: b64 }) })
       .then(r => r.status===501 ? Promise.reject('unconfigured') : (r.ok ? r.json() : Promise.reject('http '+r.status)))
-      .then(j => cb(j.url || b64))
-      .catch(err => { if (err==='unconfigured') _r2Off = true; cb(b64); });
+      .then(j => cb(j.url || b64, b64))
+      .catch(err => { if (err==='unconfigured') _r2Off = true; cb(b64, b64); });
   });
+}
+// Upload an already-compressed base64 data URL to R2; resolves to the public URL (or the
+// base64 itself if R2 isn't configured).
+function _uploadDataUrl(b64){
+  if (_r2Off) return Promise.resolve(b64);
+  return fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: b64 }) })
+    .then(r => r.status===501 ? Promise.reject('unconfigured') : (r.ok ? r.json() : Promise.reject('http '+r.status)))
+    .then(j => j.url || b64)
+    .catch(err => { if (err==='unconfigured') _r2Off = true; return b64; });
+}
+// Tile several proof photos into ONE image (WhatsApp allows only one image per message).
+// Built from the compressed base64 (no cross-origin canvas taint). Resolves to a jpeg
+// data URL, or null if nothing usable. Square cover-cropped cells on a white ground.
+function _collageDataUrl(b64s){
+  return new Promise(resolve => {
+    const srcs = (b64s || []).filter(Boolean).slice(0, 6);   // cap at 6 so the image stays light
+    if (srcs.length < 2) return resolve(null);
+    const imgs = new Array(srcs.length).fill(null); let done = 0;
+    const finish = () => {
+      const valid = imgs.filter(Boolean);
+      if (valid.length < 2) return resolve(null);
+      const n = valid.length;
+      const cols = (n === 3) ? 3 : Math.ceil(Math.sqrt(n));
+      const rows = Math.ceil(n / cols);
+      const cell = 540, gap = 8;
+      const cv = document.createElement('canvas');
+      cv.width = cols*cell + (cols+1)*gap; cv.height = rows*cell + (rows+1)*gap;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,cv.width,cv.height);
+      valid.forEach((im,k) => {
+        const c = k % cols, r = Math.floor(k / cols);
+        const x = gap + c*(cell+gap), y = gap + r*(cell+gap);
+        const sc = Math.max(cell/im.width, cell/im.height);       // cover-crop
+        const sw = cell/sc, sh = cell/sc;
+        ctx.drawImage(im, (im.width-sw)/2, (im.height-sh)/2, sw, sh, x, y, cell, cell);
+      });
+      try { resolve(cv.toDataURL('image/jpeg', 0.85)); } catch(_){ resolve(null); }
+    };
+    srcs.forEach((s,i) => { const im = new Image(); im.onload = () => { imgs[i]=im; if(++done===srcs.length) finish(); }; im.onerror = () => { if(++done===srcs.length) finish(); }; im.src = s; });
+  });
+}
+// Send the delivered notification: WhatsApp gets ONE image (a collage when there are
+// several proof photos), email gets EVERY photo. Falls back to the first photo if the
+// collage can't be built, so it's never worse than before.
+async function _notifyDeliveredPhotos(o, photoUrls, photoB64s){
+  const urls = (photoUrls || []).filter(Boolean);
+  let waPhoto = urls[0] || '';
+  if (urls.length > 1 && photoB64s && photoB64s.filter(Boolean).length > 1){
+    try { const collage = await _collageDataUrl(photoB64s); if (collage){ const u = await _uploadDataUrl(collage); if (u) waPhoto = u; } } catch(_){}
+  }
+  return notifyCustomerManual(o, waPhoto, urls);
 }
 
 // Shared .photo-zone (inventory / purchase modals): accept a File from tap, drag-drop
@@ -10003,7 +10055,7 @@ async function markDelivered(id){
 function openDeliverModal(o, verb){
   const isShopify = o.src === 'shopify';
   const canNotify = isShopify && o.type !== 'pickup';
-  let photoUrls = [];
+  let photoUrls = [], photoB64s = [];
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   const isPickup = o.type === 'pickup';
@@ -10029,14 +10081,14 @@ function openDeliverModal(o, verb){
   const thumbs = ov.querySelector('#dmThumbs');
   const renderThumbs = ()=>{
     thumbs.innerHTML = photoUrls.map((src,i)=>`<div style="position:relative;width:58px;height:58px;border-radius:7px;overflow:hidden;border:1px solid var(--c-border,#ccc)"><img src="${src}" style="width:100%;height:100%;object-fit:cover"><button data-i="${i}" class="dmRm" title="Remove" style="position:absolute;top:1px;right:1px;width:18px;height:18px;border:none;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0">×</button></div>`).join('');
-    thumbs.querySelectorAll('.dmRm').forEach(b=>{ b.onclick=()=>{ photoUrls.splice(+b.dataset.i,1); renderThumbs(); }; });
+    thumbs.querySelectorAll('.dmRm').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.i; photoUrls.splice(i,1); photoB64s.splice(i,1); renderThumbs(); }; });
   };
   const applyFiles = (files)=>{
     const imgs = Array.from(files||[]).filter(f=>/^image\//.test(f.type||''));
     if(!imgs.length){ toast('Not an image file'); return; }
     toast(imgs.length>1?`Uploading ${imgs.length} photos…`:'Uploading…');
     let pending = imgs.length;
-    imgs.forEach(f=>storePhoto(f, src=>{ photoUrls.push(src); renderThumbs(); if(--pending===0) toast('✓ Photo'+(imgs.length>1?'s':'')+' added'); }));
+    imgs.forEach(f=>storePhoto(f, (src,b64)=>{ photoUrls.push(src); photoB64s.push(b64); renderThumbs(); if(--pending===0) toast('✓ Photo'+(imgs.length>1?'s':'')+' added'); }));
   };
   // Paste image(s) from the clipboard while the modal is open (Ctrl/⌘-V or right-click Paste).
   const onPaste = e=>{
@@ -10057,11 +10109,11 @@ function openDeliverModal(o, verb){
   ov.querySelector('#dmOk').onclick = ()=>{
     const notify = canNotify && ov.querySelector('#dmNotify').checked;
     close();
-    confirmDeliver(o.id, photoUrls, notify, verb);
+    confirmDeliver(o.id, photoUrls, notify, verb, photoB64s);
   };
 }
 
-async function confirmDeliver(id, photos, notify, verb){
+async function confirmDeliver(id, photos, notify, verb, photoB64s){
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
   // Accept one photo (legacy) or an array (multi proof). Keep proofPhoto = the first
   // as the cover, used by the customer notification + card thumbnails.
@@ -10084,7 +10136,7 @@ async function confirmDeliver(id, photos, notify, verb){
     o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     if (notify){
       toast('Notifying customer…');
-      const res = await notifyCustomerManual(o, photoUrl);
+      const res = await _notifyDeliveredPhotos(o, _photos, photoB64s || []);
       if (res && res.channels && res.channels.length) toast(`✓ ${verb} · notified (${res.channels.join(' + ')})`);
       else if (res && res.alreadySent)                toast(`✓ ${verb} · already notified`);
       else if (res && res.csFlag)                     toast(`✓ ${verb} · no customer contact — flagged for follow-up`);
@@ -10106,11 +10158,12 @@ async function confirmDeliver(id, photos, notify, verb){
 
 // Ask our own notifier to send the customer the delivered WhatsApp + email (with the proof
 // photo). Auth = the staff Supabase session (same token shopifyGQL uses).
-async function notifyCustomerManual(o, photoUrl){
+async function notifyCustomerManual(o, photoUrl, photoUrls){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  const allPhotos = (photoUrls || []).filter(u => /^https?:\/\//i.test(u));   // email shows every photo
   try {
     const r = await fetch('/api/notify-manual', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ orderId: shopId(o.id), photoUrl: photoUrl||'', authToken }) });
+      body: JSON.stringify({ orderId: shopId(o.id), photoUrl: photoUrl||'', photoUrls: allPhotos, authToken }) });
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }

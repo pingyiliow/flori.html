@@ -229,14 +229,18 @@ export function buildDeliveredEmail(order, opts = {}) {
   const orderNo = (order && order.name) || '';
   const statusUrl = opts.statusUrl || (order && order.order_status_url) || '';
   const photoLink = opts.photoLink || '';
+  // Email shows EVERY proof photo (no one-image limit like WhatsApp). photoLinks is the
+  // full set; fall back to the single photoLink for older callers.
+  const photoLinks = (Array.isArray(opts.photoLinks) && opts.photoLinks.length) ? opts.photoLinks : (photoLink ? [photoLink] : []);
   const dueDate = attr(order, 'Order Due Date') || fmtDate(order && order.created_at);
   const dueTime = attr(order, 'Order Due Time') || '—';
   const recipient = attr(order, 'recipient_name') || ((order && order.shipping_address && order.shipping_address.name) || '');
 
-  const proofCard = (photoLink || statusUrl) ? `<div style="background:${C.card};border-radius:4px;padding:18px 20px;border-left:3px solid ${C.accent2};margin-top:12px;">
-        <p style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:${C.faint};margin:0 0 14px;">Proof of delivery</p>
-        ${photoLink ? `<img src="${esc(photoLink)}" alt="Proof of delivery" width="100%" style="width:100%;height:auto;border-radius:4px;display:block;margin-bottom:14px;"/>` : ''}
-        ${statusUrl ? `<div style="${photoLink ? `border-top:1px solid ${C.borderSoft};padding-top:14px;` : ''}">
+  const photosHtml = photoLinks.map(p => `<img src="${esc(p)}" alt="Proof of delivery" width="100%" style="width:100%;height:auto;border-radius:4px;display:block;margin-bottom:10px;"/>`).join('');
+  const proofCard = (photoLinks.length || statusUrl) ? `<div style="background:${C.card};border-radius:4px;padding:18px 20px;border-left:3px solid ${C.accent2};margin-top:12px;">
+        <p style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:${C.faint};margin:0 0 14px;">Proof of delivery${photoLinks.length > 1 ? ` (${photoLinks.length} photos)` : ''}</p>
+        ${photosHtml}
+        ${statusUrl ? `<div style="${photoLinks.length ? `border-top:1px solid ${C.borderSoft};padding-top:14px;margin-top:4px;` : ''}">
           <a href="${esc(statusUrl)}" style="display:block;background:${C.brand};border-radius:4px;padding:13px 20px;text-align:center;font-size:13px;color:${C.brandText};font-weight:500;letter-spacing:0.5px;text-transform:uppercase;">View delivery record →</a></div>` : ''}
       </div>` : '';
 
