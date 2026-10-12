@@ -7373,7 +7373,7 @@ function _lalaCardHTML(){
   const addons=LALA_ADDONS.map(a=>{ const on=_lala.addons.has(a.id);
     return '<label onclick="_lalaToggleAddon(\''+a.id+'\')" style="display:flex;gap:10px;align-items:center;padding:11px 12px;border:1.5px solid '+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-bottom:7px;cursor:pointer;background:'+(on?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
       +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex">'+a.svg+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(a.note)+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div></div>'
       +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(on?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>';
   }).join('');
   const n=_lala.run.length;
