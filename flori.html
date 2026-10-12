@@ -7247,8 +7247,8 @@ const LALA_ADDONS = [
   { id:'PENANG_BRIDGE', code:'PENANG_BRIDGE', label:'Penang Bridge toll', note:'crossing to the mainland',
     svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12v6"/><path d="M20 12v6"/><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5"/></svg>' },
 ];
-let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'' };
-let _lalaMap = null;
+let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'', quoting:false, quoteErr:null };
+let _lalaMap = null, _lalaQTimer = null, _lalaQSeq = 0;
 async function _lalamoveApi(payload){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
   try {
@@ -7274,44 +7274,92 @@ function _lalaSearchable(){
 }
 // The "Add a stop" results: today's list by default; when searching, match ANY order by
 // name / customer / recipient / address / phone. Always excludes orders already on the run.
+// A run entry is either an order id (string) or a manual stop object {manual,mid,name,phone,
+// address,lat,lng}. _lalaResolve normalizes either into the shape the map/quote/book need.
+function _lalaResolve(e){
+  if(e && e.manual) return { key:e.mid, orderId:null, order:null, title:(e.name||'Manual stop'), sub:(e.address||''),
+    name:(e.name||'Recipient'), phone:(e.phone||''), address:(e.address||''), lat:e.lat, lng:e.lng };
+  const o=(typeof ORDERS!=='undefined'?ORDERS:[]).find(x=>x.id===e); if(!o) return null;
+  return { key:o.id, orderId:o.id, order:o, title:((o.name||o.customer||'Order')+' · '+(o.recipName||o.customer||'')),
+    sub:(o.address||''), name:(o.recipName||o.customer||'Recipient'), phone:(o.recipPhone||o.phone||''),
+    address:(o.address||''), lat:o.lat, lng:o.lng };
+}
+function _lalaStops(){ return _lala.run.map(_lalaResolve).filter(Boolean); }
+function _lalaRunOrderIds(){ return new Set(_lala.run.filter(e=>typeof e==='string')); }
 function _lalaAvailHTML(){
   const q=(_lala.q||'').trim().toLowerCase();
+  const inRun=_lalaRunOrderIds();
   let pool;
   if(q){
-    pool=_lalaSearchable().filter(o=>!_lala.run.includes(o.id)).filter(o=>{
+    pool=_lalaSearchable().filter(o=>!inRun.has(o.id)).filter(o=>{
       const hay=[o.name,o.customer,o.recipName,o.address,o.recipPhone,o.phone].map(x=>String(x||'').toLowerCase()).join(' ');
       return hay.includes(q);
     }).slice(0,25);
   } else {
-    pool=_lalaDeliverables().filter(o=>!_lala.run.includes(o.id));
+    pool=_lalaDeliverables().filter(o=>!inRun.has(o.id));
   }
-  if(!pool.length) return '<div style="font-size:12px;color:var(--c-muted);padding:4px 0">'
+  const manualBtn='<button type="button" onclick="_lalaManualPrompt()" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px dashed var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Add a manual address</div><div style="font-size:11.5px;color:var(--c-muted)">a stop that isn\'t an order</div></div></button>';
+  const empty = !pool.length ? ('<div style="font-size:12px;color:var(--c-muted);padding:2px 0 8px">'
     + (q ? ('No orders match "'+esc(_lala.q.trim())+'".')
-         : (_lala.run.length ? 'All of today\'s deliverable orders are on this run — search to add any other order.'
-                             : 'No deliverable orders today — search to add any order.')) + '</div>';
-  return pool.map(o=>{ const addr=((o.address||'')+'').slice(0,54);
+         : (_lala.run.length ? 'No other of today\'s orders — search, or add a manual address.'
+                             : 'No deliverable orders today — search, or add a manual address.')) + '</div>') : '';
+  const rows = pool.map(o=>{ const addr=((o.address||'')+'').slice(0,54);
     return '<button type="button" onclick="_lalaAdd(\''+o.id+'\')" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
       +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div></button>';
   }).join('');
+  return rows + empty + manualBtn;
+}
+// Manual-address stop: small prompt → geocode → push onto the run.
+function _lalaManualPrompt(){
+  if(document.getElementById('_lalaManOv')) return;
+  const inp='width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:9px;font-size:13px;background:var(--c-surface);color:var(--c-ink);box-sizing:border-box;-webkit-appearance:none';
+  const ov=document.createElement('div'); ov.id='_lalaManOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:14px;max-width:360px;width:100%;padding:18px">'
+    + '<div style="font-size:15px;font-weight:800;margin-bottom:12px;font-family:var(--f-head)">Add manual stop</div>'
+    + '<input id="_lmName" placeholder="Recipient name" style="'+inp+'">'
+    + '<input id="_lmPhone" placeholder="Phone (optional)" style="'+inp+'">'
+    + '<textarea id="_lmAddr" placeholder="Full delivery address" rows="2" style="'+inp+';resize:vertical"></textarea>'
+    + '<div id="_lmErr" style="font-size:12px;color:#B3261E;margin:-2px 0 8px;display:none"></div>'
+    + '<div style="display:flex;gap:10px"><button type="button" onclick="_lalaManualCancel()" style="flex:1;padding:12px;border:1.5px solid var(--c-border);border-radius:10px;background:var(--c-surface);font-weight:600;cursor:pointer">Cancel</button>'
+    + '<button type="button" id="_lmAdd" onclick="_lalaManualSave()" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Add stop</button></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) _lalaManualCancel(); });
+}
+function _lalaManualCancel(){ const ov=document.getElementById('_lalaManOv'); if(ov) ov.remove(); }
+async function _lalaManualSave(){
+  const name=(document.getElementById('_lmName').value||'').trim();
+  const phone=(document.getElementById('_lmPhone').value||'').trim();
+  const addr=(document.getElementById('_lmAddr').value||'').trim();
+  const err=document.getElementById('_lmErr');
+  if(!addr){ err.textContent='Enter an address.'; err.style.display='block'; return; }
+  const btn=document.getElementById('_lmAdd'); if(btn){ btn.disabled=true; btn.textContent='Locating…'; }
+  let lat=null,lng=null; try{ const g=await _geocodeOne(addr); if(g){ lat=g.lat; lng=g.lng; } }catch(_){}
+  if(lat==null){ if(btn){ btn.disabled=false; btn.textContent='Add stop'; } err.textContent='Could not locate that address — check the spelling.'; err.style.display='block'; return; }
+  _lala.run.push({ manual:true, mid:'m'+Date.now(), name:(name||'Manual stop'), phone, address:addr, lat, lng });
+  _lalaManualCancel(); _lalaRenderPanel(); _lalaScheduleQuote();
 }
 // Live search — update ONLY the results list so the input keeps focus + cursor.
 function _lalaSearchInput(v){ _lala.q=v; const el=document.getElementById('_lalaAvail'); if(el) el.innerHTML=_lalaAvailHTML(); }
 // Entry point (Delivery header button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
-  _lala.quote=null; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
+  _lala.quote=null; _lala.quoteErr=null; _lala.quoting=false; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
+  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null;
   if(!_lala.svc) _lala.svc='CAR';
   const ok=new Set(_lalaDeliverables().map(o=>o.id));
   if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
-  else _lala.run=(_lala.run||[]).filter(id=>ok.has(id));
+  else _lala.run=(_lala.run||[]).filter(e => (e&&e.manual) || ok.has(e));
   _lalaRenderPanel();
   if(preselectId){ const o=ORDERS.find(x=>x.id===preselectId); if(o&&(o.lat==null||o.lng==null)) _lalaGeocode(preselectId); }
+  if(_lala.run.length) _lalaScheduleQuote();
 }
-function _lalaClose(){ if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
-function _lalaPickSvc(id){ _lala.svc=id; _lala.quote=null; _lalaRenderPanel(); }
-function _lalaRemove(id){ _lala.run=_lala.run.filter(r=>r!==id); _lala.quote=null; _lalaRenderPanel(); }
-function _lalaToggleAddon(id){ if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lala.quote=null; _lalaRenderPanel(); }
-function _lalaRequote(){ _lala.quote=null; _lalaRenderPanel(); }
+function _lalaClose(){ if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; } if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
+function _lalaPickSvc(id){ _lala.svc=id; _lalaRenderPanel(); _lalaScheduleQuote(); }
+function _lalaRemoveAt(i){ _lala.run.splice(i,1); _lalaRenderPanel(); _lalaScheduleQuote(); }
+function _lalaToggleAddon(id){ if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lalaRenderPanel(); _lalaScheduleQuote(); }
 async function _lalaGeocode(id){
   const o=ORDERS.find(x=>x.id===id); if(!o||(o.lat!=null&&o.lng!=null)) return;
   const addr=(o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
@@ -7319,8 +7367,8 @@ async function _lalaGeocode(id){
   try{ const g=await _geocodeOne(addr); if(g){ o.lat=g.lat; o.lng=g.lng; _lalaDrawMap(); } }catch(_){}
 }
 function _lalaAdd(id){
-  if(!_lala.run.includes(id)) _lala.run.push(id);
-  _lala.quote=null; _lalaRenderPanel(); _lalaGeocode(id);
+  if(!_lala.run.some(e=>e===id)) _lala.run.push(id);
+  _lalaRenderPanel(); _lalaGeocode(id); _lalaScheduleQuote();
 }
 function _lalaRenderPanel(){
   let ov=document.getElementById('_lalaOv');
@@ -7338,21 +7386,43 @@ function _lalaDrawMap(){
   _ensureLeaflet(()=>{
     const el2=document.getElementById('_lalaMap'); if(!el2) return;      // panel closed while loading
     if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; }
-    _lalaMap=L.map(el2,{ zoomControl:false, attributionControl:false, scrollWheelZoom:false });
+    _lalaMap=L.map(el2,{ zoomControl:true, attributionControl:false, scrollWheelZoom:false });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(_lalaMap);
     const pin=(bg,label)=>L.divIcon({ className:'', iconSize:[26,26], iconAnchor:[13,13],
       html:'<div style="width:26px;height:26px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
-    const pts=[SHOP_LATLNG]; const line=[SHOP_LATLNG];
+    const stops=_lalaStops();
+    const pts=[SHOP_LATLNG];
     L.marker(SHOP_LATLNG,{ icon:pin('#0F6E56','S') }).addTo(_lalaMap);
-    _lala.run.forEach((id,i)=>{ const o=ORDERS.find(x=>x.id===id); if(!o||o.lat==null||o.lng==null) return;
-      L.marker([o.lat,o.lng],{ icon:pin('#1a3d2b',String(i+1)) }).addTo(_lalaMap);
-      pts.push([o.lat,o.lng]); line.push([o.lat,o.lng]);
+    stops.forEach((s,i)=>{ if(s.lat==null||s.lng==null) return;
+      L.marker([s.lat,s.lng],{ icon:pin('#1a3d2b',String(i+1)) }).addTo(_lalaMap);
+      pts.push([s.lat,s.lng]);
     });
-    if(line.length>1) L.polyline(line,{ color:'#1a3d2b', weight:3, dashArray:'6 5', opacity:.85 }).addTo(_lalaMap);
+    // Road-following route (via /api/geo) when we have it for this exact set of stops;
+    // otherwise a straight dashed line as a placeholder while the real route loads.
+    const sig=_lalaRouteSig();
+    if(_lala.polySig===sig && _lala.poly){
+      const pl=(typeof _decodePolyline==='function') ? _decodePolyline(_lala.poly) : [];
+      if(pl.length>1){ L.polyline(pl,{ color:'#1a3d2b', weight:4, opacity:.85 }).addTo(_lalaMap); pl.forEach(p=>pts.push(p)); }
+    } else {
+      const line=[SHOP_LATLNG].concat(stops.filter(s=>s.lat!=null).map(s=>[s.lat,s.lng]));
+      if(line.length>1) L.polyline(line,{ color:'#1a3d2b', weight:3, dashArray:'6 5', opacity:.6 }).addTo(_lalaMap);
+      if(stops.some(s=>s.lat!=null)) _lalaFetchRoute(sig);
+    }
     if(pts.length>1){ try{ _lalaMap.fitBounds(pts,{ padding:[28,28], maxZoom:15 }); }catch(_){ _lalaMap.setView(SHOP_LATLNG,12); } }
     else _lalaMap.setView(SHOP_LATLNG,13);
     setTimeout(()=>{ try{ _lalaMap.invalidateSize(); }catch(_){} }, 60);
   });
+}
+function _lalaRouteSig(){ return _lalaStops().filter(s=>s.lat!=null).map(s=>s.lat.toFixed(5)+','+s.lng.toFixed(5)).join('|'); }
+// Fetch a road-following route through shop → stops (same /api/geo the driver map uses).
+async function _lalaFetchRoute(sig){
+  if(_lala._polyLoading===sig || typeof _geoRoute!=='function') return;
+  _lala._polyLoading=sig;
+  const stops=_lalaStops().filter(s=>s.lat!=null).map((s,i)=>({ id:s.key||('s'+i), lat:s.lat, lng:s.lng }));
+  if(!stops.length){ _lala._polyLoading=null; return; }
+  let j=null; try{ j=await _geoRoute(stops, false, { lat:SHOP_LATLNG[0], lng:SHOP_LATLNG[1] }); }catch(_){}
+  _lala._polyLoading=null;
+  if(j && j.polyline && _lalaRouteSig()===sig){ _lala.poly=j.polyline; _lala.polySig=sig; _lalaDrawMap(); }
 }
 function _lalaCardHTML(){
   const seg=LALA_SERVICES.map((s,i)=>{ const on=s.id===_lala.svc;
@@ -7364,10 +7434,10 @@ function _lalaCardHTML(){
     + '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('#0F6E56','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>')
     + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Bamboo Green Florist</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(SHOP_ADDR.slice(0,46))+' (pickup)</div></div></div>';
   if(!_lala.run.length) route+='<div style="font-size:12px;color:var(--c-muted);padding:8px 0">No stops yet — add orders below.</div>';
-  _lala.run.forEach((id,i)=>{ const o=ORDERS.find(x=>x.id===id); if(!o) return; const addr=((o.address||'')+'').slice(0,54);
+  _lalaStops().forEach((s,i)=>{ const addr=((s.sub||'')+'').slice(0,54);
     route+='<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('var(--c-burg,#1a3d2b)',String(i+1))
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div>'
-      +'<button type="button" onclick="_lalaRemove(\''+o.id+'\')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(s.title)+(s.orderId?'':' <span style="font-weight:500;color:var(--c-muted)">· manual</span>')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div>'
+      +'<button type="button" onclick="_lalaRemoveAt('+i+')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   });
   route+='</div>';
   const addons=LALA_ADDONS.map(a=>{ const on=_lala.addons.has(a.id);
@@ -7376,18 +7446,6 @@ function _lalaCardHTML(){
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div></div>'
       +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(on?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>';
   }).join('');
-  const n=_lala.run.length;
-  let bar;
-  if(!n){ bar='<div style="font-size:12.5px;color:var(--c-muted);text-align:center;padding:4px 0">Add at least one stop to get a quote.</div>'; }
-  else if(_lala.quote){ const q=_lala.quote;
-    bar='<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
-      +'<div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:12px;color:var(--c-muted)">'+n+' stop'+(n>1?'s':'')+' · '+esc(_lala.svc.toLowerCase())+(_lala.addons.size?' · +'+_lala.addons.size+' add-on'+(_lala.addons.size>1?'s':''):'')+'</span><span style="font-size:22px;font-weight:800">'+esc(q.priceText)+'</span></div>'
-      +'<div style="font-size:11px;color:#E65100;margin-top:8px">Confirming dispatches a real Lalamove '+esc(_lala.svc.toLowerCase())+' and charges this amount.</div></div>'
-      +'<div style="display:flex;gap:10px"><button type="button" onclick="_lalaRequote()" style="flex:1;padding:13px;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-surface);font-weight:600;cursor:pointer">Re-quote</button>'
-      +'<button type="button" id="_lalaBookBtn" onclick="_lalaBook()" style="flex:2;padding:13px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Confirm &amp; book</button></div>';
-  } else {
-    bar='<button type="button" id="_lalaQuoteBtn" onclick="_lalaQuote()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer;font-size:14px">Get quote · '+n+' stop'+(n>1?'s':'')+'</button>';
-  }
   const lbl='font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
   return ''
     + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">New delivery run</div><div style="font-size:12px;color:var(--c-muted);margin-top:1px">Lalamove · combine stops into one trip</div></div>'
@@ -7400,58 +7458,109 @@ function _lalaCardHTML(){
     + '<input id="_lalaSearch" type="search" value="'+esc(_lala.q||'')+'" oninput="_lalaSearchInput(this.value)" placeholder="Search any order — name, address or phone" style="width:100%;padding:9px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:8px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);-webkit-appearance:none">'
     + '<div id="_lalaAvail">'+_lalaAvailHTML()+'</div><div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add-ons</div>'+addons+'<div style="height:14px"></div>'
-    + bar
+    + '<div id="_lalaBar">'+_lalaBarHTML()+'</div>'
     + '</div>';
 }
-async function _lalaQuote(){
-  if(_lala.busy) return;
-  const sel=_lala.run.map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
-  if(!sel.length){ toast('Add at least one stop'); return; }
-  _lala.busy=true;
-  const btn=document.getElementById('_lalaQuoteBtn'); if(btn){ btn.disabled=true; btn.textContent='Quoting…'; }
-  for(const o of sel){ if(o.lat==null||o.lng==null){
-    const addr=(o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
-    if(addr){ try{ const g=await _geocodeOne(addr); if(g){ o.lat=g.lat; o.lng=g.lng; } }catch(_){} }
+// Bottom bar: the live fare (like the Lalamove app) — Calculating / price breakdown / error.
+function _lalaBarHTML(){
+  const n=_lala.run.length;
+  if(!n) return '<div style="font-size:12.5px;color:var(--c-muted);text-align:center;padding:4px 0">Add at least one stop to see the fare.</div>';
+  const meta=n+' stop'+(n>1?'s':'')+' · '+esc(_lala.svc.toLowerCase())+(_lala.addons.size?' · +'+_lala.addons.size+' add-on'+(_lala.addons.size>1?'s':''):'');
+  if(_lala.quoting){
+    return '<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px"><div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:12px;color:var(--c-muted)">'+meta+'</span><span style="font-size:14px;color:var(--c-muted)">Calculating fare…</span></div></div>'
+      + '<button type="button" disabled style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--c-border);color:#fff;font-weight:700;font-size:14px;cursor:default">Confirm &amp; book</button>';
+  }
+  if(_lala.quoteErr){
+    return '<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px"><div style="font-size:12.5px;color:#B3261E">⚠ '+esc(_lala.quoteErr)+'</div></div>'
+      + '<button type="button" onclick="_lalaScheduleQuote()" style="width:100%;padding:13px;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-surface);font-weight:600;cursor:pointer">Retry</button>';
+  }
+  const q=_lala.quote;
+  if(q){
+    const pb=q.pb||{}, cur=(pb.currency?pb.currency+' ':'');
+    const money=v=>cur+Number(v||0).toFixed(2);
+    const lines=[];
+    if(pb.base!=null)           lines.push(['Base fare', money(pb.base)]);
+    if(+pb.extraMileage)        lines.push(['Distance', money(pb.extraMileage)]);
+    if(+pb.surcharge)           lines.push(['Surcharge', money(pb.surcharge)]);
+    if(+pb.specialRequests)     lines.push(['Add-ons', money(pb.specialRequests)]);
+    if(+pb.priorityFee)         lines.push(['Priority fee', money(pb.priorityFee)]);
+    const rows=lines.map(l=>'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--c-muted);margin-bottom:3px"><span>'+esc(l[0])+'</span><span>'+esc(l[1])+'</span></div>').join('');
+    return '<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
+      + '<div style="font-size:11.5px;color:var(--c-muted);margin-bottom:8px">'+meta+'</div>'
+      + rows
+      + (rows?'<div style="border-top:1px solid var(--c-border);margin:8px 0 6px"></div>':'')
+      + '<div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:13px;font-weight:700">Total fare</span><span style="font-size:24px;font-weight:800">'+esc(q.priceText)+'</span></div>'
+      + '<div style="font-size:11px;color:#E65100;margin-top:8px">Confirming dispatches a real Lalamove '+esc(_lala.svc.toLowerCase())+' and charges this amount.</div></div>'
+      + '<button type="button" id="_lalaBookBtn" onclick="_lalaBook()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer;font-size:14px">Confirm &amp; book · '+esc(q.priceText)+'</button>';
+  }
+  return '<div style="font-size:12.5px;color:var(--c-muted);text-align:center;padding:4px 0">Preparing fare…</div>';
+}
+function _lalaUpdateBar(){ const el=document.getElementById('_lalaBar'); if(el) el.innerHTML=_lalaBarHTML(); }
+// Auto-quote: debounce after any change so the fare shows live, no button press needed.
+function _lalaScheduleQuote(){
+  if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; }
+  if(!_lala.run.length){ _lala.quoting=false; _lala.quote=null; _lala.quoteErr=null; _lalaUpdateBar(); return; }
+  _lala.quote=null; _lala.quoteErr=null; _lala.quoting=true; _lalaUpdateBar();
+  const seq=++_lalaQSeq;
+  _lalaQTimer=setTimeout(()=>{ _lalaRunQuote(seq); }, 550);
+}
+async function _lalaRunQuote(seq){
+  const sel=_lalaStops();                                      // resolved order + manual stops, in order
+  if(!sel.length){ if(seq===_lalaQSeq){ _lala.quoting=false; _lalaUpdateBar(); } return; }
+  // Geocode any order stops still missing coordinates (manual stops are already located).
+  for(const s of sel){ if((s.lat==null||s.lng==null) && s.order){
+    const addr=(s.order.address || (typeof _drvAddr==='function'?_drvAddr(s.order):'') || '').trim();
+    if(addr){ try{ const g=await _geocodeOne(addr); if(g){ s.order.lat=g.lat; s.order.lng=g.lng; s.lat=g.lat; s.lng=g.lng; } }catch(_){} }
   }}
-  const bad=sel.filter(o=>o.lat==null||o.lng==null);
-  if(bad.length){ _lala.busy=false; toast('⚠ No map location for: '+bad.map(o=>o.name||o.customer).join(', ')); _lalaRenderPanel(); return; }
+  if(seq!==_lalaQSeq) return;                                  // user changed the run meanwhile
+  const bad=sel.filter(s=>s.lat==null||s.lng==null);
+  if(bad.length){ _lala.quoting=false; _lala.quoteErr='No map location for '+bad.map(s=>s.title).join(', '); _lalaUpdateBar(); _lalaDrawMap(); return; }
+  _lalaDrawMap();
   const stops=[{ coordinates:{ lat:String(SHOP_LATLNG[0]), lng:String(SHOP_LATLNG[1]) }, address: SHOP_ADDR }]
-    .concat(sel.map(o=>({ coordinates:{ lat:String(o.lat), lng:String(o.lng) }, address:(o.address||'Delivery address') })));
+    .concat(sel.map(s=>({ coordinates:{ lat:String(s.lat), lng:String(s.lng) }, address:(s.address||'Delivery address') })));
   const specials=LALA_ADDONS.filter(a=>_lala.addons.has(a.id)).map(a=>a.code);
   const base={ serviceType:_lala.svc, language:'en_MY', stops };
-  let q=await _lalamoveApi({ op:'quote', data: specials.length ? Object.assign({ specialRequests:specials }, base) : base });
-  let qd=q.body && q.body.data;
   const good=r=>{ const d=r&&r.body&&r.body.data; return d&&d.quotationId&&d.stops&&d.stops.length>=stops.length; };
-  // An unsupported add-on for this vehicle shouldn't block booking — retry clean.
-  if(!good(q) && specials.length){
+  let q=await _lalamoveApi({ op:'quote', data: specials.length ? Object.assign({ specialRequests:specials }, base) : base });
+  let droppedAddons=false;
+  if(!good(q) && specials.length){                            // unsupported add-on shouldn't block the fare
     const q2=await _lalamoveApi({ op:'quote', data:base });
-    if(good(q2)){ q=q2; qd=q2.body.data; _lala.addons=new Set(); toast('Add-ons not available for this vehicle — quoted without them'); }
+    if(good(q2)){ q=q2; droppedAddons=true; }
   }
-  _lala.busy=false;
-  if(q.status===501 || q.error==='lalamove_not_configured'){ toast('⚠ Lalamove not set up (missing API keys in Vercel)'); _lalaRenderPanel(); return; }
-  qd=q.body && q.body.data;
-  if(!good(q)){ toast('⚠ Quote failed: '+_lalaErr(q)); _lalaRenderPanel(); return; }
-  const pb=qd.priceBreakdown||{};
-  _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:sel.map(o=>o.id), priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
-  _lalaRenderPanel();
+  if(seq!==_lalaQSeq) return;                                  // stale response
+  _lala.quoting=false;
+  if(droppedAddons){ _lala.addons=new Set(); toast('Add-ons not available for this vehicle'); }
+  if(q.status===501 || q.error==='lalamove_not_configured'){ _lala.quoteErr='Lalamove not set up (API keys missing in Vercel)'; droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
+  if(!good(q)){ _lala.quoteErr=_lalaErr(q); droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
+  const qd=q.body.data, pb=qd.priceBreakdown||{};
+  _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:_lala.run.slice(), ts:Date.now(), pb, priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
+  droppedAddons ? _lalaRenderPanel() : _lalaUpdateBar();
 }
 async function _lalaBook(){
-  const q=_lala.quote; if(!q || _lala.busy) return;
+  let q=_lala.quote; if(!q || _lala.busy) return;
   _lala.busy=true;
   const btn=document.getElementById('_lalaBookBtn'); if(btn){ btn.disabled=true; btn.textContent='Booking…'; }
-  const sel=q.run.map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
-  const recipients=sel.map((o,i)=>({ stopId:q.stops[i+1].stopId, name:(o.recipName||o.customer||'Recipient'),
-    phone:_e164(o.recipPhone || o.phone || '') || SHOP_PHONE, remarks:(o.name||'')+' — flowers' }));
+  // Lalamove quotations expire (~5 min). If this one is old, refresh it before placing so
+  // the booking doesn't fail on a stale quotationId.
+  if(q.ts && (Date.now()-q.ts) > 4*60*1000){
+    _lala.busy=false; await new Promise(res=>{ _lalaScheduleQuote(); setTimeout(res, 1400); });
+    q=_lala.quote; if(!q){ return; } _lala.busy=true;
+    if(btn){ btn.disabled=true; btn.textContent='Booking…'; }
+  }
+  const sel=q.run.map(_lalaResolve).filter(Boolean);           // resolved order + manual stops
+  const recipients=sel.map((s,i)=>({ stopId:q.stops[i+1].stopId, name:(s.name||'Recipient'),
+    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:((s.order&&s.order.name)||s.title||'')+' — flowers' }));
   const r=await _lalamoveApi({ op:'place', data:{ quotationId:q.quotationId,
     sender:{ stopId:q.stops[0].stopId, name:'Bamboo Green Florist', phone:SHOP_PHONE }, recipients }});
   _lala.busy=false;
   const od=r.body && r.body.data;
   if(!od || !od.orderId){ if(btn){ btn.disabled=false; btn.textContent='Confirm & book'; } toast('⚠ Booking failed: '+_lalaErr(r)); return; }
   const url=od.shareLink || od.trackingLink || null;
-  sel.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; saveOrders(o); });
+  const orders=sel.filter(s=>s.order).map(s=>s.order);         // stamp real orders only (manual stops have none)
+  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; saveOrders(o); });
   const otwId=(document.getElementById('otw-order-id')||{}).value;
-  if(otwId && url && sel.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
-  _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lalaClose();
+  if(otwId && url && orders.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
+  _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lala.quoteErr=null; _lalaClose();
   if(typeof renderOrders==='function') renderOrders();
   if(typeof renderDriver==='function') renderDriver();
   toast('✓ Lalamove booked · '+sel.length+' stop'+(sel.length>1?'s':'')+(url?' · tracking link added':''));
@@ -7754,7 +7863,7 @@ function _drvRow(o, opts){
   return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
     + handle + circle + thumb
     + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+'</div>'
+      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+(o.lalamoveUrl?' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#D8622E;background:#FAECE7;border-radius:5px;padding:1px 5px;vertical-align:1px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Lalamove</span>':'')+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o))+(o.dueTime?' · '+esc2(o.dueTime):'')+' · '+_drvStatusText(o)+'</div>'
     + '</div>'
     + unassign
