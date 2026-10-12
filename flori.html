@@ -825,6 +825,7 @@
     <div class="mc-hdr"><div class="mc-ttl">On the way</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-otw')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <input type="hidden" id="otw-order-id">
+      <button type="button" id="otw-manage-lala" onclick="manageLalamove(document.getElementById('otw-order-id').value)" style="display:none;width:100%;margin-bottom:14px;padding:11px;border:1.5px solid var(--c-burg,#1a3d2b);border-radius:var(--r);background:var(--c-surface);color:var(--c-burg,#1a3d2b);cursor:pointer;font-size:12.5px;font-weight:700;align-items:center;justify-content:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Manage Lalamove delivery · status, driver, cancel</button>
       <div style="font-size:12px;color:var(--c-muted);line-height:1.55;margin-bottom:14px">Send the customer an "order on the way + live tracking link" by WhatsApp + email. <span id="otw-order-no" style="font-weight:600;color:var(--c-ink)"></span></div>
       <div class="ff"><label class="ff-l">Lalamove tracking link <span style="color:var(--c-muted);font-weight:400">Optional · customer taps this to track live</span></label>
         <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
@@ -7239,15 +7240,40 @@ const LALA_SERVICES = [
   { id:'VAN',        label:'Van' },
   { id:'TRUCK330',   label:'Lorry' },
 ];
-// Optional Lalamove add-ons (special requests). `code` is sent to Lalamove; if a vehicle
-// doesn't support it the quote is retried WITHOUT add-ons so booking is never blocked.
-const LALA_ADDONS = [
-  { id:'DOOR_TO_DOOR', code:'DOOR_TO_DOOR', label:'Door-to-door', note:'driver carries up to the unit',
-    svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M14 12h.01"/></svg>' },
-  { id:'PENANG_BRIDGE', code:'PENANG_BRIDGE', label:'Penang Bridge toll', note:'crossing to the mainland',
-    svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12v6"/><path d="M20 12v6"/><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5"/></svg>' },
-];
-let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'', quoting:false, quoteErr:null };
+// Lalamove add-ons (special requests) are per-city/per-vehicle and NAMED by Lalamove — so we
+// fetch the real list from /cities and never send a guessed code. Icons are best-effort by
+// keyword; the label is Lalamove's own description. A selected code still passes through the
+// quote's retry-without-add-ons safety net if Lalamove rejects it.
+let _lalaCities = null, _lalaCitiesLoading = false;
+function _lalaTitleCase(s){ return String(s||'').replace(/[_-]+/g,' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
+function _lalaAddonIcon(code){
+  const c=String(code||'').toUpperCase();
+  if(/DOOR|MOVER|MOVING|HELP|CARRY|PORTER/.test(c)) return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M14 12h.01"/></svg>';
+  if(/TOLL|BRIDGE|HIGHWAY/.test(c)) return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12v6"/><path d="M20 12v6"/><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5"/></svg>';
+  if(/PURCHASE|BUY|COD|CASH|PAYMENT/.test(c)) return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>';
+  return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>';
+}
+function _lalaCityServices(){
+  const d=_lalaCities; if(!Array.isArray(d)||!d.length) return null;
+  let city=d.find(c=>/pen/i.test(c.locode||'')||/penang/i.test(c.name||''));
+  if(!city) city=d.find(c=>/^MY/i.test(c.locode||'')) || d[0];
+  return (city&&city.services) || null;
+}
+function _lalaSpecials(){
+  const svcs=_lalaCityServices(); if(!svcs) return [];
+  const s=svcs.find(x=>(x.key||x.type||x.serviceType)===_lala.svc); if(!s) return [];
+  let sr=s.specialRequests; if(!sr) return [];
+  if(!Array.isArray(sr)) sr=sr.items||sr.list||[];
+  return sr.map(it=>{ const code=(it&&(it.name||it.key||it.code)); return code?{ code, label:(it.description||_lalaTitleCase(code)) }:null; }).filter(Boolean);
+}
+async function _lalaLoadCities(){
+  if(_lalaCities || _lalaCitiesLoading) return;
+  _lalaCitiesLoading=true;
+  try{ const r=await _lalamoveApi({ op:'cities' }); const d=r&&r.body&&r.body.data; if(Array.isArray(d)) _lalaCities=d; }catch(_){}
+  _lalaCitiesLoading=false;
+  if(document.getElementById('_lalaOv')) _lalaRenderPanel();   // refresh add-ons once we have them
+}
+let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'', quoting:false, quoteErr:null, note:'' };
 let _lalaMap = null, _lalaQTimer = null, _lalaQSeq = 0;
 async function _lalamoveApi(payload){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
@@ -7347,17 +7373,18 @@ function _lalaSearchInput(v){ _lala.q=v; const el=document.getElementById('_lala
 // Entry point (Delivery header button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
   _lala.quote=null; _lala.quoteErr=null; _lala.quoting=false; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
-  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null;
+  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null; _lala.note='';
   if(!_lala.svc) _lala.svc='CAR';
   const ok=new Set(_lalaDeliverables().map(o=>o.id));
   if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
   else _lala.run=(_lala.run||[]).filter(e => (e&&e.manual) || ok.has(e));
   _lalaRenderPanel();
+  _lalaLoadCities();   // real add-on list for this market/vehicle
   if(preselectId){ const o=ORDERS.find(x=>x.id===preselectId); if(o&&(o.lat==null||o.lng==null)) _lalaGeocode(preselectId); }
   if(_lala.run.length) _lalaScheduleQuote();
 }
 function _lalaClose(){ if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; } if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
-function _lalaPickSvc(id){ _lala.svc=id; _lalaRenderPanel(); _lalaScheduleQuote(); }
+function _lalaPickSvc(id){ _lala.svc=id; const ok=new Set(_lalaSpecials().map(a=>a.code)); _lala.addons=new Set([..._lala.addons].filter(c=>ok.has(c))); _lalaRenderPanel(); _lalaScheduleQuote(); }
 function _lalaRemoveAt(i){ _lala.run.splice(i,1); _lalaRenderPanel(); _lalaScheduleQuote(); }
 // Correct a stop's map pin when auto-geocoding landed it wrong (e.g. Lalamove says
 // "out of service area"). Accepts a Google Maps link, "lat, lng", or a clearer address.
@@ -7460,12 +7487,15 @@ function _lalaCardHTML(){
       +'<button type="button" onclick="_lalaRemoveAt('+i+')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   });
   route+='</div>';
-  const addons=LALA_ADDONS.map(a=>{ const on=_lala.addons.has(a.id);
-    return '<label onclick="_lalaToggleAddon(\''+a.id+'\')" style="display:flex;gap:10px;align-items:center;padding:11px 12px;border:1.5px solid '+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-bottom:7px;cursor:pointer;background:'+(on?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
-      +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex">'+a.svg+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div></div>'
-      +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(on?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>';
-  }).join('');
+  const specials=_lalaSpecials();
+  const addons = !_lalaCities
+    ? '<div style="font-size:12px;color:var(--c-muted);padding:2px 0 4px">Loading options…</div>'
+    : (specials.length ? specials.map(a=>{ const on=_lala.addons.has(a.code);
+        return '<label onclick="_lalaToggleAddon(\''+String(a.code).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="display:flex;gap:10px;align-items:center;padding:11px 12px;border:1.5px solid '+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-bottom:7px;cursor:pointer;background:'+(on?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
+          +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex">'+_lalaAddonIcon(a.code)+'</span>'
+          +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div></div>'
+          +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(on?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>';
+      }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:2px 0 4px">No add-ons for this vehicle.</div>');
   const lbl='font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
   return ''
     + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">New delivery run</div><div style="font-size:12px;color:var(--c-muted);margin-top:1px">Lalamove · combine stops into one trip</div></div>'
@@ -7478,6 +7508,8 @@ function _lalaCardHTML(){
     + '<input id="_lalaSearch" type="search" value="'+esc(_lala.q||'')+'" oninput="_lalaSearchInput(this.value)" placeholder="Search any order — name, address or phone" style="width:100%;padding:9px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:8px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);-webkit-appearance:none">'
     + '<div id="_lalaAvail">'+_lalaAvailHTML()+'</div><div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add-ons</div>'+addons+'<div style="height:14px"></div>'
+    + '<div style="'+lbl+'">Note to driver <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· optional</span></div>'
+    + '<textarea id="_lalaNote" oninput="_lala.note=this.value" rows="2" maxlength="500" placeholder="e.g. call on arrival, leave at guardhouse" style="width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:14px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);box-sizing:border-box;resize:vertical;-webkit-appearance:none">'+esc(_lala.note||'')+'</textarea>'
     + '<div id="_lalaBar">'+_lalaBarHTML()+'</div>'
     + '</div>';
 }
@@ -7538,7 +7570,7 @@ async function _lalaRunQuote(seq){
   _lalaDrawMap();
   const stops=[{ coordinates:{ lat:String(SHOP_LATLNG[0]), lng:String(SHOP_LATLNG[1]) }, address: SHOP_ADDR }]
     .concat(sel.map(s=>({ coordinates:{ lat:String(s.lat), lng:String(s.lng) }, address:(s.address||'Delivery address') })));
-  const specials=LALA_ADDONS.filter(a=>_lala.addons.has(a.id)).map(a=>a.code);
+  const specials=[..._lala.addons];   // selected special-request codes (from /cities)
   const base={ serviceType:_lala.svc, language:'en_MY', stops };
   const good=r=>{ const d=r&&r.body&&r.body.data; return d&&d.quotationId&&d.stops&&d.stops.length>=stops.length; };
   let q=await _lalamoveApi({ op:'quote', data: specials.length ? Object.assign({ specialRequests:specials }, base) : base });
@@ -7568,8 +7600,9 @@ async function _lalaBook(){
     if(btn){ btn.disabled=true; btn.textContent='Booking…'; }
   }
   const sel=q.run.map(_lalaResolve).filter(Boolean);           // resolved order + manual stops
+  const note=(_lala.note||'').trim();
   const recipients=sel.map((s,i)=>({ stopId:q.stops[i+1].stopId, name:(s.name||'Recipient'),
-    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:((s.order&&s.order.name)||s.title||'')+' — flowers' }));
+    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:(((s.order&&s.order.name)||s.title||'')+' — flowers'+(note?(' · '+note):'')).slice(0,300) }));
   const r=await _lalamoveApi({ op:'place', data:{ quotationId:q.quotationId,
     sender:{ stopId:q.stops[0].stopId, name:'Bamboo Green Florist', phone:SHOP_PHONE }, recipients }});
   _lala.busy=false;
@@ -7582,13 +7615,113 @@ async function _lalaBook(){
   const single=sel.length===1;
   const url = single ? rawUrl : null;
   const orders=sel.filter(s=>s.order).map(s=>s.order);         // stamp real orders only (manual stops have none)
-  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; saveOrders(o); });
+  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; _lalaLSset(o.id, od.orderId); saveOrders(o); });
   const otwId=(document.getElementById('otw-order-id')||{}).value;
   if(otwId && url && orders.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
   _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lala.quoteErr=null; _lalaClose();
   if(typeof renderOrders==='function') renderOrders();
   if(typeof renderDriver==='function') renderDriver();
   toast('✓ Lalamove booked · '+sel.length+' stop'+(sel.length>1?'s':'')+(url?' · tracking link added':(sel.length>1?' · customers get normal updates':'')));
+}
+
+// ── Manage a booked Lalamove order: live status, driver details, add priority fee to match
+// faster, call driver, cancel. Lalamove order ids persist per-device in localStorage so the
+// panel still works after a refresh (DB column optional — see notes).
+function _lalaLSset(orderId, lalaId){ try{ const m=JSON.parse(localStorage.getItem('lalaOrderIds')||'{}'); m[orderId]=lalaId; localStorage.setItem('lalaOrderIds', JSON.stringify(m)); }catch(_){} }
+function _lalaLSget(orderId){ try{ return JSON.parse(localStorage.getItem('lalaOrderIds')||'{}')[orderId]||null; }catch(_){ return null; } }
+function _lalaLSclear(orderId){ try{ const m=JSON.parse(localStorage.getItem('lalaOrderIds')||'{}'); delete m[orderId]; localStorage.setItem('lalaOrderIds', JSON.stringify(m)); }catch(_){} }
+function _lalaHasBooking(o){ return !!(o && (o.lalamoveOrderId || _lalaLSget(o.id))); }
+const LALA_STATUS = {
+  ASSIGNING_DRIVER:{t:'Finding a driver',c:'#E65100'}, ON_GOING:{t:'Driver on the way to pickup',c:'#185FA5'},
+  PICKED_UP:{t:'Picked up — delivering',c:'#185FA5'}, COMPLETED:{t:'Delivered',c:'#0F6E56'},
+  CANCELED:{t:'Canceled',c:'#B3261E'}, REJECTED:{t:'Rejected',c:'#B3261E'}, EXPIRED:{t:'Expired (no driver)',c:'#B3261E'},
+};
+let _lalaMng = { id:null, orderId:null, label:'', data:null, driver:null, busy:false };
+function manageLalamove(orderId){
+  const o=ORDERS.find(x=>x.id===orderId);
+  const lid=(o&&o.lalamoveOrderId) || _lalaLSget(orderId);
+  if(!lid){ toast('No Lalamove booking on this order'); return; }
+  if(o && !o.lalamoveOrderId) o.lalamoveOrderId=lid;   // rehydrate from localStorage
+  _lalaMng={ id:lid, orderId, label:(o&&o.name)||'', data:null, driver:null, busy:false };
+  _lalaMngRender(); _lalaMngRefresh();
+}
+function _lalaMngClose(){ const ov=document.getElementById('_lalaMngOv'); if(ov) ov.remove(); }
+async function _lalaMngRefresh(){
+  _lalaMng.busy=true; _lalaMngRender();
+  const r=await _lalamoveApi({ op:'get', orderId:_lalaMng.id });
+  const d=r&&r.body&&r.body.data;
+  if(d){ _lalaMng.data=d;
+    if(d.driverId && (!_lalaMng.driver || _lalaMng.driver._id!==d.driverId)){
+      const dr=await _lalamoveApi({ op:'driver', orderId:_lalaMng.id, driverId:d.driverId });
+      _lalaMng.driver=(dr&&dr.body&&dr.body.data)||null; if(_lalaMng.driver) _lalaMng.driver._id=d.driverId;
+    }
+    if(!d.driverId) _lalaMng.driver=null;
+  } else { _lalaMng.err=_lalaErr(r); }
+  _lalaMng.busy=false; _lalaMngRender();
+}
+function _lalaMngRender(){
+  let ov=document.getElementById('_lalaMngOv');
+  if(!ov){ ov=document.createElement('div'); ov.id='_lalaMngOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto';
+    document.body.appendChild(ov);
+  }
+  const d=_lalaMng.data, st=d&&d.status, sm=LALA_STATUS[st]||{t:(st||'—'),c:'var(--c-muted)'};
+  const drv=_lalaMng.driver;
+  const canCancel = st && !['COMPLETED','CANCELED','REJECTED','EXPIRED'].includes(st);
+  const canPriority = st==='ASSIGNING_DRIVER';
+  const share = (d&&(d.shareLink||d.trackingLink)) || null;
+  const row=(k,v)=>'<div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:5px 0;border-top:1px solid var(--c-border)"><span style="color:var(--c-muted)">'+esc(k)+'</span><span style="font-weight:600;text-align:right">'+v+'</span></div>';
+  let body;
+  if(!d && _lalaMng.busy){ body='<div style="font-size:12.5px;color:var(--c-muted);text-align:center;padding:16px 0">Checking status…</div>'; }
+  else if(!d){ body='<div style="font-size:12.5px;color:#B3261E;padding:10px 0">⚠ '+esc(_lalaMng.err||'Could not load this order')+'</div>'; }
+  else {
+    body='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="width:9px;height:9px;border-radius:50%;background:'+sm.c+';flex:none"></span><span style="font-size:15px;font-weight:800">'+esc(sm.t)+'</span></div>';
+    if(drv){ body+='<div style="background:var(--c-bg);border-radius:10px;padding:10px 12px;margin-bottom:10px">'
+      +'<div style="font-size:13px;font-weight:700">'+esc(drv.name||'Driver')+'</div>'
+      +'<div style="font-size:12px;color:var(--c-muted);margin-top:1px">'+esc([drv.plateNumber,drv.phone].filter(Boolean).join(' · ')||'')+'</div></div>'; }
+    else if(st==='ASSIGNING_DRIVER'){ body+='<div style="font-size:12px;color:var(--c-muted);margin-bottom:10px">No driver matched yet. Add a priority fee to match faster.</div>'; }
+    const pb=d.priceBreakdown||{}; if(pb.total) body+=row('Fare',(pb.currency?pb.currency+' ':'')+pb.total);
+    if(d.priorityFee) body+=row('Priority fee added',(pb.currency?pb.currency+' ':'')+d.priorityFee);
+    body+=row('Lalamove ID', '<span style="font-family:var(--f-mono,monospace);font-size:11px">'+esc(String(_lalaMng.id).slice(-10))+'</span>');
+  }
+  // actions
+  let acts='';
+  const btn=(label,fn,style)=>'<button type="button" onclick="'+fn+'" style="flex:1;min-width:120px;padding:11px;border-radius:10px;font-weight:700;font-size:12.5px;cursor:pointer;'+style+'">'+label+'</button>';
+  const ghost='border:1.5px solid var(--c-border);background:var(--c-surface);color:var(--c-ink)';
+  acts+=btn(_lalaMng.busy?'Refreshing…':'Refresh status','_lalaMngRefresh()',ghost);
+  if(drv&&drv.phone) acts+=btn('Call driver','window.open(\'tel:'+esc(drv.phone)+'\')',ghost);
+  if(share) acts+=btn('Open tracking','window.open(\''+esc(share)+'\',\'_blank\')',ghost);
+  if(canPriority) acts+=btn('Add priority fee','_lalaMngPriority()','border:none;background:#E65100;color:#fff');
+  if(canCancel) acts+=btn('Cancel order','_lalaMngCancel()','border:none;background:#B3261E;color:#fff');
+  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:400px;width:100%;margin:auto;overflow:hidden">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">Lalamove delivery</div>'+(_lalaMng.label?'<div style="font-size:12px;color:var(--c-muted);margin-top:1px">'+esc(_lalaMng.label)+'</div>':'')+'</div>'
+    + '<button type="button" onclick="_lalaMngClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
+    + '<div style="padding:0 18px 18px">'+body
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">'+acts+'</div></div></div>';
+}
+async function _lalaMngPriority(){
+  const cur=(_lalaMng.data&&_lalaMng.data.priceBreakdown&&_lalaMng.data.priceBreakdown.currency)||'MYR';
+  const inp=prompt('Add a priority fee ('+cur+') to match a driver faster.\nEnter the TOTAL priority fee amount, e.g. 5:', '5');
+  if(inp===null) return;
+  const amt=parseFloat(inp); if(!(amt>0)){ toast('Enter a valid amount'); return; }
+  _lalaMng.busy=true; _lalaMngRender();
+  const r=await _lalamoveApi({ op:'priority', orderId:_lalaMng.id, data:{ priorityFee:String(amt) } });
+  _lalaMng.busy=false;
+  if(r && (r.ok || (r.body&&r.body.data))){ toast('✓ Priority fee added'); _lalaMngRefresh(); }
+  else { toast('⚠ '+_lalaErr(r)); _lalaMngRender(); }
+}
+async function _lalaMngCancel(){
+  if(!confirm('Cancel this Lalamove order?\nIf a driver has already picked up, Lalamove may charge a cancellation fee.')) return;
+  _lalaMng.busy=true; _lalaMngRender();
+  const r=await _lalamoveApi({ op:'cancel', orderId:_lalaMng.id });
+  _lalaMng.busy=false;
+  if(r && (r.ok || r.status===200)){
+    const o=ORDERS.find(x=>x.id===_lalaMng.orderId);
+    if(o){ o.lalamoveOrderId=null; o.lalamoveUrl=null; if(typeof saveOrders==='function') saveOrders(o); }
+    _lalaLSclear(_lalaMng.orderId);
+    toast('✓ Lalamove order canceled'); _lalaMngClose();
+    if(typeof renderOrders==='function') renderOrders(); if(typeof renderDriver==='function') renderDriver();
+  } else { toast('⚠ '+_lalaErr(r)); _lalaMngRender(); }
 }
 // Per-order "On the way" dispatch (for Lalamove / manual delivery not on a driver
 // route): paste/confirm the tracking link, then notify the customer with it.
@@ -7598,6 +7731,7 @@ function openOTWModal(id){
   const noEl=document.getElementById('otw-order-no'); if(noEl) noEl.textContent = o.name ? ('· '+o.name) : '';
   const lalaEl=document.getElementById('otw-lala'); if(lalaEl) lalaEl.value = o.lalamoveUrl || '';
   const nEl=document.getElementById('otw-notify'); if(nEl) nEl.checked = true;
+  const mEl=document.getElementById('otw-manage-lala'); if(mEl) mEl.style.display = _lalaHasBooking(o) ? 'inline-flex' : 'none';
   openModal('m-otw');
 }
 async function sendOTW(){

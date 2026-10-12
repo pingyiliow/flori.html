@@ -36,9 +36,12 @@ async function handleLalamove(res, L){
   if (!process.env.LALAMOVE_API_KEY || !process.env.LALAMOVE_API_SECRET) return res.status(501).json({ error: 'lalamove_not_configured' });
   try {
     const op = L && L.op;
+    if (op === 'cities') return res.status(200).json(await _lalaCall('GET', '/cities', null));
     if (op === 'quote')  return res.status(200).json(await _lalaCall('POST', '/quotations', L.data));
     if (op === 'place')  return res.status(200).json(await _lalaCall('POST', '/orders', L.data));
     if (op === 'get')    return res.status(200).json(await _lalaCall('GET', '/orders/' + encodeURIComponent(L.orderId), null));
+    if (op === 'driver') return res.status(200).json(await _lalaCall('GET', '/orders/' + encodeURIComponent(L.orderId) + '/drivers/' + encodeURIComponent(L.driverId), null));
+    if (op === 'priority') return res.status(200).json(await _lalaCall('POST', '/orders/' + encodeURIComponent(L.orderId) + '/priority-fee', L.data));
     if (op === 'cancel') return res.status(200).json(await _lalaCall('DELETE', '/orders/' + encodeURIComponent(L.orderId), null));
     return res.status(400).json({ error: 'unknown_lalamove_op' });
   } catch(e){ return res.status(200).json({ error: String(e && e.message || e) }); }
