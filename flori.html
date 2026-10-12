@@ -7394,7 +7394,7 @@ function _lalaRenderPanel(){
   if(!ov){
     ov=document.createElement('div'); ov.id='_lalaOv';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:20px 14px;overflow:auto';
-    ov.addEventListener('click',e=>{ if(e.target===ov) _lalaClose(); });
+    // No backdrop-click close — the run details are easy to lose. Close only via the × button.
     document.body.appendChild(ov);
   }
   ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:470px;width:100%;margin:auto;overflow:hidden">'+_lalaCardHTML()+'</div>';
