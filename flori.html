@@ -7365,12 +7365,16 @@ async function _lalaEditStop(i){
   const e=_lala.run[i]; if(e==null) return;
   const s=_lalaResolve(e); if(!s) return;
   const cur=(s.lat!=null)?(s.lat+', '+s.lng):(s.address||'');
-  const inp=prompt('Fix the map location for "'+(s.title||'stop')+'".\nPaste a Google Maps link, "lat, lng", or a clearer address.', cur);
+  const base=(s.address||cur);
+  const inp=prompt('Fix the location / address for "'+(s.title||'stop')+'".\nType a corrected address, or paste a Google Maps link or "lat, lng".', base);
   if(inp===null) return;
   const r=(typeof _resolveStart==='function') ? await _resolveStart(inp) : null;
-  if(!r){ toast('⚠ Could not locate that — try a Google Maps link or lat,lng'); return; }
-  if(e && e.manual){ e.lat=r.lat; e.lng=r.lng; if(/[a-zA-Z]/.test(r.label)) e.address=r.label; }
-  else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=r.lat; o.lng=r.lng; if(typeof saveOrders==='function') saveOrders(o); } }
+  if(!r){ toast('⚠ Could not locate that — try a clearer address, Google Maps link or lat,lng'); return; }
+  // Treat the input as a replacement address only when it's text (not a maps URL or bare coords).
+  const isUrl=/https?:\/\/|maps\.|goo\.gl/i.test(r.label), isCoords=!/[a-zA-Z]/.test(r.label);
+  const newAddr=(!isUrl && !isCoords) ? r.label : null;
+  if(e && e.manual){ e.lat=r.lat; e.lng=r.lng; if(newAddr) e.address=newAddr; }
+  else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=r.lat; o.lng=r.lng; if(newAddr) o.address=newAddr; if(typeof saveOrders==='function') saveOrders(o); } }
   _lala.poly=null; _lala.polySig=null;
   _lalaRenderPanel(); _lalaScheduleQuote();
 }
