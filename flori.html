@@ -7406,6 +7406,32 @@ function bookLalamove(preselectId){
 function _lalaClose(){ if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; } if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
 function _lalaPickSvc(id){ _lala.svc=id; const ok=new Set(_lalaSpecials().map(a=>a.code)); _lala.addons=new Set([..._lala.addons].filter(c=>ok.has(c))); _lalaRenderPanel(); _lalaScheduleQuote(); }
 function _lalaRemoveAt(i){ _lala.run.splice(i,1); _lalaRenderPanel(); _lalaScheduleQuote(); }
+// Drag-to-reorder stops (desktop HTML5 DnD). The Optimize button covers reordering everywhere.
+let _lalaDragFrom=null;
+function _lalaDragStart(e,i){ _lalaDragFrom=i; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(i)); }catch(_){} }
+function _lalaDragOver(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect='move'; }catch(_){} }
+function _lalaDragEnd(){ _lalaDragFrom=null; }
+function _lalaDrop(e,i){ e.preventDefault();
+  let from=_lalaDragFrom; if(from==null){ try{ from=parseInt(e.dataTransfer.getData('text/plain'),10); }catch(_){} }
+  if(from==null||isNaN(from)||from===i){ _lalaDragFrom=null; return; }
+  const entry=_lala.run.splice(from,1)[0]; _lala.run.splice(i,0,entry); _lalaDragFrom=null;
+  _lala.poly=null; _lala.polySig=null; _lalaRenderPanel(); _lalaScheduleQuote();
+}
+// Optimize stop order (shortest route) via the same /api/geo the driver map uses.
+async function _lalaOptimize(){
+  const sel=_lalaStops().filter(s=>s.lat!=null);
+  if(sel.length<2){ toast('Add at least 2 located stops to optimize'); return; }
+  toast('Optimizing route…');
+  const stops=sel.map(s=>({ id:s.key, lat:s.lat, lng:s.lng }));
+  let j=null; try{ j=await _geoRoute(stops, true, { lat:SHOP_LATLNG[0], lng:SHOP_LATLNG[1] }); }catch(_){}
+  if(!j || !Array.isArray(j.order)){ toast('⚠ Optimize failed'+(j&&j.error?': '+j.error:'')); return; }
+  const byKey=new Map(); _lala.run.forEach(e=>{ const r=_lalaResolve(e); if(r) byKey.set(r.key, e); });
+  const seen=new Set(), reordered=[];
+  j.order.forEach(k=>{ const e=byKey.get(k); if(e!==undefined && !seen.has(k)){ reordered.push(e); seen.add(k); } });
+  _lala.run.forEach(e=>{ const r=_lalaResolve(e); const k=r&&r.key; if(!k || !seen.has(k)) reordered.push(e); });
+  _lala.run=reordered; _lala.poly=null; _lala.polySig=null;
+  _lalaRenderPanel(); _lalaScheduleQuote(); toast('✓ Route optimized');
+}
 // Correct a stop's map pin when auto-geocoding landed it wrong (e.g. Lalamove says
 // "out of service area"). Accepts a Google Maps link, "lat, lng", or a clearer address.
 async function _lalaEditStop(i){
@@ -7502,10 +7528,11 @@ function _lalaCardHTML(){
     + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Bamboo Green Florist</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(SHOP_ADDR.slice(0,46))+' (pickup)</div></div></div>';
   if(!_lala.run.length) route+='<div style="font-size:12px;color:var(--c-muted);padding:8px 0">No stops yet — add orders below.</div>';
   _lalaStops().forEach((s,i)=>{ const addr=((s.sub||'')+'').slice(0,54);
-    route+='<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('var(--c-burg,#1a3d2b)',String(i+1))
+    route+='<div draggable="true" ondragstart="_lalaDragStart(event,'+i+')" ondragover="_lalaDragOver(event)" ondrop="_lalaDrop(event,'+i+')" ondragend="_lalaDragEnd()" data-lidx="'+i+'" style="display:flex;gap:8px;align-items:flex-start;padding:6px 0">'+dot('var(--c-burg,#1a3d2b)',String(i+1))
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(s.title)+(s.orderId?'':' <span style="font-weight:500;color:var(--c-muted)">· manual</span>')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div>'
       +'<button type="button" onclick="_lalaEditStop('+i+')" aria-label="Fix location" title="Fix map location" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>'
-      +'<button type="button" onclick="_lalaRemoveAt('+i+')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+      +'<button type="button" onclick="_lalaRemoveAt('+i+')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+      +'<span style="cursor:grab;color:var(--c-muted);flex:none;padding:2px;touch-action:none" title="Drag to reorder"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/></svg></span></div>';
   });
   route+='</div>';
   const specials=_lalaSpecials();
@@ -7524,7 +7551,9 @@ function _lalaCardHTML(){
     + '<div id="_lalaMap" style="height:180px;background:var(--c-bg)"></div>'
     + '<div style="padding:14px 18px 18px">'
     + '<div style="display:flex;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+seg+'</div>'
-    + '<div style="'+lbl+'">The route</div>'+route+'<div style="height:16px"></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="'+lbl+';margin-bottom:0">The route</span>'
+      + (_lala.run.length>=2 ? '<button type="button" onclick="_lalaOptimize()" style="border:1.5px solid var(--c-burg,#1a3d2b);background:var(--c-surface);color:var(--c-burg,#1a3d2b);border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>Optimize</button>' : '')
+      + '</div>'+route+'<div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add a stop <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· today\'s deliveries</span></div>'
     + '<input id="_lalaSearch" type="search" value="'+esc(_lala.q||'')+'" oninput="_lalaSearchInput(this.value)" placeholder="Search any order — name, address or phone" style="width:100%;padding:9px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:8px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);-webkit-appearance:none">'
     + '<div id="_lalaAvail">'+_lalaAvailHTML()+'</div><div style="height:16px"></div>'
