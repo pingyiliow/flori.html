@@ -7300,7 +7300,7 @@ function _lalaAvailHTML(){
   }
   const manualBtn='<button type="button" onclick="_lalaManualPrompt()" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px dashed var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
     +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>'
-    +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Add a manual address</div><div style="font-size:11.5px;color:var(--c-muted)">a stop that isn\'t an order</div></div></button>';
+    +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Add a manual address</div></div></button>';
   const empty = !pool.length ? ('<div style="font-size:12px;color:var(--c-muted);padding:2px 0 8px">'
     + (q ? ('No orders match "'+esc(_lala.q.trim())+'".')
          : (_lala.run.length ? 'No other of today\'s orders — search, or add a manual address.'
@@ -7555,7 +7555,12 @@ async function _lalaBook(){
   _lala.busy=false;
   const od=r.body && r.body.data;
   if(!od || !od.orderId){ if(btn){ btn.disabled=false; btn.textContent='Confirm & book'; } toast('⚠ Booking failed: '+_lalaErr(r)); return; }
-  const url=od.shareLink || od.trackingLink || null;
+  const rawUrl=od.shareLink || od.trackingLink || null;
+  // Only a SINGLE-stop run gets its tracking link shared with the customer — a multi-stop
+  // link would expose the whole route (other customers' stops). Multi-stop orders just get
+  // the usual on-the-way update, then proof photos + message when their stop is delivered.
+  const single=sel.length===1;
+  const url = single ? rawUrl : null;
   const orders=sel.filter(s=>s.order).map(s=>s.order);         // stamp real orders only (manual stops have none)
   orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; saveOrders(o); });
   const otwId=(document.getElementById('otw-order-id')||{}).value;
@@ -7563,7 +7568,7 @@ async function _lalaBook(){
   _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lala.quoteErr=null; _lalaClose();
   if(typeof renderOrders==='function') renderOrders();
   if(typeof renderDriver==='function') renderDriver();
-  toast('✓ Lalamove booked · '+sel.length+' stop'+(sel.length>1?'s':'')+(url?' · tracking link added':''));
+  toast('✓ Lalamove booked · '+sel.length+' stop'+(sel.length>1?'s':'')+(url?' · tracking link added':(sel.length>1?' · customers get normal updates':'')));
 }
 // Per-order "On the way" dispatch (for Lalamove / manual delivery not on a driver
 // route): paste/confirm the tracking link, then notify the customer with it.
@@ -7863,7 +7868,7 @@ function _drvRow(o, opts){
   return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
     + handle + circle + thumb
     + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+(o.lalamoveUrl?' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#D8622E;background:#FAECE7;border-radius:5px;padding:1px 5px;vertical-align:1px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Lalamove</span>':'')+'</div>'
+      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+((o.lalamoveOrderId||o.lalamoveUrl)?' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#D8622E;background:#FAECE7;border-radius:5px;padding:1px 5px;vertical-align:1px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Lalamove</span>':'')+'</div>'
       + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o))+(o.dueTime?' · '+esc2(o.dueTime):'')+' · '+_drvStatusText(o)+'</div>'
     + '</div>'
     + unassign
