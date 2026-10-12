@@ -7592,15 +7592,14 @@ function _lalaBarHTML(){
     if(pb.base!=null)           lines.push(['Base fare', money(pb.base)]);
     if(+pb.extraMileage)        lines.push(['Distance', money(pb.extraMileage)]);
     if(+pb.surcharge)           lines.push(['Surcharge', money(pb.surcharge)]);
-    // Add-ons — split + labelled per add-on when we have per-fee data, else one combined line.
+    // Add-ons: Lalamove returns their fees combined (and the Penang bridge toll can land in
+    // its own field), so we show ONE line labelled with what's selected + the real fee Lalamove
+    // charges, rather than guessing a per-item split that can read wrong.
+    const selCodes=[..._lala.addons];
+    const labelFor=c=>{ const sp=_lalaSpecials().find(a=>a.code===c); return sp?sp.label:_lalaTitleCase(c); };
     if(+pb.specialRequests){
-      const selCodes=[..._lala.addons];
-      const labelFor=c=>{ const sp=_lalaSpecials().find(a=>a.code===c); return sp?sp.label:_lalaTitleCase(c); };
-      const fees=q.addonFees;
-      if(fees && selCodes.length){ selCodes.forEach(c=>lines.push([labelFor(c), money(fees[c]||0)])); }
-      else if(selCodes.length===1){ lines.push([labelFor(selCodes[0]), money(pb.specialRequests)]); }
-      else if(selCodes.length>1){ lines.push([selCodes.map(labelFor).join(' + '), money(pb.specialRequests)]); }
-      else lines.push(['Add-ons', money(pb.specialRequests)]);
+      const nm = selCodes.length ? selCodes.map(labelFor).join(' + ') : 'Add-ons';
+      lines.push([nm, money(pb.specialRequests)]);
     }
     if(+pb.priorityFee)         lines.push(['Priority fee', money(pb.priorityFee)]);
     const rows=lines.map(l=>'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--c-muted);margin-bottom:3px"><span>'+esc(l[0])+'</span><span>'+esc(l[1])+'</span></div>').join('');
@@ -7654,23 +7653,7 @@ async function _lalaRunQuote(seq){
   if(!good(q)){ let em=_lalaErr(q); if(/service area/i.test(em)) em+=' — tap the pin icon on a stop to fix its location.'; _lala.quoteErr=em; droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
   const qd=q.body.data, pb=qd.priceBreakdown||{};
   _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:_lala.run.slice(), ts:Date.now(), pb, priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
-  // Per-add-on fee split: with ONE add-on the combined specialRequests fee IS that add-on's
-  // fee; with TWO we price the first alone and derive the second (one extra quote).
-  const selCodes=[..._lala.addons];
-  if(selCodes.length===1){ _lala.quote.addonFees={ [selCodes[0]]: Number(pb.specialRequests||0) }; }
-  else if(selCodes.length>=2 && +pb.specialRequests){ _lalaSplitFees(seq, stops); }
   droppedAddons ? _lalaRenderPanel() : _lalaUpdateBar();
-}
-// Split a 2-add-on combined fee into per-add-on amounts via one extra solo quote.
-async function _lalaSplitFees(seq, stops){
-  const codes=[..._lala.addons]; if(codes.length<2) return;
-  const combined=Number((_lala.quote&&_lala.quote.pb||{}).specialRequests||0);
-  let r=null; try{ r=await _lalamoveApi({ op:'quote', data:{ serviceType:_lala.svc, language:'en_MY', stops, specialRequests:[codes[0]] } }); }catch(_){}
-  if(seq!==_lalaQSeq || !_lala.quote) return;
-  const d=r&&r.body&&r.body.data; if(!d) return;
-  const fee0=Number((d.priceBreakdown||{}).specialRequests||0);
-  const map={}; map[codes[0]]=fee0; map[codes[1]]=Math.max(0, +(combined-fee0).toFixed(2));
-  _lala.quote.addonFees=map; _lalaUpdateBar();
 }
 async function _lalaBook(){
   let q=_lala.quote; if(!q || _lala.busy) return;
