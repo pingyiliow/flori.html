@@ -42,6 +42,7 @@ async function handleLalamove(res, L){
     if (op === 'get')    return res.status(200).json(await _lalaCall('GET', '/orders/' + encodeURIComponent(L.orderId), null));
     if (op === 'driver') return res.status(200).json(await _lalaCall('GET', '/orders/' + encodeURIComponent(L.orderId) + '/drivers/' + encodeURIComponent(L.driverId), null));
     if (op === 'priority') return res.status(200).json(await _lalaCall('POST', '/orders/' + encodeURIComponent(L.orderId) + '/priority-fee', L.data));
+    if (op === 'changeDriver') return res.status(200).json(await _lalaCall('DELETE', '/orders/' + encodeURIComponent(L.orderId) + '/drivers/' + encodeURIComponent(L.driverId), L.data || { driverId: String(L.driverId), reason: 'DRIVER_UNRESPONSIVE' }));
     if (op === 'cancel') return res.status(200).json(await _lalaCall('DELETE', '/orders/' + encodeURIComponent(L.orderId), null));
     return res.status(400).json({ error: 'unknown_lalamove_op' });
   } catch(e){ return res.status(200).json({ error: String(e && e.message || e) }); }

@@ -7592,7 +7592,16 @@ function _lalaBarHTML(){
     if(pb.base!=null)           lines.push(['Base fare', money(pb.base)]);
     if(+pb.extraMileage)        lines.push(['Distance', money(pb.extraMileage)]);
     if(+pb.surcharge)           lines.push(['Surcharge', money(pb.surcharge)]);
-    if(+pb.specialRequests)     lines.push(['Add-ons', money(pb.specialRequests)]);
+    // Add-ons — split + labelled per add-on when we have per-fee data, else one combined line.
+    if(+pb.specialRequests){
+      const selCodes=[..._lala.addons];
+      const labelFor=c=>{ const sp=_lalaSpecials().find(a=>a.code===c); return sp?sp.label:_lalaTitleCase(c); };
+      const fees=q.addonFees;
+      if(fees && selCodes.length){ selCodes.forEach(c=>lines.push([labelFor(c), money(fees[c]||0)])); }
+      else if(selCodes.length===1){ lines.push([labelFor(selCodes[0]), money(pb.specialRequests)]); }
+      else if(selCodes.length>1){ lines.push([selCodes.map(labelFor).join(' + '), money(pb.specialRequests)]); }
+      else lines.push(['Add-ons', money(pb.specialRequests)]);
+    }
     if(+pb.priorityFee)         lines.push(['Priority fee', money(pb.priorityFee)]);
     const rows=lines.map(l=>'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--c-muted);margin-bottom:3px"><span>'+esc(l[0])+'</span><span>'+esc(l[1])+'</span></div>').join('');
     return '<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
@@ -7645,7 +7654,23 @@ async function _lalaRunQuote(seq){
   if(!good(q)){ let em=_lalaErr(q); if(/service area/i.test(em)) em+=' — tap the pin icon on a stop to fix its location.'; _lala.quoteErr=em; droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
   const qd=q.body.data, pb=qd.priceBreakdown||{};
   _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:_lala.run.slice(), ts:Date.now(), pb, priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
+  // Per-add-on fee split: with ONE add-on the combined specialRequests fee IS that add-on's
+  // fee; with TWO we price the first alone and derive the second (one extra quote).
+  const selCodes=[..._lala.addons];
+  if(selCodes.length===1){ _lala.quote.addonFees={ [selCodes[0]]: Number(pb.specialRequests||0) }; }
+  else if(selCodes.length>=2 && +pb.specialRequests){ _lalaSplitFees(seq, stops); }
   droppedAddons ? _lalaRenderPanel() : _lalaUpdateBar();
+}
+// Split a 2-add-on combined fee into per-add-on amounts via one extra solo quote.
+async function _lalaSplitFees(seq, stops){
+  const codes=[..._lala.addons]; if(codes.length<2) return;
+  const combined=Number((_lala.quote&&_lala.quote.pb||{}).specialRequests||0);
+  let r=null; try{ r=await _lalamoveApi({ op:'quote', data:{ serviceType:_lala.svc, language:'en_MY', stops, specialRequests:[codes[0]] } }); }catch(_){}
+  if(seq!==_lalaQSeq || !_lala.quote) return;
+  const d=r&&r.body&&r.body.data; if(!d) return;
+  const fee0=Number((d.priceBreakdown||{}).specialRequests||0);
+  const map={}; map[codes[0]]=fee0; map[codes[1]]=Math.max(0, +(combined-fee0).toFixed(2));
+  _lala.quote.addonFees=map; _lalaUpdateBar();
 }
 async function _lalaBook(){
   let q=_lala.quote; if(!q || _lala.busy) return;
@@ -7660,8 +7685,11 @@ async function _lalaBook(){
   }
   const sel=q.run.map(_lalaResolve).filter(Boolean);           // resolved order + manual stops
   const note=(_lala.note||'').trim();
+  // Spell the add-ons out in the stop remarks too, so a particular driver sees them in writing.
+  const addonLabels=[..._lala.addons].map(c=>{ const sp=_lalaSpecials().find(a=>a.code===c); return sp?sp.label:c; });
+  const addonTxt=addonLabels.length?(' · ['+addonLabels.join(', ')+']'):'';
   const recipients=sel.map((s,i)=>({ stopId:q.stops[i+1].stopId, name:(s.name||'Recipient'),
-    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:(((s.order&&s.order.name)||s.title||'')+' — flowers'+(note?(' · '+note):'')).slice(0,300) }));
+    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:(((s.order&&s.order.name)||s.title||'')+' — flowers'+addonTxt+(note?(' · '+note):'')).slice(0,300) }));
   const r=await _lalamoveApi({ op:'place', data:{ quotationId:q.quotationId,
     sender:{ stopId:q.stops[0].stopId, name:'Bamboo Green Florist', phone:SHOP_PHONE }, recipients }});
   _lala.busy=false;
@@ -7769,12 +7797,22 @@ function _lalaMngRender(){
   if(drv&&drv.phone) acts+=btn('Call driver','window.open(\'tel:'+esc(drv.phone)+'\')',ghost);
   if(share) acts+=btn('Open tracking','window.open(\''+esc(share)+'\',\'_blank\')',ghost);
   if(canPriority) acts+=btn('Add priority fee','_lalaMngPriority()','border:none;background:#E65100;color:#fff');
+  if(drv && canCancel) acts+=btn('Change driver','_lalaMngChangeDriver()',ghost);
   if(canCancel) acts+=btn('Cancel order','_lalaMngCancel()','border:none;background:#B3261E;color:#fff');
   ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:400px;width:100%;margin:auto;overflow:hidden">'
     + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">Lalamove delivery</div>'+(_lalaMng.label?'<div style="font-size:12px;color:var(--c-muted);margin-top:1px">'+esc(_lalaMng.label)+'</div>':'')+'</div>'
     + '<button type="button" onclick="_lalaMngClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
     + '<div style="padding:0 18px 18px">'+body
     + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">'+acts+'</div></div></div>';
+}
+async function _lalaMngChangeDriver(){
+  const d=_lalaMng.data; if(!d||!d.driverId){ toast('No driver assigned yet'); return; }
+  if(!confirm('Request a different driver?\nLalamove keeps the order and tries to re-match. Use this when the driver is unresponsive or too far.')) return;
+  _lalaMng.busy=true; _lalaMngRender();
+  const r=await _lalamoveApi({ op:'changeDriver', orderId:_lalaMng.id, driverId:d.driverId, data:{ driverId:String(d.driverId), reason:'DRIVER_UNRESPONSIVE' } });
+  _lalaMng.busy=false;
+  if(r && (r.ok || r.status===200)){ _lalaMng.driver=null; toast('✓ Requested a new driver'); _lalaMngRefresh(); }
+  else { toast('⚠ '+_lalaErr(r)); _lalaMngRender(); }
 }
 async function _lalaMngPriority(){
   const cur=(_lalaMng.data&&_lalaMng.data.priceBreakdown&&_lalaMng.data.priceBreakdown.currency)||'MYR';
