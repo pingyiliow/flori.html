@@ -7359,6 +7359,21 @@ function bookLalamove(preselectId){
 function _lalaClose(){ if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; } if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
 function _lalaPickSvc(id){ _lala.svc=id; _lalaRenderPanel(); _lalaScheduleQuote(); }
 function _lalaRemoveAt(i){ _lala.run.splice(i,1); _lalaRenderPanel(); _lalaScheduleQuote(); }
+// Correct a stop's map pin when auto-geocoding landed it wrong (e.g. Lalamove says
+// "out of service area"). Accepts a Google Maps link, "lat, lng", or a clearer address.
+async function _lalaEditStop(i){
+  const e=_lala.run[i]; if(e==null) return;
+  const s=_lalaResolve(e); if(!s) return;
+  const cur=(s.lat!=null)?(s.lat+', '+s.lng):(s.address||'');
+  const inp=prompt('Fix the map location for "'+(s.title||'stop')+'".\nPaste a Google Maps link, "lat, lng", or a clearer address.', cur);
+  if(inp===null) return;
+  const r=(typeof _resolveStart==='function') ? await _resolveStart(inp) : null;
+  if(!r){ toast('⚠ Could not locate that — try a Google Maps link or lat,lng'); return; }
+  if(e && e.manual){ e.lat=r.lat; e.lng=r.lng; if(/[a-zA-Z]/.test(r.label)) e.address=r.label; }
+  else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=r.lat; o.lng=r.lng; if(typeof saveOrders==='function') saveOrders(o); } }
+  _lala.poly=null; _lala.polySig=null;
+  _lalaRenderPanel(); _lalaScheduleQuote();
+}
 function _lalaToggleAddon(id){ if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lalaRenderPanel(); _lalaScheduleQuote(); }
 async function _lalaGeocode(id){
   const o=ORDERS.find(x=>x.id===id); if(!o||(o.lat!=null&&o.lng!=null)) return;
@@ -7437,6 +7452,7 @@ function _lalaCardHTML(){
   _lalaStops().forEach((s,i)=>{ const addr=((s.sub||'')+'').slice(0,54);
     route+='<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('var(--c-burg,#1a3d2b)',String(i+1))
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(s.title)+(s.orderId?'':' <span style="font-weight:500;color:var(--c-muted)">· manual</span>')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div>'
+      +'<button type="button" onclick="_lalaEditStop('+i+')" aria-label="Fix location" title="Fix map location" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></button>'
       +'<button type="button" onclick="_lalaRemoveAt('+i+')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   });
   route+='</div>';
@@ -7531,7 +7547,7 @@ async function _lalaRunQuote(seq){
   _lala.quoting=false;
   if(droppedAddons){ _lala.addons=new Set(); toast('Add-ons not available for this vehicle'); }
   if(q.status===501 || q.error==='lalamove_not_configured'){ _lala.quoteErr='Lalamove not set up (API keys missing in Vercel)'; droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
-  if(!good(q)){ _lala.quoteErr=_lalaErr(q); droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
+  if(!good(q)){ let em=_lalaErr(q); if(/service area/i.test(em)) em+=' — tap the pin icon on a stop to fix its location.'; _lala.quoteErr=em; droppedAddons?_lalaRenderPanel():_lalaUpdateBar(); return; }
   const qd=q.body.data, pb=qd.priceBreakdown||{};
   _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:_lala.run.slice(), ts:Date.now(), pb, priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
   droppedAddons ? _lalaRenderPanel() : _lalaUpdateBar();
