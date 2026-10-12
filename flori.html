@@ -7393,7 +7393,7 @@ function _lalaSearchInput(v){ _lala.q=v; const el=document.getElementById('_lala
 // Entry point (Delivery header button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
   _lala.quote=null; _lala.quoteErr=null; _lala.quoting=false; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
-  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null; _lala.note=''; _lala.bridgeTouched=false;
+  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null; _lala.note=''; _lala.bridgeTouched=false; _lala.optimize=false;
   if(!_lala.svc) _lala.svc='CAR';
   const ok=new Set(_lalaDeliverables().map(o=>o.id));
   if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
@@ -7415,8 +7415,12 @@ function _lalaDrop(e,i){ e.preventDefault();
   let from=_lalaDragFrom; if(from==null){ try{ from=parseInt(e.dataTransfer.getData('text/plain'),10); }catch(_){} }
   if(from==null||isNaN(from)||from===i){ _lalaDragFrom=null; return; }
   const entry=_lala.run.splice(from,1)[0]; _lala.run.splice(i,0,entry); _lalaDragFrom=null;
+  _lala.optimize=false;   // manual reorder → turn off auto-optimize
   _lala.poly=null; _lala.polySig=null; _lalaRenderPanel(); _lalaScheduleQuote();
 }
+// "Optimize route" toggle: ON = reorder to shortest route now (and keep re-optimizing as
+// stops are added); OFF = keep the manual order. Dragging a stop turns it OFF (manual control).
+async function _lalaToggleOptimize(){ _lala.optimize=!_lala.optimize; _lalaRenderPanel(); if(_lala.optimize) await _lalaOptimize(); }
 // Optimize stop order (shortest route) via the same /api/geo the driver map uses.
 async function _lalaOptimize(){
   const sel=_lalaStops().filter(s=>s.lat!=null);
@@ -7458,9 +7462,10 @@ async function _lalaGeocode(id){
   if(!addr) return;
   try{ const g=await _geocodeOne(addr); if(g){ o.lat=g.lat; o.lng=g.lng; _lalaDrawMap(); } }catch(_){}
 }
-function _lalaAdd(id){
+async function _lalaAdd(id){
   if(!_lala.run.some(e=>e===id)) _lala.run.push(id);
-  _lalaRenderPanel(); _lalaGeocode(id); _lalaScheduleQuote();
+  _lalaRenderPanel(); await _lalaGeocode(id);
+  if(_lala.optimize) await _lalaOptimize(); else _lalaScheduleQuote();
 }
 function _lalaRenderPanel(){
   _lalaAutoBridge();   // auto-tick Penang Bridge for island drop-offs (unless staff overrode)
@@ -7551,9 +7556,12 @@ function _lalaCardHTML(){
     + '<div id="_lalaMap" style="height:180px;background:var(--c-bg)"></div>'
     + '<div style="padding:14px 18px 18px">'
     + '<div style="display:flex;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+seg+'</div>'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="'+lbl+';margin-bottom:0">The route</span>'
-      + (_lala.run.length>=2 ? '<button type="button" onclick="_lalaOptimize()" style="border:1.5px solid var(--c-burg,#1a3d2b);background:var(--c-surface);color:var(--c-burg,#1a3d2b);border-radius:8px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>Optimize</button>' : '')
-      + '</div>'+route+'<div style="height:16px"></div>'
+    + '<div style="'+lbl+'">The route</div>'+route
+    + (_lala.run.length>=2 ? '<label onclick="_lalaToggleOptimize()" style="display:flex;gap:10px;align-items:center;padding:10px 12px;border:1.5px solid '+(_lala.optimize?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-top:8px;cursor:pointer;background:'+(_lala.optimize?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
+        +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg></span>'
+        +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Optimize route</div></div>'
+        +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(_lala.optimize?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(_lala.optimize?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>' : '')
+    + '<div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add a stop <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· today\'s deliveries</span></div>'
     + '<input id="_lalaSearch" type="search" value="'+esc(_lala.q||'')+'" oninput="_lalaSearchInput(this.value)" placeholder="Search any order — name, address or phone" style="width:100%;padding:9px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:8px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);-webkit-appearance:none">'
     + '<div id="_lalaAvail">'+_lalaAvailHTML()+'</div><div style="height:16px"></div>'
