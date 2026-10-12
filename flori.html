@@ -829,7 +829,6 @@
       <div class="ff"><label class="ff-l">Lalamove tracking link <span style="color:var(--c-muted);font-weight:400">Optional · customer taps this to track live</span></label>
         <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
       </div>
-      <button type="button" onclick="bookLalamove(document.getElementById('otw-order-id').value)" style="margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove — map, vehicle &amp; combine orders</button>
       <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">Send</button>
@@ -7258,10 +7257,14 @@ async function _lalamoveApi(payload){
   } catch(e){ return { error:String(e&&e.message||e) }; }
 }
 function _lalaErr(r){ const b=r&&r.body; return (b&&b.errors&&b.errors[0]&&(b.errors[0].message||b.errors[0].id)) || (b&&b.message) || (r&&r.error) || ('HTTP '+(r&&r.status)); }
-// Orders a courier can take: real deliveries, not yet delivered, with an address to geocode.
+// Orders a courier can take: TODAY's real deliveries, not yet delivered, with an address to
+// geocode. Scoped to today so the list stays short (the full backlog was confusing).
 function _lalaDeliverables(){
+  const todayISO = (typeof tdi==='function' && typeof today0==='function') ? tdi(today0()) : null;
   return (typeof ORDERS!=='undefined'?ORDERS:[]).filter(o =>
-    o && o.type!=='pickup' && !o.deliveredAt && (o.address || (o.lat!=null&&o.lng!=null)));
+    o && o.type!=='pickup' && !o.deliveredAt && !o.fulfilled
+    && (o.address || (o.lat!=null&&o.lng!=null))
+    && (!todayISO || (typeof _drvIsOnDate==='function' && _drvIsOnDate(o, todayISO))));
 }
 // Entry point (OTW modal button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
@@ -7368,7 +7371,7 @@ function _lalaCardHTML(){
     + '<div style="padding:14px 18px 18px">'
     + '<div style="display:flex;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+seg+'</div>'
     + '<div style="'+lbl+'">The route</div>'+route+'<div style="height:16px"></div>'
-    + '<div style="'+lbl+'">Add a stop</div>'+avail+'<div style="height:16px"></div>'
+    + '<div style="'+lbl+'">Add a stop <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· today\'s deliveries</span></div>'+avail+'<div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add-ons</div>'+addons+'<div style="height:14px"></div>'
     + bar
     + '</div>';
@@ -8468,7 +8471,7 @@ function renderDriver(){
   const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
     + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
     + (isAdmin
-        ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>'
+        ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost" onclick="bookLalamove()" style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove</button><button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button></div>'
         : '<button class="btn btn-ghost" onclick="signOut()" style="font-size:12px">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
     + '</div>' + _drvDateBar();
 
