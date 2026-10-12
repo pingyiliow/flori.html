@@ -7247,7 +7247,7 @@ const LALA_ADDONS = [
   { id:'PENANG_BRIDGE', code:'PENANG_BRIDGE', label:'Penang Bridge toll', note:'crossing to the mainland',
     svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12v6"/><path d="M20 12v6"/><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5"/></svg>' },
 ];
-let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false };
+let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'' };
 let _lalaMap = null;
 async function _lalamoveApi(payload){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
@@ -7266,9 +7266,40 @@ function _lalaDeliverables(){
     && (o.address || (o.lat!=null&&o.lng!=null))
     && (!todayISO || (typeof _drvIsOnDate==='function' && _drvIsOnDate(o, todayISO))));
 }
-// Entry point (OTW modal button, or anywhere). preselectId optionally seeds the run.
+// Any deliverable order (not date-scoped) — used by the search box so staff can pull in an
+// order that isn't dated today. Mirrors _lalaDeliverables() minus the today filter.
+function _lalaSearchable(){
+  return (typeof ORDERS!=='undefined'?ORDERS:[]).filter(o =>
+    o && o.type!=='pickup' && !o.deliveredAt && !o.fulfilled && (o.address || (o.lat!=null&&o.lng!=null)));
+}
+// The "Add a stop" results: today's list by default; when searching, match ANY order by
+// name / customer / recipient / address / phone. Always excludes orders already on the run.
+function _lalaAvailHTML(){
+  const q=(_lala.q||'').trim().toLowerCase();
+  let pool;
+  if(q){
+    pool=_lalaSearchable().filter(o=>!_lala.run.includes(o.id)).filter(o=>{
+      const hay=[o.name,o.customer,o.recipName,o.address,o.recipPhone,o.phone].map(x=>String(x||'').toLowerCase()).join(' ');
+      return hay.includes(q);
+    }).slice(0,25);
+  } else {
+    pool=_lalaDeliverables().filter(o=>!_lala.run.includes(o.id));
+  }
+  if(!pool.length) return '<div style="font-size:12px;color:var(--c-muted);padding:4px 0">'
+    + (q ? ('No orders match "'+esc(_lala.q.trim())+'".')
+         : (_lala.run.length ? 'All of today\'s deliverable orders are on this run — search to add any other order.'
+                             : 'No deliverable orders today — search to add any order.')) + '</div>';
+  return pool.map(o=>{ const addr=((o.address||'')+'').slice(0,54);
+    return '<button type="button" onclick="_lalaAdd(\''+o.id+'\')" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
+      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div></button>';
+  }).join('');
+}
+// Live search — update ONLY the results list so the input keeps focus + cursor.
+function _lalaSearchInput(v){ _lala.q=v; const el=document.getElementById('_lalaAvail'); if(el) el.innerHTML=_lalaAvailHTML(); }
+// Entry point (Delivery header button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
-  _lala.quote=null; _lala.busy=false; _lala.addons=new Set();
+  _lala.quote=null; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
   if(!_lala.svc) _lala.svc='CAR';
   const ok=new Set(_lalaDeliverables().map(o=>o.id));
   if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
@@ -7339,12 +7370,6 @@ function _lalaCardHTML(){
       +'<button type="button" onclick="_lalaRemove(\''+o.id+'\')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
   });
   route+='</div>';
-  const left=_lalaDeliverables().filter(o=>!_lala.run.includes(o.id));
-  const avail = left.length ? left.map(o=>{ const addr=((o.address||'')+'').slice(0,54);
-    return '<button type="button" onclick="_lalaAdd(\''+o.id+'\')" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
-      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div></button>';
-  }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 0">'+(_lala.run.length?'All deliverable orders are on this run.':'No deliverable orders right now.')+'</div>';
   const addons=LALA_ADDONS.map(a=>{ const on=_lala.addons.has(a.id);
     return '<label onclick="_lalaToggleAddon(\''+a.id+'\')" style="display:flex;gap:10px;align-items:center;padding:11px 12px;border:1.5px solid '+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-bottom:7px;cursor:pointer;background:'+(on?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
       +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex">'+a.svg+'</span>'
@@ -7371,7 +7396,9 @@ function _lalaCardHTML(){
     + '<div style="padding:14px 18px 18px">'
     + '<div style="display:flex;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+seg+'</div>'
     + '<div style="'+lbl+'">The route</div>'+route+'<div style="height:16px"></div>'
-    + '<div style="'+lbl+'">Add a stop <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· today\'s deliveries</span></div>'+avail+'<div style="height:16px"></div>'
+    + '<div style="'+lbl+'">Add a stop <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--c-muted)">· today\'s deliveries</span></div>'
+    + '<input id="_lalaSearch" type="search" value="'+esc(_lala.q||'')+'" oninput="_lalaSearchInput(this.value)" placeholder="Search any order — name, address or phone" style="width:100%;padding:9px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:8px;font-size:12.5px;background:var(--c-surface);color:var(--c-ink);-webkit-appearance:none">'
+    + '<div id="_lalaAvail">'+_lalaAvailHTML()+'</div><div style="height:16px"></div>'
     + '<div style="'+lbl+'">Add-ons</div>'+addons+'<div style="height:14px"></div>'
     + bar
     + '</div>';
