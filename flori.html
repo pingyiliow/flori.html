@@ -7265,7 +7265,26 @@ function _lalaSpecials(){
   const s=svcs.find(x=>(x.key||x.type||x.serviceType)===_lala.svc); if(!s) return [];
   let sr=s.specialRequests; if(!sr) return [];
   if(!Array.isArray(sr)) sr=sr.items||sr.list||[];
-  return sr.map(it=>{ const code=(it&&(it.name||it.key||it.code)); return code?{ code, label:(it.description||_lalaTitleCase(code)) }:null; }).filter(Boolean);
+  const all=sr.map(it=>{ const code=(it&&(it.name||it.key||it.code)); return code?{ code, raw:(code+' '+(it.description||'')) }:null; }).filter(Boolean);
+  // Curate to just the two that matter here (like the Lalamove consumer app): one Door-to-door
+  // option + Penang Bridge. Hides the duplicate/irrelevant extras from /cities.
+  const out=[];
+  const door=all.find(a=>/door|loading|carry|mover/i.test(a.raw));
+  if(door) out.push({ code:door.code, label:'Door-to-door' });
+  const bridge=all.find(a=>/bridge/i.test(a.raw));
+  if(bridge) out.push({ code:bridge.code, label:'Penang Bridge toll' });
+  return out;
+}
+function _lalaBridgeCode(){ const b=_lalaSpecials().find(a=>/bridge/i.test(a.label)); return b?b.code:null; }
+// Penang island sits west of the channel (George Town ~100.33, Bayan Lepas ~100.27); the
+// mainland/shop side (Bukit Mertajam ~100.46) is east. A drop-off west of ~100.36 crosses
+// the bridge, so we auto-tick the toll — unless staff have toggled it themselves.
+function _lalaIsIsland(lat,lng){ return lat!=null && lng!=null && lat>5.15 && lat<5.6 && lng<100.36; }
+function _lalaRunHasIsland(){ return _lalaStops().some(s=>_lalaIsIsland(s.lat,s.lng)); }
+function _lalaAutoBridge(){
+  if(_lala.bridgeTouched) return;
+  const code=_lalaBridgeCode(); if(!code) return;
+  if(_lalaRunHasIsland()) _lala.addons.add(code); else _lala.addons.delete(code);
 }
 async function _lalaLoadCities(){
   if(_lalaCities || _lalaCitiesLoading) return;
@@ -7374,7 +7393,7 @@ function _lalaSearchInput(v){ _lala.q=v; const el=document.getElementById('_lala
 // Entry point (Delivery header button, or anywhere). preselectId optionally seeds the run.
 function bookLalamove(preselectId){
   _lala.quote=null; _lala.quoteErr=null; _lala.quoting=false; _lala.busy=false; _lala.addons=new Set(); _lala.q='';
-  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null; _lala.note='';
+  _lala.poly=null; _lala.polySig=null; _lala._polyLoading=null; _lala.note=''; _lala.bridgeTouched=false;
   if(!_lala.svc) _lala.svc='CAR';
   const ok=new Set(_lalaDeliverables().map(o=>o.id));
   if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
@@ -7406,7 +7425,7 @@ async function _lalaEditStop(i){
   _lala.poly=null; _lala.polySig=null;
   _lalaRenderPanel(); _lalaScheduleQuote();
 }
-function _lalaToggleAddon(id){ if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lalaRenderPanel(); _lalaScheduleQuote(); }
+function _lalaToggleAddon(id){ const bc=_lalaBridgeCode(); if(bc&&id===bc) _lala.bridgeTouched=true; if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lalaRenderPanel(); _lalaScheduleQuote(); }
 async function _lalaGeocode(id){
   const o=ORDERS.find(x=>x.id===id); if(!o||(o.lat!=null&&o.lng!=null)) return;
   const addr=(o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
@@ -7418,6 +7437,7 @@ function _lalaAdd(id){
   _lalaRenderPanel(); _lalaGeocode(id); _lalaScheduleQuote();
 }
 function _lalaRenderPanel(){
+  _lalaAutoBridge();   // auto-tick Penang Bridge for island drop-offs (unless staff overrode)
   let ov=document.getElementById('_lalaOv');
   if(!ov){
     ov=document.createElement('div'); ov.id='_lalaOv';
@@ -7551,6 +7571,7 @@ function _lalaBarHTML(){
 function _lalaUpdateBar(){ const el=document.getElementById('_lalaBar'); if(el) el.innerHTML=_lalaBarHTML(); }
 // Auto-quote: debounce after any change so the fare shows live, no button press needed.
 function _lalaScheduleQuote(){
+  _lalaAutoBridge();   // make sure the island toll is reflected in the fare we fetch
   if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; }
   if(!_lala.run.length){ _lala.quoting=false; _lala.quote=null; _lala.quoteErr=null; _lalaUpdateBar(); return; }
   _lala.quote=null; _lala.quoteErr=null; _lala.quoting=true; _lalaUpdateBar();
