@@ -829,6 +829,7 @@
       <div class="ff"><label class="ff-l">Lalamove tracking link <span style="color:var(--c-muted);font-weight:400">Optional · customer taps this to track live</span></label>
         <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
       </div>
+      <button type="button" onclick="bookLalamove(document.getElementById('otw-order-id').value)" style="margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove (auto-fills link)</button>
       <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">Send</button>
@@ -7226,6 +7227,73 @@ async function notifyOTW(o){
       body: JSON.stringify({ orderId: shopId(o.id), stage:'out_for_delivery', trackUrl: o.lalamoveUrl||'', authToken }) });
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
+}
+// ── Lalamove: quote → confirm → book, from the On-the-way modal. The signed call rides
+// /api/query (lalamove op). We store the tracking shareLink (persists via lalamoveUrl) and
+// the Lalamove order id (this session). NEVER books without the staff confirming the price.
+const SHOP_PHONE = '+60124778120';   // shop pickup contact handed to the Lalamove driver
+async function _lalamoveApi(payload){
+  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
+  try {
+    const r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ lalamove: payload, authToken }) });
+    return await r.json().catch(()=>({ error:'bad_response' }));
+  } catch(e){ return { error:String(e&&e.message||e) }; }
+}
+function _lalaErr(r){ const b=r&&r.body; return (b&&b.errors&&b.errors[0]&&(b.errors[0].message||b.errors[0].id)) || (b&&b.message) || (r&&r.error) || ('HTTP '+(r&&r.status)); }
+async function bookLalamove(id){
+  const o = ORDERS.find(x=>x.id===id); if(!o){ toast('Open an order first'); return; }
+  if (o.type==='pickup'){ toast('Pickup orders don’t need a courier'); return; }
+  let lat=o.lat, lng=o.lng;
+  const addr = (o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
+  if ((lat==null||lng==null) && addr){ toast('Locating address…'); try{ const g=await _geocodeOne(addr); if(g){ lat=g.lat; lng=g.lng; o.lat=lat; o.lng=lng; } }catch(_){} }
+  if (lat==null||lng==null){ toast('⚠ No map location for this address — can’t quote'); return; }
+  const svc = o._lalaSvc || 'MOTORCYCLE';
+  toast('Getting Lalamove quote…');
+  const q = await _lalamoveApi({ op:'quote', data:{
+    serviceType: svc, language:'en_MY',
+    stops:[ { coordinates:{ lat:String(SHOP_LATLNG[0]), lng:String(SHOP_LATLNG[1]) }, address: SHOP_ADDR },
+            { coordinates:{ lat:String(lat), lng:String(lng) }, address: addr||'Delivery address' } ]
+  }});
+  if (q.status===501 || q.error==='lalamove_not_configured'){ toast('⚠ Lalamove not set up (missing API keys in Vercel)'); return; }
+  const qd = q.body && q.body.data;
+  if (!qd || !qd.quotationId || !qd.stops || qd.stops.length<2){ toast('⚠ Quote failed: '+_lalaErr(q)); return; }
+  const pb = qd.priceBreakdown||{};
+  _lalaConfirmModal(o, qd, svc, (pb.currency?pb.currency+' ':'')+(pb.total||'—'));
+}
+function _lalaConfirmModal(o, qd, svc, priceText){
+  const ov = document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML = '<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:360px;width:100%;padding:20px">'
+    + '<div style="font-size:17px;font-weight:800;font-family:var(--f-head);margin-bottom:10px">Book Lalamove · '+esc(o.name||'order')+'</div>'
+    + '<div style="font-size:13px;color:var(--c-muted);margin-bottom:6px">'+esc(svc.charAt(0)+svc.slice(1).toLowerCase())+' delivery to:</div>'
+    + '<div style="font-size:12.5px;margin-bottom:14px">'+esc(o.recipName||o.customer||'')+' · '+esc((o.address||'').slice(0,80))+'</div>'
+    + '<div style="display:flex;align-items:baseline;justify-content:space-between;background:var(--c-bg);border-radius:10px;padding:12px 14px;margin-bottom:14px"><span style="font-size:12px;color:var(--c-muted)">Quoted price</span><span style="font-size:20px;font-weight:800">'+esc(priceText)+'</span></div>'
+    + '<div style="font-size:11px;color:#E65100;margin-bottom:14px">Confirming dispatches a real Lalamove driver and charges this amount.</div>'
+    + '<div style="display:flex;gap:10px"><button id="lcCancel" style="flex:1;padding:13px;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-surface);font-weight:600;cursor:pointer">Cancel</button>'
+    + '<button id="lcOk" style="flex:2;padding:13px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Confirm &amp; book</button></div></div>';
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
+  ov.querySelector('#lcCancel').onclick=close;
+  ov.querySelector('#lcOk').onclick=async()=>{
+    const okb=ov.querySelector('#lcOk'); okb.disabled=true; okb.textContent='Booking…';
+    const recipPhone = _e164(o.recipPhone || o.phone || '');
+    const r = await _lalamoveApi({ op:'place', data:{
+      quotationId: qd.quotationId,
+      sender:{ stopId: qd.stops[0].stopId, name:'Bamboo Green Florist', phone: SHOP_PHONE },
+      recipients:[ { stopId: qd.stops[1].stopId, name:(o.recipName||o.customer||'Recipient'), phone: recipPhone, remarks:(o.name||'')+' — flowers' } ]
+    }});
+    const od = r.body && r.body.data;
+    if (!od || !od.orderId){ okb.disabled=false; okb.textContent='Confirm & book'; toast('⚠ Booking failed: '+_lalaErr(r)); return; }
+    o.lalamoveOrderId = od.orderId;
+    o.lalamoveUrl = od.shareLink || od.trackingLink || o.lalamoveUrl || null;
+    saveOrders(o);
+    close();
+    const lalaEl=document.getElementById('otw-lala'); if(lalaEl) lalaEl.value = o.lalamoveUrl||'';
+    if (typeof renderOrders==='function') renderOrders();
+    if (typeof renderDriver==='function') renderDriver();
+    toast('✓ Lalamove booked'+(o.lalamoveUrl?' · tracking link added':''));
+  };
 }
 // Per-order "On the way" dispatch (for Lalamove / manual delivery not on a driver
 // route): paste/confirm the tracking link, then notify the customer with it.

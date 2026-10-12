@@ -7,8 +7,42 @@
 //    abused as an open public proxy to the store's data.
 // The Shopify token is never sent to the browser and never stored in Supabase.
 
+import crypto from 'crypto';
+
 const SB_URL  = process.env.SUPABASE_URL || 'https://oyrngwazbqmxoeihyfoy.supabase.co';
 const SB_ANON = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95cm5nd2F6YnFteG9laWh5Zm95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MzQ1MjksImV4cCI6MjA5NjMxMDUyOX0.SFySJvTDJCa2in9r_Rvvg5akPMEhGloCS6H08RtPOPE';
+
+// ── Lalamove Partner API v3 (signed proxy; folded here so we don't add a 13th
+// serverless function past Vercel's Hobby limit). Secret stays server-side. The client
+// sends the prepared {data} payload; we HMAC-sign and forward.
+// Signature string = `${time}\r\n${METHOD}\r\n${path}\r\n\r\n${body}` (hex, sha256). ──
+function _lalaHeaders(method, path, bodyStr){
+  const key = process.env.LALAMOVE_API_KEY, secret = process.env.LALAMOVE_API_SECRET;
+  const ts = Date.now().toString();
+  const raw = `${ts}\r\n${method}\r\n${path}\r\n\r\n${bodyStr || ''}`;
+  const sig = crypto.createHmac('sha256', secret).update(raw).digest('hex');
+  return { Authorization: `hmac ${key}:${ts}:${sig}`, Market: process.env.LALAMOVE_MARKET || 'MY', 'Content-Type': 'application/json', Accept: 'application/json' };
+}
+async function _lalaCall(method, endpoint, dataObj){
+  const base = (process.env.LALAMOVE_HOST || 'https://rest.sandbox.lalamove.com/v3').replace(/\/+$/, '');
+  const url = base + endpoint;
+  const path = new URL(url).pathname;                        // e.g. /v3/quotations
+  const bodyStr = dataObj ? JSON.stringify({ data: dataObj }) : '';
+  const r = await fetch(url, { method, headers: _lalaHeaders(method, path, bodyStr), body: bodyStr || undefined });
+  const text = await r.text(); let j; try { j = JSON.parse(text); } catch(_){ j = { raw: text.slice(0, 300) }; }
+  return { status: r.status, ok: r.ok, body: j };
+}
+async function handleLalamove(res, L){
+  if (!process.env.LALAMOVE_API_KEY || !process.env.LALAMOVE_API_SECRET) return res.status(501).json({ error: 'lalamove_not_configured' });
+  try {
+    const op = L && L.op;
+    if (op === 'quote')  return res.status(200).json(await _lalaCall('POST', '/quotations', L.data));
+    if (op === 'place')  return res.status(200).json(await _lalaCall('POST', '/orders', L.data));
+    if (op === 'get')    return res.status(200).json(await _lalaCall('GET', '/orders/' + encodeURIComponent(L.orderId), null));
+    if (op === 'cancel') return res.status(200).json(await _lalaCall('DELETE', '/orders/' + encodeURIComponent(L.orderId), null));
+    return res.status(400).json({ error: 'unknown_lalamove_op' });
+  } catch(e){ return res.status(200).json({ error: String(e && e.message || e) }); }
+}
 
 const norm = s => String(s || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
 
@@ -63,6 +97,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const body = req.body || {};
+  // Lalamove proxy (staff-gated) — handled before the Shopify path since it carries no `query`.
+  if (body.lalamove) {
+    const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (!(await isAuthedUser(jwt))) return res.status(401).json({ error: 'Sign in required' });
+    return handleLalamove(res, body.lalamove);
+  }
   const { query, variables } = body;
   let { shop, token, authToken } = body;
   if (!query) return res.status(400).json({ error: 'Missing: query' });
