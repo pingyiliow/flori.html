@@ -829,7 +829,7 @@
       <div class="ff"><label class="ff-l">Lalamove tracking link <span style="color:var(--c-muted);font-weight:400">Optional · customer taps this to track live</span></label>
         <input id="otw-lala" type="url" placeholder="https://share.lalamove.com/track/...">
       </div>
-      <button type="button" onclick="bookLalamove(document.getElementById('otw-order-id').value)" style="margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove (auto-fills link)</button>
+      <button type="button" onclick="bookLalamove(document.getElementById('otw-order-id').value)" style="margin-top:8px;width:100%;padding:10px;border:1.5px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove — map, vehicle &amp; combine orders</button>
       <label style="display:flex;align-items:center;gap:9px;font-size:13px;margin:14px 0 2px;cursor:pointer;user-select:none"><input type="checkbox" id="otw-notify" checked style="width:18px;height:18px;flex:none"> Notify customer (WhatsApp + email)</label>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" style="flex:1" onclick="sendOTW()">Send</button>
@@ -7228,10 +7228,28 @@ async function notifyOTW(o){
     return await r.json().catch(()=>({ ok:false }));
   } catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
 }
-// ── Lalamove: quote → confirm → book, from the On-the-way modal. The signed call rides
-// /api/query (lalamove op). We store the tracking shareLink (persists via lalamoveUrl) and
-// the Lalamove order id (this session). NEVER books without the staff confirming the price.
+// ── Lalamove dispatch RUN-BUILDER: pick a vehicle, add one or more stops (shop → drop 1 →
+// drop 2 …) with a live map preview + optional add-ons, get ONE multi-stop quote, confirm
+// the price, book a single Lalamove order. Every stop's order is stamped with the shared
+// tracking link + Lalamove order id. The signed call rides /api/query (lalamove op).
+// NEVER books without the staff confirming the price.
 const SHOP_PHONE = '+60124778120';   // shop pickup contact handed to the Lalamove driver
+const LALA_SERVICES = [
+  { id:'MOTORCYCLE', label:'Motorcycle' },
+  { id:'CAR',        label:'Car' },
+  { id:'VAN',        label:'Van' },
+  { id:'TRUCK330',   label:'Lorry' },
+];
+// Optional Lalamove add-ons (special requests). `code` is sent to Lalamove; if a vehicle
+// doesn't support it the quote is retried WITHOUT add-ons so booking is never blocked.
+const LALA_ADDONS = [
+  { id:'DOOR_TO_DOOR', code:'DOOR_TO_DOOR', label:'Door-to-door', note:'driver carries up to the unit',
+    svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M14 12h.01"/></svg>' },
+  { id:'PENANG_BRIDGE', code:'PENANG_BRIDGE', label:'Penang Bridge toll', note:'crossing to the mainland',
+    svg:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M4 12v6"/><path d="M20 12v6"/><path d="M2 12a5 5 0 0 1 5-5h10a5 5 0 0 1 5 5"/></svg>' },
+];
+let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false };
+let _lalaMap = null;
 async function _lalamoveApi(payload){
   let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } } catch(_){}
   try {
@@ -7240,60 +7258,173 @@ async function _lalamoveApi(payload){
   } catch(e){ return { error:String(e&&e.message||e) }; }
 }
 function _lalaErr(r){ const b=r&&r.body; return (b&&b.errors&&b.errors[0]&&(b.errors[0].message||b.errors[0].id)) || (b&&b.message) || (r&&r.error) || ('HTTP '+(r&&r.status)); }
-async function bookLalamove(id){
-  const o = ORDERS.find(x=>x.id===id); if(!o){ toast('Open an order first'); return; }
-  if (o.type==='pickup'){ toast('Pickup orders don’t need a courier'); return; }
-  let lat=o.lat, lng=o.lng;
-  const addr = (o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
-  if ((lat==null||lng==null) && addr){ toast('Locating address…'); try{ const g=await _geocodeOne(addr); if(g){ lat=g.lat; lng=g.lng; o.lat=lat; o.lng=lng; } }catch(_){} }
-  if (lat==null||lng==null){ toast('⚠ No map location for this address — can’t quote'); return; }
-  const svc = o._lalaSvc || 'MOTORCYCLE';
-  toast('Getting Lalamove quote…');
-  const q = await _lalamoveApi({ op:'quote', data:{
-    serviceType: svc, language:'en_MY',
-    stops:[ { coordinates:{ lat:String(SHOP_LATLNG[0]), lng:String(SHOP_LATLNG[1]) }, address: SHOP_ADDR },
-            { coordinates:{ lat:String(lat), lng:String(lng) }, address: addr||'Delivery address' } ]
-  }});
-  if (q.status===501 || q.error==='lalamove_not_configured'){ toast('⚠ Lalamove not set up (missing API keys in Vercel)'); return; }
-  const qd = q.body && q.body.data;
-  if (!qd || !qd.quotationId || !qd.stops || qd.stops.length<2){ toast('⚠ Quote failed: '+_lalaErr(q)); return; }
-  const pb = qd.priceBreakdown||{};
-  _lalaConfirmModal(o, qd, svc, (pb.currency?pb.currency+' ':'')+(pb.total||'—'));
+// Orders a courier can take: real deliveries, not yet delivered, with an address to geocode.
+function _lalaDeliverables(){
+  return (typeof ORDERS!=='undefined'?ORDERS:[]).filter(o =>
+    o && o.type!=='pickup' && !o.deliveredAt && (o.address || (o.lat!=null&&o.lng!=null)));
 }
-function _lalaConfirmModal(o, qd, svc, priceText){
-  const ov = document.createElement('div');
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML = '<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:360px;width:100%;padding:20px">'
-    + '<div style="font-size:17px;font-weight:800;font-family:var(--f-head);margin-bottom:10px">Book Lalamove · '+esc(o.name||'order')+'</div>'
-    + '<div style="font-size:13px;color:var(--c-muted);margin-bottom:6px">'+esc(svc.charAt(0)+svc.slice(1).toLowerCase())+' delivery to:</div>'
-    + '<div style="font-size:12.5px;margin-bottom:14px">'+esc(o.recipName||o.customer||'')+' · '+esc((o.address||'').slice(0,80))+'</div>'
-    + '<div style="display:flex;align-items:baseline;justify-content:space-between;background:var(--c-bg);border-radius:10px;padding:12px 14px;margin-bottom:14px"><span style="font-size:12px;color:var(--c-muted)">Quoted price</span><span style="font-size:20px;font-weight:800">'+esc(priceText)+'</span></div>'
-    + '<div style="font-size:11px;color:#E65100;margin-bottom:14px">Confirming dispatches a real Lalamove driver and charges this amount.</div>'
-    + '<div style="display:flex;gap:10px"><button id="lcCancel" style="flex:1;padding:13px;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-surface);font-weight:600;cursor:pointer">Cancel</button>'
-    + '<button id="lcOk" style="flex:2;padding:13px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Confirm &amp; book</button></div></div>';
-  document.body.appendChild(ov);
-  const close=()=>ov.remove();
-  ov.addEventListener('click',e=>{ if(e.target===ov) close(); });
-  ov.querySelector('#lcCancel').onclick=close;
-  ov.querySelector('#lcOk').onclick=async()=>{
-    const okb=ov.querySelector('#lcOk'); okb.disabled=true; okb.textContent='Booking…';
-    const recipPhone = _e164(o.recipPhone || o.phone || '');
-    const r = await _lalamoveApi({ op:'place', data:{
-      quotationId: qd.quotationId,
-      sender:{ stopId: qd.stops[0].stopId, name:'Bamboo Green Florist', phone: SHOP_PHONE },
-      recipients:[ { stopId: qd.stops[1].stopId, name:(o.recipName||o.customer||'Recipient'), phone: recipPhone, remarks:(o.name||'')+' — flowers' } ]
-    }});
-    const od = r.body && r.body.data;
-    if (!od || !od.orderId){ okb.disabled=false; okb.textContent='Confirm & book'; toast('⚠ Booking failed: '+_lalaErr(r)); return; }
-    o.lalamoveOrderId = od.orderId;
-    o.lalamoveUrl = od.shareLink || od.trackingLink || o.lalamoveUrl || null;
-    saveOrders(o);
-    close();
-    const lalaEl=document.getElementById('otw-lala'); if(lalaEl) lalaEl.value = o.lalamoveUrl||'';
-    if (typeof renderOrders==='function') renderOrders();
-    if (typeof renderDriver==='function') renderDriver();
-    toast('✓ Lalamove booked'+(o.lalamoveUrl?' · tracking link added':''));
-  };
+// Entry point (OTW modal button, or anywhere). preselectId optionally seeds the run.
+function bookLalamove(preselectId){
+  _lala.quote=null; _lala.busy=false; _lala.addons=new Set();
+  if(!_lala.svc) _lala.svc='CAR';
+  const ok=new Set(_lalaDeliverables().map(o=>o.id));
+  if(preselectId) _lala.run = ok.has(preselectId)?[preselectId]:[];
+  else _lala.run=(_lala.run||[]).filter(id=>ok.has(id));
+  _lalaRenderPanel();
+  if(preselectId){ const o=ORDERS.find(x=>x.id===preselectId); if(o&&(o.lat==null||o.lng==null)) _lalaGeocode(preselectId); }
+}
+function _lalaClose(){ if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
+function _lalaPickSvc(id){ _lala.svc=id; _lala.quote=null; _lalaRenderPanel(); }
+function _lalaRemove(id){ _lala.run=_lala.run.filter(r=>r!==id); _lala.quote=null; _lalaRenderPanel(); }
+function _lalaToggleAddon(id){ if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lala.quote=null; _lalaRenderPanel(); }
+function _lalaRequote(){ _lala.quote=null; _lalaRenderPanel(); }
+async function _lalaGeocode(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o||(o.lat!=null&&o.lng!=null)) return;
+  const addr=(o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
+  if(!addr) return;
+  try{ const g=await _geocodeOne(addr); if(g){ o.lat=g.lat; o.lng=g.lng; _lalaDrawMap(); } }catch(_){}
+}
+function _lalaAdd(id){
+  if(!_lala.run.includes(id)) _lala.run.push(id);
+  _lala.quote=null; _lalaRenderPanel(); _lalaGeocode(id);
+}
+function _lalaRenderPanel(){
+  let ov=document.getElementById('_lalaOv');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='_lalaOv';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:20px 14px;overflow:auto';
+    ov.addEventListener('click',e=>{ if(e.target===ov) _lalaClose(); });
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:470px;width:100%;margin:auto;overflow:hidden">'+_lalaCardHTML()+'</div>';
+  _lalaDrawMap();
+}
+function _lalaDrawMap(){
+  const el=document.getElementById('_lalaMap'); if(!el || typeof _ensureLeaflet!=='function') return;
+  _ensureLeaflet(()=>{
+    const el2=document.getElementById('_lalaMap'); if(!el2) return;      // panel closed while loading
+    if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; }
+    _lalaMap=L.map(el2,{ zoomControl:false, attributionControl:false, scrollWheelZoom:false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{ maxZoom:19 }).addTo(_lalaMap);
+    const pin=(bg,label)=>L.divIcon({ className:'', iconSize:[26,26], iconAnchor:[13,13],
+      html:'<div style="width:26px;height:26px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+label+'</div>' });
+    const pts=[SHOP_LATLNG]; const line=[SHOP_LATLNG];
+    L.marker(SHOP_LATLNG,{ icon:pin('#0F6E56','S') }).addTo(_lalaMap);
+    _lala.run.forEach((id,i)=>{ const o=ORDERS.find(x=>x.id===id); if(!o||o.lat==null||o.lng==null) return;
+      L.marker([o.lat,o.lng],{ icon:pin('#1a3d2b',String(i+1)) }).addTo(_lalaMap);
+      pts.push([o.lat,o.lng]); line.push([o.lat,o.lng]);
+    });
+    if(line.length>1) L.polyline(line,{ color:'#1a3d2b', weight:3, dashArray:'6 5', opacity:.85 }).addTo(_lalaMap);
+    if(pts.length>1){ try{ _lalaMap.fitBounds(pts,{ padding:[28,28], maxZoom:15 }); }catch(_){ _lalaMap.setView(SHOP_LATLNG,12); } }
+    else _lalaMap.setView(SHOP_LATLNG,13);
+    setTimeout(()=>{ try{ _lalaMap.invalidateSize(); }catch(_){} }, 60);
+  });
+}
+function _lalaCardHTML(){
+  const seg=LALA_SERVICES.map((s,i)=>{ const on=s.id===_lala.svc;
+    return '<button type="button" onclick="_lalaPickSvc(\''+s.id+'\')" style="flex:1;padding:9px 4px;border:none;'+(i?'border-left:1px solid var(--c-border);':'')+'background:'+(on?'var(--c-burg,#1a3d2b)':'transparent')+';color:'+(on?'#fff':'var(--c-ink)')+';font-weight:700;font-size:12.5px;cursor:pointer">'+esc(s.label)+'</button>';
+  }).join('');
+  // Route timeline: shop pickup + each numbered stop (× to remove).
+  const dot=(bg,inner)=>'<div style="width:22px;height:22px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;background:'+bg+'">'+inner+'</div>';
+  let route='<div style="border-left:1.5px dashed var(--c-border);margin-left:11px;padding-left:16px">'
+    + '<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('#0F6E56','<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>')
+    + '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">Bamboo Green Florist</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(SHOP_ADDR.slice(0,46))+' (pickup)</div></div></div>';
+  if(!_lala.run.length) route+='<div style="font-size:12px;color:var(--c-muted);padding:8px 0">No stops yet — add orders below.</div>';
+  _lala.run.forEach((id,i)=>{ const o=ORDERS.find(x=>x.id===id); if(!o) return; const addr=((o.address||'')+'').slice(0,54);
+    route+='<div style="display:flex;gap:10px;align-items:flex-start;padding:6px 0">'+dot('var(--c-burg,#1a3d2b)',String(i+1))
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div>'
+      +'<button type="button" onclick="_lalaRemove(\''+o.id+'\')" aria-label="Remove stop" style="border:none;background:none;cursor:pointer;color:var(--c-muted);flex:none;padding:2px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>';
+  });
+  route+='</div>';
+  const left=_lalaDeliverables().filter(o=>!_lala.run.includes(o.id));
+  const avail = left.length ? left.map(o=>{ const addr=((o.address||'')+'').slice(0,54);
+    return '<button type="button" onclick="_lalaAdd(\''+o.id+'\')" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer">'
+      +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--c-burg,#1a3d2b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(o.name||o.customer||'Order')+' · '+esc(o.recipName||o.customer||'')+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(addr||'No address')+'</div></div></button>';
+  }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 0">'+(_lala.run.length?'All deliverable orders are on this run.':'No deliverable orders right now.')+'</div>';
+  const addons=LALA_ADDONS.map(a=>{ const on=_lala.addons.has(a.id);
+    return '<label onclick="_lalaToggleAddon(\''+a.id+'\')" style="display:flex;gap:10px;align-items:center;padding:11px 12px;border:1.5px solid '+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';border-radius:10px;margin-bottom:7px;cursor:pointer;background:'+(on?'rgba(26,61,43,.06)':'var(--c-surface)')+'">'
+      +'<span style="color:var(--c-burg,#1a3d2b);flex:none;display:flex">'+a.svg+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">'+esc(a.label)+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+esc(a.note)+'</div></div>'
+      +'<div style="width:38px;height:22px;border-radius:11px;flex:none;background:'+(on?'var(--c-burg,#1a3d2b)':'var(--c-border)')+';position:relative"><div style="position:absolute;top:2px;left:'+(on?'18px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .12s"></div></div></label>';
+  }).join('');
+  const n=_lala.run.length;
+  let bar;
+  if(!n){ bar='<div style="font-size:12.5px;color:var(--c-muted);text-align:center;padding:4px 0">Add at least one stop to get a quote.</div>'; }
+  else if(_lala.quote){ const q=_lala.quote;
+    bar='<div style="background:var(--c-bg);border-radius:12px;padding:12px 14px;margin-bottom:12px">'
+      +'<div style="display:flex;align-items:baseline;justify-content:space-between"><span style="font-size:12px;color:var(--c-muted)">'+n+' stop'+(n>1?'s':'')+' · '+esc(_lala.svc.toLowerCase())+(_lala.addons.size?' · +'+_lala.addons.size+' add-on'+(_lala.addons.size>1?'s':''):'')+'</span><span style="font-size:22px;font-weight:800">'+esc(q.priceText)+'</span></div>'
+      +'<div style="font-size:11px;color:#E65100;margin-top:8px">Confirming dispatches a real Lalamove '+esc(_lala.svc.toLowerCase())+' and charges this amount.</div></div>'
+      +'<div style="display:flex;gap:10px"><button type="button" onclick="_lalaRequote()" style="flex:1;padding:13px;border:1.5px solid var(--c-border);border-radius:12px;background:var(--c-surface);font-weight:600;cursor:pointer">Re-quote</button>'
+      +'<button type="button" id="_lalaBookBtn" onclick="_lalaBook()" style="flex:2;padding:13px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Confirm &amp; book</button></div>';
+  } else {
+    bar='<button type="button" id="_lalaQuoteBtn" onclick="_lalaQuote()" style="width:100%;padding:14px;border:none;border-radius:12px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer;font-size:14px">Get quote · '+n+' stop'+(n>1?'s':'')+'</button>';
+  }
+  const lbl='font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
+  return ''
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">New delivery run</div><div style="font-size:12px;color:var(--c-muted);margin-top:1px">Lalamove · combine stops into one trip</div></div>'
+    + '<button type="button" onclick="_lalaClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
+    + '<div id="_lalaMap" style="height:180px;background:var(--c-bg)"></div>'
+    + '<div style="padding:14px 18px 18px">'
+    + '<div style="display:flex;border:1px solid var(--c-border);border-radius:10px;overflow:hidden;margin-bottom:16px">'+seg+'</div>'
+    + '<div style="'+lbl+'">The route</div>'+route+'<div style="height:16px"></div>'
+    + '<div style="'+lbl+'">Add a stop</div>'+avail+'<div style="height:16px"></div>'
+    + '<div style="'+lbl+'">Add-ons</div>'+addons+'<div style="height:14px"></div>'
+    + bar
+    + '</div>';
+}
+async function _lalaQuote(){
+  if(_lala.busy) return;
+  const sel=_lala.run.map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
+  if(!sel.length){ toast('Add at least one stop'); return; }
+  _lala.busy=true;
+  const btn=document.getElementById('_lalaQuoteBtn'); if(btn){ btn.disabled=true; btn.textContent='Quoting…'; }
+  for(const o of sel){ if(o.lat==null||o.lng==null){
+    const addr=(o.address || (typeof _drvAddr==='function'?_drvAddr(o):'') || '').trim();
+    if(addr){ try{ const g=await _geocodeOne(addr); if(g){ o.lat=g.lat; o.lng=g.lng; } }catch(_){} }
+  }}
+  const bad=sel.filter(o=>o.lat==null||o.lng==null);
+  if(bad.length){ _lala.busy=false; toast('⚠ No map location for: '+bad.map(o=>o.name||o.customer).join(', ')); _lalaRenderPanel(); return; }
+  const stops=[{ coordinates:{ lat:String(SHOP_LATLNG[0]), lng:String(SHOP_LATLNG[1]) }, address: SHOP_ADDR }]
+    .concat(sel.map(o=>({ coordinates:{ lat:String(o.lat), lng:String(o.lng) }, address:(o.address||'Delivery address') })));
+  const specials=LALA_ADDONS.filter(a=>_lala.addons.has(a.id)).map(a=>a.code);
+  const base={ serviceType:_lala.svc, language:'en_MY', stops };
+  let q=await _lalamoveApi({ op:'quote', data: specials.length ? Object.assign({ specialRequests:specials }, base) : base });
+  let qd=q.body && q.body.data;
+  const good=r=>{ const d=r&&r.body&&r.body.data; return d&&d.quotationId&&d.stops&&d.stops.length>=stops.length; };
+  // An unsupported add-on for this vehicle shouldn't block booking — retry clean.
+  if(!good(q) && specials.length){
+    const q2=await _lalamoveApi({ op:'quote', data:base });
+    if(good(q2)){ q=q2; qd=q2.body.data; _lala.addons=new Set(); toast('Add-ons not available for this vehicle — quoted without them'); }
+  }
+  _lala.busy=false;
+  if(q.status===501 || q.error==='lalamove_not_configured'){ toast('⚠ Lalamove not set up (missing API keys in Vercel)'); _lalaRenderPanel(); return; }
+  qd=q.body && q.body.data;
+  if(!good(q)){ toast('⚠ Quote failed: '+_lalaErr(q)); _lalaRenderPanel(); return; }
+  const pb=qd.priceBreakdown||{};
+  _lala.quote={ quotationId:qd.quotationId, stops:qd.stops, run:sel.map(o=>o.id), priceText:(pb.currency?pb.currency+' ':'')+(pb.total||'—') };
+  _lalaRenderPanel();
+}
+async function _lalaBook(){
+  const q=_lala.quote; if(!q || _lala.busy) return;
+  _lala.busy=true;
+  const btn=document.getElementById('_lalaBookBtn'); if(btn){ btn.disabled=true; btn.textContent='Booking…'; }
+  const sel=q.run.map(id=>ORDERS.find(o=>o.id===id)).filter(Boolean);
+  const recipients=sel.map((o,i)=>({ stopId:q.stops[i+1].stopId, name:(o.recipName||o.customer||'Recipient'),
+    phone:_e164(o.recipPhone || o.phone || '') || SHOP_PHONE, remarks:(o.name||'')+' — flowers' }));
+  const r=await _lalamoveApi({ op:'place', data:{ quotationId:q.quotationId,
+    sender:{ stopId:q.stops[0].stopId, name:'Bamboo Green Florist', phone:SHOP_PHONE }, recipients }});
+  _lala.busy=false;
+  const od=r.body && r.body.data;
+  if(!od || !od.orderId){ if(btn){ btn.disabled=false; btn.textContent='Confirm & book'; } toast('⚠ Booking failed: '+_lalaErr(r)); return; }
+  const url=od.shareLink || od.trackingLink || null;
+  sel.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; saveOrders(o); });
+  const otwId=(document.getElementById('otw-order-id')||{}).value;
+  if(otwId && url && sel.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
+  _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lalaClose();
+  if(typeof renderOrders==='function') renderOrders();
+  if(typeof renderDriver==='function') renderDriver();
+  toast('✓ Lalamove booked · '+sel.length+' stop'+(sel.length>1?'s':'')+(url?' · tracking link added':''));
 }
 // Per-order "On the way" dispatch (for Lalamove / manual delivery not on a driver
 // route): paste/confirm the tracking link, then notify the customer with it.
