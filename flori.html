@@ -8863,9 +8863,12 @@ function renderDriver(){
 
   const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
     + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
-    + (isAdmin
-        ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn btn-ghost" onclick="bookLalamove()" style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove</button><button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button></div>'
-        : '<button class="btn btn-ghost" onclick="signOut()" style="font-size:12px">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
+    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+        + '<button class="btn btn-ghost" onclick="bookLalamove()" style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove</button>'
+        + (isAdmin
+            ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>'
+            : '<button class="btn btn-ghost" onclick="signOut()" style="font-size:12px">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
+      + '</div>'
     + '</div>' + _drvDateBar();
 
   const overall = myStops.length
