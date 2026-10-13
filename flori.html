@@ -7472,7 +7472,7 @@ function _lalaRenderPanel(){
   let ov=document.getElementById('_lalaOv');
   if(!ov){
     ov=document.createElement('div'); ov.id='_lalaOv';
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:20px 14px;overflow:auto';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 16px) 14px calc(env(safe-area-inset-bottom,0px) + 16px);overflow:auto';
     // No backdrop-click close — the run details are easy to lose. Close only via the × button.
     document.body.appendChild(ov);
   }
@@ -7750,7 +7750,7 @@ async function _lalaMngRefresh(){
 function _lalaMngRender(){
   let ov=document.getElementById('_lalaMngOv');
   if(!ov){ ov=document.createElement('div'); ov.id='_lalaMngOv';
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100002;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 20px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);overflow:auto';
     document.body.appendChild(ov);
   }
   const d=_lalaMng.data, st=d&&d.status, sm=LALA_STATUS[st]||{t:(st||'—'),c:'var(--c-muted)'};
