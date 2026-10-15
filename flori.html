@@ -5204,6 +5204,23 @@ function parseOrderForm() {
 
     result.fulfil = isPickup(raw) ? 'pickup' : 'delivery';
 
+    // Channel — the structured form carries it in the header, e.g.
+    // "Delivery Order Form (instagram)". Prefer that marker; else scan for a clear
+    // whole-word mention (conservative, to avoid false hits in the long card message).
+    let chDet = '';
+    const hdrM = (lines[0]||'').toLowerCase().match(/\((whatsapp|whatsap|instagram|insta|facebook|fb|ig|walk.?in)\)/);
+    if (hdrM) { const p=hdrM[1]; chDet = /insta|^ig$/.test(p) ? 'instagram' : (/fb|face/.test(p) ? 'facebook' : (/walk/.test(p) ? 'walkin' : 'whatsapp')); }
+    if (!chDet) {
+      for (const line of lines) { const l=line.toLowerCase();
+        if (/order\s*form/.test(l)) { /* header handled above */ }
+        if (/\bwhatsapp\b|whatsap|\bwapp\b/.test(l)) { chDet='whatsapp'; break; }
+        if (/\bfacebook\b|fb\.com/.test(l))          { chDet='facebook'; break; }
+        if (/\binstagram\b|\binsta\b|ig\.com/.test(l)){ chDet='instagram'; break; }
+        if (/\bwalk.?in\b/.test(l))                  { chDet='walkin'; break; }
+      }
+    }
+    if (chDet) result.channel = chDet;
+
   } else {
     // ── FREEFORM / CASUAL MESSAGE ──
     // Strategy: scan each line for known patterns, classify what's left
@@ -5614,6 +5631,7 @@ function toggleComplete(id) { toggleFUStatus(id); }
 /* ─── Follow-up → Shopify Draft ──────────────────────────────── */
 let _fuDraftVariant = null;   // {id,title,price} when an existing Shopify product is picked
 let _fuDraftSearchT = null;
+let _fuDraftAutoPick = false; // true during the prefill auto-search → auto-link an exact match
 
 function openFUDraftModal(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
@@ -5636,7 +5654,9 @@ function openFUDraftModal(id) {
     + (itemName ? 'Pre-filled from this follow-up. Tap a Shopify match below to link the real product, or just Create Draft to use it as-is.' : 'Search your Shopify products above, or add a custom item below.') + '</div>';
   closeFUDP();
   openModal('m-fu-draft');
-  // Auto-search Shopify for the pre-filled name so a matching product is one tap away.
+  // Auto-search Shopify for the pre-filled name so a matching product LINKS automatically
+  // (an exact single-variant match is selected) instead of going out as a custom item.
+  _fuDraftAutoPick = !!itemName;
   if (itemName && typeof searchDraftProducts==='function') setTimeout(()=>{ try{ searchDraftProducts(); }catch(_){} }, 60);
 }
 
@@ -5679,6 +5699,13 @@ async function searchDraftProducts() {
           variants.map(v => row(v.id, (v.title&&v.title!=='Default Title') ? v.title : p.title, v.price, true)).join('')
         }</div>`;
       }).join('');
+      // Prefill auto-link: if the pre-filled name exactly matches a single-variant product,
+      // select it so it goes to Shopify as the REAL product (variantId), not a custom item.
+      if (_fuDraftAutoPick) {
+        _fuDraftAutoPick = false;
+        const exact = prods.find(p => String(p.title||'').trim().toLowerCase() === q.toLowerCase());
+        if (exact) { const vs = exact.variants.edges.map(v=>v.node); if (vs.length === 1) selectDraftVariant(vs[0].id, exact.title, vs[0].price); }
+      }
     } catch(e) {
       box.innerHTML = `<div style="font-size:11px;color:var(--c-red);padding:6px 2px">Search failed: ${esc(e.message||'error')}</div>`;
     }
