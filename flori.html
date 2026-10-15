@@ -5858,14 +5858,17 @@ async function createShopifyDraft() {
 
   let lineItem;
   if (customName) {
-    // requiresShipping:true — custom draft line items default to false, which makes the
-    // whole order show as "shipping not required" (no delivery/fulfilment). Flowers ship.
-    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, requiresShipping: true, taxable: false };
+    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, taxable: false };
   } else if (_fuDraftVariant) {
     lineItem = { variantId: _fuDraftVariant.id, quantity: qty };
   } else {
     toast('Pick a product or enter a custom item'); return;
   }
+  // Force "requires shipping" so the order carries a fulfilment method instead of
+  // "Shipping not required" — which happens for CUSTOM items and for Shopify products whose
+  // "This is a physical product" box is unchecked. Pickup keeps no delivery address but
+  // gets a Self Collect shipping line below; delivery keeps its address.
+  lineItem.requiresShipping = true;
   // Hidden line-item property carries the follow-up id for the webhook to match
   // on. The leading underscore keeps it out of the Shopify admin display, so the
   // order tags can stay clean/meaningful instead of holding a long code.
@@ -5934,8 +5937,12 @@ async function createShopifyDraft() {
       if (rPhone) input.shippingAddress.phone = rPhone;
     }
 
-    // Delivery fee → a shipping line on the draft (delivery orders only).
-    if (f.fulfil !== 'pickup' && parseFloat(f.deliveryFee) > 0) {
+    // Fulfilment method as a shipping line: pickup → a free "Self Collect" method (so the
+    // order shows as pickup and the customer confirmation is in pickup format, no address);
+    // delivery → a "Delivery" line carrying the fee.
+    if (f.fulfil === 'pickup') {
+      input.shippingLine = { title: 'Self Collect', price: '0.00' };
+    } else if (parseFloat(f.deliveryFee) > 0) {
       input.shippingLine = { title: 'Delivery', price: parseFloat(f.deliveryFee).toFixed(2) };
     }
 
