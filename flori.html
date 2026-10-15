@@ -5804,6 +5804,24 @@ async function _draftFindOrCreateCustomer(f) {
   } catch(e) { console.warn('customer find/create failed:', e.message); return null; }
 }
 
+// Split a free-text Malaysian address into Shopify's structured fields so the draft's
+// shipping address isn't flagged "Review address issues" (city/zip/province were never
+// set — the whole string went into address1). Keeps it lenient: only fills what it finds.
+const _MY_PROV_NORM = { 'penang':'Pulau Pinang', 'malacca':'Melaka', 'wp kuala lumpur':'Kuala Lumpur', 'wilayah persekutuan':'Kuala Lumpur' };
+const _MY_PROV_RE = /^(pulau pinang|penang|kedah|perak|selangor|johor|kelantan|terengganu|pahang|perlis|melaka|malacca|negeri sembilan|sabah|sarawak|kuala lumpur|wp kuala lumpur|wilayah persekutuan|putrajaya|labuan)$/i;
+function _parseMyAddr(raw){
+  const full=String(raw||'').trim();
+  if(!full) return { address1:'', city:'', zip:'', province:'' };
+  const parts=full.split(/[,\n]+/).map(s=>s.trim()).filter(Boolean).filter(p=>!/^malaysia$/i.test(p));
+  let zip='', city='', province='', pcIdx=-1;
+  parts.forEach((p,i)=>{ const m=p.match(/\b(\d{5})\b/); if(m && !zip){ zip=m[1]; pcIdx=i; const t=p.replace(/\d{5}/,'').replace(/,/g,' ').replace(/\s+/g,' ').trim(); if(t) city=t; } });
+  parts.forEach(p=>{ if(_MY_PROV_RE.test(p)) province=p; });   // a part that's purely a state name
+  if(province){ const k=province.toLowerCase(); if(_MY_PROV_NORM[k]) province=_MY_PROV_NORM[k]; }
+  if(city){ const k=city.toLowerCase(); if(_MY_PROV_NORM[k]) city=_MY_PROV_NORM[k]; }   // "10350 Penang" → Pulau Pinang
+  const street=parts.filter((p,i)=> i!==pcIdx && !_MY_PROV_RE.test(p));
+  const address1 = street.join(', ') || full;
+  return { address1, city, zip, province };
+}
 async function createShopifyDraft() {
   const id = document.getElementById('fu-draft-id').value;
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f){ toast('Follow-up not found'); return; }
@@ -5813,7 +5831,9 @@ async function createShopifyDraft() {
 
   let lineItem;
   if (customName) {
-    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty };
+    // requiresShipping:true — custom draft line items default to false, which makes the
+    // whole order show as "shipping not required" (no delivery/fulfilment). Flowers ship.
+    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, requiresShipping: true, taxable: false };
   } else if (_fuDraftVariant) {
     lineItem = { variantId: _fuDraftVariant.id, quantity: qty };
   } else {
@@ -5880,7 +5900,7 @@ async function createShopifyDraft() {
     if (f.fulfil !== 'pickup' && (f.addr || f.recipName || f.recipPhone)) {
       const rParts = String(f.recipName || f.name || '').trim().split(/\s+/).filter(Boolean);
       input.shippingAddress = { countryCode: 'MY' };
-      if (f.addr) input.shippingAddress.address1 = f.addr;
+      if (f.addr) { const a=_parseMyAddr(f.addr); input.shippingAddress.address1 = a.address1 || f.addr; if(a.city) input.shippingAddress.city = a.city; if(a.zip) input.shippingAddress.zip = a.zip; if(a.province) input.shippingAddress.province = a.province; }
       if (rParts[0]) input.shippingAddress.firstName = rParts.shift();
       if (rParts.length) input.shippingAddress.lastName = rParts.join(' ');
       const rPhone = e164r || e164c;
