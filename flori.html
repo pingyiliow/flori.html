@@ -8700,6 +8700,7 @@ async function _geoBackfill(stops){
     if (r.status === 501){ _geoOff = true; console.warn('[geo] 501 — GOOGLE_MAPS_API_KEY not configured'); renderDriver(); return; }
     if (!r.ok){ console.warn('[geo] HTTP', r.status, '— leaving stops un-tried so a later open retries'); return; }   // transient: allow retry
     const j = await r.json().catch(()=>({}));
+    if (j.debug) console.warn('[geo] Google status:', j.debug.status, j.debug.message || '');
     todo.forEach(o => _geoTried.add(o.id));   // mark tried only after a real response
     const got = new Set(); const changed = [];
     (j.results||[]).forEach(res => {

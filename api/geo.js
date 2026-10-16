@@ -113,19 +113,22 @@ export default async function handler(req, res) {
   if (!items.length) return res.status(400).json({ error: 'items required' });
 
   const results = [];
+  const dbg = {};   // capture Google's own status/reason when nothing resolves (debug)
   for (const it of items) {
     try {
-      const g = await geocodeAddress(it.address, KEY);
+      const g = await geocodeAddress(it.address, KEY, dbg);
       if (g) results.push({ id: String(it.id), lat: g.lat, lng: g.lng });
     } catch (_) { /* skip this address; the pin just won't show */ }
   }
-  return res.status(200).json({ results });
+  return res.status(200).json({ results, debug: dbg.status ? dbg : undefined });
 }
 
-async function _geo1(addr, KEY) {
+async function _geo1(addr, KEY, dbg) {
   const u = 'https://maps.googleapis.com/maps/api/geocode/json?address='
     + encodeURIComponent(addr) + '&region=my&components=country:MY&key=' + KEY;
   const r = await fetch(u); const j = await r.json().catch(() => ({}));
+  // Surface REQUEST_DENIED (API/key), OVER_QUERY_LIMIT (billing/quota), ZERO_RESULTS (address) etc.
+  if (dbg && j && j.status && j.status !== 'OK' && !dbg.status) { dbg.status = j.status; dbg.message = j.error_message || ''; }
   const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
   return (loc && typeof loc.lat === 'number') ? { lat: loc.lat, lng: loc.lng } : null;
 }
@@ -133,7 +136,7 @@ async function _geo1(addr, KEY) {
 // business-name segment (everything before the first part that has a digit — usually the street
 // number), then fall back to postcode + town. Fixes "Shop Name, 240 Lebuh Pantai, 10300 George
 // Town" which Geocoding rejects as-is but resolves once the shop name is removed.
-async function geocodeAddress(address, KEY) {
+async function geocodeAddress(address, KEY, dbg) {
   const full = String(address || '').trim();
   if (!full) return null;
   const tries = [full];
@@ -145,7 +148,7 @@ async function geocodeAddress(address, KEY) {
   const seen = new Set();
   for (const t of tries) {
     const k = t.toLowerCase(); if (seen.has(k)) continue; seen.add(k);
-    try { const g = await _geo1(t, KEY); if (g) return g; } catch (_) {}
+    try { const g = await _geo1(t, KEY, dbg); if (g) return g; } catch (_) {}
   }
   return null;
 }
