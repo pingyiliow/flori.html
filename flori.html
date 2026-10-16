@@ -7527,15 +7527,19 @@ function _lalaPickInput(v){
   list.innerHTML=head+'<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">Searching…</div>';
   _lalaPickTimer=setTimeout(async()=>{
     const r=await _lalaGeoReq({ mode:'autocomplete', input:q, sessionToken:_lalaPickTok });
-    const preds=(r&&r.predictions)||[];
-    let rows=preds.map(p=>'<button type="button" onclick="_lalaPickChoose(\''+String(p.placeId).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="'+_LALA_PICK_ROW+'">'+_LALA_PIN_SVG+'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--c-ink)">'+esc(p.description)+'</div></div></button>').join('');
+    const preds=(r&&r.predictions)||[]; _lalaPickPreds=preds;
+    let rows=preds.map((p,idx)=>'<button type="button" onclick="_lalaPickPick('+idx+')" style="'+_LALA_PICK_ROW+'">'+_LALA_PIN_SVG+'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--c-ink)">'+esc(p.description)+'</div></div></button>').join('');
     if(!rows) rows='<div style="font-size:12px;color:'+(r&&r.error?'#B3261E':'var(--c-muted)')+';padding:6px 2px;line-height:1.5">'+(r&&r.error?('⚠ '+esc(r.error)+'<br><span style="color:var(--c-muted)">You can still paste a Google Maps link or "lat, lng".</span>'):'No matches. Try a simpler address, or paste a Maps link / "lat, lng".')+'</div>';
     const l2=document.getElementById('_lalaPickList'); if(l2) l2.innerHTML=head+rows;
   }, 320);
 }
-async function _lalaPickChoose(placeId){
+let _lalaPickPreds=[];
+async function _lalaPickPick(idx){
+  const p=_lalaPickPreds[idx]; if(!p) return;
+  // OpenStreetMap predictions already carry coordinates — use them directly (no details call).
+  if(typeof p.lat==='number'){ const cb=_lalaPickCb; _lalaPickClose(); if(cb) cb(p.lat, p.lng, p.description||null); return; }
   const list=document.getElementById('_lalaPickList'); if(list) list.innerHTML='<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">Locating…</div>';
-  const r=await _lalaGeoReq({ mode:'place', placeId, sessionToken:_lalaPickTok });
+  const r=await _lalaGeoReq({ mode:'place', placeId:p.placeId, sessionToken:_lalaPickTok });
   if(!r || r.lat==null){ toast('⚠ Could not locate that place'); _lalaPickInput((document.getElementById('_lalaPickInp')||{}).value||''); return; }
   const cb=_lalaPickCb; _lalaPickClose(); if(cb) cb(r.lat, r.lng, r.address||null);
 }

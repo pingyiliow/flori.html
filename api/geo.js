@@ -86,11 +86,19 @@ export default async function handler(req, res) {
         body: JSON.stringify({ input, includedRegionCodes: ['my'], languageCode: 'en', sessionToken: body.sessionToken || undefined }),
       });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) return res.status(200).json({ error: (j.error && j.error.message) || ('HTTP ' + r.status), predictions: [] });
-      const predictions = (j.suggestions || []).map(s => s.placePrediction).filter(Boolean).slice(0, 6)
-        .map(p => ({ description: (p.text && p.text.text) || (p.structuredFormat && p.structuredFormat.mainText && p.structuredFormat.mainText.text) || '', placeId: p.placeId }));
+      let predictions = r.ok ? (j.suggestions || []).map(s => s.placePrediction).filter(Boolean).slice(0, 6)
+        .map(p => ({ description: (p.text && p.text.text) || (p.structuredFormat && p.structuredFormat.mainText && p.structuredFormat.mainText.text) || '', placeId: p.placeId })) : [];
+      // Google denied or returned nothing → free OpenStreetMap suggestions (carry coords so the
+      // client doesn't need a Place Details call).
+      if (!predictions.length) {
+        const nom = await _nominatimSearch(input, 6);
+        if (nom.length) predictions = nom.map(n => ({ description: n.description, lat: n.lat, lng: n.lng }));
+      }
       return res.status(200).json({ predictions });
-    } catch (e) { return res.status(200).json({ error: String(e && e.message || e), predictions: [] }); }
+    } catch (e) {
+      const nom = await _nominatimSearch(String(body.input || '').trim(), 6);
+      return res.status(200).json({ predictions: nom.map(n => ({ description: n.description, lat: n.lat, lng: n.lng })), error: nom.length ? undefined : String(e && e.message || e) });
+    }
   }
   // ── Place details (Places API New): chosen suggestion → coordinates + a clean address ──
   // body { mode:'place', placeId, sessionToken? } → { lat, lng, address }
@@ -132,10 +140,30 @@ async function _geo1(addr, KEY, dbg) {
   const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
   return (loc && typeof loc.lat === 'number') ? { lat: loc.lat, lng: loc.lng } : null;
 }
+// Free OpenStreetMap (Nominatim) geocoder — used as a fallback when Google is unavailable
+// (key/billing/permission issues). Low volume only; needs a User-Agent per their policy.
+async function _nominatim(q) {
+  try {
+    const u = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=my&q=' + encodeURIComponent(q);
+    const r = await fetch(u, { headers: { 'User-Agent': 'BloomFlow/1.0 (florist delivery app)' } });
+    const j = await r.json().catch(() => []);
+    if (Array.isArray(j) && j[0] && j[0].lat) return { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) };
+  } catch (_) {}
+  return null;
+}
+async function _nominatimSearch(q, limit) {
+  try {
+    const u = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=' + (limit || 6) + '&countrycodes=my&q=' + encodeURIComponent(q);
+    const r = await fetch(u, { headers: { 'User-Agent': 'BloomFlow/1.0 (florist delivery app)' } });
+    const j = await r.json().catch(() => []);
+    if (!Array.isArray(j)) return [];
+    return j.filter(x => x && x.lat).map(x => ({ description: x.display_name, lat: parseFloat(x.lat), lng: parseFloat(x.lon) }));
+  } catch (_) { return []; }
+}
 // Try the full address; if Google can't match it, retry with cleaner variants: drop a leading
 // business-name segment (everything before the first part that has a digit — usually the street
-// number), then fall back to postcode + town. Fixes "Shop Name, 240 Lebuh Pantai, 10300 George
-// Town" which Geocoding rejects as-is but resolves once the shop name is removed.
+// number), then fall back to postcode + town. If Google is denied/unavailable entirely, fall
+// back to free OpenStreetMap so addresses still resolve.
 async function geocodeAddress(address, KEY, dbg) {
   const full = String(address || '').trim();
   if (!full) return null;
@@ -150,5 +178,6 @@ async function geocodeAddress(address, KEY, dbg) {
     const k = t.toLowerCase(); if (seen.has(k)) continue; seen.add(k);
     try { const g = await _geo1(t, KEY, dbg); if (g) return g; } catch (_) {}
   }
+  for (const t of tries) { const g = await _nominatim(t); if (g) return g; }   // OSM fallback
   return null;
 }
