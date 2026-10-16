@@ -8030,9 +8030,14 @@ function _routeOrigin(rt){
 // Parse a pasted Google-Maps URL (!3d<lat>!4d<lng> or @lat,lng) or a raw "lat, lng".
 function _parseLatLng(s){
   s = String(s||'').trim();
+  const dec = s.replace(/%2[cC]/g, ',');                             // decode encoded commas in URLs
   let m = s.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);        // place coords in a maps URL
   if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
   m = s.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);                 // viewport centre in a maps URL
+  if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
+  m = dec.match(/[?&#](?:q|query|ll|sll|daddr|destination|center|api=1&query)=(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/); // ?q=lat,lng etc.
+  if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
+  m = dec.match(/\/(-?\d{1,3}\.\d{3,}),(-?\d{1,3}\.\d{3,})(?:[,/?&]|$)/); // /search/lat,lng path
   if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
   m = s.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);          // plain "lat, lng"
   if (m) return { lat:parseFloat(m[1]), lng:parseFloat(m[2]) };
