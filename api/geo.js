@@ -112,13 +112,37 @@ export default async function handler(req, res) {
   const results = [];
   for (const it of items) {
     try {
-      const u = 'https://maps.googleapis.com/maps/api/geocode/json?address='
-        + encodeURIComponent(it.address) + '&region=my&components=country:MY&key=' + KEY;
-      const r = await fetch(u);
-      const j = await r.json().catch(() => ({}));
-      const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
-      if (loc && typeof loc.lat === 'number') results.push({ id: String(it.id), lat: loc.lat, lng: loc.lng });
+      const g = await geocodeAddress(it.address, KEY);
+      if (g) results.push({ id: String(it.id), lat: g.lat, lng: g.lng });
     } catch (_) { /* skip this address; the pin just won't show */ }
   }
   return res.status(200).json({ results });
+}
+
+async function _geo1(addr, KEY) {
+  const u = 'https://maps.googleapis.com/maps/api/geocode/json?address='
+    + encodeURIComponent(addr) + '&region=my&components=country:MY&key=' + KEY;
+  const r = await fetch(u); const j = await r.json().catch(() => ({}));
+  const loc = j && j.results && j.results[0] && j.results[0].geometry && j.results[0].geometry.location;
+  return (loc && typeof loc.lat === 'number') ? { lat: loc.lat, lng: loc.lng } : null;
+}
+// Try the full address; if Google can't match it, retry with cleaner variants: drop a leading
+// business-name segment (everything before the first part that has a digit — usually the street
+// number), then fall back to postcode + town. Fixes "Shop Name, 240 Lebuh Pantai, 10300 George
+// Town" which Geocoding rejects as-is but resolves once the shop name is removed.
+async function geocodeAddress(address, KEY) {
+  const full = String(address || '').trim();
+  if (!full) return null;
+  const tries = [full];
+  const parts = full.split(',').map(s => s.trim()).filter(Boolean);
+  const iDigit = parts.findIndex(p => /\d/.test(p));
+  if (iDigit > 0) tries.push(parts.slice(iDigit).join(', '));
+  const pc = full.match(/\b(\d{5})\b\s*([A-Za-z .,'’-]+)?/);
+  if (pc) tries.push((pc[1] + (pc[2] ? ' ' + pc[2].trim().replace(/,.*$/, '') : '') + ', Malaysia'));
+  const seen = new Set();
+  for (const t of tries) {
+    const k = t.toLowerCase(); if (seen.has(k)) continue; seen.add(k);
+    try { const g = await _geo1(t, KEY); if (g) return g; } catch (_) {}
+  }
+  return null;
 }
