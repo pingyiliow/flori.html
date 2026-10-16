@@ -74,6 +74,37 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── Places autocomplete: type-ahead address suggestions (needs Places API enabled) ──
+  // body { mode:'autocomplete', input, sessionToken? } → { predictions:[{description, placeId}] }
+  if (body.mode === 'autocomplete') {
+    const input = String(body.input || '').trim();
+    if (input.length < 3) return res.status(200).json({ predictions: [] });
+    try {
+      const u = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input='
+        + encodeURIComponent(input) + '&components=country:my&language=en&key=' + KEY
+        + (body.sessionToken ? '&sessiontoken=' + encodeURIComponent(String(body.sessionToken)) : '');
+      const r = await fetch(u); const j = await r.json().catch(() => ({}));
+      if (j.status && j.status !== 'OK' && j.status !== 'ZERO_RESULTS') return res.status(200).json({ error: j.error_message || j.status, predictions: [] });
+      const predictions = (j.predictions || []).slice(0, 6).map(p => ({ description: p.description, placeId: p.place_id }));
+      return res.status(200).json({ predictions });
+    } catch (e) { return res.status(200).json({ error: String(e && e.message || e), predictions: [] }); }
+  }
+  // ── Place details: resolve a chosen suggestion to coordinates + a clean address ──
+  // body { mode:'place', placeId, sessionToken? } → { lat, lng, address }
+  if (body.mode === 'place') {
+    const pid = String(body.placeId || '').trim();
+    if (!pid) return res.status(400).json({ error: 'placeId required' });
+    try {
+      const u = 'https://maps.googleapis.com/maps/api/place/details/json?place_id='
+        + encodeURIComponent(pid) + '&fields=geometry,formatted_address&language=en&key=' + KEY
+        + (body.sessionToken ? '&sessiontoken=' + encodeURIComponent(String(body.sessionToken)) : '');
+      const r = await fetch(u); const j = await r.json().catch(() => ({}));
+      const loc = j && j.result && j.result.geometry && j.result.geometry.location;
+      if (!loc || typeof loc.lat !== 'number') return res.status(200).json({ error: (j.error_message || j.status || 'no_geometry') });
+      return res.status(200).json({ lat: loc.lat, lng: loc.lng, address: (j.result.formatted_address || null) });
+    } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
+  }
+
   const items = (Array.isArray(body.items) ? body.items : []).slice(0, 30)
     .filter(x => x && x.id != null && typeof x.address === 'string' && x.address.trim());
   if (!items.length) return res.status(400).json({ error: 'items required' });

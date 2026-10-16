@@ -7439,34 +7439,39 @@ function _lalaAvailHTML(){
   }).join('');
   return rows + empty + manualBtn;
 }
-// Manual-address stop: small prompt → geocode → push onto the run.
+// Manual-address stop: name + phone + a Google address SEARCH (pick a suggestion) → push.
+let _lalaManLL=null;
 function _lalaManualPrompt(){
   if(document.getElementById('_lalaManOv')) return;
+  _lalaManLL=null;
   const inp='width:100%;padding:10px 11px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:9px;font-size:13px;background:var(--c-surface);color:var(--c-ink);box-sizing:border-box;-webkit-appearance:none';
   const ov=document.createElement('div'); ov.id='_lalaManOv';
-  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px';
-  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:14px;max-width:360px;width:100%;padding:18px">'
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100001;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 16px 24px;overflow:auto';
+  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:14px;max-width:360px;width:100%;margin:auto;padding:18px">'
     + '<div style="font-size:15px;font-weight:800;margin-bottom:12px;font-family:var(--f-head)">Add manual stop</div>'
     + '<input id="_lmName" placeholder="Recipient name" style="'+inp+'">'
     + '<input id="_lmPhone" placeholder="Phone (optional)" style="'+inp+'">'
-    + '<textarea id="_lmAddr" placeholder="Full delivery address" rows="2" style="'+inp+';resize:vertical"></textarea>'
+    + '<button type="button" onclick="_lalaManualSearch()" style="display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:11px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:9px;background:var(--c-surface);cursor:pointer;color:var(--c-burg,#1a3d2b)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span id="_lmAddrShow" style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--c-muted)">Search delivery address</span></button>'
     + '<div id="_lmErr" style="font-size:12px;color:#B3261E;margin:-2px 0 8px;display:none"></div>'
     + '<div style="display:flex;gap:10px"><button type="button" onclick="_lalaManualCancel()" style="flex:1;padding:12px;border:1.5px solid var(--c-border);border-radius:10px;background:var(--c-surface);font-weight:600;cursor:pointer">Cancel</button>'
     + '<button type="button" id="_lmAdd" onclick="_lalaManualSave()" style="flex:1;padding:12px;border:none;border-radius:10px;background:var(--c-burg,#1a3d2b);color:#fff;font-weight:700;cursor:pointer">Add stop</button></div></div>';
   document.body.appendChild(ov);
   ov.addEventListener('click',e=>{ if(e.target===ov) _lalaManualCancel(); });
 }
+function _lalaManualSearch(){
+  _lalaPickLoc('Delivery address', '', (lat,lng,addr)=>{
+    _lalaManLL={ lat, lng, address:(addr||'') };
+    const d=document.getElementById('_lmAddrShow'); if(d){ d.textContent=addr||(lat.toFixed(5)+', '+lng.toFixed(5)); d.style.color='var(--c-ink)'; }
+    const e=document.getElementById('_lmErr'); if(e) e.style.display='none';
+  });
+}
 function _lalaManualCancel(){ const ov=document.getElementById('_lalaManOv'); if(ov) ov.remove(); }
-async function _lalaManualSave(){
+function _lalaManualSave(){
   const name=(document.getElementById('_lmName').value||'').trim();
   const phone=(document.getElementById('_lmPhone').value||'').trim();
-  const addr=(document.getElementById('_lmAddr').value||'').trim();
   const err=document.getElementById('_lmErr');
-  if(!addr){ err.textContent='Enter an address.'; err.style.display='block'; return; }
-  const btn=document.getElementById('_lmAdd'); if(btn){ btn.disabled=true; btn.textContent='Locating…'; }
-  let lat=null,lng=null; try{ const g=await _geocodeOne(addr); if(g){ lat=g.lat; lng=g.lng; } }catch(_){}
-  if(lat==null){ if(btn){ btn.disabled=false; btn.textContent='Add stop'; } err.textContent='Could not locate that address — check the spelling.'; err.style.display='block'; return; }
-  _lala.run.push({ manual:true, mid:'m'+Date.now(), name:(name||'Manual stop'), phone, address:addr, lat, lng });
+  if(!_lalaManLL){ err.textContent='Search and choose the delivery address first.'; err.style.display='block'; return; }
+  _lala.run.push({ manual:true, mid:'m'+Date.now(), name:(name||'Manual stop'), phone, address:_lalaManLL.address||'', lat:_lalaManLL.lat, lng:_lalaManLL.lng });
   _lalaManualCancel(); _lalaRenderPanel(); _lalaScheduleQuote();
 }
 // Live search — update ONLY the results list so the input keeps focus + cursor.
