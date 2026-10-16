@@ -7488,6 +7488,53 @@ function bookLalamove(preselectId){
 function _lalaClose(){ if(_lalaQTimer){ clearTimeout(_lalaQTimer); _lalaQTimer=null; } if(_lalaMap){ try{_lalaMap.remove();}catch(_){} _lalaMap=null; } const ov=document.getElementById('_lalaOv'); if(ov) ov.remove(); }
 function _lalaPickSvc(id){ _lala.svc=id; const ok=new Set(_lalaSpecials().map(a=>a.code)); _lala.addons=new Set([..._lala.addons].filter(c=>ok.has(c))); _lalaRenderPanel(); _lalaScheduleQuote(); }
 function _lalaRemoveAt(i){ _lala.run.splice(i,1); _lalaRenderPanel(); _lalaScheduleQuote(); }
+// ── Google address search picker: type → pick a suggestion → confirmed coordinates + address.
+// Also accepts a pasted Maps link / "lat,lng". Needs Places API enabled on GOOGLE_MAPS_API_KEY;
+// if it's unavailable the picker falls back to pasting a link/coords.
+async function _lalaGeoReq(payload){
+  let authToken=''; try{ if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } }catch(_){}
+  try{ const r=await fetch('/api/geo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({},payload,{authToken}))}); return await r.json().catch(()=>({})); }
+  catch(e){ return { error:String(e&&e.message||e) }; }
+}
+const _LALA_PIN_SVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+const _LALA_PICK_ROW='display:flex;width:100%;gap:9px;align-items:center;text-align:left;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:10px;margin-bottom:7px;background:var(--c-surface);cursor:pointer;color:var(--c-burg,#1a3d2b)';
+let _lalaPickCb=null, _lalaPickTimer=null, _lalaPickTok=null;
+function _lalaPickLoc(title, initial, cb){
+  _lalaPickCb=cb; _lalaPickTok='t'+Date.now()+Math.random().toString(36).slice(2,8);
+  const inp='width:100%;padding:11px 12px;border:1.5px solid var(--c-border);border-radius:10px;font-size:13px;background:var(--c-surface);color:var(--c-ink);box-sizing:border-box;-webkit-appearance:none';
+  const ov=document.createElement('div'); ov.id='_lalaPickOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100003;display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top,0px) + 24px) 16px 24px;overflow:auto';
+  ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:14px;max-width:420px;width:100%;margin:auto;padding:16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:15px;font-weight:800;font-family:var(--f-head)">'+esc(title||'Find location')+'</div><button type="button" onclick="_lalaPickClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
+    +'<input id="_lalaPickInp" type="text" value="'+esc(initial||'')+'" placeholder="Type an address or place (or paste a Maps link)" oninput="_lalaPickInput(this.value)" style="'+inp+';margin-bottom:8px" autocomplete="off">'
+    +'<div id="_lalaPickList"></div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) _lalaPickClose(); });
+  const el=document.getElementById('_lalaPickInp'); if(el){ try{ el.focus(); }catch(_){} if(initial) _lalaPickInput(initial); }
+}
+function _lalaPickClose(){ const ov=document.getElementById('_lalaPickOv'); if(ov) ov.remove(); _lalaPickCb=null; if(_lalaPickTimer){ clearTimeout(_lalaPickTimer); _lalaPickTimer=null; } }
+function _lalaPickInput(v){
+  if(_lalaPickTimer) clearTimeout(_lalaPickTimer);
+  const q=(v||'').trim(); const ll=_parseLatLng(q);
+  const head = ll ? ('<button type="button" onclick="_lalaPickUseCoords('+ll.lat+','+ll.lng+')" style="'+_LALA_PICK_ROW+'">'+_LALA_PIN_SVG+'<div style="flex:1"><div style="font-size:13px;font-weight:700">Use these coordinates</div><div style="font-size:11.5px;color:var(--c-muted)">'+ll.lat.toFixed(5)+', '+ll.lng.toFixed(5)+'</div></div></button>') : '';
+  const list=document.getElementById('_lalaPickList'); if(!list) return;
+  if(q.length<3){ list.innerHTML=head||'<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">Keep typing an address…</div>'; return; }
+  list.innerHTML=head+'<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">Searching…</div>';
+  _lalaPickTimer=setTimeout(async()=>{
+    const r=await _lalaGeoReq({ mode:'autocomplete', input:q, sessionToken:_lalaPickTok });
+    const preds=(r&&r.predictions)||[];
+    let rows=preds.map(p=>'<button type="button" onclick="_lalaPickChoose(\''+String(p.placeId).replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')" style="'+_LALA_PICK_ROW+'">'+_LALA_PIN_SVG+'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:var(--c-ink)">'+esc(p.description)+'</div></div></button>').join('');
+    if(!rows) rows='<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">'+(r&&r.error?('Search unavailable — paste a Google Maps link or "lat, lng" instead.'):'No matches. Try a simpler address, or paste a Maps link / "lat, lng".')+'</div>';
+    const l2=document.getElementById('_lalaPickList'); if(l2) l2.innerHTML=head+rows;
+  }, 320);
+}
+async function _lalaPickChoose(placeId){
+  const list=document.getElementById('_lalaPickList'); if(list) list.innerHTML='<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">Locating…</div>';
+  const r=await _lalaGeoReq({ mode:'place', placeId, sessionToken:_lalaPickTok });
+  if(!r || r.lat==null){ toast('⚠ Could not locate that place'); _lalaPickInput((document.getElementById('_lalaPickInp')||{}).value||''); return; }
+  const cb=_lalaPickCb; _lalaPickClose(); if(cb) cb(r.lat, r.lng, r.address||null);
+}
+function _lalaPickUseCoords(lat,lng){ const cb=_lalaPickCb; _lalaPickClose(); if(cb) cb(lat,lng,null); }
 // Drag-to-reorder stops (desktop HTML5 DnD). The Optimize button covers reordering everywhere.
 let _lalaDragFrom=null;
 function _lalaDragStart(e,i){ _lalaDragFrom=i; try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(i)); }catch(_){} }
@@ -7520,22 +7567,16 @@ async function _lalaOptimize(){
 }
 // Correct a stop's map pin when auto-geocoding landed it wrong (e.g. Lalamove says
 // "out of service area"). Accepts a Google Maps link, "lat, lng", or a clearer address.
-async function _lalaEditStop(i){
+function _lalaEditStop(i){
   const e=_lala.run[i]; if(e==null) return;
   const s=_lalaResolve(e); if(!s) return;
-  const cur=(s.lat!=null)?(s.lat+', '+s.lng):(s.address||'');
-  const base=(s.address||cur);
-  const inp=prompt('Fix the location / address for "'+(s.title||'stop')+'".\nType a corrected address, or paste a Google Maps link or "lat, lng".', base);
-  if(inp===null) return;
-  const r=(typeof _resolveStart==='function') ? await _resolveStart(inp) : null;
-  if(!r){ toast('⚠ Could not locate that — try a clearer address, Google Maps link or lat,lng'); return; }
-  // Treat the input as a replacement address only when it's text (not a maps URL or bare coords).
-  const isUrl=/https?:\/\/|maps\.|goo\.gl/i.test(r.label), isCoords=!/[a-zA-Z]/.test(r.label);
-  const newAddr=(!isUrl && !isCoords) ? r.label : null;
-  if(e && e.manual){ e.lat=r.lat; e.lng=r.lng; if(newAddr) e.address=newAddr; }
-  else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=r.lat; o.lng=r.lng; if(newAddr) o.address=newAddr; if(typeof saveOrders==='function') saveOrders(o); } }
-  _lala.poly=null; _lala.polySig=null;
-  _lalaRenderPanel(); _lalaScheduleQuote();
+  _lalaPickLoc('Set location · '+(s.title||'stop'), (s.address||''), (lat,lng,addr)=>{
+    if(e && e.manual){ e.lat=lat; e.lng=lng; if(addr) e.address=addr; }
+    else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=lat; o.lng=lng; if(addr) o.address=addr; if(typeof saveOrders==='function') saveOrders(o); } }
+    _lala.poly=null; _lala.polySig=null;
+    _lalaRenderPanel(); _lalaScheduleQuote();
+    toast('✓ Location set');
+  });
 }
 function _lalaToggleAddon(id){ const bc=_lalaBridgeCode(); if(bc&&id===bc) _lala.bridgeTouched=true; if(_lala.addons.has(id)) _lala.addons.delete(id); else _lala.addons.add(id); _lalaRenderPanel(); _lalaScheduleQuote(); }
 async function _lalaGeocode(id){
@@ -8636,23 +8677,36 @@ function _drvMapInit(stops, routes, origin){
 // Geocode backfill: stops that have an address but no coordinates yet. One try per
 // order per session; the server (api/geo) needs GOOGLE_MAPS_API_KEY — without it we
 // flip _geoOff and the map shows a hint instead of pins.
+let _geoBusy = false;
 async function _geoBackfill(stops){
   const todo = stops.filter(o => _drvAddr(o) && (o.lat == null || o.lng == null) && !_geoTried.has(o.id)).slice(0, 30);
-  if (!todo.length || _geoOff) return;
-  todo.forEach(o => _geoTried.add(o.id));
-  let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+  if (!todo.length || _geoOff || _geoBusy) return;
+  _geoBusy = true;
+  const run = (token) => fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ items: todo.map(o => ({ id:String(o.id), address:_drvAddr(o) })), authToken: token }) });
   try {
-    const r = await fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ items: todo.map(o => ({ id:o.id, address:_drvAddr(o) })), authToken }) });
-    if (r.status === 501){ _geoOff = true; renderDriver(); return; }
+    let authToken=''; try { if(hasSB()){ const {data}=await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_){}
+    console.log('[geo] geocoding', todo.length, 'stop(s):', todo.map(o => _drvAddr(o)));
+    let r = await run(authToken);
+    if (r.status === 401){   // token expired/missing → refresh the session and retry once
+      console.warn('[geo] 401 Not authenticated — refreshing session token and retrying');
+      try { const rr = await sb.auth.refreshSession(); const t2 = rr?.data?.session?.access_token || ''; if (t2) r = await run(t2); } catch(_){}
+    }
+    if (r.status === 501){ _geoOff = true; console.warn('[geo] 501 — GOOGLE_MAPS_API_KEY not configured'); renderDriver(); return; }
+    if (!r.ok){ console.warn('[geo] HTTP', r.status, '— leaving stops un-tried so a later open retries'); return; }   // transient: allow retry
     const j = await r.json().catch(()=>({}));
-    const changed = [];
+    todo.forEach(o => _geoTried.add(o.id));   // mark tried only after a real response
+    const got = new Set(); const changed = [];
     (j.results||[]).forEach(res => {
-      const o = ORDERS.find(x => x.id === res.id);
-      if (o && res.lat != null){ o.lat = res.lat; o.lng = res.lng; changed.push(o); }
+      const o = ORDERS.find(x => String(x.id) === String(res.id));
+      if (o && res.lat != null){ o.lat = res.lat; o.lng = res.lng; changed.push(o); got.add(String(res.id)); }
     });
+    const unresolved = todo.filter(o => !got.has(String(o.id)));
+    if (unresolved.length) console.warn('[geo] Google could not resolve:', unresolved.map(o => _drvAddr(o)));
+    console.log('[geo] resolved', changed.length, 'of', todo.length, 'stop(s)');
     if (changed.length){ saveOrders(changed); renderDriver(); }
-  } catch(e){ console.warn('geo backfill', e && e.message); }
+  } catch(e){ console.warn('[geo] backfill error', e && e.message); }
+  finally { _geoBusy = false; }
 }
 
 // ── Driver GPS (auto-share while a route is active) ──────────────────────
