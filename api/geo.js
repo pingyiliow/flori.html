@@ -74,34 +74,37 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── Places autocomplete: type-ahead address suggestions (needs Places API enabled) ──
+  // ── Places autocomplete (Places API New): type-ahead address suggestions ──
   // body { mode:'autocomplete', input, sessionToken? } → { predictions:[{description, placeId}] }
   if (body.mode === 'autocomplete') {
     const input = String(body.input || '').trim();
     if (input.length < 3) return res.status(200).json({ predictions: [] });
     try {
-      const u = 'https://maps.googleapis.com/maps/api/place/autocomplete/json?input='
-        + encodeURIComponent(input) + '&components=country:my&language=en&key=' + KEY
-        + (body.sessionToken ? '&sessiontoken=' + encodeURIComponent(String(body.sessionToken)) : '');
-      const r = await fetch(u); const j = await r.json().catch(() => ({}));
-      if (j.status && j.status !== 'OK' && j.status !== 'ZERO_RESULTS') return res.status(200).json({ error: j.error_message || j.status, predictions: [] });
-      const predictions = (j.predictions || []).slice(0, 6).map(p => ({ description: p.description, placeId: p.place_id }));
+      const r = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': KEY },
+        body: JSON.stringify({ input, includedRegionCodes: ['my'], languageCode: 'en', sessionToken: body.sessionToken || undefined }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return res.status(200).json({ error: (j.error && j.error.message) || ('HTTP ' + r.status), predictions: [] });
+      const predictions = (j.suggestions || []).map(s => s.placePrediction).filter(Boolean).slice(0, 6)
+        .map(p => ({ description: (p.text && p.text.text) || (p.structuredFormat && p.structuredFormat.mainText && p.structuredFormat.mainText.text) || '', placeId: p.placeId }));
       return res.status(200).json({ predictions });
     } catch (e) { return res.status(200).json({ error: String(e && e.message || e), predictions: [] }); }
   }
-  // ── Place details: resolve a chosen suggestion to coordinates + a clean address ──
+  // ── Place details (Places API New): chosen suggestion → coordinates + a clean address ──
   // body { mode:'place', placeId, sessionToken? } → { lat, lng, address }
   if (body.mode === 'place') {
-    const pid = String(body.placeId || '').trim();
+    const pid = String(body.placeId || '').trim().replace(/^places\//, '');
     if (!pid) return res.status(400).json({ error: 'placeId required' });
     try {
-      const u = 'https://maps.googleapis.com/maps/api/place/details/json?place_id='
-        + encodeURIComponent(pid) + '&fields=geometry,formatted_address&language=en&key=' + KEY
-        + (body.sessionToken ? '&sessiontoken=' + encodeURIComponent(String(body.sessionToken)) : '');
-      const r = await fetch(u); const j = await r.json().catch(() => ({}));
-      const loc = j && j.result && j.result.geometry && j.result.geometry.location;
-      if (!loc || typeof loc.lat !== 'number') return res.status(200).json({ error: (j.error_message || j.status || 'no_geometry') });
-      return res.status(200).json({ lat: loc.lat, lng: loc.lng, address: (j.result.formatted_address || null) });
+      const u = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(pid) + '?languageCode=en'
+        + (body.sessionToken ? '&sessionToken=' + encodeURIComponent(String(body.sessionToken)) : '');
+      const r = await fetch(u, { headers: { 'X-Goog-Api-Key': KEY, 'X-Goog-FieldMask': 'location,formattedAddress' } });
+      const j = await r.json().catch(() => ({}));
+      const loc = j && j.location;
+      if (!loc || typeof loc.latitude !== 'number') return res.status(200).json({ error: (j.error && j.error.message) || 'no_geometry' });
+      return res.status(200).json({ lat: loc.latitude, lng: loc.longitude, address: (j.formattedAddress || null) });
     } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
   }
 
