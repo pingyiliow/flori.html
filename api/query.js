@@ -33,9 +33,16 @@ async function _lalaCall(method, endpoint, dataObj){
   return { status: r.status, ok: r.ok, body: j };
 }
 async function handleLalamove(res, L){
+  const op = L && L.op;
+  // Mode probe (no Lalamove call): live when a non-sandbox host is configured + keys present.
+  if (op === 'mode'){
+    const host = (process.env.LALAMOVE_HOST || '').toLowerCase();
+    const configured = !!(process.env.LALAMOVE_API_KEY && process.env.LALAMOVE_API_SECRET);
+    const live = configured && !!host && !host.includes('sandbox');
+    return res.status(200).json({ mode: live ? 'live' : 'sandbox', configured });
+  }
   if (!process.env.LALAMOVE_API_KEY || !process.env.LALAMOVE_API_SECRET) return res.status(501).json({ error: 'lalamove_not_configured' });
   try {
-    const op = L && L.op;
     if (op === 'cities') return res.status(200).json(await _lalaCall('GET', '/cities', null));
     if (op === 'quote')  return res.status(200).json(await _lalaCall('POST', '/quotations', L.data));
     if (op === 'place')  return res.status(200).json(await _lalaCall('POST', '/orders', L.data));

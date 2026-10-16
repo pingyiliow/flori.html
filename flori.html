@@ -7362,6 +7362,18 @@ async function _lalaLoadCities(){
   _lalaCitiesLoading=false;
   if(document.getElementById('_lalaOv')) _lalaRenderPanel();   // refresh add-ons once we have them
 }
+// LIVE vs SANDBOX mode (from the server's LALAMOVE_HOST) — shown as a badge so staff know
+// whether a booking dispatches a real courier.
+let _lalaMode = null;
+async function _lalaLoadMode(){
+  try{ const r=await _lalamoveApi({ op:'mode' }); if(r && r.mode){ _lalaMode=r.mode; if(document.getElementById('_lalaOv')) _lalaRenderPanel(); } }catch(_){}
+}
+function _lalaModeBadge(){
+  if(!_lalaMode) return '';
+  const live=_lalaMode==='live';
+  return '<span style="font-size:10px;font-weight:800;letter-spacing:.05em;border-radius:5px;padding:2px 7px;'
+    + (live?'background:#E1F5EE;color:#0F6E56':'background:#FAEEDA;color:#854F0B')+'">'+(live?'LIVE':'SANDBOX')+'</span>';
+}
 let _lala = { svc:'CAR', run:[], addons:new Set(), quote:null, busy:false, q:'', quoting:false, quoteErr:null, note:'' };
 let _lalaMap = null, _lalaQTimer = null, _lalaQSeq = 0;
 async function _lalamoveApi(payload){
@@ -7469,6 +7481,7 @@ function bookLalamove(preselectId){
   else _lala.run=(_lala.run||[]).filter(e => (e&&e.manual) || ok.has(e));
   _lalaRenderPanel();
   _lalaLoadCities();   // real add-on list for this market/vehicle
+  _lalaLoadMode();     // LIVE / SANDBOX badge
   if(preselectId){ const o=ORDERS.find(x=>x.id===preselectId); if(o&&(o.lat==null||o.lng==null)) _lalaGeocode(preselectId); }
   if(_lala.run.length) _lalaScheduleQuote();
 }
@@ -7620,7 +7633,7 @@ function _lalaCardHTML(){
       }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:2px 0 4px">No add-ons for this vehicle.</div>');
   const lbl='font-size:11.5px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px';
   return ''
-    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">New delivery run (Lalamove)</div><div style="font-size:12px;color:var(--c-muted);margin-top:1px">Combine stops into one trip</div></div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head);display:flex;align-items:center;gap:8px">New delivery run (Lalamove) '+_lalaModeBadge()+'</div><div style="font-size:12px;color:var(--c-muted);margin-top:1px">Combine stops into one trip</div></div>'
     + '<button type="button" onclick="_lalaClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
     + '<div id="_lalaMap" style="height:180px;background:var(--c-bg)"></div>'
     + '<div style="padding:14px 18px 18px">'
@@ -7800,7 +7813,7 @@ function manageLalamove(orderId){
   if(!lid){ toast('No Lalamove booking on this order'); return; }
   if(o && !o.lalamoveOrderId) o.lalamoveOrderId=lid;   // rehydrate from localStorage
   _lalaMng={ id:lid, orderId, label:(o&&o.name)||'', data:null, driver:null, busy:false };
-  _lalaMngRender(); _lalaMngRefresh();
+  _lalaMngRender(); _lalaMngRefresh(); _lalaLoadMode();
 }
 function _lalaMngClose(){ const ov=document.getElementById('_lalaMngOv'); if(ov) ov.remove(); }
 async function _lalaMngRefresh(){
@@ -7852,7 +7865,7 @@ function _lalaMngRender(){
   if(drv && canCancel) acts+=btn('Change driver','_lalaMngChangeDriver()',ghost);
   if(canCancel) acts+=btn('Cancel order','_lalaMngCancel()','border:none;background:#B3261E;color:#fff');
   ov.innerHTML='<div style="background:var(--c-surface,#fff);border-radius:16px;max-width:400px;width:100%;margin:auto;overflow:hidden">'
-    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head)">Lalamove delivery</div>'+(_lalaMng.label?'<div style="font-size:12px;color:var(--c-muted);margin-top:1px">'+esc(_lalaMng.label)+'</div>':'')+'</div>'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px"><div><div style="font-size:16px;font-weight:800;font-family:var(--f-head);display:flex;align-items:center;gap:8px">Lalamove delivery '+_lalaModeBadge()+'</div>'+(_lalaMng.label?'<div style="font-size:12px;color:var(--c-muted);margin-top:1px">'+esc(_lalaMng.label)+'</div>':'')+'</div>'
     + '<button type="button" onclick="_lalaMngClose()" aria-label="Close" style="border:none;background:none;cursor:pointer;color:var(--c-muted);padding:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'
     + '<div style="padding:0 18px 18px">'+body
     + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">'+acts+'</div></div></div>';
