@@ -3098,11 +3098,20 @@ function filteredOrders() {
   const thirtyDaysAgo = new Date(t0.getTime() - 30*86400000);
   // Search — bypass ALL filters, search everything
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
-  if (srch) return ORDERS.filter(o =>
-    (o.name||'').toLowerCase().includes(srch) ||
-    (o.customer||'').toLowerCase().includes(srch) ||
-    (o.product||'').toLowerCase().includes(srch)
-  );
+  if (srch) {
+    // If the query looks like a phone number, match on digits so a manual customer can be
+    // pulled up (and totalled) by their number regardless of formatting.
+    const srchDigits = srch.replace(/\D/g,'');
+    const phoneHit = srchDigits.length >= 4
+      ? o => [o.custPhone, o.recipPhone, o.contact, o.phone].some(p => p && String(p).replace(/\D/g,'').includes(srchDigits))
+      : () => false;
+    return ORDERS.filter(o =>
+      (o.name||'').toLowerCase().includes(srch) ||
+      (o.customer||'').toLowerCase().includes(srch) ||
+      (o.product||'').toLowerCase().includes(srch) ||
+      phoneHit(o)
+    );
+  }
 
   let list = ORDERS;
 
@@ -3607,6 +3616,46 @@ function renderHome() {
   if (fw) fw.innerHTML = fuPending ? `<div class="h-fualert" onclick="goPage('followup')"><div class="h-fualert-dot"></div><div class="h-fualert-txt">${fuPending} follow-up${fuPending===1?'':'s'} need attention</div><div class="h-fualert-cnt">${fuPending}</div></div>` : '';
 }
 
+// When the order search is active, sum the matched orders BY CUSTOMER so staff can see
+// what a walk-in / manual (e.g. cake) customer's orders add up to — without building an
+// invoice and even though the order isn't in Shopify or a CRM profile. orderTotal()
+// already handles manual price vs line-item totals; orders with no price set are counted
+// separately so the total is never silently understated.
+function _custSearchSummary(list){
+  if(!list.length) return '';
+  const groups = [];
+  let noPrice = 0;
+  list.forEach(o => {
+    const nm = (o.customer||o.name||'').trim() || 'Unknown';
+    const k = nm.toLowerCase();
+    let g = groups.find(x=>x.k===k); if(!g){ g={k, name:nm, n:0, sum:0, missing:0}; groups.push(g); }
+    g.n++;
+    const t = orderTotal(o);
+    if(t!=null) g.sum += t; else { g.missing++; noPrice++; }
+  });
+  groups.sort((a,b)=> b.sum - a.sum || b.n - a.n);
+  const grand = groups.reduce((s,g)=>s+g.sum,0);
+  const rm = n => 'RM '+Number(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const miss = m => m ? ` <span style="color:var(--c-amber)">· ${m} no price</span>` : '';
+  const nOrders = list.length, single = groups.length === 1;
+  let rows = '';
+  if(!single){
+    rows = '<div style="margin-top:10px;display:flex;flex-direction:column;gap:2px">' +
+      groups.map(g=>`<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0;border-top:1px solid var(--c-border)"><span style="color:var(--c-ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.name)} <span style="color:var(--c-muted)">· ${g.n}</span></span><span style="font-weight:700;color:var(--c-burg);white-space:nowrap">${rm(g.sum)}${miss(g.missing)}</span></div>`).join('') +
+      '</div>';
+  }
+  const headLabel = single
+    ? `${esc(groups[0].name)} · ${nOrders} order${nOrders===1?'':'s'}${miss(groups[0].missing)}`
+    : `${nOrders} order${nOrders===1?'':'s'} · ${groups.length} customers${noPrice?` · ${noPrice} no price`:''}`;
+  return `<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:12px 14px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+      <div style="text-transform:uppercase;letter-spacing:.06em;font-size:10px;color:var(--c-muted)">${single?'Customer total':'Matched total'}</div>
+      <div style="font-family:var(--f-head);font-size:20px;font-weight:700;color:var(--c-burg)">${rm(grand)}</div>
+    </div>
+    <div style="font-size:12px;color:var(--c-ink);margin-top:2px">${headLabel}</div>
+    ${rows}
+  </div>`;
+}
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   const list = sortedOrders(filteredOrders());
@@ -3620,7 +3669,7 @@ function renderOrders() {
     tb.innerHTML = `<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('grid',34)}</div><div class="empty-txt">${srch ? 'No orders match "'+esc(srch)+'"' : 'No orders — sync or add manually'}</div></div>`;
     return;
   }
-  let html = '';
+  let html = srch ? _custSearchSummary(list) : '';
   if (prodMode) {
     // Production mode: split each order into per-product units and group by product so the
     // same item across orders is batch-made. Biggest batches first; within a batch by date.
