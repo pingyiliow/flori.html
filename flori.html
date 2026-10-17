@@ -487,12 +487,8 @@
           <button type="button" id="o-chan-wa" class="oseg on" onclick="oSetChannel('whatsapp')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.15c-1.52 0-3.01-.41-4.3-1.18l-.31-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23 0 4.54-3.69 8.44-8.24 8.44zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg> WhatsApp</button>
           <button type="button" id="o-chan-ig" class="oseg" onclick="oSetChannel('instagram')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg> Instagram</button>
         </div>
-        <div class="ff" style="position:relative;margin-bottom:8px">
-          <input id="o-cust-search" type="text" placeholder="Search existing — phone, name or email…" autocomplete="off" oninput="oCustSearch(this.value)">
-          <div id="o-cust-sug" class="rcp-sug" style="display:none"></div>
-        </div>
         <div class="fg fg-2">
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Name"></div>
+          <div class="ff" style="grid-column:1/-1;position:relative"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Type name — search existing or add new…" autocomplete="off" oninput="oCustSearch(this.value)"><div id="o-cust-sug" class="rcp-sug" style="display:none"></div></div>
           <div class="ff"><label class="ff-l">WhatsApp number <span id="o-phone-req" style="color:var(--c-red)">*</span></label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
           <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
           <div class="ff" style="grid-column:1/-1;display:none" id="o-ig-wrap"><label class="ff-l">Instagram username <span style="color:var(--c-red)">*</span></label><input id="o-cust-ig" type="text" placeholder="@username"></div>
@@ -10265,12 +10261,15 @@ function oCustSearch(val){
 function oCustPick(i){
   const c=_oCustResults[i]; if(!c) return;
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v||''; };
+  // Choosing an existing profile = copy its details in. Association stays by name/phone
+  // (how the CRM already matches orders); nothing links by name alone, so the same name
+  // with a different number is simply a different customer.
   set('o-cust', c.name); set('o-cust-phone', c.phone); set('o-cust-email', c.email);
   const sum=document.getElementById('o-cust-summary'); if(sum) sum.textContent=c.name||'Customer details';
   const sug=document.getElementById('o-cust-sug'); if(sug){ sug.style.display='none'; sug.innerHTML=''; }
-  const srch=document.getElementById('o-cust-search'); if(srch) srch.value='';
+  if(c.phone){ const ph=document.getElementById('o-cust-phone'); if(ph) ph.focus(); }
 }
-document.addEventListener('click', e=>{ if(e.target.closest('#o-cust-search')||e.target.closest('#o-cust-sug')) return; const s=document.getElementById('o-cust-sug'); if(s&&s.style.display!=='none'){ s.style.display='none'; } });
+document.addEventListener('click', e=>{ if(e.target.closest('#o-cust')||e.target.closest('#o-cust-sug')) return; const s=document.getElementById('o-cust-sug'); if(s&&s.style.display!=='none'){ s.style.display='none'; } });
 // Show/hide the "Track Lalamove" open-link under the input as it's typed/loaded.
 function _oLalaSync(){
   const inp=document.getElementById('o-lala'), a=document.getElementById('o-lala-open'); if(!inp||!a) return;
@@ -10307,7 +10306,8 @@ function _fuFulfilSet(v){
   const aw=document.getElementById('fu-addr-wrap'); if(aw) aw.style.display = pk ? 'none' : '';
 }
 function openAddOrder(){
-  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig','o-cust-search'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const _ty=document.getElementById('o-type'); if(_ty) _ty.value='delivery';
   oSetChannel('whatsapp');
   _oLalaSync(); _oTypeChange();
@@ -11106,7 +11106,7 @@ function editOrder(id) {
   const ceEl=document.getElementById('o-cust-email'); if(ceEl) ceEl.value=o.custEmail||'';
   const igEl=document.getElementById('o-cust-ig'); if(igEl) igEl.value=o.custIg||'';
   oSetChannel(o.channel||'whatsapp');
-  const csEl=document.getElementById('o-cust-search'); if(csEl) csEl.value='';
+  const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const sumEl=document.getElementById('o-cust-summary'); if(sumEl) sumEl.textContent=o.customer||'Customer details';
   toggleOrderCust(!!(o.customer||o.manualAddr||o.lalamoveUrl));   // expand if there's customer info to show
   document.getElementById('o-num').value=o.name||'';
