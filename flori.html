@@ -9664,9 +9664,8 @@ function renderCustomerProfile(c, prefs, notes){
   _custEmails = (Array.isArray(c.emails)?c.emails:[]).filter(e => e && e.trim() && e.trim().toLowerCase() !== (c.email||'').trim().toLowerCase());
   const created = c.created_at ? fd(new Date(c.created_at)) : '–';
   const wa = c.phone ? waLink(c.phone) : '';
-  // recent orders matched from the local list by customer name (best effort)
-  const recent = ORDERS.filter(o => (o.customer||'').trim().toLowerCase() === (c.name||'').trim().toLowerCase())
-    .sort((a,b)=>(b.dateObj?+b.dateObj:0)-(a.dateObj?+a.dateObj:0)).slice(0,5);
+  // Local order history (INCLUDES manual orders) — matched by phone first, else name.
+  const localRows = _custLocalRows(c);
   const ckey = _normPhone(c.phone);
   const fuLinks = ckey ? (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(f => _normPhone(f.contact)===ckey || _normPhone(f.recipPhone)===ckey) : [];
   const money = n => n!=null ? 'RM '+Number(n).toFixed(2) : '–';
@@ -9765,8 +9764,9 @@ function renderCustomerProfile(c, prefs, notes){
       ${fuLinks.map(f=>`<div class="dp-fl"><div class="dp-fl-ico">${srcIcon(f.channel,16)||di('phone',15)}</div><div style="flex:1"><div class="dp-fl-val">${esc(SRC_LABELS[f.channel]||f.channel||'Other')}${f.orderNo?' · '+esc(f.orderNo):''}</div><div class="dp-fl-lbl">${esc(f.status||'pending')}${f.dueDate?' · '+esc(f.dueDate):''}</div></div></div>`).join('')}` : ''}
 
     <div class="dp-section-ttl" style="margin-top:20px">Order history</div>
-    <div id="cust-orders">${recent.length ? recent.map(o=>_custOrderRow(o.name,o.product,o.dateObj?fd(o.dateObj):(o.dueDate||''),o.total)).join('')
-      : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No matching orders</div>')}</div>
+    <div id="cust-orders">${localRows.length
+      ? localRows.map(_custOrderRowU).join('') + (c.shopify_customer_id?'<div id="cust-ord-more" style="font-size:10px;color:var(--c-muted);padding:5px 2px">Checking Shopify for older orders…</div>':'')
+      : (c.shopify_customer_id?'<div style="font-size:11px;color:var(--c-muted)">Loading from Shopify…</div>':'<div style="font-size:11px;color:var(--c-muted)">No orders yet</div>')}</div>
 
     <div style="border-top:1px solid var(--c-border);margin:26px 0 12px"></div>
     <button class="btn btn-sm" style="background:none;border:1.5px solid #e0a8a0;color:var(--c-red);font-size:11px;padding:7px 14px" onclick="deleteCustomer('${c.id}')">${di('trash',12)} Delete this customer</button>
@@ -9776,24 +9776,92 @@ function renderCustomerProfile(c, prefs, notes){
   if (c.shopify_customer_id) loadCustomerOrders(c);   // accurate history, live from Shopify
 }
 function _custOrderRow(name, product, date, total, src){
-  return `<div class="dp-fl"><div class="dp-fl-ico">${di('flower',16)}</div><div style="flex:1"><div class="dp-fl-val">${esc(name||'')} · ${esc(product||'')}</div><div class="dp-fl-lbl">${esc(date||'')}${total?' · RM '+Number(total).toFixed(2):''}${src?' · '+esc(src):''}</div></div></div>`;
+  return `<div class="dp-fl"><div class="dp-fl-ico">${di('flower',16)}</div><div style="flex:1"><div class="dp-fl-val">${esc(name||'')} · ${esc(product||'')}</div><div class="dp-fl-lbl">${esc(date||'')}${total!=null?' · RM '+Number(total).toFixed(2):''}${src?' · '+esc(src):''}</div></div></div>`;
 }
-// Pull the customer's real order history from Shopify by customer id.
+// Normalised order number — the dedupe key between local orders and Shopify history.
+function _onum(s){ return String(s||'').replace(/[^a-z0-9]/gi,'').toLowerCase(); }
+// Local orders belonging to this customer, INCLUDING manual ones. Match by phone first
+// (same number = same customer); fall back to an exact name match only when there's no
+// phone to contradict it, so a same-name / different-number person isn't lumped in.
+function _custMatchedLocalOrders(c){
+  const cph=_normPhone(c.phone), cname=(c.name||'').trim().toLowerCase();
+  return ORDERS.filter(o=>{
+    const oph=_normPhone(o.custPhone);
+    if(cph && oph && oph===cph) return true;
+    if(cname && (o.customer||'').trim().toLowerCase()===cname && (!cph || !oph)) return true;
+    return false;
+  });
+}
+// Unified history rows from local orders (manual price aware via orderTotal), newest first.
+function _custLocalRows(c){
+  return _custMatchedLocalOrders(c).map(o=>({
+    name:o.name||'',
+    product:o.product || ((o.lineItems||[]).map(i=>i&&i.title).filter(Boolean).join(', ')) || '',
+    dateMs:o.dateObj?+o.dateObj:(o.dueDate?(+pd(o.dueDate)||0):0),
+    dateLbl:o.dateObj?fd(o.dateObj):(o.dueDate||''),
+    total:orderTotal(o),
+    src:o.src==='shopify'?'Online':'Manual'
+  })).sort((a,b)=>b.dateMs-a.dateMs);
+}
+function _custOrderRowU(r){ return _custOrderRow(r.name, r.product, r.dateLbl, r.total, r.src); }
+// Pull the customer's real order history from Shopify, then MERGE it with the local rows
+// (so manual orders never get wiped out), de-duped by order number and sorted newest-first.
 async function loadCustomerOrders(c){
+  const el = document.getElementById('cust-orders');
+  const localRows = _custLocalRows(c);
+  const seen = new Set(localRows.map(r=>_onum(r.name)));
   try {
     const gid = `gid://shopify/Customer/${c.shopify_customer_id}`;
-    const q = `{ customer(id:"${gid}"){ orders(first:10, sortKey:CREATED_AT, reverse:true){ edges{ node{ name createdAt displayFulfillmentStatus sourceName currentTotalPriceSet{ shopMoney{ amount } } lineItems(first:5){ edges{ node{ title } } } } } } } }`;
+    const q = `{ customer(id:"${gid}"){ orders(first:25, sortKey:CREATED_AT, reverse:true){ edges{ node{ name createdAt displayFulfillmentStatus sourceName currentTotalPriceSet{ shopMoney{ amount } } lineItems(first:5){ edges{ node{ title } } } } } } } }`;
     const data = await shopifyGQL(q);
     const edges = data && data.customer && data.customer.orders && data.customer.orders.edges || [];
-    const el = document.getElementById('cust-orders'); if (!el) return;
-    if (!edges.length){ el.innerHTML = '<div style="font-size:11px;color:var(--c-muted)">No orders found</div>'; return; }
-    el.innerHTML = edges.map(e=>{
+    if (!el) return;
+    const shopRows = edges.map(e=>{
       const n=e.node;
       const products=(n.lineItems&&n.lineItems.edges||[]).map(x=>x.node.title).join(', ');
       const src = /draft/i.test(n.sourceName||'') ? 'Draft' : (n.sourceName ? 'Online' : '');
-      return _custOrderRow(n.name, products, n.createdAt?fd(new Date(n.createdAt)):'', n.currentTotalPriceSet&&n.currentTotalPriceSet.shopMoney&&n.currentTotalPriceSet.shopMoney.amount, src);
-    }).join('');
-  } catch(e){ /* keep the local fallback already shown */ console.warn('loadCustomerOrders', e && e.message); }
+      const amt = n.currentTotalPriceSet&&n.currentTotalPriceSet.shopMoney&&n.currentTotalPriceSet.shopMoney.amount;
+      return { name:n.name||'', product:products, dateMs:n.createdAt?+new Date(n.createdAt):0, dateLbl:n.createdAt?fd(new Date(n.createdAt)):'', total:(amt!=null?Number(amt):null), src };
+    }).filter(r=>!seen.has(_onum(r.name)));   // skip any Shopify order already shown from local
+    const combined = localRows.concat(shopRows).sort((a,b)=>b.dateMs-a.dateMs);
+    el.innerHTML = combined.length ? combined.map(_custOrderRowU).join('')
+      : '<div style="font-size:11px;color:var(--c-muted)">No orders found</div>';
+  } catch(e){
+    // Shopify fetch failed — keep the local rows (incl. manual) already on screen.
+    const more=document.getElementById('cust-ord-more'); if(more) more.remove();
+    console.warn('loadCustomerOrders', e && e.message);
+  }
+}
+// From an order's detail panel → jump to this customer's CRM profile. Match by phone
+// first (in-memory, then a server lookup since the list is paged), else by name. If no
+// profile exists yet, land on Customers with the search pre-filled so staff can add them.
+async function dpOpenCustomerCrm(orderId){
+  const o = ORDERS.find(x=>String(x.id)===String(orderId));
+  const name = (o && o.customer || '').trim();
+  const phone = (o && o.custPhone || '').trim();
+  const cph = _normPhone(phone);
+  if(typeof closeDP==='function') closeDP();
+  goPage('customers');
+  const byPhone = c => cph && _normPhone(c.phone)===cph;
+  const byName  = c => name && (c.name||'').trim().toLowerCase()===name.toLowerCase();
+  let hit = (cph && CUSTOMERS.find(byPhone)) || (name && CUSTOMERS.find(byName)) || null;
+  if(!hit && hasSB() && (cph || name)){
+    try{
+      const or=[];
+      if(cph) or.push(`phone.ilike.%${cph.slice(-8)}%`);
+      if(name) or.push(`name.ilike.%${name.replace(/[%,()]/g,' ')}%`);
+      const { data } = await sb.from('customers').select('*').or(or.join(',')).limit(6);
+      const rows = data||[];
+      hit = rows.find(byPhone) || (name?rows.find(byName):null) || (rows.length===1?rows[0]:null);
+      if(hit && !CUSTOMERS.some(c=>c.id===hit.id)) CUSTOMERS.unshift(hit);
+    }catch(e){ console.warn('dpOpenCustomerCrm lookup', e&&e.message); }
+  }
+  // Let goPage's list render settle first, then open the profile (or prefill the search).
+  setTimeout(()=>{
+    if(hit){ openCustomer(hit.id); return; }
+    const s=document.getElementById('cust-search'); if(s){ s.value = phone||name; if(typeof custSearchInput==='function') custSearchInput(); }
+    toast('No CRM profile yet — search or add this customer');
+  }, 60);
 }
 
 async function saveCustomerProfile(id){
@@ -11844,9 +11912,9 @@ function _renderDP(order, localOrder) {
   html += `<div>
     <div class="dp-section-ttl">Customer</div>
     <div class="dp-cust">
-      <div class="dp-cust-av">${esc((custName.charAt(0)||'?').toUpperCase())}</div>
+      <div class="dp-cust-av" onclick="dpOpenCustomerCrm('${localOrder&&localOrder.id}')" style="cursor:pointer" title="Open in CRM">${esc((custName.charAt(0)||'?').toUpperCase())}</div>
       <div style="min-width:0">
-        <div class="dp-cust-name">${esc(custName)}${localOrder&&localOrder.channel==='instagram'?' <span style="font-size:10px;font-weight:700;color:#C13584;border:1px solid #E7B7D2;border-radius:4px;padding:0 5px;vertical-align:1px">IG</span>':''}</div>
+        <div class="dp-cust-name" onclick="dpOpenCustomerCrm('${localOrder&&localOrder.id}')" style="cursor:pointer" title="Open in CRM">${esc(custName)}${localOrder&&localOrder.channel==='instagram'?' <span style="font-size:10px;font-weight:700;color:#C13584;border:1px solid #E7B7D2;border-radius:4px;padding:0 5px;vertical-align:1px">IG</span>':''} <span style="color:var(--c-burg);font-weight:700">›</span></div>
         ${phone ? `<div style="margin-top:2px">${waLink(phone)}</div>` : ''}
         ${email ? `<div style="font-size:11px;color:var(--c-muted)">${di('mail',12)} ${esc(email)}</div>` : ''}
         ${(localOrder&&localOrder.channel==='instagram'&&localOrder.custIg)?`<div style="font-size:11.5px;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap"><a href="https://instagram.com/${encodeURIComponent(localOrder.custIg)}" target="_blank" rel="noopener" style="color:#C13584;font-weight:600;text-decoration:none">@${esc(localOrder.custIg)}</a><span style="color:var(--c-border2)">·</span><a onclick="goPage('followup')" style="color:var(--c-burg);cursor:pointer;text-decoration:underline">check follow-ups</a></div>`:''}
