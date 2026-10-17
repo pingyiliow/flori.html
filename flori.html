@@ -3121,8 +3121,14 @@ function filteredOrders() {
     // This calendar week (Mon–Sun) — includes earlier this week so Overdue can surface.
     const dow=t0.getDay(), mon=new Date(t0.getTime()-((dow+6)%7)*86400000), nextMon=new Date(mon.getTime()+7*86400000);
     list = list.filter(o => o.dateObj && o.dateObj >= mon && o.dateObj < nextMon);
+  } else if (orderFilter === 'all') {
+    // "All" = the upcoming queue: today + everything in the future, plus any past order
+    // that's still unfulfilled (overdue) so nothing needing action gets hidden. Past
+    // COMPLETED orders are left out to kill the clutter — view them with the Done filter
+    // (which lifts this restriction) or by picking a specific date on the calendar.
+    if (statusFilter === 'all')
+      list = list.filter(o => !o.dateObj || o.dateObj >= t0 || !o.fulfilled);
   }
-  // 'all' → no time filter (every loaded order)
 
   // ── STATUS dimension (filter bar) ──
   if (statusFilter === 'pending')      list = list.filter(o => !o.fulfilled && !o.ready);
