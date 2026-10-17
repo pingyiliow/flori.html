@@ -3652,8 +3652,30 @@ function _custSearchSummary(list){
     ${rows}
   </div>`;
 }
+// The order search only sees orders loaded in memory, and the app loads just a recent
+// window (sbGetRecentOrders). So searching for an old/fulfilled order (e.g. a customer's
+// order from months ago) found nothing and the customer total was understated. When a
+// search is active we also query the DB for ALL matching orders across every date and
+// merge them in, so the full history shows and the consolidated total is complete.
+let _ordSrchTimer=null, _ordSrchLast='';
+function _orderSearchFetchDebounced(srch){ if(!hasSB()) return; clearTimeout(_ordSrchTimer); _ordSrchTimer=setTimeout(()=>_orderSearchFetch(srch), 350); }
+async function _orderSearchFetch(srch){
+  const q=(srch||'').trim(); if(q.length<3 || !hasSB()) return;
+  if(q.toLowerCase()===_ordSrchLast) return;   // already pulled this term this session
+  _ordSrchLast=q.toLowerCase();
+  try{
+    const safe=q.replace(/[%,()]/g,' ');
+    const digits=q.replace(/\D/g,'');
+    const ors=[`customer.ilike.%${safe}%`,`name.ilike.%${safe}%`,`product.ilike.%${safe}%`];
+    if(digits.length>=4){ const tail=digits.slice(-8); ors.push(`cust_phone.ilike.%${tail}%`); ors.push(`recip_phone.ilike.%${tail}%`); }
+    const { data, error } = await sb.from('orders').select(ORDER_COLS).or(ors.join(',')).limit(400);
+    if(error){ console.warn('order search fetch', error.message); return; }
+    if(_mergeDbOrders(data||[])){ saveOrders(); const cur=(document.getElementById('order-search')?.value||'').trim().toLowerCase(); if(cur===q.toLowerCase()) renderOrders(); }
+  }catch(e){ console.warn('order search fetch', e&&e.message); }
+}
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
+  if (srch && srch.length>=3) _orderSearchFetchDebounced(srch);
   const list = sortedOrders(filteredOrders());
   const tb = document.getElementById('orders-list');
   const allF = srch ? ORDERS : filteredOrders();
