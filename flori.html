@@ -5649,7 +5649,7 @@ function _fuRecalcTotals(){
 function _fuItemRowHTML(i,it){
   return `<div class="fu-item-row" id="furow-${i}" onfocusin="_fuActiveItem=${i}" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="fuItemDrop(event,${i})">
     <div style="display:flex;gap:8px;align-items:flex-start">
-      <input id="funame-${i}" type="text" value="${esc(it.name||'')}" placeholder="e.g. Sweet Bow Cake 6inch · RM218" oninput="if(_fuItems[${i}])_fuItems[${i}].name=this.value" onfocus="_fuActiveItem=${i}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
+      <input id="funame-${i}" type="text" value="${esc(it.name||'')}" placeholder="Product / item name — e.g. Sweet Bow Cake 6inch" oninput="if(_fuItems[${i}])_fuItems[${i}].name=this.value" onfocus="_fuActiveItem=${i}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
       <button type="button" onclick="fuRemoveItem(${i})" title="Remove item" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div style="display:flex;gap:6px;align-items:center;margin-top:7px">
