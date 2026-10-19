@@ -1023,8 +1023,6 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <div class="ff"><label class="ff-l">Order Channel</label>
             <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="shopify">Shopify</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
           </div>
-          <div class="ff"><label class="ff-l">Amount (RM)</label><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="ff"><label class="ff-l">Delivery Fee (RM)</label><input id="fu-fee" type="number" min="0" step="0.01" placeholder="0.00"></div>
           <div class="ff"><label class="ff-l">Payment</label>
             <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
           </div>
@@ -1042,6 +1040,14 @@ Address: 12 Jalan Bunga, Penang"></textarea>
             </div>
             <div id="fu-items-list" onpaste="fuItemsPaste(event)"></div>
             <input type="hidden" id="fu-photo-b64">
+          </div>
+          <div class="ff" style="grid-column:1/-1">
+            <div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);background:var(--c-surface);padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;justify-content:space-between;align-items:center"><label for="fu-amount" style="font-size:12px;color:var(--c-ink);margin:0">Amount <span style="color:var(--c-muted);font-weight:400">(items)</span></label><span style="display:flex;align-items:center;gap:4px"><span style="font-size:11px;color:var(--c-muted)">RM</span><input id="fu-amount" type="number" min="0" step="0.01" placeholder="0.00" oninput="_fuAmountManual=true;_fuRecalcTotals()" style="width:100px;text-align:right;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;font-weight:600;color:var(--c-ink);outline:none;background:var(--c-surface)"></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center"><label for="fu-fee" style="font-size:12px;color:var(--c-ink);margin:0">Delivery fee</label><span style="display:flex;align-items:center;gap:4px"><span style="font-size:11px;color:var(--c-muted)">RM</span><input id="fu-fee" type="number" min="0" step="0.01" placeholder="0.00" oninput="_fuRecalcTotals()" style="width:100px;text-align:right;padding:6px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)"></span></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--c-border);padding-top:8px"><span style="font-size:13px;font-weight:700;color:var(--c-ink)">Total</span><span id="fu-grandtotal" style="font-size:15px;font-weight:700;color:var(--c-burg)">RM 0.00</span></div>
+              <div style="font-size:10px;color:var(--c-muted)">Amount auto-sums the items above — edit to override. Total = amount + delivery.</div>
+            </div>
           </div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes for the whole order…"></textarea></div>
           <input type="hidden" id="fu-notes">
@@ -5165,7 +5171,8 @@ function _fuClearFields() {
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
   _fuFulfilSet('delivery');
   const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
-  _fuItems = [{ name:'', images:[] }]; _fuActiveItem = 0; fuRenderItems();   // reset product rows
+  _fuAmountManual = false;
+  _fuItems = [{ name:'', images:[], price:'', qty:1 }]; _fuActiveItem = 0; fuRenderItems();   // reset product rows
 }
 
 
@@ -5538,7 +5545,13 @@ function editFollowup(id) {
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const fe = document.getElementById('fu-fee');        if(fe) fe.value = f.deliveryFee||'';
   const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
-  _fuLoadItems(f);   // rebuild the multi-item product rows (names, photos, per-item card/flower)
+  _fuAmountManual = true;   // protect the saved Amount while items load
+  _fuLoadItems(f);   // rebuild the multi-item product rows (names, photos, per-item card/flower, price/qty)
+  // If the saved Amount is just the auto value (items + fee), keep it auto-live; if it's a
+  // manual override — or there are no priced items (legacy) — leave it protected.
+  { const _sub=_fuItems.reduce((s,it)=>{const p=parseFloat(it.price);return s+((!isNaN(p)&&p>0)?p*(parseInt(it.qty)||1):0);},0);
+    const _saved=parseFloat(f.amount)||0;
+    if(_sub>0 && Math.abs(_saved-_sub)<0.01){ _fuAmountManual=false; } _fuRecalcTotals(); }
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
@@ -5611,12 +5624,40 @@ function fuRenderItems(){
   c.innerHTML = _fuItems.map((it,i)=>_fuItemRowHTML(i,it)).join('') +
     `<button type="button" onclick="fuAddItem()" style="margin-top:2px;font-size:12px;color:var(--c-burg);background:none;border:none;cursor:pointer;font-weight:600;padding:4px 0">+ Add item</button>`;
   _fuItems.forEach((_,i)=>fuRenderItemPhotos(i));
+  _fuRecalcTotals();
+}
+let _fuAmountManual = false;   // true once staff type in Amount (or a saved override is detected) → stop auto-overwriting
+// Items subtotal + delivery fee → Amount, auto-calculated. Amount stays editable: a manual
+// edit sets _fuAmountManual and we stop overwriting. With no priced items (legacy records)
+// we never touch the saved Amount.
+function _fuRecalcTotals(){
+  _fuItemsEnsure();
+  let subtotal=0, hasPriced=false;
+  _fuItems.forEach((it,i)=>{
+    const p=parseFloat(it.price), q=parseInt(it.qty)||1;
+    const line=(!isNaN(p)&&p>0)?p*q:0;
+    if(!isNaN(p)&&p>0) hasPriced=true;
+    subtotal+=line;
+    const el=document.getElementById('fuline-'+i); if(el) el.textContent='RM '+line.toFixed(2);
+  });
+  const amtEl=document.getElementById('fu-amount');
+  if(amtEl && hasPriced && !_fuAmountManual) amtEl.value=subtotal.toFixed(2);   // Amount = items only
+  const amount=parseFloat(amtEl&&amtEl.value)||0;
+  const fee=parseFloat((document.getElementById('fu-fee')||{}).value)||0;
+  const gt=document.getElementById('fu-grandtotal'); if(gt) gt.textContent='RM '+(amount+fee).toFixed(2);   // Total = amount + delivery
 }
 function _fuItemRowHTML(i,it){
   return `<div class="fu-item-row" id="furow-${i}" onfocusin="_fuActiveItem=${i}" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="fuItemDrop(event,${i})">
     <div style="display:flex;gap:8px;align-items:flex-start">
       <input id="funame-${i}" type="text" value="${esc(it.name||'')}" placeholder="e.g. Sweet Bow Cake 6inch · RM218" oninput="if(_fuItems[${i}])_fuItems[${i}].name=this.value" onfocus="_fuActiveItem=${i}" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;background:var(--c-surface);color:var(--c-ink)">
       <button type="button" onclick="fuRemoveItem(${i})" title="Remove item" style="width:26px;height:26px;border:1.5px solid var(--c-border);border-radius:var(--r);color:var(--c-muted);background:transparent;cursor:pointer;flex-shrink:0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:7px">
+      <div style="display:flex;align-items:center;gap:4px;border:1.5px solid var(--c-border);border-radius:var(--r);padding:4px 8px;background:var(--c-surface);flex:1"><span style="font-size:10px;color:var(--c-muted)">RM</span><input id="fuprice-${i}" type="number" min="0" step="0.01" value="${it.price!=null&&it.price!==''&&!isNaN(parseFloat(it.price))?parseFloat(it.price).toFixed(2):''}" placeholder="Unit price" oninput="if(_fuItems[${i}])_fuItems[${i}].price=this.value;_fuRecalcTotals()" onfocus="_fuActiveItem=${i}" style="border:none;outline:none;background:transparent;font-size:12px;width:100%;color:var(--c-ink)"></div>
+      <span style="font-size:11px;color:var(--c-muted)">&times;</span>
+      <input id="fuqty-${i}" type="number" min="1" value="${parseInt(it.qty)||1}" oninput="if(_fuItems[${i}])_fuItems[${i}].qty=this.value;_fuRecalcTotals()" onfocus="_fuActiveItem=${i}" style="width:50px;padding:5px 6px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;text-align:center;outline:none;background:var(--c-surface);color:var(--c-ink)">
+      <span style="font-size:11px;color:var(--c-muted)">=</span>
+      <span id="fuline-${i}" style="font-size:12px;font-weight:600;color:var(--c-ink);min-width:70px;text-align:right">RM ${(((parseFloat(it.price)||0)*(parseInt(it.qty)||1))||0).toFixed(2)}</span>
     </div>
     <div id="fuphotos-${i}" class="op-photos" style="margin-top:7px"></div>
     <input type="file" id="fuimg-${i}" accept="image/*" multiple style="display:none" onchange="fuItemPhotoInput(this,${i})">
@@ -5647,14 +5688,14 @@ function _fuAddItemPhotos(i,files){
   files.forEach(f=>storePhoto(f,src=>{ (_fuItems[i].images=_fuItems[i].images||[]).push(src); if(--pending===0)fuRenderItemPhotos(i); }));
 }
 function _fuLoadItems(f){
-  if(f && Array.isArray(f.itemList) && f.itemList.length){ _fuItems=f.itemList.map(it=>({name:it.name||'',images:Array.isArray(it.images)?it.images.slice():[],cardMsg:it.cardMsg||'',flowerNote:it.flowerNote||''})); }
-  else if(f && f.items){ _fuItems=String(f.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[],cardMsg:'',flowerNote:''})); if(f.photo&&_fuItems[0])_fuItems[0].images=[f.photo]; if(_fuItems[0]){ _fuItems[0].cardMsg=f.cardMsg||''; _fuItems[0].flowerNote=f.flowerNote||''; } }
-  else { _fuItems=[{name:'',images:[],cardMsg:'',flowerNote:''}]; }
+  if(f && Array.isArray(f.itemList) && f.itemList.length){ _fuItems=f.itemList.map(it=>({name:it.name||'',images:Array.isArray(it.images)?it.images.slice():[],cardMsg:it.cardMsg||'',flowerNote:it.flowerNote||'',price:(it.price!=null?it.price:''),qty:it.qty||1,variantId:it.variantId||null})); }
+  else if(f && f.items){ _fuItems=String(f.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[],cardMsg:'',flowerNote:'',price:'',qty:1})); if(f.photo&&_fuItems[0])_fuItems[0].images=[f.photo]; if(_fuItems[0]){ _fuItems[0].cardMsg=f.cardMsg||''; _fuItems[0].flowerNote=f.flowerNote||''; } }
+  else { _fuItems=[{name:'',images:[],cardMsg:'',flowerNote:'',price:'',qty:1}]; }
   _fuItemsEnsure(); _fuActiveItem=0; fuRenderItems();
 }
 function _fuCollectItems(){
-  return _fuItems.map(it=>({name:(it.name||'').trim(),images:(it.images||[]).filter(Boolean),cardMsg:(it.cardMsg||'').trim(),flowerNote:(it.flowerNote||'').trim()}))
-                 .filter(it=>it.name||it.images.length||it.cardMsg||it.flowerNote);
+  return _fuItems.map(it=>({name:(it.name||'').trim(),images:(it.images||[]).filter(Boolean),cardMsg:(it.cardMsg||'').trim(),flowerNote:(it.flowerNote||'').trim(),price:(it.price!=null&&it.price!==''&&!isNaN(parseFloat(it.price)))?parseFloat(it.price):null,qty:parseInt(it.qty)||1,variantId:it.variantId||null}))
+                 .filter(it=>it.name||it.images.length||it.cardMsg||it.flowerNote||it.price!=null);
 }
 
 function saveFollowup() {
@@ -5859,25 +5900,30 @@ function shopProdSearch(q, target){
   _shopProdT=setTimeout(async ()=>{
     let rows=[];
     try {
-      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title variants(first:30){ edges { node { id title price } } } } } } }`;
+      const query = `{ products(first:12, query:${JSON.stringify(q)}) { edges { node { title featuredImage{ url } variants(first:30){ edges { node { id title price image{ url } } } } } } } }`;
       const data = await shopifyGQL(query);
-      (data.products?.edges||[]).forEach(e=>{ const p=e.node; (p.variants?.edges||[]).forEach(ve=>{ const v=ve.node; const label=(v.title&&v.title!=='Default Title')?`${p.title} – ${v.title}`:p.title; rows.push({ label, price:v.price, variantId:v.id }); }); });
+      (data.products?.edges||[]).forEach(e=>{ const p=e.node; const pimg=p.featuredImage?.url||null; (p.variants?.edges||[]).forEach(ve=>{ const v=ve.node; const label=(v.title&&v.title!=='Default Title')?`${p.title} – ${v.title}`:p.title; rows.push({ label, price:v.price, variantId:v.id, image:(v.image?.url)||pimg||null }); }); });
     } catch(err){ box.innerHTML=`<div style="padding:8px 12px;font-size:11px;color:var(--c-red)">Search failed: ${esc(err.message||'error')}</div>`; box.style.display=''; return; }
     _shopProdResults=rows;
     if(!rows.length){ box.innerHTML='<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">No products found — type the name to add a custom item</div>'; box.style.display=''; return; }
-    box.innerHTML=rows.map((r,i)=>`<div class="rcp-sug-row" onmousedown="shopProdPick(${i},'${target}')"><span style="color:var(--c-ink)">${esc(r.label)}</span> <span style="color:var(--c-muted);white-space:nowrap;float:right">RM ${parseFloat(r.price||0).toFixed(2)}</span></div>`).join('');
+    box.innerHTML=rows.map((r,i)=>`<div class="rcp-sug-row" onmousedown="shopProdPick(${i},'${target}')" style="display:flex;align-items:center;gap:9px">${r.image?`<img src="${r.image}" alt="" style="width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none" loading="lazy" onerror="this.style.display='none'">`:`<span style="width:34px;height:34px;border-radius:6px;background:var(--c-bg);display:inline-flex;align-items:center;justify-content:center;color:var(--c-dpink);flex:none">${di('flower',16)}</span>`}<span style="flex:1;min-width:0;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.label)}</span><span style="color:var(--c-muted);white-space:nowrap">RM ${parseFloat(r.price||0).toFixed(2)}</span></div>`).join('');
     box.style.display='';
   }, 300);
 }
 function shopProdPick(i, target){
   const r=_shopProdResults[i]; if(!r) return;
   if(target==='o'){
-    addProductRow({ title:r.label, price:r.price?String(parseFloat(r.price)):null, quantity:1 });
+    addProductRow({ title:r.label, price:r.price?String(parseFloat(r.price)):null, quantity:1, image:r.image||null, images:r.image?[r.image]:[] });
   } else {
     _fuItemsEnsure();
-    let slot=_fuItems.findIndex(it=>!(it.name||'').trim() && !(it.images&&it.images.length));
-    if(slot<0){ _fuItems.push({name:'',images:[],cardMsg:'',flowerNote:''}); slot=_fuItems.length-1; }
-    _fuItems[slot].name = r.price ? `${r.label} · RM${parseFloat(r.price).toFixed(2)}` : r.label;
+    let slot=_fuItems.findIndex(it=>!(it.name||'').trim() && !(it.images&&it.images.length) && !(it.price));
+    if(slot<0){ _fuItems.push({name:'',images:[],cardMsg:'',flowerNote:'',price:'',qty:1}); slot=_fuItems.length-1; }
+    const it=_fuItems[slot];
+    it.name = r.label;                                   // clean name — price lives in its own field now
+    it.price = r.price ? String(parseFloat(r.price)) : (it.price||'');
+    it.qty = it.qty || 1;
+    it.variantId = r.variantId || null;
+    if(r.image){ it.images = it.images || []; if(!it.images.includes(r.image)) it.images.unshift(r.image); }  // auto-link the Shopify photo
     fuRenderItems();
   }
   const box=document.getElementById(target+'-prod-search-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
