@@ -11095,11 +11095,15 @@ function openDeliverModal(o, verb){
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
   const isPickup = o.type === 'pickup';
-  const lead = isPickup ? 'Confirm this order was collected.' : 'Add a proof photo if you have one, then confirm.';
+  const isLala = !!(o.lalamoveUrl || o.lalamoveOrderId);
+  const requirePhoto = isLala && !isPickup;   // Lalamove deliveries must carry proof of delivery
+  const lead = isPickup ? 'Confirm this order was collected.'
+    : requirePhoto ? 'Lalamove delivery — a proof-of-delivery photo is required before confirming.'
+    : 'Add a proof photo if you have one, then confirm.';
   ov.innerHTML = `<div style="background:var(--c-surface,#fff);border-radius:18px;max-width:390px;width:100%;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.35)">
     <div style="font-size:19px;font-weight:800;font-family:var(--f-head);letter-spacing:-.01em;margin-bottom:4px">Mark ${o.name||'order'} as ${verb.toLowerCase()}</div>
     <div style="font-size:13px;color:var(--c-muted);margin-bottom:18px">${lead}</div>
-    <div style="font-size:12.5px;font-weight:600;margin-bottom:7px">Proof photo <span style="color:var(--c-muted);font-weight:400">(optional)</span></div>
+    <div style="font-size:12.5px;font-weight:600;margin-bottom:7px">Proof photo <span style="${requirePhoto?'color:var(--c-red);font-weight:700':'color:var(--c-muted);font-weight:400'}">${requirePhoto?'(required · Lalamove)':'(optional)'}</span></div>
     <div id="dmThumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
     <div id="dmZone" style="position:relative;height:100px;border:1.5px dashed var(--c-border2,#ccc);border-radius:12px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:18px">
       <span class="dmLbl" style="text-align:center"><span style="display:inline-flex;color:var(--c-muted)">${di('camera',24)}</span><br><span style="font-size:12px;color:var(--c-muted)">Tap, drag &amp; drop, or paste</span></span>
@@ -11143,6 +11147,7 @@ function openDeliverModal(o, verb){
   zone.addEventListener('drop', e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; applyFiles(e.dataTransfer && e.dataTransfer.files); });
   document.addEventListener('paste', onPaste);
   ov.querySelector('#dmOk').onclick = ()=>{
+    if(requirePhoto && !photoUrls.length){ toast('Lalamove delivery — add a proof-of-delivery photo first'); return; }
     const notify = canNotify && ov.querySelector('#dmNotify').checked;
     close();
     confirmDeliver(o.id, photoUrls, notify, verb, photoB64s);
