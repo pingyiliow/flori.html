@@ -1371,6 +1371,37 @@ async function sbSet(key, value) {
 }
 
 /* ─── Auth ───────────────────────────────────────────────────── */
+// ── Password reset ──────────────────────────────────────────────────────────
+// "Forgot password" emails a recovery link (redirects back to this app). Opening it on this
+// device fires a PASSWORD_RECOVERY auth event → _showResetPassword() → submitNewPassword().
+async function forgotPassword(){
+  const email=(document.getElementById('login-email')?.value||'').trim();
+  const el=document.getElementById('login-err');
+  if(!email){ if(el){ el.style.color='var(--c-red)'; el.textContent='Enter your email first, then tap Forgot password.'; el.style.display='block'; } return; }
+  try{
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+    if(el){ el.style.color = error?'var(--c-red)':'var(--c-forest,#2e6b4f)'; el.textContent = error ? ('Could not send: '+error.message) : ('Reset email sent to '+email+' — open it ON THIS device and tap the link.'); el.style.display='block'; }
+  }catch(e){ if(el){ el.style.color='var(--c-red)'; el.textContent='Could not send reset email.'; el.style.display='block'; } }
+}
+function _showResetPassword(){
+  try{ const l=document.getElementById('login-screen'); if(l) l.style.display='none'; }catch(_){}
+  const s=document.getElementById('pw-reset-screen'); if(s) s.style.display='flex';
+  const e=document.getElementById('pwr-err'); if(e) e.style.display='none';
+  setTimeout(()=>{ const p=document.getElementById('pwr-pass'); if(p) p.focus(); }, 80);
+}
+async function submitNewPassword(){
+  const p1=(document.getElementById('pwr-pass')?.value||''), p2=(document.getElementById('pwr-pass2')?.value||'');
+  const err=document.getElementById('pwr-err'); const showErr=m=>{ if(err){ err.textContent=m; err.style.display='block'; } };
+  if(p1.length<6){ showErr('Password must be at least 6 characters.'); return; }
+  if(p1!==p2){ showErr('The two passwords don’t match.'); return; }
+  try{
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if(error){ showErr(error.message||'Could not update password.'); return; }
+    const s=document.getElementById('pw-reset-screen'); if(s) s.style.display='none';
+    toast('✓ Password updated — you’re signed in');
+    setTimeout(()=>location.reload(), 600);
+  }catch(e){ showErr('Could not update password.'); }
+}
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-pass').value;
@@ -1500,7 +1531,7 @@ async function checkSession() {
     // If the session is lost later (refresh-token expired), Supabase fires SIGNED_OUT — show
     // the login screen so ANY role can re-sign-in (Sign Out otherwise lives only in
     // admin-only Settings, trapping non-admin devices whose session expired mid-use).
-    try { sb.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT' && !session) _showLogin(); }); } catch(_){}
+    try { sb.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { _showResetPassword(); return; } if (event === 'SIGNED_OUT' && !session) _showLogin(); }); } catch(_){}
   } catch(e) {
     console.error('Session check failed:', e);
     // Fallback — show login
@@ -12676,10 +12707,22 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
       onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
       Sign In
     </button>
+    <button type="button" onclick="forgotPassword()" style="background:none;border:none;color:var(--c-burg);font-size:11.5px;cursor:pointer;text-decoration:underline;margin-top:-14px;padding:0">Forgot password?</button>
 
     <div style="font-size:10px;color:var(--c-muted);text-align:center">
       Bamboo Flower Club (M) Sdn Bhd
     </div>
+  </div>
+</div>
+
+<!-- ══ Set-new-password (password recovery link lands here) ══ -->
+<div id="pw-reset-screen" style="display:none;position:fixed;inset:0;background:var(--c-bg);z-index:10000;flex-direction:column;align-items:center;justify-content:center">
+  <div style="width:min(360px,90vw);display:flex;flex-direction:column;gap:16px;padding:34px 32px;background:var(--c-surface);border-radius:12px;box-shadow:0 24px 64px rgba(0,0,0,.3)">
+    <div style="text-align:center"><div style="font-family:var(--f-head);font-size:20px;font-weight:700;color:var(--c-burg)">Set a new password</div><div style="font-size:11.5px;color:var(--c-muted);margin-top:4px">Choose a new password for your account.</div></div>
+    <div class="ff"><label class="ff-l">New password</label><input id="pwr-pass" type="password" placeholder="at least 6 characters" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface)" onkeydown="if(event.key==='Enter')document.getElementById('pwr-pass2').focus()"></div>
+    <div class="ff"><label class="ff-l">Confirm password</label><input id="pwr-pass2" type="password" placeholder="repeat it" autocomplete="new-password" style="width:100%;padding:10px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface)" onkeydown="if(event.key==='Enter')submitNewPassword()"></div>
+    <div id="pwr-err" style="display:none;font-size:11px;color:var(--c-red);text-align:center"></div>
+    <button onclick="submitNewPassword()" style="width:100%;padding:12px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer">Save new password</button>
   </div>
 </div>
 
