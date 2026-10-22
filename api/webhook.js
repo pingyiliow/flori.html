@@ -39,6 +39,14 @@ function parseDueOn(s) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
+  // Lalamove delivery webhook — a different product from Shopify order webhooks, folded here
+  // to stay under Vercel's function limit. Registered in the Lalamove dashboard as:
+  //   <site>/api/webhook?src=lalamove&key=<LALAMOVE_WEBHOOK_SECRET>
+  if (req.query && req.query.src === 'lalamove') {
+    if (!SB_URL || !SB_KEY) return res.status(500).json({ error: 'Supabase env missing' });
+    return handleLalamoveWebhook(req, res, createClient(SB_URL, SB_KEY));
+  }
+
   const topic = req.headers['x-shopify-topic'] || '';
   const order = req.body;
 
@@ -361,4 +369,109 @@ async function handleCustomerWebhook(res, c, sb, topic) {
     console.error('handleCustomerWebhook failed:', e.message);
     return res.status(200).json({ ok: true, error: e.message });
   }
+}
+
+/* ─── Lalamove delivery webhook ─────────────────────────────────────────────
+   On ORDER_STATUS_CHANGED → COMPLETED: find the BloomFlow order carrying this Lalamove
+   booking, mark it delivered, store the proof-of-delivery photo if the payload carried one,
+   fulfil it in Shopify (durable "delivered"), and have /api/notify-manual send the buyer the
+   delivered message + photo (reusing the tested notification path). Every external step is
+   best-effort so a partial failure still records what it can and ACKs Lalamove (200).         */
+async function handleLalamoveWebhook(req, res, sb) {
+  const secret = process.env.LALAMOVE_WEBHOOK_SECRET || '';
+  const key = (req.query && req.query.key) || '';
+  if (!secret) return res.status(501).json({ error: 'lalamove webhook not configured (set LALAMOVE_WEBHOOK_SECRET)' });
+  if (key !== secret) return res.status(401).json({ error: 'bad key' });
+
+  const p = (req.body && typeof req.body === 'object') ? req.body : {};
+  const data = p.data || {};
+  const lo = data.order || data || {};
+  const lalaId = String(lo.orderId || data.orderId || p.orderId || '').trim();
+  const status = String(lo.status || data.status || '').toUpperCase();
+  if (!lalaId) return res.status(200).json({ ok: true, ignored: 'no orderId' });
+  if (status !== 'COMPLETED') return res.status(200).json({ ok: true, ignored: status || 'no status' });
+
+  let row;
+  try { const q = await sb.from('orders').select('*').eq('lalamove_order_id', lalaId).maybeSingle(); row = q.data; }
+  catch (e) { return res.status(200).json({ ok: false, error: 'lookup: ' + e.message }); }
+  if (!row) return res.status(200).json({ ok: true, skipped: 'no order for ' + lalaId });
+
+  // Idempotency — process a given Lalamove completion once (wa_events.event_id is unique).
+  const { error: dupErr } = await sb.from('wa_events').insert({ event_id: `${row.id}:lala_completed` });
+  if (dupErr) return res.status(200).json({ ok: true, deduped: true });
+
+  const photos = [...new Set(_lalaPodFromPayload(lo).concat(_lalaPodFromPayload(data)))];
+
+  // 1) Mark delivered + store proof on the row (service key → clobber-safe app fields).
+  const patch = { fulfilled: true, ready: true, delivered_at: new Date().toISOString(), delivered_by: 'Lalamove' };
+  if (photos.length) { patch.proof_photos = photos; patch.proof_photo = photos[0]; }
+  try { await sb.from('orders').update(patch).eq('id', row.id); } catch (e) { console.error('[lala] row update:', e.message); }
+
+  // 2) Fulfil in Shopify (durable "delivered") — best-effort, only for real Shopify orders.
+  let shopFulfilled = false;
+  if (/^\d+$/.test(String(row.id))) { try { shopFulfilled = await _shopifyFulfillOrder(String(row.id)); } catch (e) { console.error('[lala] fulfil:', e.message); } }
+
+  // 3) Notify the buyer with the proof photo, via the tested notify-manual path.
+  let notified = null;
+  if (/^\d+$/.test(String(row.id)) && process.env.INTERNAL_NOTIFY_SECRET) {
+    try {
+      const nr = await fetch(`https://${req.headers.host}/api/notify-manual`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: String(row.id), stage: 'delivered', photoUrl: photos[0] || '', photoUrls: photos, internalSecret: process.env.INTERNAL_NOTIFY_SECRET }),
+      });
+      notified = await nr.json().catch(() => null);
+    } catch (e) { console.error('[lala] notify:', e.message); }
+  }
+  console.log(`[lala] ${row.name || row.id} COMPLETED → delivered (photos ${photos.length}, shopify ${shopFulfilled})`);
+  return res.status(200).json({ ok: true, order: row.name, photos: photos.length, shopFulfilled, notified });
+}
+
+// Pull any proof-of-delivery image url(s) out of a Lalamove payload object. POD-specific
+// fields take any https url (their proof urls often lack a file extension); a generic image
+// scan is the fallback. The tracking/share link is never counted as a proof photo.
+function _lalaPodFromPayload(o) {
+  if (!o || typeof o !== 'object') return [];
+  const out = [];
+  const podScan = v => { if (!v) return; if (typeof v === 'string') { if (/^https?:\/\//i.test(v)) out.push(v); } else if (Array.isArray(v)) v.forEach(podScan); else if (typeof v === 'object') Object.values(v).forEach(podScan); };
+  [o.proofOfDelivery, o.pod, o.proof, o.deliveryProof, o.signature, o.signatures, o.photos, o.photo].forEach(podScan);
+  if (o.metadata) podScan(o.metadata.proofOfDelivery || o.metadata.pod || o.metadata.proof);
+  const imgScan = v => { if (!v) return; if (typeof v === 'string') { if (/^https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif|heic)(\?|#|$)/i.test(v)) out.push(v); } else if (Array.isArray(v)) v.forEach(imgScan); else if (typeof v === 'object') Object.values(v).forEach(imgScan); };
+  imgScan(o);
+  const share = o.shareLink || o.trackingLink || '';
+  return [...new Set(out)].filter(u => u && u !== share);
+}
+
+// Shopify fulfillment via client_credentials token + the same GraphQL the app's fulfillInShopify uses.
+let _shopTok = null, _shopTokShop = null, _shopTokExp = 0;
+async function _shopAdminToken() {
+  const shop = String(process.env.SHOPIFY_SHOP || '').replace(/^https?:\/\//, '').replace(/\/+$/, '').toLowerCase();
+  if (!shop) throw new Error('SHOPIFY_SHOP missing');
+  const now = Date.now();
+  if (_shopTok && _shopTokShop === shop && now < _shopTokExp) return { shop, token: _shopTok };
+  const id = process.env.SHOPIFY_CLIENT_ID, secret = process.env.SHOPIFY_CLIENT_SECRET;
+  if (!id || !secret) throw new Error('SHOPIFY_CLIENT_ID/SECRET missing');
+  const r = await fetch(`https://${shop}/admin/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: new URLSearchParams({ grant_type: 'client_credentials', client_id: id, client_secret: secret }).toString() });
+  const j = await r.json().catch(() => ({}));
+  if (!j.access_token) throw new Error(j.error_description || j.error || 'no access_token');
+  _shopTok = j.access_token; _shopTokShop = shop; _shopTokExp = now + (j.expires_in ? j.expires_in * 1000 - 60000 : 3600000);
+  return { shop, token: _shopTok };
+}
+async function _shopGQL(shop, token, query) {
+  const r = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, { method: 'POST', headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+  const j = await r.json().catch(() => ({}));
+  if (j.errors) throw new Error(JSON.stringify(j.errors).slice(0, 160));
+  return j.data || {};
+}
+async function _shopifyFulfillOrder(numericId) {
+  const { shop, token } = await _shopAdminToken();
+  const gid = `gid://shopify/Order/${numericId}`;
+  const d = await _shopGQL(shop, token, `{ order(id:"${gid}"){ fulfillmentOrders(first:10){ edges{ node{ id status } } } } }`);
+  const nodes = ((d.order && d.order.fulfillmentOrders && d.order.fulfillmentOrders.edges) || []).map(e => e.node);
+  const open = nodes.filter(n => n.status !== 'CLOSED' && n.status !== 'CANCELLED');
+  if (!open.length) return true;   // already fulfilled / nothing open
+  const byFO = open.map(n => `{ fulfillmentOrderId: "${n.id}" }`).join(', ');
+  const res = await _shopGQL(shop, token, `mutation { fulfillmentCreate(fulfillment: { notifyCustomer: false, lineItemsByFulfillmentOrder: [${byFO}] }) { fulfillment { id status } userErrors { field message } } }`);
+  const ue = (res.fulfillmentCreate && res.fulfillmentCreate.userErrors) || [];
+  if (ue.length) throw new Error(ue.map(e => e.message).join('; '));
+  return true;
 }

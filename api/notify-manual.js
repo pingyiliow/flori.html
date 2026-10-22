@@ -71,7 +71,10 @@ export default async function handler(req, res) {
   let body = {};
   try { body = typeof req.body === 'object' && req.body ? req.body : JSON.parse(req.body || '{}'); } catch {}
   const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-  if (!(await verifyStaff(jwt))) return res.status(401).json({ error: 'Not authenticated' });
+  // Trusted server-to-server caller (e.g. the Lalamove webhook) may present the internal
+  // secret instead of a staff JWT. Only valid when INTERNAL_NOTIFY_SECRET is configured.
+  const internalOk = !!(body.internalSecret && process.env.INTERNAL_NOTIFY_SECRET && body.internalSecret === process.env.INTERNAL_NOTIFY_SECRET);
+  if (!internalOk && !(await verifyStaff(jwt))) return res.status(401).json({ error: 'Not authenticated' });
 
   const orderId = String(body.orderId || '').split('/').pop().replace(/\D/g, '');
   if (!orderId) return res.status(400).json({ error: 'orderId required' });
