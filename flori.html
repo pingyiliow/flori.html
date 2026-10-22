@@ -651,6 +651,12 @@
         <div class="ff"><label class="ff-l">Category</label>
           <select id="i-cat" onchange="invCatSelect(this)"></select>
         </div>
+        <div class="ff" style="grid-column:1/-1">
+          <label style="display:flex;align-items:center;gap:9px;cursor:pointer;background:var(--c-bg);border:1px solid var(--c-border);border-radius:10px;padding:9px 11px">
+            <input type="checkbox" id="i-untracked" style="width:17px;height:17px;flex:none;accent-color:var(--c-burg)">
+            <span><span style="font-size:12.5px;font-weight:600;display:block">Not tracked · 未入库</span><span style="font-size:11px;color:var(--c-muted)">Keep its info (price, photo, category) but don't count quantity or deduct. Shows under Stock › Not tracked; tap Add to stock later to start counting.</span></span>
+          </label>
+        </div>
         <div class="ff"><label class="ff-l">Family <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-family" type="text" placeholder="e.g. Rose (group colours)"></div>
         <div class="ff"><label class="ff-l">Color <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-color" type="text" placeholder="e.g. Red / Pink / White"></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">SKU <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sku" type="text" placeholder="e.g. FL-ROSE-RD"></div>
@@ -2369,7 +2375,7 @@ function saveOrders(changed) {
   }
 }
 function _invRow(i){
-  return { id:i.id, name:i.name, cat:i.cat||'other', qty:i.qty||0, unit:i.unit||'pcs',
+  return { id:i.id, name:i.name, cat:i.cat||'other', qty:i.qty||0, unit:i.unit||'pcs', untracked:!!i.untracked,
     sku:i.sku||null, family:i.family||null, color:i.color||null,
     size:i.size||null, price:(i.price==null||i.price===''?null:Number(i.price)),
     reorder:(i.reorder==null||i.reorder===''?null:parseInt(i.reorder,10)),
@@ -2471,6 +2477,7 @@ function _applyRecipes(){
         // engine owns its count — skip it here so it isn't deducted twice.
         if(typeof stockCtl==='function' && stockCtl(c.mid).length) return;
         const item = INVENTORY.find(x=>x.id===c.mid); if(!item) return;
+        if(item.untracked) return;   // not-tracked materials are info only — never deduct a count
         item.moves = Array.isArray(item.moves) ? item.moves : [];
         // Idempotent, and won't double-count an order the OLD link-based BOM already
         // deducted (those moves carry orderId but no rkey).
@@ -3972,7 +3979,7 @@ function _invPM(id){
 }
 function _invTotalStrip(){
   let qty=0, val=0;
-  INVENTORY.forEach(i=>{ qty+=(i.qty||0); if(i.price!=null&&i.price!=='') val+=(i.qty||0)*Number(i.price); });
+  INVENTORY.forEach(i=>{ if(i.untracked) return; qty+=(i.qty||0); if(i.price!=null&&i.price!=='') val+=(i.qty||0)*Number(i.price); });
   return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--c-burg);color:var(--c-bg);border-radius:12px;padding:11px 16px;margin-bottom:14px">'
     +'<div><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'总数量':'Total qty')+'</div><div style="font-size:16px;font-weight:700">'+qty+'</div></div>'
     +'<div style="text-align:right"><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'库存总值 (成本)':'Stock value (cost)')+'</div><div style="font-size:16px;font-weight:700">RM '+val.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'
@@ -4022,6 +4029,24 @@ function _invFamCard(u){
 }
 // Unified stock list: manual materials + Shopify-synced items grouped TOGETHER by
 // category, so a category header appears once and holds both kinds of card.
+// A not-tracked material row: photo + name + category + price, and an "Add to stock" button
+// that promotes it to a counted item (same record → recipes stay linked, no duplicate).
+function _invUntrackedCard(i){
+  const price=(i.price!=null&&i.price!=='')?'RM '+_invPriceStr(i.price):((i.sell!=null&&i.sell!=='')?'RM '+_invPriceStr(i.sell):'');
+  return '<div class="stk-card" onclick="openStkView(\'inv\',\''+i.id+'\')">'
+    +_invThumb(i.photo,_invIcon(i.cat))
+    +'<div class="stk-left"><div class="stk-name">'+esc(i.name||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(_invCatLabel(i.cat))+(price?' · '+price:'')+'</div></div>'
+    +'<button type="button" onclick="event.stopPropagation();invTrackStart(\''+i.id+'\')" style="font-size:11.5px;font-weight:700;color:var(--c-burg);background:var(--c-surface);border:1.5px solid var(--c-burg);border-radius:20px;padding:5px 11px;cursor:pointer;white-space:nowrap">'+(LANG==='zh'?'加入库存':'Add to stock')+'</button>'
+  +'</div>';
+}
+function invTrackStart(id){
+  const i=INVENTORY.find(x=>x.id===id); if(!i) return; const zh=LANG==='zh';
+  const ans=prompt(zh?('「'+(i.name||'')+'」加入库存。起始数量?'):('Add "'+(i.name||'')+'" to stock. Starting quantity?'), String(i.qty||0));
+  if(ans===null) return;
+  i.untracked=false; i.qty=parseInt(ans,10)||0;
+  _invSaveOne(i); renderInventory(); if(typeof renderHome==='function') renderHome(); if(typeof _applyBOM==='function') _applyBOM();
+  toast('✓ '+(zh?'已加入库存':'Added to stock')+' · '+(i.name||''));
+}
 function _invListHTML(){
   const zh=LANG==='zh';
   const _custom = _invSort==='custom';
@@ -4029,6 +4054,7 @@ function _invListHTML(){
   const _reorder = _custom && !q;   // drag handles only when not filtering (a search hides items → a partial save would lose their order)
   // ── manual items ──
   const mitems=INVENTORY.filter(i=>{
+    if(i.untracked) return false;   // not-tracked materials live in their own section (see below)
     if(_invCat && (i.cat||'other')!==_invCat) return false;
     if(q){ const hay=[i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase(); if(hay.indexOf(q)===-1) return false; }
     return true;
@@ -4080,6 +4106,14 @@ function _invListHTML(){
     const uEntries=sUnassigned.map(p=>({ key:'shop:'+p.id, name:p.title||'', html:_shopStockCard(p) }));
     (_custom?_stkOrderSort('__un__',uEntries):uEntries).forEach(e=>{ body += _reorder?_stkDcell('__un__',e):e.html; });
     body+='</div>';
+  }
+  // ── Not-tracked materials (info only — no stock count, no deduction) ──
+  {
+    const ut=INVENTORY.filter(i=>i.untracked && (!q || [i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase().indexOf(q)>-1));
+    if(ut.length){
+      body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未入库':'Not tracked')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'只显示资料,不计数量':'info only · not counted')+'</span></div>';
+      body+='<div style="display:flex;flex-direction:column;gap:8px">'+ut.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(_invUntrackedCard).join('')+'</div>';
+    }
   }
   if(!body && q) return sync+'<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(zh?'没有符合的':'No match')+'</div>';
   const hint = _custom ? '<div style="font-size:11.5px;color:var(--c-muted);margin:2px 0 10px;display:flex;align-items:center;gap:6px">'+di('reorder',14)+' '+(_reorder?(zh?'拖动手柄排序（每个分类内）':'Drag the handle to reorder within each category'):(zh?'清除搜索后可拖动排序':'Clear the search to drag-reorder'))+'</div>' : '';
@@ -10594,6 +10628,7 @@ function openAddInv(cat) {
   const _se0=document.getElementById('i-sell'); if(_se0) _se0.value = '';
   document.getElementById('i-reorder').value = '';
   document.getElementById('i-notes').value = '';
+  const _utA=document.getElementById('i-untracked'); if(_utA) _utA.checked=false;
   const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
   _invLinked = []; _invRenderLinked();
   _invSizeEdit = []; _renderInvSizeEditor();
@@ -10705,6 +10740,7 @@ function editInv(id) {
   const _se=document.getElementById('i-sell'); if(_se) _se.value = (i.sell!=null && i.sell!=='') ? i.sell : '';
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
+  const _utE=document.getElementById('i-untracked'); if(_utE) _utE.checked=!!i.untracked;
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
   _invSizeEdit = itemSizes(i).map(s=>({...s})); _renderInvSizeEditor();                   // load this item's sizes into the editor
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
@@ -11045,6 +11081,7 @@ function saveInv(){
     family:document.getElementById('i-family').value.trim()||null,
     color:document.getElementById('i-color').value.trim()||null,
     size:document.getElementById('i-size').value.trim()||null,
+    untracked:!!(document.getElementById('i-untracked')||{}).checked,
     price:_priceRaw===''?null:(parseFloat(_priceRaw)||null),
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
     notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||'',
