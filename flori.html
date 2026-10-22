@@ -3728,15 +3728,15 @@ async function _renderStaffTomorrow(){
 function renderHome() {
   const _d=document.getElementById('home-dash'), _s=document.getElementById('home-stats'), _a=document.getElementById('home-admin-body'), _hh=document.getElementById('home-hero'), _vt=document.getElementById('home-view-toggle');
   const _admin = (typeof hasRole==='function') ? hasRole('admin') : true;
-  // Staff (non-admin) get the visual "today" ops dashboard; admin/owner keep the business view
-  // below (and can preview the staff view with the toggle).
-  if (!_admin || _previewStaff) {
+  // Staff dashboard temporarily PARKED (being redesigned) — everyone sees the original dashboard
+  // for now. The staff view only renders on an explicit admin preview (toggle hidden by default).
+  if (_previewStaff) {
     if(_s)_s.style.display='none'; if(_a)_a.style.display='none'; if(_hh)_hh.style.display='none';
     if(_d){ _d.style.display=''; _renderStaffDash(_d); }
     return;
   }
   if(_d)_d.style.display='none'; if(_s)_s.style.display=''; if(_a)_a.style.display=''; if(_hh)_hh.style.display='';
-  if(_vt) _vt.style.display='';
+  if(_vt) _vt.style.display='none';
   renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
