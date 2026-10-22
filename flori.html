@@ -8045,8 +8045,14 @@ function manageLalamove(orderId){
   if(o && !o.lalamoveOrderId) o.lalamoveOrderId=lid;   // rehydrate from localStorage
   _lalaMng={ id:lid, orderId, label:(o&&o.name)||'', data:null, driver:null, busy:false };
   _lalaMngRender(); _lalaMngRefresh(); _lalaLoadMode();
+  _lalaMngStartPoll();
 }
-function _lalaMngClose(){ const ov=document.getElementById('_lalaMngOv'); if(ov) ov.remove(); }
+// Live status: re-check Lalamove every 20s while the modal is open (no "Refresh" tap needed).
+// Stops itself on a terminal status or when the modal closes.
+let _lalaMngPollT = null;
+function _lalaMngStartPoll(){ _lalaMngStopPoll(); _lalaMngPollT = setInterval(()=>{ if(!document.getElementById('_lalaMngOv')){ _lalaMngStopPoll(); return; } if(!_lalaMng.busy) _lalaMngRefresh(); }, 20000); }
+function _lalaMngStopPoll(){ if(_lalaMngPollT){ clearInterval(_lalaMngPollT); _lalaMngPollT=null; } }
+function _lalaMngClose(){ _lalaMngStopPoll(); const ov=document.getElementById('_lalaMngOv'); if(ov) ov.remove(); }
 async function _lalaMngRefresh(){
   _lalaMng.busy=true; _lalaMngRender();
   const r=await _lalamoveApi({ op:'get', orderId:_lalaMng.id });
@@ -8057,8 +8063,34 @@ async function _lalaMngRefresh(){
       _lalaMng.driver=(dr&&dr.body&&dr.body.data)||null; if(_lalaMng.driver) _lalaMng.driver._id=d.driverId;
     }
     if(!d.driverId) _lalaMng.driver=null;
+    // Terminal states stop the live poll; COMPLETED also syncs the order to delivered.
+    if(['COMPLETED','CANCELED','REJECTED','EXPIRED'].includes(d.status)) _lalaMngStopPoll();
+    if(d.status==='COMPLETED') _lalaMaybeAutoDeliver(d);
   } else { _lalaMng.err=_lalaErr(r); }
   _lalaMng.busy=false; _lalaMngRender();
+}
+// Best-effort: dig any proof-of-delivery image URL(s) out of the Lalamove order payload.
+// Field names vary by market/plan, so scan the likely spots for https image links.
+function _lalaPodPhotos(d){
+  const out=[]; const scan=v=>{ if(!v)return;
+    if(typeof v==='string'){ if(/^https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)(\?|#|$)/i.test(v)) out.push(v); }
+    else if(Array.isArray(v)) v.forEach(scan);
+    else if(typeof v==='object') Object.values(v).forEach(scan); };
+  [d.proofOfDelivery, d.pod, d.proof, d.deliveryProof, d.signature, d.photo, d.metadata].forEach(scan);
+  return [...new Set(out)];
+}
+// When Lalamove reports COMPLETED, mark the BloomFlow order delivered ONCE (and attach the
+// Lalamove proof photo if the payload carried one). Reuses confirmDeliver so Shopify fulfil +
+// buyer notification + dedupe all happen exactly as a manual "Mark delivered" would.
+let _lalaAutoDone = {};
+async function _lalaMaybeAutoDeliver(d){
+  const o = ORDERS.find(x=>x.id===_lalaMng.orderId); if(!o) return;
+  if(o.fulfilled || _lalaAutoDone[o.id]) return;
+  _lalaAutoDone[o.id] = true;
+  const pod = _lalaPodPhotos(d);
+  toast(pod.length ? 'Lalamove delivered — syncing + proof photo…' : 'Lalamove delivered — marking delivered…');
+  try { await confirmDeliver(o.id, pod, o.type!=='pickup', 'Delivered', []); }
+  catch(e){ _lalaAutoDone[o.id]=false; console.warn('lala auto-deliver', e&&e.message); }
 }
 function _lalaMngRender(){
   let ov=document.getElementById('_lalaMngOv');
@@ -11103,7 +11135,7 @@ function openDeliverModal(o, verb){
   ov.innerHTML = `<div style="background:var(--c-surface,#fff);border-radius:18px;max-width:390px;width:100%;padding:22px;box-shadow:0 18px 50px rgba(0,0,0,.35)">
     <div style="font-size:19px;font-weight:800;font-family:var(--f-head);letter-spacing:-.01em;margin-bottom:4px">Mark ${o.name||'order'} as ${verb.toLowerCase()}</div>
     <div style="font-size:13px;color:var(--c-muted);margin-bottom:18px">${lead}</div>
-    <div style="font-size:12.5px;font-weight:600;margin-bottom:7px">Proof photo <span style="${requirePhoto?'color:var(--c-red);font-weight:700':'color:var(--c-muted);font-weight:400'}">${requirePhoto?'(required · Lalamove)':'(optional)'}</span></div>
+    <div style="font-size:12.5px;font-weight:600;margin-bottom:7px">Proof photo <span style="${requirePhoto?'color:var(--c-amber);font-weight:600':'color:var(--c-muted);font-weight:400'}">${requirePhoto?'(Lalamove — auto-added when the driver uploads it)':'(optional)'}</span></div>
     <div id="dmThumbs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
     <div id="dmZone" style="position:relative;height:100px;border:1.5px dashed var(--c-border2,#ccc);border-radius:12px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;margin-bottom:18px">
       <span class="dmLbl" style="text-align:center"><span style="display:inline-flex;color:var(--c-muted)">${di('camera',24)}</span><br><span style="font-size:12px;color:var(--c-muted)">Tap, drag &amp; drop, or paste</span></span>
@@ -11147,7 +11179,7 @@ function openDeliverModal(o, verb){
   zone.addEventListener('drop', e=>{ e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; applyFiles(e.dataTransfer && e.dataTransfer.files); });
   document.addEventListener('paste', onPaste);
   ov.querySelector('#dmOk').onclick = ()=>{
-    if(requirePhoto && !photoUrls.length){ toast('Lalamove delivery — add a proof-of-delivery photo first'); return; }
+    if(requirePhoto && !photoUrls.length && !confirm('No proof photo for this Lalamove delivery.\n\nLalamove usually sends one automatically when the driver uploads it. Mark delivered without a photo now?')) return;
     const notify = canNotify && ov.querySelector('#dmNotify').checked;
     close();
     confirmDeliver(o.id, photoUrls, notify, verb, photoB64s);
