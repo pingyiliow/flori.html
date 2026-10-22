@@ -654,7 +654,8 @@
         <div class="ff" style="grid-column:1/-1">
           <label style="display:flex;align-items:center;gap:9px;cursor:pointer;background:var(--c-bg);border:1px solid var(--c-border);border-radius:10px;padding:9px 11px">
             <input type="checkbox" id="i-untracked" style="width:17px;height:17px;flex:none;accent-color:var(--c-burg)">
-            <span><span style="font-size:12.5px;font-weight:600;display:block">Not tracked · 未入库</span><span style="font-size:11px;color:var(--c-muted)">Keep its info (price, photo, category) but don't count quantity or deduct. Shows under Stock › Not tracked; tap Add to stock later to start counting.</span></span>
+            <span style="font-size:12.5px;font-weight:600;flex:1">Not tracked · 未入库</span>
+            <span title="Keeps its info (price, photo, category) but doesn't count quantity or deduct. Shows under Stock › Not tracked; tap Add to stock later to start counting." style="width:17px;height:17px;border-radius:50%;border:1px solid var(--c-border);color:var(--c-muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex:none">?</span>
           </label>
         </div>
         <div class="ff"><label class="ff-l">Family <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-family" type="text" placeholder="e.g. Rose (group colours)"></div>
@@ -2561,7 +2562,9 @@ function _rbomRenderComps(){
   el.innerHTML = comps.length ? comps.map((c,i)=>{ const st=_compStock(c);
     const tag=_compIsShop(c)?' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>':'';
     const vtag=c.forVariant?' <span style="font-size:9px;font-weight:600;color:#7A3FA6;background:#F3EDFA;border-radius:4px;padding:1px 6px;vertical-align:1px">'+esc(c.forVariant)+'</span>':'';
-    const line = st.qty!=null ? '<div style="font-size:11px;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">'+st.qty+' in stock</div>' : '<div style="font-size:11px;color:#b46a1e">not in materials</div>';
+    const _invC=(!_compIsShop(c)&&typeof INVENTORY!=='undefined')?INVENTORY.find(x=>x.id===c.mid):null;
+    const line = (_invC&&_invC.untracked) ? '<div style="font-size:11px;color:var(--c-muted)">'+(LANG==='zh'?'未入库 · 不计数':'not tracked')+'</div>'
+      : (st.qty!=null ? '<div style="font-size:11px;color:'+(st.low?'var(--c-red)':'var(--c-muted)')+'">'+st.qty+' in stock</div>' : '<div style="font-size:11px;color:#b46a1e">not in materials</div>');
     return '<div class="rbom-row"><div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">'+esc(c.name)+tag+vtag+'</div>'+line+'</div><div class="rbom-qty"><button type="button" onclick="rbomQty('+i+',-1)">−</button><b>'+(c.qty||1)+'</b><button type="button" onclick="rbomQty('+i+',1)">+</button></div><button type="button" onclick="rbomRemove('+i+')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:17px;line-height:1">×</button></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:4px 2px">No materials yet — add below.</div>';
 }
@@ -2569,7 +2572,7 @@ function rbomQty(i,d){ const c=_recEdit.components[i]; if(!c) return; c.qty=Math
 function rbomRemove(i){ _recEdit.components.splice(i,1); _rbomRenderComps(); }
 function rbomMatSearch(q){
   const box=document.getElementById('rbom-mat-results'); if(!box) return;
-  q=String(q||'').trim().toLowerCase();
+  const raw=String(q||'').trim(); q=raw.toLowerCase();
   if(!q){ box.style.display='none'; box.innerHTML=''; return; }
   const shopTag=' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
   const man=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>String(i.name||'').toLowerCase().includes(q)).slice(0,10)
@@ -2578,8 +2581,21 @@ function rbomMatSearch(q){
     .map(p=>({shop:true,pid:p.id,name:p.title,qty:p.total||0}));
   const rows=man.concat(shop);
   _rbomMatResults=rows;
-  box.innerHTML = rows.length ? rows.map((r,k)=>'<div class="rcp-sug-row" onmousedown="rbomMatPick('+k+')">'+esc(r.name)+(r.shop?shopTag:'')+' <span style="color:var(--c-muted);float:right">'+r.qty+(r.shop?'':' '+esc(r.unit))+'</span></div>').join('') : '<div style="padding:8px 12px;font-size:11px;color:var(--c-muted)">Not found — add it in the Materials tab first</div>';
+  const addRow='<div class="rcp-sug-row" onmousedown="rbomAddUntracked()" style="color:var(--c-burg);font-weight:600">+ '+(LANG==='zh'?'新建未入库材料':'Add')+' "'+esc(raw)+'"'+(LANG==='zh'?'':' · not-tracked material')+'</div>';
+  box.innerHTML = (rows.length ? rows.map((r,k)=>'<div class="rcp-sug-row" onmousedown="rbomMatPick('+k+')">'+esc(r.name)+(r.shop?shopTag:'')+' <span style="color:var(--c-muted);float:right">'+r.qty+(r.shop?'':' '+esc(r.unit))+'</span></div>').join('') : '') + addRow;
   box.style.display='';
+}
+// Create a NOT-TRACKED material on the fly from the design editor (name only — no stock count),
+// or reuse an existing item with the same name (no duplicate), and add it to this design.
+function rbomAddUntracked(){
+  const inp=document.getElementById('rbom-mat-search'); const name=(inp&&inp.value||'').trim(); if(!name) return;
+  let it=(typeof INVENTORY!=='undefined'?INVENTORY:[]).find(x=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(!it){ it={ id:'inv-'+Date.now(), name, cat:'cut', qty:0, unit:'stems', untracked:true, moves:null }; if(typeof INVENTORY!=='undefined') INVENTORY.push(it); if(typeof _invSaveOne==='function') _invSaveOne(it); }
+  if(!_recEdit.components.some(c=>c.mid===it.id)) _recEdit.components.push({ mid:it.id, name:it.name, qty:1 });
+  _rbomRenderComps();
+  const box=document.getElementById('rbom-mat-results'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  if(inp) inp.value='';
+  toast(it.untracked?(LANG==='zh'?('✓ 未入库材料:'+name):('✓ Added (not tracked): '+name)):(LANG==='zh'?('✓ 已加:'+name):('✓ Added: '+name)));
 }
 // Current stock for a recipe component — manual (INVENTORY) or Shopify (SHOPIFY_STOCK).
 function _compIsShop(c){ return !!(c && (c.kind==='shop' || String(c.mid||'').indexOf('shop:')===0)); }
