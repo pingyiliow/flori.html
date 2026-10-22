@@ -3244,16 +3244,21 @@ function filteredOrders() {
 
 function sortedOrders(list) {
   const stateRank = o => o.fulfilled ? 2 : o.ready ? 1 : 0; // pending=0, ready=1, fulfilled=2
+  const urg = o => (!o.fulfilled && o.priority === 'urgent') ? 0 : 1; // urgent pinned above its day
   return [...list].sort((a,b) => {
+    // Day first — keeps the Orders date-groups in chronological order.
+    if (!a.dateObj && !b.dateObj) { /* both undated — fall through */ }
+    else if (!a.dateObj) return 1;
+    else if (!b.dateObj) return -1;
+    else if (a.dateObj - b.dateObj !== 0) return a.dateObj - b.dateObj;
+    // Within a day: urgent (unfulfilled) floats to the top…
+    const ua = urg(a), ub = urg(b);
+    if (ua !== ub) return ua - ub;
+    // …then pending → ready → fulfilled…
     const ra = stateRank(a), rb = stateRank(b);
-    if (ra !== rb) return ra - rb; // pending → ready → fulfilled
-    // Within same state: sort by time
-    if (!a.dateObj && !b.dateObj) return 0;
-    if (!a.dateObj) return 1; if (!b.dateObj) return -1;
-    if (a.dateObj - b.dateObj !== 0) return a.dateObj - b.dateObj;
-    const ta = a.dueTime||'', tb = b.dueTime||'';
-    if (ta && !tb) return -1; if (!ta && tb) return 1;
-    return ta.localeCompare(tb);
+    if (ra !== rb) return ra - rb;
+    // …then by real clock time (so 9am sorts before 10am).
+    return _timeRank(a.dueTime) - _timeRank(b.dueTime);
   });
 }
 
@@ -3666,47 +3671,58 @@ function _ringSVG(value, pct, color){
 function _renderStaffDash(el){
   const t0=today0(), t1=new Date(t0.getTime()+86400000), todayStr=tdi(t0);
   const todayO=ORDERS.filter(o=>(o.dateObj&&o.dateObj>=t0&&o.dateObj<t1)||(o.fulfilled&&o.createdAt&&o.createdAt.slice(0,10)===todayStr));
-  const _cut=new Date(t0.getTime()-7*86400000);
-  const onwayCnt=ORDERS.filter(o=>o.otwAt&&!o.fulfilled).length;
-  const readyCnt=ORDERS.filter(o=>o.ready&&!o.fulfilled&&(!o.dateObj||o.dateObj>=_cut)).length;
-  const overdueCnt=ORDERS.filter(o=>o.dateObj&&o.dateObj<t0&&o.dateObj>=_cut&&!o.fulfilled).length;
-  const due=todayO.length, denom=Math.max(due,1);
-  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
-  const soon=todayO.filter(o=>!o.fulfilled).slice().sort((a,b)=>_timeRank(a.dueTime)-_timeRank(b.dueTime)).slice(0,3);
-  const chip=o=>{ const rk=_timeRank(o.dueTime), over=rk<1e9&&rk<nowMin, t=o.dueTime||'';
-    return '<span style="font-size:11px;padding:2px 7px;border-radius:99px;white-space:nowrap;'+(over?'background:var(--c-blush-bg,#fde8e8);color:var(--c-red)':'background:var(--c-butter,#f6edcf);color:var(--c-amber,#9a6b1e)')+'">'+esc(t||(over?'overdue':'soon'))+(over?' · late':'')+'</span>'; };
-  const actBtn=o=>{ if(!o.ready) return '<button onclick="event.stopPropagation();toggleReady(\''+o.id+'\')" style="padding:4px 10px;font-size:11.5px;border:1.5px solid var(--c-burg);background:var(--c-surface);color:var(--c-burg);border-radius:99px;cursor:pointer;font-weight:600">Ready</button>';
-    if(o.type!=='pickup') return '<button onclick="event.stopPropagation();openOTWModal(\''+o.id+'\')" style="padding:4px 10px;font-size:11.5px;border:none;background:var(--c-burg);color:var(--c-bg);border-radius:99px;cursor:pointer;font-weight:600">On the way</button>';
-    return ''; };
-  const actRows=soon.length?soon.map(o=>{ const nm=(o.lineItems&&o.lineItems[0]&&o.lineItems[0].title)||o.product||o.name||'Order';
-    return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--c-border);cursor:pointer">'+chip(o)
-      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(o.customer||'')+'</div></div>'+actBtn(o)+'</div>';
-  }).join(''):'<div style="padding:18px;text-align:center;color:var(--c-muted);font-size:12.5px">All caught up for today</div>';
-  const cakeToday=todayO.filter(o=>typeof _effCake==='function'&&_effCake(o)&&!o.fulfilled&&(typeof _cakeCollected!=='function'||!_cakeCollected(o))).length;
-  const unassignedDel=todayO.filter(o=>(o.type||'delivery')==='delivery'&&!o.routeId&&!o.fulfilled).length;
-  const fuPending=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').length;
-  const lowStock=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>!i.untracked&&(typeof _invLow==='function'?_invLow(i):(i.qty||0)<=5)).length;
-  const att=[];
-  if(cakeToday) att.push('<span onclick="goPage(\'driver\')" style="cursor:pointer">'+di('note',13)+' '+cakeToday+' cake'+(cakeToday>1?'s':'')+'</span>');
-  if(unassignedDel) att.push('<span onclick="goPage(\'driver\')" style="cursor:pointer">'+di('nav',13)+' '+unassignedDel+' no route</span>');
-  if(fuPending) att.push('<span onclick="goPage(\'followup\')" style="cursor:pointer">'+di('clipboard',13)+' '+fuPending+' follow-up'+(fuPending>1?'s':'')+'</span>');
-  if(lowStock) att.push('<span onclick="goPage(\'stock\')" style="cursor:pointer">'+di('box',13)+' '+lowStock+' low</span>');
-  const greet=(now.getHours()<12?'Good morning':now.getHours()<18?'Good afternoon':'Good evening');
+  // CS + admin see finance (RM total), the deliveries card and follow-ups; florist does not.
+  const full=(typeof hasRole==='function')&&(hasRole('cs')||hasRole('admin'));
   const canSwitch=(typeof hasRole==='function'&&hasRole('admin'));
+  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  const greet=(now.getHours()<12?'Good morning':now.getHours()<18?'Good afternoon':'Good evening');
+  const run=sortedOrders(todayO.filter(o=>!o.fulfilled));
+  const revToday=todayO.reduce((s,o)=>s+(orderTotal(o)||0),0);
+  const pendingPickups=todayO.filter(o=>o.type==='pickup'&&!o.fulfilled).length;
+  const del=todayO.filter(o=>(o.type||'delivery')==='delivery');
+  const onway=del.filter(o=>o.otwAt&&!o.fulfilled).length;
+  const delivered=del.filter(o=>o.fulfilled).length;
+  const notAssigned=del.filter(o=>!o.routeId&&!o.fulfilled&&!o.otwAt).length;
+  // ── stat tiles (RM shown to CS/admin only) ──
+  const tile=(label,val)=>'<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:14px;padding:12px 15px"><div style="font-size:11.5px;color:var(--c-muted)">'+label+'</div><div style="font-size:23px;font-weight:700;font-family:var(--f-head);margin-top:3px">'+val+'</div></div>';
+  const tiles=[tile("Today's orders",todayO.length)];
+  if(full) tiles.push(tile("Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')));
+  tiles.push(tile('Pending pickups',pendingPickups));
+  // ── today's run — urgent pinned, then by time ──
+  const runRow=(o,i)=>{ const nm=(o.lineItems&&o.lineItems[0]&&o.lineItems[0].title)||o.product||o.name||'Order';
+    const rk=_timeRank(o.dueTime), over=rk<1e9&&rk<nowMin, urgent=!o.fulfilled&&o.priority==='urgent', pu=o.type==='pickup';
+    const badge=urgent?'<span style="font-size:10.5px;background:var(--c-blush-bg,#fde8e8);color:var(--c-red);padding:2px 8px;border-radius:99px;font-weight:700;white-space:nowrap">Urgent</span>':'';
+    return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:9px;padding:10px 12px;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer">'
+      +badge
+      +'<span style="font-size:11.5px;color:'+(over?'var(--c-red)':'var(--c-muted)')+';font-weight:600;min-width:40px">'+esc(o.dueTime||'—')+'</span>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(o.customer||'')+(pu?' · pickup':'')+'</div></div>'
+      +'<span style="color:var(--c-muted);display:inline-flex">'+di(pu?'bag':'truck',16)+'</span></div>';
+  };
+  const runHTML=run.length?run.map(runRow).join(''):'<div style="padding:22px;text-align:center;color:var(--c-muted);font-size:12.5px">All caught up for today</div>';
+  // ── deliveries card (CS/admin only) ──
+  const delCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('truck',17)+'<span style="font-weight:700;font-size:13.5px">Today\'s deliveries</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px"><span>On the way</span><span style="font-weight:700;color:#378add">'+onway+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Delivered</span><span style="font-weight:700;color:#1d9e75">'+delivered+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Not assigned</span><span style="font-weight:700;color:'+(notAssigned?'#b46a1e':'var(--c-muted)')+'">'+notAssigned+'</span></div>'
+    +'</div>'):'';
+  // ── follow-ups card (CS/admin only) ──
+  const fus=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').slice(0,4);
+  const fuCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+di('msg',17)+'<span style="font-weight:700;font-size:13.5px">Follow-ups</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="event.stopPropagation();goPage(\'followup\')">View →</button></div>'
+    +(fus.length?fus.map((f,i)=>{ const unpaid=(f.payment==='pending'), reason=unpaid?'Payment pending':(f.status||'Follow up');
+      return '<div onclick="goPage(\'followup\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name||'—')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(reason)+(f.orderNo?' · '+esc(f.orderNo):'')+'</div></div>'+(unpaid?'<span style="font-size:10.5px;background:var(--p-peach,#fbe3d6);color:var(--p-peach-ink,#a65b2e);padding:2px 8px;border-radius:99px;font-weight:700">Unpaid</span>':'')+'</div>';
+    }).join(''):'<div style="font-size:12px;color:var(--c-muted);padding:6px 0">No follow-ups pending</div>')
+    +'</div>'):'';
   el.innerHTML=
-    (canSwitch?'<button onclick="togglePreviewStaff()" style="margin-bottom:10px;padding:5px 11px;border:1.5px solid var(--c-burg);border-radius:99px;background:var(--c-surface);color:var(--c-burg);font-size:11px;cursor:pointer">← Owner view</button>':'')
-    +'<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:18px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
-    +'<div style="display:flex;justify-content:space-around;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:14px;padding:12px 4px;margin-bottom:14px">'
-      +'<div style="text-align:center">'+_ringSVG(due,1,'#e0a23a')+'<div style="font-size:11px;color:var(--c-muted);margin-top:2px">Due today</div></div>'
-      +'<div style="text-align:center">'+_ringSVG(readyCnt,readyCnt/denom,'#1d9e75')+'<div style="font-size:11px;color:var(--c-muted);margin-top:2px">Ready</div></div>'
-      +'<div style="text-align:center">'+_ringSVG(onwayCnt,onwayCnt/denom,'#378add')+'<div style="font-size:11px;color:var(--c-muted);margin-top:2px">On the way</div></div>'
-      +'<div style="text-align:center">'+_ringSVG(overdueCnt,overdueCnt/denom,'#e24b4a')+'<div style="font-size:11px;color:'+(overdueCnt?'var(--c-red)':'var(--c-muted)')+';margin-top:2px">Overdue</div></div>'
-    +'</div>'
-    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--c-red)"></span><span style="font-size:13px;font-weight:700">Act now</span></div>'
-    +'<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:14px;overflow:hidden">'+actRows+'</div>'
-    +(att.length?'<div style="display:flex;flex-wrap:wrap;gap:12px;padding:8px 2px 0;font-size:11.5px;color:var(--c-muted)">'+att.join('')+'</div>':'')
-    +'<div class="h-cols" style="margin-top:14px"><div class="h-col-main"><div id="home-tmr"></div></div><div class="h-col-side"><div id="home-todo"></div></div></div>';
-  _renderStaffTomorrow();
+    (canSwitch?'<button onclick="togglePreviewStaff()" style="margin-bottom:12px;padding:5px 11px;border:1.5px solid var(--c-burg);border-radius:99px;background:var(--c-surface);color:var(--c-burg);font-size:11px;cursor:pointer">← Owner view</button>':'')
+    +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat('+tiles.length+',1fr);gap:12px;margin-bottom:16px">'+tiles.join('')+'</div>'
+    +'<div class="h-cols"><div class="h-col-main">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><span style="font-size:11px;color:var(--c-muted)">urgent first, then by time</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
+      +'<div class="card" style="padding:2px 0">'+runHTML+'</div>'
+    +'</div><div class="h-col-side">'
+      +delCard+fuCard
+      +'<div id="home-todo"></div>'
+    +'</div></div>';
   renderTodos();
 }
 let _staffTmrLoaded=false;
@@ -3728,15 +3744,16 @@ async function _renderStaffTomorrow(){
 function renderHome() {
   const _d=document.getElementById('home-dash'), _s=document.getElementById('home-stats'), _a=document.getElementById('home-admin-body'), _hh=document.getElementById('home-hero'), _vt=document.getElementById('home-view-toggle');
   const _admin = (typeof hasRole==='function') ? hasRole('admin') : true;
-  // Staff dashboard temporarily PARKED (being redesigned) — everyone sees the original dashboard
-  // for now. The staff view only renders on an explicit admin preview (toggle hidden by default).
-  if (_previewStaff) {
+  // Role split: admin (owner) gets the business/finance dashboard below; CS + florist get the
+  // "today" staff dashboard (_renderStaffDash, which itself hides RM/deliveries/follow-ups from
+  // florist). Admin can preview the staff view with the hero toggle.
+  if (_previewStaff || !_admin) {
     if(_s)_s.style.display='none'; if(_a)_a.style.display='none'; if(_hh)_hh.style.display='none';
     if(_d){ _d.style.display=''; _renderStaffDash(_d); }
     return;
   }
   if(_d)_d.style.display='none'; if(_s)_s.style.display=''; if(_a)_a.style.display=''; if(_hh)_hh.style.display='';
-  if(_vt) _vt.style.display='none';
+  if(_vt) _vt.style.display='';
   renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
