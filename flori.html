@@ -3683,27 +3683,30 @@ function _renderStaffDash(el){
   const onway=del.filter(o=>o.otwAt&&!o.fulfilled).length;
   const delivered=del.filter(o=>o.fulfilled).length;
   const notAssigned=del.filter(o=>!o.routeId&&!o.fulfilled&&!o.otwAt).length;
-  // ── "Today" ring — to make / ready / done, plus RM (CS) + pending pickups ──
+  // ── colour-coded KPI cards + "Today" ring ──
   const pendMk=todayO.filter(o=>!o.fulfilled&&!o.ready).length, readyN=todayO.filter(o=>!o.fulfilled&&o.ready).length, doneN=todayO.filter(o=>o.fulfilled).length;
   const _tot=todayO.length||1, pA=pendMk/_tot*100, rA=readyN/_tot*100;
-  const _dot=c=>'<span style="width:9px;height:9px;border-radius:50%;background:'+c+';display:inline-block;flex:none"></span>';
-  const _leg=(c,label,val)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px">'+_dot(c)+'<span style="flex:1">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
-  const _stat=(label,val)=>'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px"><span style="color:var(--c-muted)">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
-  const todayCard='<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px">'
-    +'<div style="position:relative;width:98px;height:98px;flex:none;border-radius:50%;background:conic-gradient(#e0a23a 0 '+pA+'%,#1d9e75 '+pA+'% '+(pA+rA)+'%,var(--c-border2) '+(pA+rA)+'% 100%)">'
-      +'<div style="position:absolute;inset:15px;border-radius:50%;background:var(--c-surface);display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:22px;font-weight:700;line-height:1;font-family:var(--f-head)">'+todayO.length+'</b><span style="font-size:10px;color:var(--c-muted)">orders</span></div>'
+  const chip=(bg,icon)=>'<span style="width:26px;height:26px;border-radius:8px;background:'+bg+';display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di(icon,15)+'</span>';
+  const kpi=(bg,chipBg,icon,numCol,labCol,label,val)=>'<div style="background:'+bg+';border-radius:14px;padding:14px 15px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="width:30px;height:30px;border-radius:9px;background:'+chipBg+';display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di(icon,17)+'</span><span style="font-size:12px;color:'+labCol+'">'+label+'</span></div>'
+    +'<div style="font-size:26px;font-weight:700;font-family:var(--f-head);color:'+numCol+';line-height:1">'+val+'</div></div>';
+  const kpis=[
+    kpi('#FAEEDA','#BA7517','flower','#633806','#854F0B','To make',pendMk),
+    kpi('#EAF3DE','#639922','check','#27500A','#3B6D11','Ready',readyN),
+    kpi('#FAECE7','#D85A30','bag','#712B13','#993C1D','Pending pickups',pendingPickups),
+  ];
+  if(full) kpis.push(kpi('#EEEDFE','#534AB7','receipt','#26215C','#3C3489',"Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')));
+  const kpiRow='<div style="display:grid;grid-template-columns:repeat('+kpis.length+',1fr);gap:12px;margin-bottom:16px">'+kpis.join('')+'</div>';
+  const _leg=(c,label,val)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';display:inline-block;flex:none"></span><span style="flex:1">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
+  const ringCard='<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:18px">'
+    +'<div style="position:relative;width:92px;height:92px;flex:none;border-radius:50%;background:conic-gradient(#BA7517 0 '+pA+'%,#639922 '+pA+'% '+(pA+rA)+'%,var(--c-border2) '+(pA+rA)+'% 100%)">'
+      +'<div style="position:absolute;inset:14px;border-radius:50%;background:var(--c-surface);display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:21px;font-weight:700;line-height:1;font-family:var(--f-head)">'+todayO.length+'</b><span style="font-size:10px;color:var(--c-muted)">orders</span></div>'
     +'</div>'
-    +'<div style="flex:1;min-width:150px">'
-      +_leg('#e0a23a','To make',pendMk)+_leg('#1d9e75','Ready',readyN)+_leg('var(--c-border2)','Done',doneN)
-      +'<div style="border-top:1px solid var(--c-border);margin-top:6px;padding-top:6px">'
-        +(full?_stat("Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')):'')
-        +_stat('Pending pickups',pendingPickups)
-      +'</div>'
-    +'</div>'
+    +'<div style="flex:1;min-width:120px">'+_leg('#BA7517','To make',pendMk)+_leg('#639922','Ready',readyN)+_leg('var(--c-border2)','Done',doneN)+'</div>'
   +'</div>';
   // ── cakes to collect (CS/admin only) — click a row to open the order; flags a missing pickup place ──
   const cakes=todayO.filter(o=>typeof _effCake==='function'&&_effCake(o)&&!o.fulfilled&&(typeof _cakeCollected!=='function'||!_cakeCollected(o)));
-  const cakeCard=(full&&cakes.length)?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('cake',17)+'<span style="font-weight:700;font-size:13.5px">Cakes to collect</span><span style="margin-left:auto;font-weight:700;font-size:13px">'+cakes.length+'</span></div>'
+  const cakeCard=(full&&cakes.length)?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+chip('#993556','cake')+'<span style="font-weight:700;font-size:13.5px">Cakes to collect</span><span style="margin-left:auto;font-weight:700;font-size:13px">'+cakes.length+'</span></div>'
     +cakes.map((o,i)=>{ const c=_effCake(o)||{}, tm=o.dueTime||'', set=!!(c.supplier&&!c.auto);
       return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(tm?esc(tm)+' · ':'')+esc(o.customer||o.name||'Order')+'</div><div style="font-size:11px;'+(set?'color:var(--c-muted)':'color:var(--c-red)')+'">'+(set?esc(c.supplier):'No pickup location set')+'</div></div><span style="color:var(--c-border2);font-size:15px">›</span></div>';
     }).join('')
@@ -3714,14 +3717,14 @@ function _renderStaffDash(el){
     ? run.map(o=>{ const its=(o.lineItems&&o.lineItems.length>1)?o.lineItems:null; return its?its.map((it,idx)=>homeMiniCard(o,it,idx)).join(''):homeMiniCard(o); }).join('')
     : '<div class="empty" style="padding:28px 20px"><div class="empty-ico">'+di('check',30)+'</div><div class="empty-txt">All caught up for today</div></div>';
   // ── deliveries card (CS/admin only) ──
-  const delCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('truck',17)+'<span style="font-weight:700;font-size:13.5px">Today\'s deliveries</span></div>'
+  const delCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+chip('#185FA5','truck')+'<span style="font-weight:700;font-size:13.5px">Today\'s deliveries</span></div>'
     +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px"><span>On the way</span><span style="font-weight:700;color:#378add">'+onway+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Delivered</span><span style="font-weight:700;color:#1d9e75">'+delivered+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Not assigned</span><span style="font-weight:700;color:'+(notAssigned?'#b46a1e':'var(--c-muted)')+'">'+notAssigned+'</span></div>'
     +'</div>'):'';
   // ── follow-ups card (CS/admin only) ──
   const fus=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').slice(0,4);
-  const fuCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+di('msg',17)+'<span style="font-weight:700;font-size:13.5px">Follow-ups</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="event.stopPropagation();goPage(\'followup\')">View →</button></div>'
+  const fuCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+chip('#D4537E','msg')+'<span style="font-weight:700;font-size:13.5px">Follow-ups</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="event.stopPropagation();goPage(\'followup\')">View →</button></div>'
     +(fus.length?fus.map((f,i)=>{ const unpaid=(f.payment==='pending'), reason=unpaid?'Payment pending':(f.status||'Follow up');
       return '<div onclick="goPage(\'followup\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name||'—')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(reason)+(f.orderNo?' · '+esc(f.orderNo):'')+'</div></div>'+(unpaid?'<span style="font-size:10.5px;background:var(--p-peach,#fbe3d6);color:var(--p-peach-ink,#a65b2e);padding:2px 8px;border-radius:99px;font-weight:700">Unpaid</span>':'')+'</div>';
     }).join(''):'<div style="font-size:12px;color:var(--c-muted);padding:6px 0">No follow-ups pending</div>')
@@ -3729,13 +3732,13 @@ function _renderStaffDash(el){
   el.innerHTML=
     (canSwitch?'<button onclick="togglePreviewStaff()" style="margin-bottom:12px;padding:5px 11px;border:1.5px solid var(--c-burg);border-radius:99px;background:var(--c-surface);color:var(--c-burg);font-size:11px;cursor:pointer">← Owner view</button>':'')
     +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
-    +todayCard
+    +kpiRow
     +'<div class="h-cols"><div class="h-col-main">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
       +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'+runHTML+'</div>'
       +'<div id="home-tmr"></div>'
     +'</div><div class="h-col-side">'
-      +delCard+cakeCard+fuCard
+      +ringCard+delCard+cakeCard+fuCard
       +'<div id="home-todo"></div>'
     +'</div></div>';
   renderTodos();
@@ -3750,7 +3753,7 @@ async function _renderStaffTomorrow(){
   const flo={}; tmr.forEach(o=>{ (typeof _orderEffectiveFlowers==='function'?_orderEffectiveFlowers(o):(o.recipe||[])).forEach(f=>{ const k=String(f.name||'').trim().toLowerCase(); if(!k)return; if(!flo[k])flo[k]={name:f.name,qty:0}; flo[k].qty+=(parseFloat(f.qty)||0); }); });
   const flowers=Object.values(flo).filter(f=>f.qty>0).sort((a,b)=>b.qty-a.qty);
   el.innerHTML='<div class="card" style="padding:14px 16px">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('flower',17)+'<span style="font-weight:700;font-size:13.5px;flex:1">Tomorrow · flowers to prep</span><span style="font-size:11px;color:var(--c-muted)">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:26px;height:26px;border-radius:8px;background:#639922;display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di('flower',15)+'</span><span style="font-weight:700;font-size:13.5px;flex:1">Tomorrow · flowers to prep</span><span style="font-size:11px;color:var(--c-muted)">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
     +(flowers.length?'<div style="display:flex;flex-wrap:wrap;gap:6px">'+flowers.map(f=>'<span style="font-size:11.5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:99px;padding:3px 10px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet':'No orders tomorrow yet')+'</div>')
   +'</div>';
 }
