@@ -1415,6 +1415,7 @@ async function showApp() {
   loadInvCats();       // editable stock categories (shared settings)
   loadCakeSuppliers(); // editable cake-supplier list (shared settings)
   loadRecipes(); loadRecipesSB().then(()=>{ if(typeof _backfillLinkRecipes==='function') _backfillLinkRecipes(); if(document.getElementById('pg-stock')?.classList.contains('on')) renderRecipes(); if(typeof _applyBOM==='function') _applyBOM(); }); // design→materials recipes + box auto-deduct
+  loadFlowerStd(); loadFlowerStdSB();   // product → standard flower recipe (pre-fills order recipes)
   loadShopCat();       // manual category assignment for Shopify-tracked items
   loadShopStockIds();  // user-added Shopify products tracked as stock (shared settings)
   loadShopMeta();      // local SKU/notes for Shopify items (never written to Shopify)
@@ -2415,6 +2416,25 @@ let RECIPES = [];
 function loadRecipes(){ try{ RECIPES = JSON.parse(localStorage.getItem('flori-recipes')||'[]'); }catch(e){ RECIPES=[]; } }
 async function loadRecipesSB(){ if(!hasSB()) return; try{ const v=await sbGetVal('recipes'); let arr=v?((typeof v==='string')?JSON.parse(v):v):null; if(Array.isArray(arr)){ RECIPES=arr; try{ _lsSet('flori-recipes',JSON.stringify(arr)); }catch(_){} } }catch(_){} }
 function saveRecipes(){ try{ _lsSet('flori-recipes',JSON.stringify(RECIPES)); }catch(_){} if(hasSB()) sbSet('recipes', JSON.stringify(RECIPES)); }
+
+// ── Standard FLOWER recipe per product (the "template") ─────────────────────
+// A product can carry a standard flower recipe. When an order for that product comes in and
+// has no recipe of its own yet, the order's Flower Recipe PRE-FILLS from this standard; staff
+// then resize freely per order (bigger/smaller) — that edited copy lives on the order. The
+// standard stays visible for reference. Keyed by product name (same match as the box/BOM).
+let FLOWER_STD = {};   // { [productNameLower]: { name, flowers:[{name,qty,unit}], updatedAt, by } }
+function loadFlowerStd(){ try{ FLOWER_STD = JSON.parse(localStorage.getItem('flori-flower-std')||'{}')||{}; }catch(e){ FLOWER_STD={}; } }
+async function loadFlowerStdSB(){ if(!hasSB()) return; try{ const v=await sbGetVal('flower_std'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'&&!Array.isArray(o)){ FLOWER_STD=o; try{ _lsSet('flori-flower-std',JSON.stringify(o)); }catch(_){} } }catch(_){} }
+function saveFlowerStd(){ try{ _lsSet('flori-flower-std',JSON.stringify(FLOWER_STD)); }catch(_){} if(hasSB()) sbSet('flower_std', JSON.stringify(FLOWER_STD)); }
+const _fstdKey = s => String(s||'').trim().toLowerCase();
+function _flowerStdFor(name){ const e=FLOWER_STD[_fstdKey(name)]; return (e&&Array.isArray(e.flowers)&&e.flowers.length)?e.flowers:null; }
+function _orderProducts(o){ const its=(o&&o.lineItems&&o.lineItems.length)?o.lineItems.map(i=>i&&i.title):[o&&o.product]; return [...new Set(its.map(t=>String(t||'').trim()).filter(Boolean))]; }
+function _orderPrimaryProduct(o){ return ((o&&o.lineItems&&o.lineItems[0]&&o.lineItems[0].title) || (o&&o.product) || '').trim(); }
+// Standard flowers for an order = concat of each product's standard (pre-fill / fallback).
+function _orderStdFlowers(o){ const out=[]; _orderProducts(o).forEach(p=>{ const f=_flowerStdFor(p); if(f) f.forEach(x=>out.push({name:x.name,qty:x.qty,unit:x.unit})); }); return out; }
+// Effective flowers for display/aggregation: the order's own (possibly resized) recipe if set,
+// otherwise the product's standard. Used by the recipe view + tomorrow-prep totals.
+function _orderEffectiveFlowers(o){ return (o&&o.recipe&&o.recipe.length)?o.recipe:_orderStdFlowers(o); }
 // Auto-deduct materials for every non-cancelled order whose line item matches a recipe.
 // Idempotency ledger for Shopify-component deductions (writes to LIVE Shopify stock).
 // Keyed by rkey = orderId|title|mid; persisted so a re-sync never double-deducts.
@@ -11709,16 +11729,57 @@ function waLink(phone) {
 /* ─── Recipe system ──────────────────────────────────────────── */
 let _recipeId = '';
 
+let _recipeFromStd = false;
 function openRecipe(id) {
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
   _recipeId = id;
   document.getElementById('recipe-order-lbl').textContent = o.name + (o.customer ? ' · ' + o.customer : '');
   const rows = document.getElementById('recipe-rows');
   rows.innerHTML = '';
-  const recipe = o.recipe && o.recipe.length ? o.recipe : [];
+  let recipe = o.recipe && o.recipe.length ? o.recipe.slice() : [];
+  _recipeFromStd = false;
+  // No per-order recipe yet → pre-fill from the product's standard recipe (editable here).
+  if (!recipe.length) { const std = _orderStdFlowers(o); if (std.length) { recipe = std.map(f=>({name:f.name,qty:f.qty,unit:f.unit})); _recipeFromStd = true; } }
   if (!recipe.length) recipe.push({name:'',qty:1,unit:'stems'});
   recipe.forEach((f,i) => _renderRecipeRow(f, i));
+  _renderRecipeStdBanner(o);
   openModal('m-recipe');
+}
+// Standard-recipe banner inside the order Flower Recipe modal: shows the product's standard
+// (with a "pre-filled" note when it seeded these rows) + a reset link; or a hint to set one.
+function _renderRecipeStdBanner(o){
+  const el = document.getElementById('recipe-std-banner'); if(!el) return;
+  const prim = _orderPrimaryProduct(o);
+  const std = prim ? _flowerStdFor(prim) : null;
+  if (std){
+    const sum = std.map(f=>esc(f.name)+' ×'+f.qty).join(', ');
+    el.innerHTML = '<div style="background:var(--c-bg);border:1px solid var(--c-border);border-radius:10px;padding:8px 11px;margin-bottom:10px;font-size:11.5px;color:var(--c-muted);line-height:1.5">'
+      + '<div style="font-weight:700;color:var(--c-ink);margin-bottom:2px">Standard · '+esc(prim)+(_recipeFromStd?' <span style="color:var(--c-burg)">(pre-filled)</span>':'')+'</div>'
+      + esc(sum)
+      + ' · <a onclick="_recipeResetToStd()" style="color:var(--c-burg);cursor:pointer;text-decoration:underline;white-space:nowrap">Reset to standard</a></div>';
+  } else {
+    el.innerHTML = '<div style="font-size:11px;color:var(--c-muted);margin-bottom:8px">No standard recipe for this product yet — fill it below, then tap <b>Set as standard</b> to reuse it on future orders.</div>';
+  }
+}
+// Reload the editor rows from the product standard (discard current edits in the modal).
+function _recipeResetToStd(){
+  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
+  const std = _orderStdFlowers(o);
+  const rows = document.getElementById('recipe-rows'); rows.innerHTML='';
+  (std.length?std:[{name:'',qty:1,unit:'stems'}]).forEach((f,i)=>_renderRecipeRow({name:f.name,qty:f.qty,unit:f.unit},i));
+  toast('Reset to standard');
+}
+// Save the current rows as the standard flower recipe for this order's primary product.
+function _recipeSetAsStd(){
+  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
+  const prim = _orderPrimaryProduct(o); if(!prim){ toast('No product on this order'); return; }
+  const flowers=[];
+  document.querySelectorAll('.recipe-row').forEach(r=>{ const name=r.querySelector('.recipe-flower-name')?.value.trim()||''; const qty=parseInt(r.querySelector('.recipe-qty')?.value)||1; const unit=r.querySelector('.recipe-unit')?.value||'stems'; if(name) flowers.push({name,qty,unit}); });
+  if(!flowers.length){ toast('Add flowers first'); return; }
+  FLOWER_STD[_fstdKey(prim)] = { name:prim, flowers, updatedAt:new Date().toISOString(), by:(currentUserName||'') };
+  saveFlowerStd();
+  _recipeFromStd=false; _renderRecipeStdBanner(o);
+  toast('✓ Standard saved for '+prim);
 }
 
 function _renderRecipeRow(f, idx) {
@@ -11951,7 +12012,11 @@ function _renderDP(order, localOrder) {
   const recipPhone = addr?.phone || '';   // recipient — shown with the delivery address
   const email = cust.email || '';
   const note  = order.note || '';
-  const recipe = localOrder.recipe || [];
+  // Show the order's own (resized) recipe if set; otherwise fall back to the product's STANDARD
+  // so the recipe is visible even before anyone customises it for this order.
+  const _ownRecipe = (localOrder.recipe && localOrder.recipe.length) ? localOrder.recipe : null;
+  const _recipeIsStd = !_ownRecipe;
+  const recipe = _ownRecipe || (typeof _orderStdFlowers==='function' ? _orderStdFlowers(localOrder) : []);
 
   // Delivery info from attrs
   const dueDate  = getDueDate(attrs) || localOrder.dueDate || '';
@@ -12167,10 +12232,10 @@ function _renderDP(order, localOrder) {
   html += `<div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="dp-section-ttl" style="margin-bottom:0">Flower Recipe</div>
-      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${recipe.length?di('edit',11)+' Edit recipe':di('leaf',11)+' Add recipe'}</button>
+      <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${_ownRecipe?di('edit',11)+' Edit recipe':di('leaf',11)+(recipe.length?' Adjust for this order':' Add recipe')}</button>
     </div>
-    ${recipe.length
-      ? recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted);display:inline-flex">${di('leaf',13)}</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
+    ${recipe.length ? (_recipeIsStd?`<div style="font-size:10.5px;color:var(--c-muted);margin-bottom:5px">Standard recipe · not customised for this order yet</div>`:'')
+      + recipe.map(f=>`<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--c-border);display:flex;gap:8px"><span style="color:var(--c-muted);display:inline-flex">${di('leaf',13)}</span><span><strong>${f.qty}</strong> ${esc(f.unit)} ${esc(f.name)}</span></div>`).join('')
       : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`
     }
   </div>`;
@@ -12366,10 +12431,14 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
       <button class="mc-x" aria-label="Close" onclick="closeModal('m-recipe')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
-      <div style="font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">List the flowers used in this arrangement. Saved locally to this device.</div>
+      <div style="font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-bottom:8px">List the flowers for this arrangement — resize freely per order. Saved to this order.</div>
+      <div id="recipe-std-banner"></div>
       <div id="recipe-rows" style="display:flex;flex-direction:column"></div>
-      <button class="btn btn-ghost btn-sm" onclick="addRecipeRow()" style="align-self:flex-start;margin-top:4px">+ Add flower</button>
-      <div class="btn-row" style="margin-top:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
+        <button class="btn btn-ghost btn-sm" onclick="addRecipeRow()" style="align-self:flex-start">+ Add flower</button>
+        <button class="btn btn-ghost btn-sm" onclick="_recipeSetAsStd()" title="Reuse this recipe on future orders of this product" style="color:var(--c-burg);border-color:var(--c-burg)">Set as standard</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px">
         <button class="btn btn-primary" style="flex:1" onclick="saveRecipe()">Save Recipe</button>
         <button class="btn btn-ghost" onclick="closeModal('m-recipe')">Cancel</button>
       </div>
