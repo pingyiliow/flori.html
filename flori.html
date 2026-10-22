@@ -1211,9 +1211,9 @@ const TAB_ACCESS = {
   followup:  ['admin','cs'],
   customers: ['admin','cs'],
   wanotify:  ['admin','cs'],
-  settings:  ['admin'],
-  records:   ['admin'],            // admin-only checklist: payables, refunds, document requests
-  driver:    ['admin','driver'],   // driver-role users see ONLY this page
+  settings:  ['admin','cs'],
+  records:   ['admin','cs'],       // payables, refunds, document requests
+  driver:    ['admin','cs','driver'], // pure-driver users see ONLY this page
 };
 function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || currentUserRoles.some(x => r.includes(x)); }
 async function getUserRole(){
