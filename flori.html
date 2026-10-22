@@ -921,6 +921,8 @@
     </div>
     <div class="mc-body">
       <input type="hidden" id="fu-draft-id">
+      <div id="fu-draft-items" style="margin-bottom:6px"></div>
+      <div id="fu-draft-picker">
       <input id="fu-draft-search" type="text" placeholder="Search products…" autocomplete="off"
              oninput="searchDraftProducts()"
              style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);margin-bottom:8px">
@@ -934,6 +936,7 @@
                style="flex:1;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
         <input id="fu-draft-qty" type="number" min="1" value="1" title="Quantity"
                style="width:64px;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink);text-align:center">
+      </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:18px">
         <button onclick="closeModal('m-fu-draft')" style="flex:1;padding:11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--c-muted);background:var(--c-surface);cursor:pointer">Cancel</button>
@@ -5892,15 +5895,26 @@ let _fuDraftVariant = null;   // {id,title,price} when an existing Shopify produ
 let _fuDraftSearchT = null;
 let _fuDraftAutoPick = false; // true during the prefill auto-search → auto-link an exact match
 
+function _fuDraftItems(f){ return (Array.isArray(f.itemList)?f.itemList:[]).filter(it=> it && ((it.name&&String(it.name).trim())||it.variantId)); }
 function openFUDraftModal(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   _fuDraftVariant = null;
   document.getElementById('fu-draft-id').value = id;
-  // Carry the follow-up's chosen product over so staff don't re-pick from scratch.
-  // Use the first named item; split a trailing "· RM123" price off the name if present.
-  const firstItem = (Array.isArray(f.itemList) && f.itemList.find(it => it && it.name && it.name.trim()))
-    || (f.items ? { name: String(f.items).split('\n')[0] } : null);
-  let itemName = (firstItem && firstItem.name) ? firstItem.name.trim() : '';
+  const items = _fuDraftItems(f);
+  const picker = document.getElementById('fu-draft-picker');
+  const sumEl = document.getElementById('fu-draft-items');
+  if (items.length) {
+    // The follow-up already has its items (each variant-linked where a Shopify product was picked).
+    // Send them ALL — no redundant single-item picker. Show a summary of what will go out.
+    if (picker) picker.style.display = 'none';
+    if (sumEl) sumEl.innerHTML = _fuDraftItemsSummary(f, items);
+    closeFUDP(); openModal('m-fu-draft');
+    return;
+  }
+  // Legacy follow-up with no structured items → fall back to the single-item picker.
+  if (picker) picker.style.display = '';
+  if (sumEl) sumEl.innerHTML = '';
+  let itemName = f.items ? String(f.items).split('\n')[0].trim() : '';
   let parsedPrice = '';
   const pm = itemName.match(/[·\-–]\s*RM\s*([\d,]+(?:\.\d+)?)\s*$/i);
   if (pm){ parsedPrice = pm[1].replace(/,/g,''); itemName = itemName.replace(/[·\-–]\s*RM\s*[\d,]+(?:\.\d+)?\s*$/i,'').trim(); }
@@ -5913,10 +5927,53 @@ function openFUDraftModal(id) {
     + (itemName ? 'Pre-filled from this follow-up. Tap a Shopify match below to link the real product, or just Create Draft to use it as-is.' : 'Search your Shopify products above, or add a custom item below.') + '</div>';
   closeFUDP();
   openModal('m-fu-draft');
-  // Auto-search Shopify for the pre-filled name so a matching product LINKS automatically
-  // (an exact single-variant match is selected) instead of going out as a custom item.
   _fuDraftAutoPick = !!itemName;
   if (itemName && typeof searchDraftProducts==='function') setTimeout(()=>{ try{ searchDraftProducts(); }catch(_){} }, 60);
+}
+// Summary of the items that will be sent to Shopify (name, qty, price, Shopify-linked vs custom).
+function _fuDraftItemsSummary(f, items){
+  items = items || _fuDraftItems(f);
+  let total=0, anyPrice=false;
+  const rows = items.map(it=>{
+    const qty=Math.max(1,parseInt(it.qty,10)||1);
+    const linked=!!it.variantId;
+    const price=(it.price!=null&&it.price!=='')?Number(it.price):null;
+    if(price!=null){ total+=price*qty; anyPrice=true; }
+    const img=(it.images&&it.images[0])?'<img src="'+esc(it.images[0])+'" style="width:34px;height:34px;border-radius:7px;object-fit:cover;flex:none">':'<span style="width:34px;height:34px;border-radius:7px;background:var(--c-bg);display:inline-flex;align-items:center;justify-content:center;color:var(--c-dpink);flex:none">'+di('flower',16)+'</span>';
+    const tag=linked?'<span style="font-size:9px;font-weight:700;color:var(--c-forest,#2e6b4f);border:1px solid var(--c-forest,#2e6b4f);border-radius:4px;padding:0 5px">Shopify</span>':'<span style="font-size:9px;font-weight:700;color:var(--c-muted);border:1px solid var(--c-border);border-radius:4px;padding:0 5px">Custom</span>';
+    return '<div style="display:flex;align-items:center;gap:9px;padding:7px 2px;border-top:1px solid var(--c-border)">'+img
+      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name||'(item)')+(qty>1?' <span style="color:var(--c-muted)">×'+qty+'</span>':'')+' '+tag+'</div>'+(price!=null?'<div style="font-size:11px;color:var(--c-muted)">RM '+(price*qty).toFixed(2)+'</div>':'')+'</div></div>';
+  }).join('');
+  const fee=parseFloat(f.deliveryFee)||0;
+  return '<div style="font-size:10px;letter-spacing:.08em;color:var(--c-muted)">ITEMS TO SEND · '+items.length+'</div>'+rows
+    + (anyPrice?'<div style="display:flex;justify-content:space-between;border-top:1.5px solid var(--c-border);margin-top:4px;padding-top:7px;font-size:12.5px"><span style="color:var(--c-muted)">'+(f.fulfil==='pickup'?'Items':'Items + delivery')+'</span><span style="font-weight:700">RM '+(total+(f.fulfil==='pickup'?0:fee)).toFixed(2)+'</span></div>':'')
+    + '<div style="font-size:10.5px;color:var(--c-muted);margin-top:8px">Shopify-linked items go in as the real product; others as custom. Sender, recipient, address, date and fee are added automatically.</div>';
+}
+// Build the Shopify draft line items from ALL the follow-up's items. Each uses its stored
+// variantId (real product) when the item was picked from Shopify; otherwise we try an exact
+// name match, then fall back to a custom line item. Quantities come from each item.
+async function _fuDraftLineItems(f){
+  const items = _fuDraftItems(f); const out=[];
+  for(const it of items){
+    const qty=Math.max(1,parseInt(it.qty,10)||1);
+    let li=null;
+    if(it.variantId){ li={ variantId: it.variantId, quantity: qty }; }
+    else {
+      const nm=String(it.name||'').trim();
+      if(nm){ try{
+        const data=await shopifyGQL(`{ products(first:5, query:${JSON.stringify(nm)}){ edges{ node{ title variants(first:8){ edges{ node{ id } } } } } } }`);
+        const prods=(data.products&&data.products.edges||[]).map(e=>e.node);
+        const exact=prods.find(p=>String(p.title||'').trim().toLowerCase()===nm.toLowerCase());
+        const vs=exact?((exact.variants&&exact.variants.edges||[]).map(e=>e.node)):[];
+        if(vs.length===1) li={ variantId: vs[0].id, quantity: qty };
+      }catch(_){} }
+      if(!li){ const price=(it.price!=null&&it.price!=='')?Number(it.price):0; li={ title:(nm||'Item'), originalUnitPrice: price.toFixed(2), quantity: qty, taxable:false }; }
+    }
+    li.requiresShipping=true;
+    li.customAttributes=[{ key:'_bloomflow_followup', value: f.id }];
+    out.push(li);
+  }
+  return out;
 }
 
 function _fuDraftClearVariant() {
@@ -6119,24 +6176,9 @@ async function createShopifyDraft() {
   const qty = Math.max(1, parseInt(document.getElementById('fu-draft-qty').value)||1);
   const customName  = document.getElementById('fu-draft-custom-name').value.trim();
   const customPrice = document.getElementById('fu-draft-custom-price').value.trim();
-
-  let lineItem;
-  if (customName) {
-    lineItem = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, taxable: false };
-  } else if (_fuDraftVariant) {
-    lineItem = { variantId: _fuDraftVariant.id, quantity: qty };
-  } else {
-    toast('Pick a product or enter a custom item'); return;
-  }
-  // Force "requires shipping" so the order carries a fulfilment method instead of
-  // "Shipping not required" — which happens for CUSTOM items and for Shopify products whose
-  // "This is a physical product" box is unchecked. Pickup keeps no delivery address but
-  // gets a Self Collect shipping line below; delivery keeps its address.
-  lineItem.requiresShipping = true;
-  // Hidden line-item property carries the follow-up id for the webhook to match
-  // on. The leading underscore keeps it out of the Shopify admin display, so the
-  // order tags can stay clean/meaningful instead of holding a long code.
-  lineItem.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
+  // requiresShipping on every line so the order carries a fulfilment method instead of
+  // "Shipping not required" (which happens for CUSTOM items and for Shopify products whose
+  // "This is a physical product" box is unchecked). Pickup still gets a Self Collect line below.
 
   // Order-level attributes. The first four are the keys syncOrders/webhook read back.
   // Sender & recipient are NOT attributes — sender becomes the Shopify customer,
@@ -6166,11 +6208,22 @@ async function createShopifyDraft() {
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
   toast('Creating Shopify draft…');
   try {
+    // Build line items from ALL the follow-up's items (variant-linked where picked). Fall back
+    // to the single-item picker only for legacy follow-ups that have no structured items.
+    let lineItems = await _fuDraftLineItems(f);
+    if (!lineItems.length) {
+      let li;
+      if (_fuDraftVariant) li = { variantId: _fuDraftVariant.id, quantity: qty };
+      else if (customName) li = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, taxable: false };
+      else { toast('No items to send'); if(btn){ btn.disabled=false; btn.textContent='Create Draft →'; } return; }
+      li.requiresShipping = true; li.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
+      lineItems = [li];
+    }
     // Sender → Shopify customer (search existing, else create).
     const customerId = await _draftFindOrCreateCustomer(f);
 
     const input = {
-      lineItems: [ lineItem ],
+      lineItems,
       customAttributes,
       note: [f.cardMsg ? 'Card: '+f.cardMsg : '', f.flowerNote ? 'Flowers: '+f.flowerNote : '', f.remarks ? 'Remarks: '+f.remarks : ''].filter(Boolean).join('\n\n') || null,
       tags,
