@@ -8072,12 +8072,17 @@ async function _lalaMngRefresh(){
 // Best-effort: dig any proof-of-delivery image URL(s) out of the Lalamove order payload.
 // Field names vary by market/plan, so scan the likely spots for https image links.
 function _lalaPodPhotos(d){
-  const out=[]; const scan=v=>{ if(!v)return;
-    if(typeof v==='string'){ if(/^https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)(\?|#|$)/i.test(v)) out.push(v); }
-    else if(Array.isArray(v)) v.forEach(scan);
-    else if(typeof v==='object') Object.values(v).forEach(scan); };
-  [d.proofOfDelivery, d.pod, d.proof, d.deliveryProof, d.signature, d.photo, d.metadata].forEach(scan);
-  return [...new Set(out)];
+  if(!d) return [];
+  const out=new Set();
+  // POD-specific fields: accept ANY https url (Lalamove proof urls often lack a file extension)
+  const podScan=v=>{ if(!v)return; if(typeof v==='string'){ if(/^https?:\/\//i.test(v)) out.add(v); } else if(Array.isArray(v)) v.forEach(podScan); else if(typeof v==='object') Object.values(v).forEach(podScan); };
+  [d.proofOfDelivery, d.pod, d.proof, d.deliveryProof, d.signature, d.signatures, d.photos, d.photo].forEach(podScan);
+  if(d.metadata) podScan(d.metadata.proofOfDelivery || d.metadata.pod || d.metadata.proof);
+  // Fallback: any image-looking url anywhere in the payload
+  const imgScan=v=>{ if(!v)return; if(typeof v==='string'){ if(/^https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif|heic)(\?|#|$)/i.test(v)) out.add(v); } else if(Array.isArray(v)) v.forEach(imgScan); else if(typeof v==='object') Object.values(v).forEach(imgScan); };
+  imgScan(d);
+  const share = d.shareLink||d.trackingLink||'';   // never mistake the tracking link for a proof photo
+  return [...out].filter(u=>u && u!==share);
 }
 // When Lalamove reports COMPLETED, mark the BloomFlow order delivered ONCE (and attach the
 // Lalamove proof photo if the payload carried one). Reuses confirmDeliver so Shopify fulfil +
@@ -8116,6 +8121,11 @@ function _lalaMngRender(){
     const pb=d.priceBreakdown||{}; if(pb.total) body+=row('Fare',(pb.currency?pb.currency+' ':'')+pb.total);
     if(d.priorityFee) body+=row('Priority fee added',(pb.currency?pb.currency+' ':'')+d.priorityFee);
     body+=row('Lalamove ID', '<span style="font-family:var(--f-mono,monospace);font-size:11px">'+esc(String(_lalaMng.id).slice(-10))+'</span>');
+    if(st==='COMPLETED'){
+      const pods=_lalaPodPhotos(d);
+      body+=row('Proof of delivery', pods.length ? (pods.length+' photo'+(pods.length>1?'s':'')) : '<span style="color:var(--c-muted)">none in Lalamove data</span>');
+      if(pods.length) body+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'+pods.map(u=>'<img src="'+esc(u)+'" alt="proof" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid var(--c-border);cursor:pointer" onclick="openZoom(\''+esc(u)+'\')">').join('')+'</div>';
+    }
   }
   // actions
   let acts='';
