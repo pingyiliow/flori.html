@@ -651,11 +651,17 @@
         <div class="ff"><label class="ff-l">Category</label>
           <select id="i-cat" onchange="invCatSelect(this)"></select>
         </div>
-        <div class="ff" style="grid-column:1/-1">
-          <label style="display:flex;align-items:center;gap:9px;cursor:pointer;background:var(--c-bg);border:1px solid var(--c-border);border-radius:10px;padding:9px 11px">
-            <input type="checkbox" id="i-untracked" style="width:17px;height:17px;flex:none;accent-color:var(--c-burg)">
-            <span style="font-size:12.5px;font-weight:600;flex:1">Not tracked · 未入库</span>
-            <span title="Keeps its info (price, photo, category) but doesn't count quantity or deduct. Shows under Stock › Not tracked; tap Add to stock later to start counting." style="width:17px;height:17px;border-radius:50%;border:1px solid var(--c-border);color:var(--c-muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;cursor:help;flex:none">?</span>
+        <div class="ff">
+          <label class="ff-l" style="display:flex;align-items:center;gap:5px">Track inventory
+            <span title="On = counted stock (deducts when an order uses it). Off = not tracked / 未入库: keeps price, photo and category but no quantity count or deduction; shows under Stock › Not tracked." style="width:15px;height:15px;border-radius:50%;border:1px solid var(--c-border);color:var(--c-muted);font-size:10px;display:inline-flex;align-items:center;justify-content:center;cursor:help">?</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:9px;height:40px;cursor:pointer;user-select:none">
+            <span style="position:relative;display:inline-block;width:40px;height:22px;flex:none">
+              <input type="checkbox" id="i-tracked" checked onchange="_invTrackToggle()" style="position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;margin:0">
+              <span id="i-tracked-track" style="position:absolute;inset:0;border-radius:99px;background:var(--c-burg)"></span>
+              <span id="i-tracked-knob" style="position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .15s;transform:translateX(18px)"></span>
+            </span>
+            <span id="i-tracked-lbl" style="font-size:12px;color:var(--c-muted)">On · counted</span>
           </label>
         </div>
         <div class="ff"><label class="ff-l">Family <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-family" type="text" placeholder="e.g. Rose (group colours)"></div>
@@ -4054,6 +4060,13 @@ function _invUntrackedCard(i){
     +'<div class="stk-left"><div class="stk-name">'+esc(i.name||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(_invCatLabel(i.cat))+(price?' · '+price:'')+'</div></div>'
     +'<button type="button" onclick="event.stopPropagation();invTrackStart(\''+i.id+'\')" style="font-size:11.5px;font-weight:700;color:var(--c-burg);background:var(--c-surface);border:1.5px solid var(--c-burg);border-radius:20px;padding:5px 11px;cursor:pointer;white-space:nowrap">'+(LANG==='zh'?'加入库存':'Add to stock')+'</button>'
   +'</div>';
+}
+// Track-inventory toggle in the item form: moves the knob, recolours the track, updates the label.
+function _invTrackToggle(){
+  const on=!!(document.getElementById('i-tracked')||{}).checked;
+  const knob=document.getElementById('i-tracked-knob'); if(knob) knob.style.transform= on?'translateX(18px)':'translateX(0)';
+  const trk=document.getElementById('i-tracked-track'); if(trk) trk.style.background= on?'var(--c-burg)':'var(--c-border2,#ccc)';
+  const lbl=document.getElementById('i-tracked-lbl'); if(lbl) lbl.textContent= on?(LANG==='zh'?'开 · 计数':'On · counted'):(LANG==='zh'?'关 · 未入库':'Off · not tracked');
 }
 function invTrackStart(id){
   const i=INVENTORY.find(x=>x.id===id); if(!i) return; const zh=LANG==='zh';
@@ -10644,7 +10657,7 @@ function openAddInv(cat) {
   const _se0=document.getElementById('i-sell'); if(_se0) _se0.value = '';
   document.getElementById('i-reorder').value = '';
   document.getElementById('i-notes').value = '';
-  const _utA=document.getElementById('i-untracked'); if(_utA) _utA.checked=false;
+  const _utA=document.getElementById('i-tracked'); if(_utA){ _utA.checked=true; _invTrackToggle(); }
   const _ils=document.getElementById('i-link-search'); if(_ils) _ils.value='';
   _invLinked = []; _invRenderLinked();
   _invSizeEdit = []; _renderInvSizeEditor();
@@ -10756,7 +10769,7 @@ function editInv(id) {
   const _se=document.getElementById('i-sell'); if(_se) _se.value = (i.sell!=null && i.sell!=='') ? i.sell : '';
   document.getElementById('i-reorder').value = (i.reorder!=null && i.reorder!=='') ? i.reorder : '';
   document.getElementById('i-notes').value = i.notes || '';
-  const _utE=document.getElementById('i-untracked'); if(_utE) _utE.checked=!!i.untracked;
+  const _utE=document.getElementById('i-tracked'); if(_utE){ _utE.checked=!i.untracked; _invTrackToggle(); }
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
   _invSizeEdit = itemSizes(i).map(s=>({...s})); _renderInvSizeEditor();                   // load this item's sizes into the editor
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
@@ -11097,7 +11110,7 @@ function saveInv(){
     family:document.getElementById('i-family').value.trim()||null,
     color:document.getElementById('i-color').value.trim()||null,
     size:document.getElementById('i-size').value.trim()||null,
-    untracked:!!(document.getElementById('i-untracked')||{}).checked,
+    untracked:(function(){ const e=document.getElementById('i-tracked'); return e?!e.checked:false; })(),
     price:_priceRaw===''?null:(parseFloat(_priceRaw)||null),
     reorder:_reorderRaw===''?null:(parseInt(_reorderRaw,10)),
     notes:document.getElementById('i-notes').value.trim(),photo:document.getElementById('i-photo').value||'',
