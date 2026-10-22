@@ -3638,7 +3638,7 @@ function renderTodos(){
     host.innerHTML='<div class="card" style="padding:14px 16px">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><div class="h-sec-ttl">'+(LANG==='zh'?'我的待办':'My to-do')+'</div><span style="font-size:10px;color:var(--c-muted)">'+(LANG==='zh'?'只有你看到':'only you')+'</span></div>'
       +'<div style="display:flex;gap:6px;margin-bottom:4px">'
-        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办…':'Add a task…')+'" autocomplete="off" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
+        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办…':'Add a task…')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
         +'<button onclick="addTodoFromInput()" aria-label="Add" style="padding:7px 13px;border:none;border-radius:var(--r);background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer">+</button>'
       +'</div><div id="todo-list"></div></div>';
   }
