@@ -3683,11 +3683,31 @@ function _renderStaffDash(el){
   const onway=del.filter(o=>o.otwAt&&!o.fulfilled).length;
   const delivered=del.filter(o=>o.fulfilled).length;
   const notAssigned=del.filter(o=>!o.routeId&&!o.fulfilled&&!o.otwAt).length;
-  // ── stat tiles (RM shown to CS/admin only) ──
-  const tile=(label,val)=>'<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:14px;padding:12px 15px"><div style="font-size:11.5px;color:var(--c-muted)">'+label+'</div><div style="font-size:23px;font-weight:700;font-family:var(--f-head);margin-top:3px">'+val+'</div></div>';
-  const tiles=[tile("Today's orders",todayO.length)];
-  if(full) tiles.push(tile("Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')));
-  tiles.push(tile('Pending pickups',pendingPickups));
+  // ── "Today" ring — to make / ready / done, plus RM (CS) + pending pickups ──
+  const pendMk=todayO.filter(o=>!o.fulfilled&&!o.ready).length, readyN=todayO.filter(o=>!o.fulfilled&&o.ready).length, doneN=todayO.filter(o=>o.fulfilled).length;
+  const _tot=todayO.length||1, pA=pendMk/_tot*100, rA=readyN/_tot*100;
+  const _dot=c=>'<span style="width:9px;height:9px;border-radius:50%;background:'+c+';display:inline-block;flex:none"></span>';
+  const _leg=(c,label,val)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px">'+_dot(c)+'<span style="flex:1">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
+  const _stat=(label,val)=>'<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:12.5px"><span style="color:var(--c-muted)">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
+  const todayCard='<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-bottom:16px">'
+    +'<div style="position:relative;width:98px;height:98px;flex:none;border-radius:50%;background:conic-gradient(#e0a23a 0 '+pA+'%,#1d9e75 '+pA+'% '+(pA+rA)+'%,var(--c-border2) '+(pA+rA)+'% 100%)">'
+      +'<div style="position:absolute;inset:15px;border-radius:50%;background:var(--c-surface);display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:22px;font-weight:700;line-height:1;font-family:var(--f-head)">'+todayO.length+'</b><span style="font-size:10px;color:var(--c-muted)">orders</span></div>'
+    +'</div>'
+    +'<div style="flex:1;min-width:150px">'
+      +_leg('#e0a23a','To make',pendMk)+_leg('#1d9e75','Ready',readyN)+_leg('var(--c-border2)','Done',doneN)
+      +'<div style="border-top:1px solid var(--c-border);margin-top:6px;padding-top:6px">'
+        +(full?_stat("Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')):'')
+        +_stat('Pending pickups',pendingPickups)
+      +'</div>'
+    +'</div>'
+  +'</div>';
+  // ── cakes to collect (CS/admin only) — click a row to open the order; flags a missing pickup place ──
+  const cakes=todayO.filter(o=>typeof _effCake==='function'&&_effCake(o)&&!o.fulfilled&&(typeof _cakeCollected!=='function'||!_cakeCollected(o)));
+  const cakeCard=(full&&cakes.length)?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('cake',17)+'<span style="font-weight:700;font-size:13.5px">Cakes to collect</span><span style="margin-left:auto;font-weight:700;font-size:13px">'+cakes.length+'</span></div>'
+    +cakes.map((o,i)=>{ const c=_effCake(o)||{}, tm=o.dueTime||'', set=!!(c.supplier&&!c.auto);
+      return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(tm?esc(tm)+' · ':'')+esc(o.customer||o.name||'Order')+'</div><div style="font-size:11px;'+(set?'color:var(--c-muted)':'color:var(--c-red)')+'">'+(set?esc(c.supplier):'No pickup location set')+'</div></div><span style="color:var(--c-border2);font-size:15px">›</span></div>';
+    }).join('')
+    +'</div>'):'';
   // ── today's run — urgent pinned, then by time. Rich photo cards (homeMiniCard),
   // multi-item orders split into per-product units ("1/2"), same as the owner view. ──
   const runHTML=run.length
@@ -3709,15 +3729,17 @@ function _renderStaffDash(el){
   el.innerHTML=
     (canSwitch?'<button onclick="togglePreviewStaff()" style="margin-bottom:12px;padding:5px 11px;border:1.5px solid var(--c-burg);border-radius:99px;background:var(--c-surface);color:var(--c-burg);font-size:11px;cursor:pointer">← Owner view</button>':'')
     +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
-    +'<div style="display:grid;grid-template-columns:repeat('+tiles.length+',1fr);gap:12px;margin-bottom:16px">'+tiles.join('')+'</div>'
+    +todayCard
     +'<div class="h-cols"><div class="h-col-main">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
-      +'<div style="display:flex;flex-direction:column;gap:8px">'+runHTML+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'+runHTML+'</div>'
+      +'<div id="home-tmr"></div>'
     +'</div><div class="h-col-side">'
-      +delCard+fuCard
+      +delCard+cakeCard+fuCard
       +'<div id="home-todo"></div>'
     +'</div></div>';
   renderTodos();
+  _renderStaffTomorrow();
 }
 let _staffTmrLoaded=false;
 async function _renderStaffTomorrow(){
@@ -3726,13 +3748,10 @@ async function _renderStaffTomorrow(){
   if(!_staffTmrLoaded){ try{ if(typeof loadOrdersForDate==='function') await loadOrdersForDate(iso); }catch(_){} _staffTmrLoaded=true; }   // fetch tomorrow once per session, not on every render (egress)
   const tmr=ORDERS.filter(o=>o.dateObj&&tdi(o.dateObj)===iso);
   const flo={}; tmr.forEach(o=>{ (typeof _orderEffectiveFlowers==='function'?_orderEffectiveFlowers(o):(o.recipe||[])).forEach(f=>{ const k=String(f.name||'').trim().toLowerCase(); if(!k)return; if(!flo[k])flo[k]={name:f.name,qty:0}; flo[k].qty+=(parseFloat(f.qty)||0); }); });
-  const flowers=Object.values(flo).filter(f=>f.qty>0).sort((a,b)=>b.qty-a.qty).slice(0,8);
-  const cakes=tmr.filter(o=>typeof _effCake==='function'&&_effCake(o)).length;
-  const early=tmr.filter(o=>typeof _effCake==='function'&&_effCake(o)&&_timeRank(o.dueTime)<=540).length;
-  el.innerHTML='<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:14px;padding:13px 15px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:12.5px;font-weight:700">Tomorrow · prep</span><span style="font-size:11px;color:var(--c-muted)">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
-    +(flowers.length?'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--c-muted);margin-bottom:5px">Flowers to prepare</div><div style="display:flex;flex-wrap:wrap;gap:5px">'+flowers.map(f=>'<span style="font-size:11px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:99px;padding:2px 9px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:11.5px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet.':'No orders tomorrow yet.')+'</div>')
-    +(cakes?'<div style="font-size:11.5px;color:var(--c-muted);margin-top:9px;padding-top:8px;border-top:1px solid var(--c-border)">'+di('note',13)+' '+cakes+' cake'+(cakes>1?'s':'')+(early?' · '+early+' early':'')+'</div>':'')
+  const flowers=Object.values(flo).filter(f=>f.qty>0).sort((a,b)=>b.qty-a.qty);
+  el.innerHTML='<div class="card" style="padding:14px 16px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('flower',17)+'<span style="font-weight:700;font-size:13.5px;flex:1">Tomorrow · flowers to prep</span><span style="font-size:11px;color:var(--c-muted)">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
+    +(flowers.length?'<div style="display:flex;flex-wrap:wrap;gap:6px">'+flowers.map(f=>'<span style="font-size:11.5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:99px;padding:3px 10px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet':'No orders tomorrow yet')+'</div>')
   +'</div>';
 }
 function renderHome() {
