@@ -3711,7 +3711,7 @@ function _renderStaffDash(el){
     +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
     +'<div style="display:grid;grid-template-columns:repeat('+tiles.length+',1fr);gap:12px;margin-bottom:16px">'+tiles.join('')+'</div>'
     +'<div class="h-cols"><div class="h-col-main">'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><span style="font-size:11px;color:var(--c-muted)">urgent first, then by time</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
       +'<div style="display:flex;flex-direction:column;gap:8px">'+runHTML+'</div>'
     +'</div><div class="h-col-side">'
       +delCard+fuCard
@@ -9038,7 +9038,7 @@ function _drvItemsView(rt){
 // only sees Reorder + Auto-sort; admins get the full set.
 function openRouteManage(routeId){
   const rt = ROUTES.find(r => r.id === routeId); if (!rt) return;
-  const isAdmin = hasRole('admin');
+  const isAdmin = hasRole('admin') || hasRole('cs');   // CS is a full dispatcher on the Delivery page (assign drivers, build/edit routes); only a pure driver gets the read-only "my deliveries" view
   const pending = _drvStopsForRoute(rt.id).filter(o => !o.fulfilled);
   const canOpt = pending.filter(o => o.lat != null).length >= 2;
   const unassigned = _drvStops(_drvDateISO()).filter(o => !o.routeId && !o.fulfilled).length;
@@ -9072,7 +9072,7 @@ function _rmDo(action, routeId){
   else if (action === 'delete')   deleteRoutePrompt(routeId);
 }
 function _drvRouteDetail(rt){
-  const isAdmin = hasRole('admin');
+  const isAdmin = hasRole('admin') || hasRole('cs');   // CS is a full dispatcher on the Delivery page (assign drivers, build/edit routes); only a pure driver gets the read-only "my deliveries" view
   const iso = _drvDateISO();
   const stops = _drvStopsForRoute(rt.id);
   const pending = stops.filter(o => !o.fulfilled);
@@ -9564,7 +9564,7 @@ function renderDriver(){
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
   const routes = _drvRoutesFor(iso);
-  const isAdmin = hasRole('admin');
+  const isAdmin = hasRole('admin') || hasRole('cs');   // CS is a full dispatcher on the Delivery page (assign drivers, build/edit routes); only a pure driver gets the read-only "my deliveries" view
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
   // A driver only sees their own (or any-driver) routes — count/show only those stops, not
   // every delivery for the day; admins see everything (incl. unassigned).
