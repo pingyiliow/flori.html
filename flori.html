@@ -6119,23 +6119,31 @@ async function _draftFindOrCreateCustomer(f) {
   const phone = _e164(f.contact);
   const email = (f.email||'').trim().toLowerCase();
   const src = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
+  const _tail = p => String(p||'').replace(/\D/g,'').slice(-8);
+  // Make sure the linked Shopify customer carries the WhatsApp number — so order confirmations
+  // can reach it. Writes only when the customer has no phone or a different one; non-fatal.
+  const ensurePhone = async (custId, custPhone) => {
+    if (!phone || !custId || _tail(custPhone) === _tail(phone)) return;
+    try { const r = await shopifyGQL(`mutation($input:CustomerInput!){ customerUpdate(input:$input){ userErrors{ field message } } }`, { input:{ id:custId, phone } });
+      const ue=r.customerUpdate?.userErrors||[]; if(ue.length) console.warn('customer phone update:', ue);
+    } catch(e){ console.warn('customer phone update failed:', e.message); }
+  };
   try {
     const terms = [];
     if (email) terms.push('email:'+JSON.stringify(email));
     if (phone) terms.push('phone:'+JSON.stringify(phone));
     if (terms.length) {
       const sd = await shopifyGQL(`{ customers(first:10, query:${JSON.stringify(terms.join(' OR '))}) { edges { node { id phone email } } } }`);
-      // VERIFY the match — Shopify's search can be fuzzy and return unrelated
-      // customers. Only link one whose phone or email actually matches the sender.
+      // VERIFY the match (Shopify search can be fuzzy) — link one whose phone (last 8 digits,
+      // so +60.../0... formats both match) or email actually matches the sender.
       const match = (sd.customers?.edges||[]).map(e=>e.node).find(n =>
-        (phone && _e164(n.phone) === phone) || (email && (n.email||'').toLowerCase() === email)
+        (phone && _tail(n.phone) === _tail(phone)) || (email && (n.email||'').toLowerCase() === email)
       );
       if (match) {
-        // Returning customer — add the source tag + a "Repeat" tag so loyal/repeat
-        // buyers are filterable. tagsAdd keeps their existing tags intact.
         const addTags = [src, 'Repeat'].filter(Boolean);
         try { await shopifyGQL(`mutation($id:ID!,$tags:[String!]!){ tagsAdd(id:$id, tags:$tags){ userErrors { field message } } }`, { id: match.id, tags: addTags }); }
         catch(e){ console.warn('tagsAdd:', e.message); }
+        await ensurePhone(match.id, match.phone);   // backfill the WhatsApp number onto a returning customer
         return match.id;
       }
     }
@@ -6146,8 +6154,21 @@ async function _draftFindOrCreateCustomer(f) {
     if (phone) ci.phone = phone;
     if (email) ci.email = email;
     if (src) ci.tags = [src];   // new (first-time) customer → source tag only
-    const cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id } userErrors { field message } } }`, { input: ci });
-    if ((cd.customerCreate?.userErrors||[]).length) { console.warn('customerCreate:', cd.customerCreate.userErrors); return null; }
+    let cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id phone } userErrors { field message } } }`, { input: ci });
+    let ue = cd.customerCreate?.userErrors||[];
+    if (ue.length && phone && /phone/i.test(JSON.stringify(ue))) {
+      // Phone rejected (already taken or invalid). If another customer already holds it, link
+      // them; otherwise create WITHOUT the phone (it still rides the billing address).
+      try {
+        const sd2 = await shopifyGQL(`{ customers(first:5, query:${JSON.stringify('phone:'+JSON.stringify(phone))}) { edges { node { id phone } } } }`);
+        const m2 = (sd2.customers?.edges||[]).map(e=>e.node).find(n=>_tail(n.phone)===_tail(phone));
+        if (m2) { try{ await shopifyGQL(`mutation($id:ID!,$tags:[String!]!){ tagsAdd(id:$id, tags:$tags){ userErrors{ field message } } }`, { id:m2.id, tags:[src,'Repeat'].filter(Boolean) }); }catch(_){} return m2.id; }
+      } catch(_){}
+      const ci2 = {...ci}; delete ci2.phone;
+      cd = await shopifyGQL(`mutation($input: CustomerInput!) { customerCreate(input:$input) { customer { id } userErrors { field message } } }`, { input: ci2 });
+      ue = cd.customerCreate?.userErrors||[];
+    }
+    if (ue.length) { console.warn('customerCreate:', ue); return null; }
     return cd.customerCreate?.customer?.id || null;
   } catch(e) { console.warn('customer find/create failed:', e.message); return null; }
 }
