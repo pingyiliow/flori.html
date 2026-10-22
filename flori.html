@@ -3688,17 +3688,11 @@ function _renderStaffDash(el){
   const tiles=[tile("Today's orders",todayO.length)];
   if(full) tiles.push(tile("Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')));
   tiles.push(tile('Pending pickups',pendingPickups));
-  // ── today's run — urgent pinned, then by time ──
-  const runRow=(o,i)=>{ const nm=(o.lineItems&&o.lineItems[0]&&o.lineItems[0].title)||o.product||o.name||'Order';
-    const rk=_timeRank(o.dueTime), over=rk<1e9&&rk<nowMin, urgent=!o.fulfilled&&o.priority==='urgent', pu=o.type==='pickup';
-    const badge=urgent?'<span style="font-size:10.5px;background:var(--c-blush-bg,#fde8e8);color:var(--c-red);padding:2px 8px;border-radius:99px;font-weight:700;white-space:nowrap">Urgent</span>':'';
-    return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:9px;padding:10px 12px;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer">'
-      +badge
-      +'<span style="font-size:11.5px;color:'+(over?'var(--c-red)':'var(--c-muted)')+';font-weight:600;min-width:40px">'+esc(o.dueTime||'—')+'</span>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(nm)+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(o.customer||'')+(pu?' · pickup':'')+'</div></div>'
-      +'<span style="color:var(--c-muted);display:inline-flex">'+di(pu?'bag':'truck',16)+'</span></div>';
-  };
-  const runHTML=run.length?run.map(runRow).join(''):'<div style="padding:22px;text-align:center;color:var(--c-muted);font-size:12.5px">All caught up for today</div>';
+  // ── today's run — urgent pinned, then by time. Rich photo cards (homeMiniCard),
+  // multi-item orders split into per-product units ("1/2"), same as the owner view. ──
+  const runHTML=run.length
+    ? run.map(o=>{ const its=(o.lineItems&&o.lineItems.length>1)?o.lineItems:null; return its?its.map((it,idx)=>homeMiniCard(o,it,idx)).join(''):homeMiniCard(o); }).join('')
+    : '<div class="empty" style="padding:28px 20px"><div class="empty-ico">'+di('check',30)+'</div><div class="empty-txt">All caught up for today</div></div>';
   // ── deliveries card (CS/admin only) ──
   const delCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+di('truck',17)+'<span style="font-weight:700;font-size:13.5px">Today\'s deliveries</span></div>'
     +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px"><span>On the way</span><span style="font-weight:700;color:#378add">'+onway+'</span></div>'
@@ -3718,7 +3712,7 @@ function _renderStaffDash(el){
     +'<div style="display:grid;grid-template-columns:repeat('+tiles.length+',1fr);gap:12px;margin-bottom:16px">'+tiles.join('')+'</div>'
     +'<div class="h-cols"><div class="h-col-main">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><span style="font-size:11px;color:var(--c-muted)">urgent first, then by time</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
-      +'<div class="card" style="padding:2px 0">'+runHTML+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:8px">'+runHTML+'</div>'
     +'</div><div class="h-col-side">'
       +delCard+fuCard
       +'<div id="home-todo"></div>'
