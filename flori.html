@@ -100,6 +100,7 @@
           <div id="home-followups"></div>
         </div>
         <div class="h-col-side">
+          <div id="home-todo"></div>
           <div id="home-cakes"></div>
           <div id="h-week"></div>
         </div>
@@ -2862,6 +2863,7 @@ async function loadOrdersForDate(dateStr){
 }
 async function loadFromSupabase(opts = {}) {
   try {
+    loadTodos();   // personal to-do list (private per login) — fire-and-forget
     const [orders, followups, inventory, purchases, remoteRemoved, remoteDeleted] = await Promise.all([
       sbGetRecentOrders(), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
     ]);
@@ -3567,6 +3569,58 @@ function homeMiniCard(o, item, idx) {
   </div>`;
 }
 
+// ── Personal to-do list ─────────────────────────────────────────────────────
+// Private per login: the `todos` table is RLS-scoped to auth.uid(), so each staff only
+// ever sees/edits their own, synced across their devices. Shown in the dashboard side column.
+let TODOS = [];
+async function loadTodos(){
+  if(!hasSB()) return;
+  try{ const { data, error } = await sb.from('todos').select('*').order('done',{ascending:true}).order('sort',{ascending:true}).order('created_at',{ascending:true}); if(!error && Array.isArray(data)) TODOS = data; }
+  catch(e){ console.warn('loadTodos', e&&e.message); }
+  renderTodos();
+}
+async function addTodoFromInput(){
+  const inp=document.getElementById('todo-input'); const t=(inp&&inp.value||'').trim(); if(!t) return;
+  if(inp) inp.value='';
+  const tmp={ id:'tmp-'+Date.now(), text:t, done:false, sort:0, created_at:new Date().toISOString() };
+  TODOS.push(tmp); renderTodos();
+  try{
+    const { data, error } = await sb.from('todos').insert({ text:t }).select().single();
+    if(error) throw error;
+    const i=TODOS.findIndex(x=>x.id===tmp.id); if(i>=0 && data) TODOS[i]=data; renderTodos();
+  }catch(e){ TODOS=TODOS.filter(x=>x.id!==tmp.id); renderTodos(); toast('Could not save — run the todos table SQL'); console.warn('addTodo', e&&e.message); }
+}
+async function toggleTodo(id){
+  const t=TODOS.find(x=>x.id===id); if(!t) return; t.done=!t.done; renderTodos();
+  if(String(id).slice(0,4)==='tmp-') return;
+  try{ await sb.from('todos').update({ done:t.done }).eq('id', id); }catch(e){ console.warn('toggleTodo', e&&e.message); }
+}
+async function deleteTodo(id){
+  TODOS=TODOS.filter(x=>x.id!==id); renderTodos();
+  if(String(id).slice(0,4)==='tmp-') return;
+  try{ await sb.from('todos').delete().eq('id', id); }catch(e){ console.warn('deleteTodo', e&&e.message); }
+}
+function renderTodos(){
+  const host=document.getElementById('home-todo'); if(!host) return;
+  // Build the card shell once (so the input never re-renders mid-typing); then update only the list.
+  if(!document.getElementById('todo-input')){
+    host.innerHTML='<div class="card" style="padding:14px 16px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><div class="h-sec-ttl">'+(LANG==='zh'?'我的待办':'My to-do')+'</div><span style="font-size:10px;color:var(--c-muted)">'+(LANG==='zh'?'只有你看到':'only you')+'</span></div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:4px">'
+        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办…':'Add a task…')+'" autocomplete="off" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
+        +'<button onclick="addTodoFromInput()" aria-label="Add" style="padding:7px 13px;border:none;border-radius:var(--r);background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer">+</button>'
+      +'</div><div id="todo-list"></div></div>';
+  }
+  const list=document.getElementById('todo-list'); if(!list) return;
+  const open=TODOS.filter(t=>!t.done), done=TODOS.filter(t=>t.done);
+  const row=t=>'<div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--c-border)">'
+    +'<button onclick="toggleTodo(\''+t.id+'\')" aria-label="toggle" style="width:18px;height:18px;border-radius:5px;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;'
+      +(t.done?'background:var(--c-burg);border:1.5px solid var(--c-burg);color:#fff':'background:var(--c-surface);border:1.5px solid var(--c-border);color:transparent')+'">'+di('check',12)+'</button>'
+    +'<span style="flex:1;font-size:12.5px;color:'+(t.done?'var(--c-muted)':'var(--c-ink)')+';'+(t.done?'text-decoration:line-through':'')+'">'+esc(t.text||'')+'</span>'
+    +'<button onclick="deleteTodo(\''+t.id+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 2px">×</button>'
+  +'</div>';
+  list.innerHTML = (open.length||done.length) ? (open.map(row).join('')+done.map(row).join('')) : '<div style="font-size:11.5px;color:var(--c-muted);padding:8px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>';
+}
 function renderHome() {
   renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
