@@ -3859,6 +3859,7 @@ function _roleBg(r){ return r==='admin'?['#EEEDFE','#3C3489'] : r==='cs'?['#FAEC
 async function renderTeam(){
   const host=document.getElementById('team-page'); if(!host) return;
   if(!TEAM.length) await loadTeam();
+  await _checkOwner();
   const me=currentUser&&currentUser.id;
   const bd=d=>{ if(!d) return ''; try{ return new Date(d+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}); }catch(_){ return ''; } };
   const card=p=>{
@@ -3934,8 +3935,15 @@ async function saveMyProfile(){
 }
 // ── Owner-only team management: add/remove logins + edit anyone's name/role/position,
 // all in-app via the owner-gated /api/query {team} endpoint (service key stays server-side).
-const OWNER_EMAIL='madeleineliow@gmail.com';
-function isOwner(){ return !!(currentUser && String(currentUser.email||'').toLowerCase()===OWNER_EMAIL); }
+// The owner check is SERVER-side (verified JWT email vs OWNER_EMAIL env) — the client just
+// asks once per session, so no email lives in the page source and nobody can spoof the UI.
+let _ownerFlag=null;
+function isOwner(){ return _ownerFlag===true; }
+async function _checkOwner(){
+  if(_ownerFlag!==null) return _ownerFlag;
+  try{ const j=await _teamApi({ op:'check' }); _ownerFlag=!!(j&&j.owner); }catch(_){ _ownerFlag=false; }
+  return _ownerFlag;
+}
 async function _teamApi(T){
   let authToken=''; try{ if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } }catch(_){}
   const r=await fetch('/api/query',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ team:T, authToken }) });

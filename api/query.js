@@ -96,15 +96,18 @@ async function isAuthedUser(jwt) { return !!(await _authedUser(jwt)); }
 // The owner adds/removes staff logins and edits any profile (incl. position/role)
 // straight from the app's Team page — no Supabase dashboard needed. The service key
 // stays server-side; the gate is the OWNER account's verified JWT email.
-const OWNER_EMAIL = (process.env.OWNER_EMAIL || 'madeleineliow@gmail.com').toLowerCase();
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || 'pingyiliow@gmail.com').toLowerCase();
 async function handleTeam(res, T, jwt) {
   const SVC = process.env.SUPABASE_SERVICE_KEY;
   if (!SVC) return res.status(500).json({ error: 'SUPABASE_SERVICE_KEY missing in Vercel env' });
   const caller = await _authedUser(jwt);
   if (!caller) return res.status(401).json({ error: 'Sign in required' });
-  if (String(caller.email || '').toLowerCase() !== OWNER_EMAIL) return res.status(403).json({ error: 'Owner only' });
-  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' };
+  const isOwner = String(caller.email || '').toLowerCase() === OWNER_EMAIL;
   const op = T && T.op;
+  // 'check' tells the client whether to show the owner UI (never 403s — any staff may ask).
+  if (op === 'check') return res.status(200).json({ owner: isOwner });
+  if (!isOwner) return res.status(403).json({ error: 'Owner only' });
+  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' };
   try {
     if (op === 'create') {
       const { email, password, name, role, position } = T;
