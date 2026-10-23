@@ -94,6 +94,7 @@
     </div>
     <div class="pc" style="padding-top:16px;gap:18px">
       <div id="home-dash" style="display:none"></div>
+      <div id="home-biz" style="display:none"></div>
       <div id="home-admin-body">
       <div id="crm-reminders"></div>
       <div id="h-attention"></div>
@@ -4269,18 +4270,126 @@ async function _renderStaffTomorrow(){
     +(flowers.length?'<div style="display:flex;flex-wrap:wrap;gap:6px">'+flowers.map(f=>'<span style="font-size:11.5px;background:rgba(255,255,255,.8);border-radius:99px;padding:3px 10px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet':'No orders tomorrow yet')+'</div>')
   +'</div>';
 }
+// ── Business dashboard (admin) — month money/volume view. One LEAN fetch per session
+// (no line_items/photos: product titles ride the `product` text column), cached 10 min. ──
+let _BIZ={ rows:null, at:0 };
+async function loadBizMonths(){
+  if(!hasSB()) return [];
+  if(_BIZ.rows && Date.now()-_BIZ.at < 600000) return _BIZ.rows;
+  const now=new Date();
+  const start=tdi(new Date(now.getFullYear(), now.getMonth()-1, 1));
+  const endD=new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const end7=new Date(today0().getTime()+7*86400000);
+  const end=tdi(endD>end7?endD:end7);
+  const COLS='id,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
+  try{
+    let from=0, all=[];
+    while(true){
+      const { data, error } = await sb.from('orders').select(COLS).gte('due_on',start).lte('due_on',end).range(from,from+999);
+      if(error){ console.warn('loadBizMonths', error.message); break; }
+      all=all.concat(data||[]);
+      if(!data||data.length<1000) break;
+      from+=1000;
+    }
+    _BIZ={ rows:all, at:Date.now() };
+    return all;
+  }catch(e){ console.warn('loadBizMonths', e); return _BIZ.rows||[]; }
+}
+async function _renderBizDash(el){
+  const rows=await loadBizMonths();
+  const GLB=t=>'background:'+t+';backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);border-radius:16px;box-shadow:0 8px 28px rgba(60,40,30,.08)';
+  const now=new Date();
+  const mS=new Date(now.getFullYear(),now.getMonth(),1), mE=new Date(now.getFullYear(),now.getMonth()+1,0);
+  const lS=new Date(now.getFullYear(),now.getMonth()-1,1), lE=new Date(now.getFullYear(),now.getMonth(),0);
+  const inR=(r,a,b)=>r.due_on&&r.due_on>=tdi(a)&&r.due_on<=tdi(b);
+  const cur=rows.filter(r=>inR(r,mS,mE)), last=rows.filter(r=>inR(r,lS,lE));
+  const sum=a=>a.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+  const rev=sum(cur), revL=sum(last);
+  const rm=v=>'RM '+Math.round(v).toLocaleString('en-MY');
+  const delta=(a,b)=>{ if(!b) return ''; const p=Math.round((a-b)/b*100); if(!p) return '<div style="font-size:10.5px;color:var(--c-muted)">= '+now.toLocaleDateString('en-MY',{month:'short'})+' vs last</div>';
+    return '<div style="font-size:10.5px;color:'+(p>0?'#3B6D11':'#A32D2D')+'">'+(p>0?'▲':'▼')+' '+Math.abs(p)+'% vs '+lS.toLocaleDateString('en-MY',{month:'short'})+'</div>'; };
+  const kpi=(labCol,numCol,label,val,sub,extra)=>'<div style="'+GLB(extra||'rgba(255,255,255,.6)')+';padding:13px 16px'+(label==='Unpaid'?';cursor:pointer" onclick="goPage(\'followup\')':'"')+'><div style="font-size:11px;color:'+labCol+'">'+label+'</div><div style="font-size:22px;font-weight:700;font-family:var(--f-head);color:'+numCol+'">'+val+'</div>'+(sub||'')+'</div>';
+  // Unpaid — pending-payment follow-ups
+  const unpaidList=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(f=>f.status!=='completed'&&f.payment==='pending');
+  const unpaid=unpaidList.reduce((s,f)=>s+(parseFloat(f.amount)||0)+(parseFloat(f.deliveryFee)||0),0);
+  // Daily revenue, last 14 days
+  const days=[]; for(let i=13;i>=0;i--){ const d=new Date(today0().getTime()-i*86400000); const k=tdi(d); days.push({ k, v: sum(rows.filter(r=>r.due_on===k)) }); }
+  const maxV=Math.max(1,...days.map(d=>d.v));
+  const bars=days.map((d,i)=>{ const h=Math.max(4,Math.round(d.v/maxV*100)); const c=i===13?'#7A2F3A':(d.v>=0.8*maxV?'#BA7517':'#D9C9A8');
+    return '<div style="flex:1;background:'+c+';border-radius:3px 3px 0 0;height:'+h+'%" title="'+d.k+' · '+rm(d.v)+'"></div>'; }).join('');
+  // Next 7 days load
+  const nx=[]; for(let i=0;i<7;i++){ const d=new Date(today0().getTime()+i*86400000); const k=tdi(d); nx.push({ d, n: rows.filter(r=>r.due_on===k).length }); }
+  const maxN=Math.max(1,...nx.map(x=>x.n));
+  const nxRows=nx.map((x,i)=>{ const w=Math.round(x.n/maxN*100); const c=w>=75?'#D85A30':(w>=40?'#BA7517':'#639922');
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--c-muted);padding:2px 0"><span style="width:30px">'+(i===0?'Today':x.d.toLocaleDateString('en-MY',{weekday:'short'}))+'</span><div style="flex:1;height:9px;background:rgba(140,125,110,.15);border-radius:99px"><div style="width:'+Math.max(w,3)+'%;height:100%;background:'+c+';border-radius:99px"></div></div><b style="color:var(--c-ink);min-width:16px;text-align:right">'+x.n+'</b></div>'; }).join('');
+  // Top products (titles ride the comma-joined `product` column)
+  const pc={}; cur.forEach(r=>String(r.product||'').split(/,\s*/).forEach(t=>{ t=t.trim(); if(!t||t==='–')return; pc[t]=(pc[t]||0)+1; }));
+  const topP=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  // Channel split
+  const online=cur.filter(r=>(r.src||'shopify')!=='manual').length, manual=cur.length-online;
+  const onPct=cur.length?Math.round(online/cur.length*100):0;
+  // Customers: key by phone digits (fallback name)
+  const key=r=>{ const d=String(r.cust_phone||'').replace(/\D/g,''); return d||String(r.customer||'').trim().toLowerCase()||null; };
+  const curK={}, lastK=new Set(last.map(key).filter(Boolean));
+  cur.forEach(r=>{ const k=key(r); if(!k)return; if(!curK[k])curK[k]={n:0,name:r.customer||''}; curK[k].n++; });
+  const kList=Object.keys(curK);
+  const newC=kList.filter(k=>!lastK.has(k)).length, retC=kList.length-newC;
+  const topC=kList.map(k=>curK[k]).filter(c=>c.n>=2).sort((a,b)=>b.n-a.n).slice(0,3);
+  // Cakes this month + supplier breakdown
+  const cakes=cur.filter(r=>(r.cake&&typeof r.cake==='object')||/cake/i.test(r.product||''));
+  const supC={}; cakes.forEach(r=>{ const s=(r.cake&&r.cake.supplier)||'—'; supC[s]=(supC[s]||0)+1; });
+  const sups=Object.entries(supC).sort((a,b)=>b[1]-a[1]);
+  const liRow=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3.5px 0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l)+'</span><b style="flex:none">'+v+'</b></div>';
+  el.innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{month:'long',year:'numeric'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">Business</div></div>'
+      +'<div style="margin-left:auto;flex:none;display:flex;background:rgba(255,255,255,.65);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);border-radius:99px;padding:3px;align-self:flex-start">'
+        +'<span onclick="toggleBizView()" style="padding:5px 14px;border-radius:99px;color:var(--c-muted);font-size:11.5px;cursor:pointer">Team</span>'
+        +'<span style="padding:5px 14px;border-radius:99px;background:var(--c-burg);color:var(--c-bg);font-size:11.5px;font-weight:700">Business</span>'
+      +'</div></div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;margin-bottom:12px">'
+      +kpi('#854F0B','#633806','This month',rm(rev),delta(rev,revL))
+      +kpi('#3C3489','#26215C','Orders',cur.length,delta(cur.length,last.length))
+      +kpi('#0C447C','#042C53','Avg order',cur.length?rm(rev/cur.length):'—','')
+      +kpi('#993C1D','#712B13','Unpaid',rm(unpaid),'<div style="font-size:10.5px;color:#993C1D">'+unpaidList.length+' bill'+(unpaidList.length===1?'':'s')+' →</div>','rgba(250,236,231,.75)')
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:11px;margin-bottom:12px">'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;grid-column:span 1;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Daily revenue · last 14 days</div>'
+        +'<div style="display:flex;align-items:flex-end;gap:4px;height:76px">'+bars+'</div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--c-muted);margin-top:4px"><span>'+days[0].k.slice(5)+'</span><span>today</span></div></div>'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Next 7 days</div>'+nxRows+'</div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px">'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Top products</div>'
+        +(topP.length?topP.map(p=>liRow(p[0],p[1])).join(''):'<div style="font-size:12px;color:var(--c-muted)">No orders yet</div>')+'</div>'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0;display:flex;align-items:center;gap:14px">'
+        +'<div style="position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:conic-gradient(#185FA5 0 '+onPct+'%,#639922 '+onPct+'% 100%)"><div style="position:absolute;inset:11px;border-radius:50%;background:rgba(255,255,255,.92)"></div></div>'
+        +'<div style="font-size:12px;min-width:0"><div style="font-weight:700;margin-bottom:5px">Orders from</div>'
+          +'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:#185FA5;flex:none"></span>Online store <b>'+onPct+'%</b></div>'
+          +'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:#639922;flex:none"></span>WhatsApp · manual <b>'+(cur.length?100-onPct:0)+'%</b></div></div></div>'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Customers</div>'
+        +'<div style="display:flex;gap:18px;margin-bottom:6px"><div><div style="font-size:10.5px;color:#3B6D11">New</div><div style="font-size:19px;font-weight:700;color:#27500A">'+newC+'</div></div>'
+        +'<div><div style="font-size:10.5px;color:#3C3489">Returning</div><div style="font-size:19px;font-weight:700;color:#26215C">'+retC+'</div></div></div>'
+        +(topC.length?'<div style="border-top:1px solid var(--c-border);padding-top:5px">'+topC.map(c=>liRow(c.name||'—',c.n+'×')).join('')+'</div>':'')+'</div>'
+      +'<div style="'+GLB('rgba(251,234,240,.6)')+';padding:13px 16px;min-width:0"><div style="display:flex;font-size:12.5px;font-weight:700;color:#993556"><span>Cakes</span><b style="margin-left:auto">'+cakes.length+'</b></div>'
+        +(sups.length?'<div style="margin-top:5px">'+sups.map(s=>liRow(s[0],s[1])).join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted);margin-top:5px">None this month</div>')+'</div>'
+    +'</div>';
+}
 function renderHome() {
   const _d=document.getElementById('home-dash'), _s=document.getElementById('home-stats'), _a=document.getElementById('home-admin-body'), _hh=document.getElementById('home-hero'), _vt=document.getElementById('home-view-toggle');
+  const _b = document.getElementById('home-biz');
   const _admin = (typeof hasRole==='function') ? hasRole('admin') : true;
-  // Team view is the HOME for everyone (admin included). Admin can switch to the
-  // business/finance dashboard below via the "Business view →" toggle.
-  if (!(_admin && _bizView)) {
-    if(_s)_s.style.display='none'; if(_a)_a.style.display='none'; if(_hh)_hh.style.display='none';
-    if(_d){ _d.style.display=''; _renderStaffDash(_d); }
+  // Team view is the HOME for everyone. Admin's segmented switch opens the redesigned
+  // month Business dashboard (_renderBizDash); the legacy owner dashboard below is retired.
+  if (_admin && _bizView) {
+    if(_s)_s.style.display='none'; if(_a)_a.style.display='none'; if(_hh)_hh.style.display='none'; if(_d)_d.style.display='none';
+    if(_b){ _b.style.display=''; _renderBizDash(_b); }
     return;
   }
-  if(_d)_d.style.display='none'; if(_s)_s.style.display=''; if(_a)_a.style.display=''; if(_hh)_hh.style.display='';
-  if(_vt) _vt.style.display='flex';
+  if(_b)_b.style.display='none';
+  if(_s)_s.style.display='none'; if(_a)_a.style.display='none'; if(_hh)_hh.style.display='none';
+  if(_d){ _d.style.display=''; _renderStaffDash(_d); }
+  return;
+  // ── Legacy owner dashboard (unreachable — kept for reference) ──
   renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
