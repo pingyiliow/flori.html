@@ -3668,14 +3668,21 @@ function _todoTags(t){
   if(t.created_by_name)  h+='<span style="font-size:10px;font-weight:700;background:#FBEAF0;color:#993556;padding:2px 8px;border-radius:99px;white-space:nowrap;flex:none">from '+esc(t.created_by_name)+'</span>';
   return h;
 }
-// @mention: typing "@xx" under any to-do input pops teammate suggestions.
+// @ / # suggestions: "@xx" pops teammates, "#xx" pops existing list/group names.
 function _mentionBox(inpId){
   const inp=document.getElementById(inpId); if(!inp) return;
   let box=document.getElementById(inpId+'-sug');
-  const m=/@([^@]*)$/.exec(inp.value||'');
+  const m=/([@#])([^@#\s][^@#]*|)$/.exec(inp.value||'');
   if(!m){ if(box) box.style.display='none'; return; }
-  const q=m[1].trim().toLowerCase();
-  const hits=(TEAM||[]).filter(p=>p.name&&(!q||p.name.toLowerCase().startsWith(q))&&(!currentUser||p.id!==currentUser.id)).slice(0,6);
+  const sym=m[1], q=(m[2]||'').trim().toLowerCase();
+  let hits;
+  if(sym==='@'){
+    hits=(TEAM||[]).filter(p=>p.name&&(!q||p.name.toLowerCase().startsWith(q))&&(!currentUser||p.id!==currentUser.id)).slice(0,6)
+      .map(p=>({ html:_avatarHTML(p,22)+'<span>'+esc(p.name)+'</span><span style="color:var(--c-muted);font-size:10.5px">'+esc(p.position||p.role||'')+'</span>', val:p.name }));
+  } else {
+    hits=[...new Set((TODOS||[]).map(t=>t.grp).filter(Boolean))].filter(g=>!q||String(g).toLowerCase().startsWith(q)).slice(0,6)
+      .map(g=>{ const c=_avaColor(g); return { html:'<span style="width:7px;height:7px;border-radius:50%;background:'+c[1]+';flex:none"></span><span>'+esc(g)+'</span>', val:g }; });
+  }
   if(!hits.length){ if(box) box.style.display='none'; return; }
   if(!box){ box=document.createElement('div'); box.id=inpId+'-sug';
     // Fixed + appended to <body>: a card's rounded overflow can never clip the list.
@@ -3684,12 +3691,12 @@ function _mentionBox(inpId){
     inp.addEventListener('blur',()=>setTimeout(()=>{ box.style.display='none'; },200)); }
   const r=inp.getBoundingClientRect();
   box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.maxWidth=Math.max(220,Math.round(r.width))+'px';
-  box.innerHTML=hits.map((p,i)=>'<div onmousedown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+esc(p.name).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+_avatarHTML(p,22)+'<span>'+esc(p.name)+'</span><span style="color:var(--c-muted);font-size:10.5px">'+esc(p.position||p.role||'')+'</span></div>').join('');
+  box.innerHTML=hits.map((h,i)=>'<div onmousedown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+sym+'\',\''+esc(h.val).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+h.html+'</div>').join('');
   box.style.display='block';
 }
-function _mentionPick(inpId,name){
+function _mentionPick(inpId,sym,val){
   const inp=document.getElementById(inpId); if(!inp) return;
-  inp.value=inp.value.replace(/@([^@]*)$/,'@'+name+' ');
+  inp.value=inp.value.replace(/([@#])([^@#]*)$/, sym+val+' ');
   const box=document.getElementById(inpId+'-sug'); if(box) box.style.display='none';
   inp.focus();
 }
@@ -3698,29 +3705,32 @@ function _mentionTargets(text){
   (TEAM||[]).forEach(p=>{ if(!p.name) return;
     const re=new RegExp('@'+p.name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i');
     if(re.test(rest)){ if(!currentUser||p.id!==currentUser.id) targets.push(p); rest=rest.replace(re,'').replace(/\s{2,}/g,' '); } });
-  return { targets, text: rest.trim() };
+  let grp=null; const gm=/#([^\s#@]+)/.exec(rest);
+  if(gm){ grp=gm[1]; rest=rest.replace(gm[0],'').replace(/\s{2,}/g,' '); }
+  return { targets, grp, text: rest.trim() };
 }
 async function _addTodo(inpId, dateId, timeId){
   const inp=document.getElementById(inpId); const raw=(inp&&inp.value||'').trim(); if(!raw) return;
   const de=dateId?document.getElementById(dateId):null, te=timeId?document.getElementById(timeId):null;
   const due_date=(de&&de.value)||null, due_time=(te&&te.value.trim())||null;
-  const { targets, text }=_mentionTargets(raw);
+  const { targets, grp, text }=_mentionTargets(raw);
   if(!text) return;
   if(inp) inp.value=''; if(te) te.value='';
   const box=document.getElementById(inpId+'-sug'); if(box) box.style.display='none';
   const assigned=targets.length?targets.map(p=>p.name).join(', '):null;
-  const tmp={ id:'tmp-'+Date.now(), text, done:false, created_at:new Date().toISOString(), due_date, due_time, assigned_to_name:assigned };
+  const tmp={ id:'tmp-'+Date.now(), text, done:false, created_at:new Date().toISOString(), due_date, due_time, grp, assigned_to_name:assigned };
   TODOS.push(tmp); renderTodos(); renderTodoPage();
   try{
     const payload={ text };
     if(due_date) payload.due_date=due_date;
     if(due_time) payload.due_time=due_time;
+    if(grp) payload.grp=grp;
     if(assigned) payload.assigned_to_name=assigned;
     const { data, error } = await sb.from('todos').insert(payload).select().single();
     if(error) throw error;
     const i=TODOS.findIndex(x=>x.id===tmp.id); if(i>=0 && data) TODOS[i]=data; renderTodos(); renderTodoPage();
     if(targets.length){
-      const rows=targets.map(p=>{ const r={ text, user_id:p.id, created_by_name:currentUserName||'teammate' }; if(due_date)r.due_date=due_date; if(due_time)r.due_time=due_time; return r; });
+      const rows=targets.map(p=>{ const r={ text, user_id:p.id, created_by_name:currentUserName||'teammate' }; if(due_date)r.due_date=due_date; if(due_time)r.due_time=due_time; if(grp)r.grp=grp; return r; });
       const { error: e2 } = await sb.from('todos').insert(rows);
       if(e2){ toast('⚠ Could not add to teammate — run the todos SQL'); console.warn('assignTodo', e2.message); }
       else toast('Added to '+targets.map(p=>p.name).join(', '));
@@ -3758,7 +3768,7 @@ function renderTodos(){
     host.innerHTML='<div class="card" style="padding:14px 16px">'
       +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><span style="width:26px;height:26px;border-radius:8px;background:#534AB7;display:inline-flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di('check',14)+'</span><div class="h-sec-ttl">'+(LANG==='zh'?'我的待办':'My to-do')+'</div><button id="todo-viewall" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'todo\')">View all →</button></div>'
       +'<div style="display:flex;gap:6px;margin-bottom:4px;position:relative">'
-        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… @名字':'Add a task… @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
+        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
         +'<button onclick="addTodoFromInput()" aria-label="Add" style="padding:7px 13px;border:none;border-radius:var(--r);background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer">+</button>'
       +'</div><div id="todo-list"></div></div>';
   }
@@ -3773,33 +3783,61 @@ function renderTodos(){
   list.innerHTML = open.length ? open.slice(0,3).map(row).join('') : '<div style="font-size:11.5px;color:var(--c-muted);padding:8px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>';
 }
 // ── Full to-do page (More → To-do) ──────────────────────────────────────────
+// Frosted panel, typewriter font, two tabs (To-do / Done), tasks grouped by #list.
+let _todoTab='open';
+function todoTabSet(t){ _todoTab=t; renderTodoPage(); }
 function renderTodoPage(){
   const host=document.getElementById('todo-page'); if(!host) return;
+  const MONO="ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,'Courier New',monospace";
   if(!document.getElementById('todop-input')){
-    host.innerHTML='<div class="page-hdr"><div><div class="page-title">To-do</div></div><span id="todop-count" style="font-size:12px;color:var(--c-muted)"></span></div>'
-      +'<div class="card" style="padding:13px 15px;margin-bottom:14px"><div style="display:flex;gap:6px;flex-wrap:wrap;position:relative">'
-        +'<input id="todop-input" placeholder="Add a task… @name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todop-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todop-input\')" onkeydown="if(event.key===\'Enter\')_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" style="flex:2;min-width:150px;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
-        +'<input id="todop-date" type="date" style="padding:7px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;background:var(--c-surface);color:var(--c-ink);outline:none">'
-        +'<input id="todop-time" type="text" placeholder="2pm" autocomplete="off" style="width:74px;padding:7px 9px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;background:var(--c-surface);color:var(--c-ink);outline:none">'
-        +'<button onclick="_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" aria-label="Add" style="padding:7px 15px;border:none;border-radius:var(--r);background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer">+</button>'
-      +'</div></div>'
-      +'<div class="card" style="padding:4px 16px 8px"><div id="todop-open"></div></div>'
-      +'<div id="todop-done-wrap" style="margin-top:12px"></div>';
+    host.innerHTML='<div style="display:flex;justify-content:center;padding-top:6px">'
+      +'<div style="width:100%;max-width:470px;background:rgba(255,255,255,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.8);border-radius:18px;padding:18px 20px;box-shadow:0 12px 40px rgba(60,40,30,.10);font-family:'+MONO+'">'
+      +'<div id="todop-date-hdr" style="text-align:center;font-size:12.5px;color:var(--c-muted);margin-bottom:12px"></div>'
+      +'<div style="display:flex;gap:18px;margin-bottom:6px;font-size:13px">'
+        +'<span id="todop-tab-open" onclick="todoTabSet(\'open\')"></span>'
+        +'<span id="todop-tab-done" onclick="todoTabSet(\'done\')"></span>'
+      +'</div>'
+      +'<div id="todop-list"></div>'
+      +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--c-border)">'
+        +'<div style="display:flex;gap:7px;position:relative">'
+          +'<input id="todop-input" placeholder="Add a task… #list @name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todop-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todop-input\')" onkeydown="if(event.key===\'Enter\')_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+          +'<button onclick="_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" aria-label="Add" style="width:34px;height:34px;border:none;border-radius:50%;background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:16px;line-height:1;cursor:pointer;flex:none">+</button>'
+        +'</div>'
+        +'<div style="display:flex;gap:7px;margin-top:7px">'
+          +'<input id="todop-date" type="date" style="flex:1;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:99px;font-size:11.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+          +'<input id="todop-time" type="text" placeholder="2pm" autocomplete="off" style="width:88px;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:99px;font-size:11.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+        +'</div>'
+      +'</div>'
+    +'</div></div>';
   }
+  const now=new Date();
+  const dh=document.getElementById('todop-date-hdr');
+  if(dh) dh.textContent=now.toLocaleDateString('en-MY',{day:'numeric',month:'long'})+', '+now.toLocaleDateString('en-MY',{weekday:'long'});
   const open=_todoSortOpen(TODOS.filter(t=>!t.done)), done=TODOS.filter(t=>t.done);
-  const cnt=document.getElementById('todop-count'); if(cnt) cnt.textContent=open.length+' open';
-  const row=t=>'<div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--c-border)">'
+  const onCss='cursor:pointer;padding-bottom:3px;font-weight:700;color:var(--c-ink);border-bottom:2px solid var(--c-burg)';
+  const offCss='cursor:pointer;padding-bottom:3px;color:var(--c-muted);border-bottom:2px solid transparent';
+  const tabO=document.getElementById('todop-tab-open'), tabD=document.getElementById('todop-tab-done');
+  if(tabO){ tabO.innerHTML='To-do <span style="color:var(--c-muted);font-weight:400">'+open.length+'</span>'; tabO.style.cssText=(_todoTab==='open'?onCss:offCss); }
+  if(tabD){ tabD.innerHTML='Done <span style="color:var(--c-muted);font-weight:400">'+done.length+'</span>'; tabD.style.cssText=(_todoTab==='done'?onCss:offCss); }
+  const row=t=>'<div style="display:flex;align-items:center;gap:10px;padding:7px 0">'
     +_todoTick(t)
     +'<span style="flex:1;min-width:0;font-size:13px;color:'+(t.done?'var(--c-muted)':'var(--c-ink)')+';'+(t.done?'text-decoration:line-through;':'')+'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.text||'')+'</span>'
     +_todoTags(t)+_todoDueChip(t)
-    +'<button onclick="deleteTodo(\''+t.id+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;flex:none">×</button>'
+    +'<button onclick="deleteTodo(\''+t.id+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;flex:none">×</button>'
   +'</div>';
-  const op=document.getElementById('todop-open');
-  if(op) op.innerHTML = open.length ? open.map(row).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:12px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>';
-  const dw=document.getElementById('todop-done-wrap');
-  if(dw) dw.innerHTML = done.length
-    ? '<details><summary style="cursor:pointer;font-size:12px;color:var(--c-muted);padding:2px 2px 6px;list-style:none">'+di('check',12)+' Done · '+done.length+'</summary><div class="card" style="padding:2px 16px 8px">'+done.map(row).join('')+'</div></details>'
-    : '';
+  const list=document.getElementById('todop-list'); if(!list) return;
+  if(_todoTab==='done'){
+    list.innerHTML = done.length ? done.map(row).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:10px 0">Nothing done yet</div>';
+  } else if(!open.length){
+    list.innerHTML='<div style="font-size:12px;color:var(--c-muted);padding:10px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>';
+  } else {
+    const groups={}; open.forEach(t=>{ const g=String(t.grp||'others'); (groups[g]=groups[g]||[]).push(t); });
+    const names=Object.keys(groups).sort((a,b)=>{ if(a==='others') return 1; if(b==='others') return -1; return _todoDueRank(groups[a][0])-_todoDueRank(groups[b][0]); });
+    list.innerHTML=names.map(g=>{ const c=_avaColor(g);
+      return '<div style="font-size:11px;color:var(--c-muted);margin:10px 0 2px;display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:'+c[1]+';flex:none"></span>'+esc(g)+'</div>'
+        + groups[g].map(row).join('');
+    }).join('');
+  }
 }
 // ── Team directory (More → Team) ────────────────────────────────────────────
 function _roleBg(r){ return r==='admin'?['#EEEDFE','#3C3489'] : r==='cs'?['#FAECE7','#993C1D'] : r==='driver'?['#FAEEDA','#854F0B'] : ['#EAF3DE','#3B6D11']; }
