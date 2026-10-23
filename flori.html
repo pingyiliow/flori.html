@@ -81,7 +81,10 @@
         <div class="h-hero-main" id="h-greet">Dashboard</div>
         <div class="h-hero-sub" id="h-sub"></div>
       </div>
-      <button id="home-view-toggle" onclick="toggleBizView()" style="display:none;align-self:center;margin-left:auto;margin-right:12px;padding:5px 11px;border:1.5px solid var(--c-border);border-radius:99px;background:var(--c-surface);color:var(--c-muted);font-size:11px;cursor:pointer;white-space:nowrap">← Team view</button>
+      <div id="home-view-toggle" style="display:none;align-self:center;margin-left:auto;margin-right:12px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:99px;padding:3px;white-space:nowrap">
+        <span onclick="toggleBizView()" style="padding:5px 14px;border-radius:99px;color:var(--c-muted);font-size:11px;cursor:pointer">Team</span>
+        <span style="padding:5px 14px;border-radius:99px;background:var(--c-burg);color:var(--c-bg);font-size:11px;font-weight:700">Business</span>
+      </div>
     </div>
     <div class="h-stats" id="home-stats">
       <div class="h-stat t-total"><span class="h-stat-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg></span><div class="h-stat-n" id="s-due">–</div><div class="h-stat-l">Due today</div></div>
@@ -3995,11 +3998,14 @@ function _renderStaffDash(el){
       return '<div onclick="goPage(\'followup\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name||'—')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(reason)+(f.orderNo?' · '+esc(f.orderNo):'')+'</div></div>'+(unpaid?'<span style="font-size:10.5px;background:var(--p-peach,#fbe3d6);color:var(--p-peach-ink,#a65b2e);padding:2px 8px;border-radius:99px;font-weight:700">Unpaid</span>':'')+'</div>';
     }).join(''):'<div style="font-size:12px;color:var(--c-muted);padding:6px 0">No follow-ups pending</div>')
     +'</div>'):'';
+  // Admin-only segmented switch into the (old) business dashboard; staff never see it.
+  const seg=canSwitch?('<div style="margin-left:auto;flex:none;display:flex;background:rgba(255,255,255,.65);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);border-radius:99px;padding:3px;align-self:flex-start">'
+    +'<span style="padding:5px 14px;border-radius:99px;background:var(--c-burg);color:var(--c-bg);font-size:11.5px;font-weight:700">Team</span>'
+    +'<span onclick="toggleBizView()" style="padding:5px 14px;border-radius:99px;color:var(--c-muted);font-size:11.5px;cursor:pointer">Business</span>'
+  +'</div>'):'';
   el.innerHTML=
-    // Business-view switch is parked until that dashboard is redesigned (toggleBizView stays
-    // callable from the console). When it returns, use a header segmented control, not a pill.
-    '<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div>'
-      +'<div style="font-size:11.5px;color:var(--c-muted);margin-top:2px">'+todayO.length+' order'+(todayO.length===1?'':'s')+' · '+pendingPickups+' pickup'+(pendingPickups===1?'':'s')+(full?' · RM '+Math.round(revToday).toLocaleString('en-MY'):'')+'</div></div>'
+    '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px"><div><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div>'
+      +'<div style="font-size:11.5px;color:var(--c-muted);margin-top:2px">'+todayO.length+' order'+(todayO.length===1?'':'s')+' · '+pendingPickups+' pickup'+(pendingPickups===1?'':'s')+(full?' · RM '+Math.round(revToday).toLocaleString('en-MY'):'')+'</div></div>'+seg+'</div>'
     +hero
     +(function(){
       // Desktop: to-do sits BESIDE the run (top of the side column). Mobile (single column):
@@ -4043,7 +4049,7 @@ function renderHome() {
     return;
   }
   if(_d)_d.style.display='none'; if(_s)_s.style.display=''; if(_a)_a.style.display=''; if(_hh)_hh.style.display='';
-  if(_vt) _vt.style.display='';
+  if(_vt) _vt.style.display='flex';
   renderCrmReminders();
   const t0=today0(), t1=new Date(t0.getTime()+86400000);
   const todayStr = tdi(t0);
