@@ -96,7 +96,6 @@
       <div id="h-attention"></div>
       <div class="h-cols">
         <div class="h-col-main">
-          <div id="home-todo"></div>
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <div class="h-sec-ttl">Today's run</div>
@@ -107,6 +106,7 @@
           <div id="home-followups"></div>
         </div>
         <div class="h-col-side">
+          <div id="home-todo"></div>
           <div id="home-cakes"></div>
           <div id="h-week"></div>
         </div>
@@ -3769,8 +3769,8 @@ function renderTodos(){
   // Same design language as the full To-do page: frosted panel, typewriter font, grouped
   // rows with colour dots, pill input + round add button BELOW the list.
   if(!document.getElementById('todo-input')){
-    host.innerHTML='<div style="background:rgba(255,255,255,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.8);border-radius:18px;padding:15px 18px;box-shadow:0 12px 40px rgba(60,40,30,.10);font-family:'+_TODO_MONO+'">'
-      +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13.5px;color:var(--c-ink)">'+(LANG==='zh'?'我的待办':'My to-do')+'</span><button id="todo-viewall" onclick="goPage(\'todo\')" style="margin-left:auto;border:none;background:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;font-family:inherit;padding:0">View all →</button></div>'
+    host.innerHTML='<div style="background:rgba(238,237,254,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.8);border-radius:18px;padding:15px 18px;box-shadow:0 12px 40px rgba(60,40,30,.10);font-family:'+_TODO_MONO+'">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13.5px;color:#3C3489">'+(LANG==='zh'?'我的待办':'My to-do')+'</span><button id="todo-viewall" onclick="goPage(\'todo\')" style="margin-left:auto;border:none;background:none;color:#534AB7;font-size:11.5px;cursor:pointer;font-family:inherit;padding:0">View all →</button></div>'
       +'<div id="todo-list" style="margin-bottom:10px"></div>'
       +'<div style="display:flex;gap:7px;position:relative">'
         +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
@@ -3953,30 +3953,25 @@ function _renderStaffDash(el){
   const onway=del.filter(o=>o.otwAt&&!o.fulfilled).length;
   const delivered=del.filter(o=>o.fulfilled).length;
   const notAssigned=del.filter(o=>!o.routeId&&!o.fulfilled&&!o.otwAt).length;
-  // ── colour-coded KPI cards + "Today" ring ──
+  // ── frosted "Today" hero: ring + its three stats (the colours ARE the legend). Pickups
+  // and RM live in the small greeting sub-line, not here (user: no duplicate blocks). ──
   const pendMk=todayO.filter(o=>!o.fulfilled&&!o.ready).length, readyN=todayO.filter(o=>!o.fulfilled&&o.ready).length, doneN=todayO.filter(o=>o.fulfilled).length;
   const _tot=todayO.length||1, pA=pendMk/_tot*100, rA=readyN/_tot*100;
-  const chip=(bg,icon)=>'<span style="width:26px;height:26px;border-radius:8px;background:'+bg+';display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di(icon,15)+'</span>';
-  const kpi=(bg,chipBg,icon,numCol,labCol,label,val)=>'<div style="background:'+bg+';border-radius:14px;padding:14px 15px">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span style="width:30px;height:30px;border-radius:9px;background:'+chipBg+';display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di(icon,17)+'</span><span style="font-size:12px;color:'+labCol+'">'+label+'</span></div>'
-    +'<div style="font-size:26px;font-weight:700;font-family:var(--f-head);color:'+numCol+';line-height:1">'+val+'</div></div>';
-  const kpis=[
-    kpi('#FAEEDA','#BA7517','flower','#633806','#854F0B','To make',pendMk),
-    kpi('#EAF3DE','#639922','check','#27500A','#3B6D11','Ready',readyN),
-    kpi('#FAECE7','#D85A30','bag','#712B13','#993C1D','Pending pickups',pendingPickups),
-  ];
-  if(full) kpis.push(kpi('#EEEDFE','#534AB7','receipt','#26215C','#3C3489',"Today's total",'RM '+Math.round(revToday).toLocaleString('en-MY')));
-  const kpiRow='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px">'+kpis.join('')+'</div>';
-  const _leg=(c,label,val)=>'<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px"><span style="width:9px;height:9px;border-radius:50%;background:'+c+';display:inline-block;flex:none"></span><span style="flex:1">'+label+'</span><span style="font-weight:700">'+val+'</span></div>';
-  const ringCard='<div class="card" style="padding:16px 18px;display:flex;align-items:center;gap:18px">'
+  const GL=t=>'background:'+t+';backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);border-radius:16px;box-shadow:0 8px 28px rgba(60,40,30,.08)';
+  const _stat=(dot,labCol,numCol,label,val)=>'<div><div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:'+labCol+'"><span style="width:8px;height:8px;border-radius:50%;background:'+dot+';flex:none"></span>'+label+'</div><div style="font-size:26px;font-weight:700;font-family:var(--f-head);color:'+numCol+';line-height:1.25">'+val+'</div></div>';
+  const hero='<div style="'+GL('rgba(255,255,255,.6)')+';padding:16px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:14px">'
     +'<div style="position:relative;width:92px;height:92px;flex:none;border-radius:50%;background:conic-gradient(#BA7517 0 '+pA+'%,#639922 '+pA+'% '+(pA+rA)+'%,var(--c-border2) '+(pA+rA)+'% 100%)">'
-      +'<div style="position:absolute;inset:14px;border-radius:50%;background:var(--c-surface);display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:21px;font-weight:700;line-height:1;font-family:var(--f-head)">'+todayO.length+'</b><span style="font-size:10px;color:var(--c-muted)">orders</span></div>'
+      +'<div style="position:absolute;inset:14px;border-radius:50%;background:rgba(255,255,255,.9);display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:21px;font-weight:700;line-height:1;font-family:var(--f-head)">'+todayO.length+'</b><span style="font-size:10px;color:var(--c-muted)">orders</span></div>'
     +'</div>'
-    +'<div style="flex:1;min-width:120px">'+_leg('#BA7517','To make',pendMk)+_leg('#639922','Ready',readyN)+_leg('var(--c-border2)','Done',doneN)+'</div>'
+    +'<div style="display:flex;gap:30px;flex:1;min-width:210px;flex-wrap:wrap">'
+      +_stat('#BA7517','#854F0B','#633806','To make',pendMk)
+      +_stat('#639922','#3B6D11','#27500A','Ready',readyN)
+      +_stat('var(--c-border2)','var(--c-muted)','var(--c-muted)','Done',doneN)
+    +'</div>'
   +'</div>';
   // ── cakes to collect (CS/admin only) — click a row to open the order; flags a missing pickup place ──
   const cakes=todayO.filter(o=>typeof _effCake==='function'&&_effCake(o)&&!o.fulfilled&&(typeof _cakeCollected!=='function'||!_cakeCollected(o)));
-  const cakeCard=(full&&cakes.length)?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+chip('#993556','cake')+'<span style="font-weight:700;font-size:13.5px">Cakes to collect</span><span style="margin-left:auto;font-weight:700;font-size:13px">'+cakes.length+'</span></div>'
+  const cakeCard=(full&&cakes.length)?('<div style="'+GL('rgba(251,234,240,.55)')+';padding:13px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-weight:700;font-size:12.5px;color:#993556">Cakes to collect</span><span style="margin-left:auto;font-weight:700;font-size:13px;color:#993556">'+cakes.length+'</span></div>'
     +cakes.map((o,i)=>{ const c=_effCake(o)||{}, tm=o.dueTime||'', set=!!(c.supplier&&!c.auto);
       return '<div onclick="openDP(\''+o.id+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(tm?esc(tm)+' · ':'')+esc(o.customer||o.name||'Order')+'</div><div style="font-size:11px;'+(set?'color:var(--c-muted)':'color:var(--c-red)')+'">'+(set?esc(c.supplier):'No pickup location set')+'</div></div><span style="color:var(--c-border2);font-size:15px">›</span></div>';
     }).join('')
@@ -3987,30 +3982,38 @@ function _renderStaffDash(el){
     ? run.map(o=>{ const its=(o.lineItems&&o.lineItems.length>1)?o.lineItems:null; return its?its.map((it,idx)=>homeMiniCard(o,it,idx)).join(''):homeMiniCard(o); }).join('')
     : '<div class="empty" style="padding:28px 20px"><div class="empty-ico">'+di('check',30)+'</div><div class="empty-txt">All caught up for today</div></div>';
   // ── deliveries card (CS/admin only) ──
-  const delCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+chip('#185FA5','truck')+'<span style="font-weight:700;font-size:13.5px">Today\'s deliveries</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px"><span>On the way</span><span style="font-weight:700;color:#378add">'+onway+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Delivered</span><span style="font-weight:700;color:#1d9e75">'+delivered+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12.5px;border-top:1px solid var(--c-border)"><span>Not assigned</span><span style="font-weight:700;color:'+(notAssigned?'#b46a1e':'var(--c-muted)')+'">'+notAssigned+'</span></div>'
+  const delCard=full?('<div style="'+GL('rgba(230,241,251,.55)')+';padding:13px 16px"><div style="font-weight:700;font-size:12.5px;color:#0C447C;margin-bottom:4px">Today\'s deliveries</div>'
+    +'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px"><span>On the way</span><span style="font-weight:700;color:#185FA5">'+onway+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px"><span>Delivered</span><span style="font-weight:700;color:#3B6D11">'+delivered+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12.5px"><span>Not assigned</span><span style="font-weight:700;color:'+(notAssigned?'#854F0B':'var(--c-muted)')+'">'+notAssigned+'</span></div>'
     +'</div>'):'';
   // ── follow-ups card (CS/admin only) ──
   const fus=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(x=>x.status!=='completed').slice(0,4);
-  const fuCard=full?('<div class="card" style="padding:14px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'+chip('#D4537E','msg')+'<span style="font-weight:700;font-size:13.5px">Follow-ups</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="event.stopPropagation();goPage(\'followup\')">View →</button></div>'
+  const fuCard=full?('<div style="'+GL('rgba(250,236,231,.55)')+';padding:13px 16px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><span style="font-weight:700;font-size:12.5px;color:#993C1D">Follow-ups</span><button onclick="event.stopPropagation();goPage(\'followup\')" style="margin-left:auto;border:none;background:none;color:#D85A30;font-size:11.5px;cursor:pointer;padding:0">View →</button></div>'
     +(fus.length?fus.map((f,i)=>{ const unpaid=(f.payment==='pending'), reason=unpaid?'Payment pending':(f.status||'Follow up');
       return '<div onclick="goPage(\'followup\')" style="display:flex;align-items:center;gap:8px;padding:8px 0;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name||'—')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(reason)+(f.orderNo?' · '+esc(f.orderNo):'')+'</div></div>'+(unpaid?'<span style="font-size:10.5px;background:var(--p-peach,#fbe3d6);color:var(--p-peach-ink,#a65b2e);padding:2px 8px;border-radius:99px;font-weight:700">Unpaid</span>':'')+'</div>';
     }).join(''):'<div style="font-size:12px;color:var(--c-muted);padding:6px 0">No follow-ups pending</div>')
     +'</div>'):'';
   el.innerHTML=
     (canSwitch?'<button onclick="togglePreviewStaff()" style="margin-bottom:12px;padding:5px 11px;border:1.5px solid var(--c-burg);border-radius:99px;background:var(--c-surface);color:var(--c-burg);font-size:11px;cursor:pointer">← Back</button>':'')
-    +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div></div>'
-    +kpiRow
-    +'<div class="h-cols"><div class="h-col-main">'
-      +'<div id="home-todo" style="margin-bottom:16px"></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div class="h-sec-ttl">Today\'s run</div><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'orders\')">View all →</button></div>'
-      +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'+runHTML+'</div>'
-      +'<div id="home-tmr"></div>'
-    +'</div><div class="h-col-side">'
-      +ringCard+delCard+cakeCard+fuCard
-    +'</div></div>';
+    +'<div style="margin-bottom:14px"><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div>'
+      +'<div style="font-size:11.5px;color:var(--c-muted);margin-top:2px">'+todayO.length+' order'+(todayO.length===1?'':'s')+' · '+pendingPickups+' pickup'+(pendingPickups===1?'':'s')+(full?' · RM '+Math.round(revToday).toLocaleString('en-MY'):'')+'</div></div>'
+    +hero
+    +(function(){
+      // Desktop: to-do sits BESIDE the run (top of the side column). Mobile (single column):
+      // to-do stays ABOVE the run, so it still comes first when the columns stack.
+      const _desk=(typeof _isDesktop==='function')?_isDesktop():(window.innerWidth>=900);
+      const runBlock='<div style="'+GL('rgba(250,238,218,.5)')+';padding:13px 15px;margin-bottom:16px">'
+        +'<div style="display:flex;align-items:center;margin-bottom:9px"><span style="font-weight:700;font-size:12.5px;color:#854F0B">Today\'s run</span><button onclick="goPage(\'orders\')" style="margin-left:auto;border:none;background:none;color:#BA7517;font-size:11.5px;cursor:pointer;padding:0">View all →</button></div>'
+        +'<div style="display:flex;flex-direction:column;gap:8px">'+runHTML+'</div>'
+      +'</div>';
+      const todoDiv='<div id="home-todo" style="margin-bottom:16px"></div>';
+      return '<div class="h-cols"><div class="h-col-main">'
+        +(_desk?'':todoDiv)+runBlock+'<div id="home-tmr"></div>'
+      +'</div><div class="h-col-side">'
+        +(_desk?todoDiv:'')+delCard+cakeCard+fuCard
+      +'</div></div>';
+    })();
   renderTodos();
   _renderStaffTomorrow();
 }
@@ -4022,9 +4025,9 @@ async function _renderStaffTomorrow(){
   const tmr=ORDERS.filter(o=>o.dateObj&&tdi(o.dateObj)===iso);
   const flo={}; tmr.forEach(o=>{ (typeof _orderEffectiveFlowers==='function'?_orderEffectiveFlowers(o):(o.recipe||[])).forEach(f=>{ const k=String(f.name||'').trim().toLowerCase(); if(!k)return; if(!flo[k])flo[k]={name:f.name,qty:0}; flo[k].qty+=(parseFloat(f.qty)||0); }); });
   const flowers=Object.values(flo).filter(f=>f.qty>0).sort((a,b)=>b.qty-a.qty);
-  el.innerHTML='<div class="card" style="padding:14px 16px">'
-    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:26px;height:26px;border-radius:8px;background:#639922;display:flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di('flower',15)+'</span><span style="font-weight:700;font-size:13.5px;flex:1">Tomorrow · flowers to prep</span><span style="font-size:11px;color:var(--c-muted)">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
-    +(flowers.length?'<div style="display:flex;flex-wrap:wrap;gap:6px">'+flowers.map(f=>'<span style="font-size:11.5px;background:var(--c-bg);border:1px solid var(--c-border);border-radius:99px;padding:3px 10px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet':'No orders tomorrow yet')+'</div>')
+  el.innerHTML='<div style="background:rgba(234,243,222,.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.7);border-radius:16px;box-shadow:0 8px 28px rgba(60,40,30,.08);padding:13px 16px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:700;font-size:12.5px;color:#3B6D11;flex:1">Tomorrow · flowers to prep</span><span style="font-size:11px;color:#639922">'+tmr.length+' order'+(tmr.length===1?'':'s')+'</span></div>'
+    +(flowers.length?'<div style="display:flex;flex-wrap:wrap;gap:6px">'+flowers.map(f=>'<span style="font-size:11.5px;background:rgba(255,255,255,.8);border-radius:99px;padding:3px 10px">'+esc(f.name)+' ×'+Math.round(f.qty)+'</span>').join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted)">'+(tmr.length?'No recipes set yet':'No orders tomorrow yet')+'</div>')
   +'</div>';
 }
 function renderHome() {
