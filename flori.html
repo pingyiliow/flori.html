@@ -3582,9 +3582,8 @@ function homeMiniCard(o, item, idx) {
   const onThumb = isUnit
     ? `zoomItem('${o.id}',${idx},0,event)`
     : `zoomOrder('${o.id}','${(imgSrc||'').replace(/'/g,"\\'")}',event)`;
-  const count = photos.length>1 ? `<span class="h-mc-imgcount">⧉ ${photos.length}</span>` : '';
   const thumb = imgSrc
-    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="imgFlower(this)">${count}</div>`
+    ? `<div class="h-mc-thumb"><img src="${imgSrc}" alt="" loading="lazy" onclick="event.stopPropagation();${onThumb}" onerror="imgFlower(this)"></div>`
     : `<div class="h-mc-thumb"><span style="color:var(--c-dpink);opacity:.5;display:inline-flex">${di('flower',20)}</span></div>`;
   const name = esc(isUnit ? (item.title||'–') : (o.product || ((o.lineItems&&o.lineItems[0])?o.lineItems[0].title:'') || '–'));
   const unitTag = (isUnit && o.lineItems.length>1) ? ` <span style="color:var(--c-muted);font-weight:400">${idx+1}/${o.lineItems.length}</span>` : '';
