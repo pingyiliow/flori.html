@@ -1218,10 +1218,20 @@ function _killAutofill(){
     const t=(el.type||'text').toLowerCase();
     if(['checkbox','radio','file','range','color','submit','button','hidden','password','date','time','datetime-local'].includes(t)) return;
     el.setAttribute('autocomplete','off'); el.setAttribute('data-lpignore','true'); el.setAttribute('data-1p-ignore','');
-    if(!el.value && document.activeElement!==el){ el.setAttribute('readonly',''); el.dataset.afr='1'; }
+    el.dataset.afk='1';
+    if(!el.value && document.activeElement!==el) el.setAttribute('readonly','');
   });
 }
-document.addEventListener('focusin',e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afr){ el.removeAttribute('readonly'); delete el.dataset.afr; } },true);
+// Desktop: stay readonly through the whole CLICK (Chrome decides the popup at click time)
+// and unlock on the first KEYSTROKE instead — typing/paste-by-keyboard work from key one.
+// Touch devices: unlock on focus (a readonly field never raises the on-screen keyboard).
+// An empty field re-locks on blur so the next click is silent again.
+const _AF_TOUCH=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;
+const _afUnlock=e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&el.readOnly) el.removeAttribute('readonly'); };
+if(_AF_TOUCH) document.addEventListener('focusin',_afUnlock,true);
+document.addEventListener('keydown',_afUnlock,true);
+document.addEventListener('beforeinput',_afUnlock,true);
+document.addEventListener('focusout',e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&!el.value) el.setAttribute('readonly',''); },true);
 setInterval(_killAutofill,800);
 if(document.readyState!=='loading') _killAutofill(); else document.addEventListener('DOMContentLoaded',_killAutofill);
 function dot(color, size){ size=size||10; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="vertical-align:-1px;flex:none"><circle cx="12" cy="12" r="10" fill="'+color+'"/></svg>'; }
@@ -3876,7 +3886,7 @@ function renderTodos(){
       +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13.5px;color:#3C3489">'+(LANG==='zh'?'我的待办':'My to-do')+'</span><button id="todo-viewall" onclick="goPage(\'todo\')" style="margin-left:auto;border:none;background:none;color:#534AB7;font-size:11.5px;cursor:pointer;font-family:inherit;padding:0">View all →</button></div>'
       +'<div id="todo-list" style="margin-bottom:10px"></div>'
       +'<div style="display:flex;gap:7px;position:relative">'
-        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
         +'<button onclick="addTodoFromInput()" aria-label="Add" style="width:32px;height:32px;border:none;border-radius:50%;background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer;flex:none">+</button>'
       +'</div></div>';
   }
@@ -3915,7 +3925,7 @@ function renderTodoPage(){
       +'<div id="todop-list"></div>'
       +'<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--c-border)">'
         +'<div style="display:flex;gap:7px;position:relative">'
-          +'<input id="todop-input" placeholder="Add a task… #list @name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todop-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todop-input\')" onkeydown="if(event.key===\'Enter\')_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+          +'<input id="todop-input" placeholder="Add a task… #list @name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todop-'+Math.random().toString(36).slice(2,8)+'" oninput="_mentionBox(\'todop-input\')" onkeydown="if(event.key===\'Enter\')_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
           +'<button onclick="_addTodo(\'todop-input\',\'todop-date\',\'todop-time\')" aria-label="Add" style="width:34px;height:34px;border:none;border-radius:50%;background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:16px;line-height:1;cursor:pointer;flex:none">+</button>'
         +'</div>'
         +'<div style="display:flex;gap:7px;margin-top:7px">'
