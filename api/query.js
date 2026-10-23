@@ -81,14 +81,65 @@ async function getServerToken(shop) {
 }
 
 // Verify the caller is a logged-in Supabase user (so only staff trigger server tokens).
-async function isAuthedUser(jwt) {
-  if (!jwt) return false;
+async function _authedUser(jwt) {
+  if (!jwt) return null;
   try {
     const r = await fetch(`${SB_URL}/auth/v1/user`, { headers: { apikey: SB_ANON, Authorization: `Bearer ${jwt}` } });
-    if (!r.ok) return false;
+    if (!r.ok) return null;
     const u = await r.json();
-    return !!(u && u.id);
-  } catch (_) { return false; }
+    return (u && u.id) ? u : null;
+  } catch (_) { return null; }
+}
+async function isAuthedUser(jwt) { return !!(await _authedUser(jwt)); }
+
+// ── Team management (owner-only; folded here to stay under Vercel's function cap).
+// The owner adds/removes staff logins and edits any profile (incl. position/role)
+// straight from the app's Team page — no Supabase dashboard needed. The service key
+// stays server-side; the gate is the OWNER account's verified JWT email.
+const OWNER_EMAIL = (process.env.OWNER_EMAIL || 'madeleineliow@gmail.com').toLowerCase();
+async function handleTeam(res, T, jwt) {
+  const SVC = process.env.SUPABASE_SERVICE_KEY;
+  if (!SVC) return res.status(500).json({ error: 'SUPABASE_SERVICE_KEY missing in Vercel env' });
+  const caller = await _authedUser(jwt);
+  if (!caller) return res.status(401).json({ error: 'Sign in required' });
+  if (String(caller.email || '').toLowerCase() !== OWNER_EMAIL) return res.status(403).json({ error: 'Owner only' });
+  const H = { apikey: SVC, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' };
+  const op = T && T.op;
+  try {
+    if (op === 'create') {
+      const { email, password, name, role, position } = T;
+      if (!email || !password || !name) return res.status(400).json({ error: 'Email, password and name are required' });
+      if (String(password).length < 6) return res.status(400).json({ error: 'Password needs at least 6 characters' });
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users`, { method: 'POST', headers: H,
+        body: JSON.stringify({ email, password, email_confirm: true }) });
+      const u = await r.json().catch(() => ({}));
+      if (!r.ok || !u.id) return res.status(400).json({ error: (u && (u.msg || u.message || u.error_description)) || 'Could not create the login' });
+      const p = await fetch(`${SB_URL}/rest/v1/profiles?on_conflict=id`, { method: 'POST',
+        headers: { ...H, Prefer: 'resolution=merge-duplicates' },
+        body: JSON.stringify([{ id: u.id, name, role: role || 'florist', position: position || null }]) });
+      if (!p.ok) return res.status(400).json({ error: 'Login created but profile failed: ' + (await p.text()).slice(0, 200) });
+      return res.status(200).json({ ok: true, id: u.id });
+    }
+    if (op === 'update') {
+      const { id, patch } = T;
+      if (!id || !patch) return res.status(400).json({ error: 'id and patch required' });
+      const allowed = {}; ['name', 'role', 'position', 'phone', 'birthday', 'bio'].forEach(k => { if (k in patch) allowed[k] = patch[k]; });
+      if (!Object.keys(allowed).length) return res.status(400).json({ error: 'Nothing to update' });
+      const p = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { ...H, Prefer: 'return=representation' }, body: JSON.stringify(allowed) });
+      if (!p.ok) return res.status(400).json({ error: (await p.text()).slice(0, 200) });
+      return res.status(200).json({ ok: true });
+    }
+    if (op === 'remove') {
+      const { id } = T;
+      if (!id) return res.status(400).json({ error: 'id required' });
+      if (id === caller.id) return res.status(400).json({ error: 'You cannot remove yourself' });
+      const d = await fetch(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`, { method: 'DELETE', headers: H });
+      if (!d.ok && d.status !== 404) return res.status(400).json({ error: 'Could not delete the login: ' + (await d.text()).slice(0, 200) });
+      await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: H }).catch(() => {});
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(400).json({ error: 'Unknown team op' });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
 }
 
 async function callShopify(shop, token, query, variables) {
@@ -108,6 +159,11 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
 
   const body = req.body || {};
+  // Team management (owner-gated) — no `query`, handled first.
+  if (body.team) {
+    const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    return handleTeam(res, body.team, jwt);
+  }
   // Lalamove proxy (staff-gated) — handled before the Shopify path since it carries no `query`.
   if (body.lalamove) {
     const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');

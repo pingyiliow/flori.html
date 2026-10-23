@@ -3874,10 +3874,11 @@ async function renderTeam(){
         +(p.phone?'<a href="tel:'+esc(String(p.phone).replace(/\s/g,''))+'" style="display:inline-flex;align-items:center;gap:5px;color:var(--c-ink);text-decoration:none">'+di('phone',13)+' '+esc(p.phone)+'</a>':'')
         +(p.birthday?'<span style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:#993556">'+di('cake',14)+' '+bd(p.birthday)+'</span>':'')
       +'</div>':'')
-      +(isMe?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="openMyProfile()">Edit my profile</button>':'')
+      +(isMe?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="openMyProfile()">Edit my profile</button>'
+            :(isOwner()?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px" onclick="openMemberManage(\''+p.id+'\')">Manage</button>':''))
     +'</div>';
   };
-  host.innerHTML='<div class="page-hdr"><div><div class="page-title">Team</div></div></div>'
+  host.innerHTML='<div class="page-hdr"><div><div class="page-title">Team</div></div>'+(isOwner()?'<button class="btn btn-primary" onclick="openAddMember()">+ Add member</button>':'')+'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">'+(TEAM.length?TEAM.map(card).join(''):'<div style="font-size:12.5px;color:var(--c-muted)">No profiles yet</div>')+'</div>';
 }
 let _profAvaData=null;
@@ -3930,6 +3931,66 @@ async function saveMyProfile(){
     if(patch.name) currentUserName=patch.name;
     _profClose(); renderTeam(); toast('Profile saved');
   }catch(e){ toast('⚠ Save failed — run the profiles SQL'); console.warn('saveProfile', e&&e.message); }
+}
+// ── Owner-only team management: add/remove logins + edit anyone's name/role/position,
+// all in-app via the owner-gated /api/query {team} endpoint (service key stays server-side).
+const OWNER_EMAIL='madeleineliow@gmail.com';
+function isOwner(){ return !!(currentUser && String(currentUser.email||'').toLowerCase()===OWNER_EMAIL); }
+async function _teamApi(T){
+  let authToken=''; try{ if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } }catch(_){}
+  const r=await fetch('/api/query',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ team:T, authToken }) });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
+  return j;
+}
+async function _teamReload(){ TEAM=[]; await loadTeam(); renderTeam(); }
+function _teamSheetClose(){ const el=document.getElementById('team-sheet'); if(el) el.remove(); }
+function _teamSheet(title, inner){
+  const ov=document.createElement('div'); ov.id='team-sheet';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--c-surface);border-radius:16px;max-width:400px;width:100%;max-height:90vh;overflow:auto;padding:18px" onclick="event.stopPropagation()"><div style="font-size:15px;font-weight:700;margin-bottom:14px">'+title+'</div>'+inner+'</div>';
+  ov.onclick=()=>_teamSheetClose();
+  document.body.appendChild(ov);
+}
+const _tf=(label,id,val,type,ph)=>'<div style="margin-bottom:9px"><div style="font-size:10.5px;color:var(--c-muted);margin-bottom:3px">'+label+'</div><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val||'')+'"'+(ph?' placeholder="'+esc(ph)+'"':'')+' autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px 11px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;background:var(--c-surface);color:var(--c-ink);outline:none"></div>';
+function openAddMember(){
+  _teamSheet('Add team member',
+    _tf('Name','tm-name','')
+    +_tf('Email','tm-email','','email')
+    +_tf('Password','tm-pass','','text','min 6 characters')
+    +_tf('Role','tm-role','florist','text','admin / cs / florist / driver')
+    +_tf('Position','tm-pos','')
+    +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1" onclick="_teamSheetClose()">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="saveNewMember(this)">Add</button></div>');
+}
+async function saveNewMember(btn){
+  const v=id=>{ const e=document.getElementById(id); return e?e.value.trim():''; };
+  const name=v('tm-name'), email=v('tm-email'), password=v('tm-pass');
+  if(!name||!email||!password){ toast('Name, email and password are required'); return; }
+  if(btn) btn.disabled=true;
+  try{ await _teamApi({ op:'create', email, password, name, role:v('tm-role')||'florist', position:v('tm-pos') }); _teamSheetClose(); toast('Added '+name); await _teamReload(); }
+  catch(e){ toast('⚠ '+e.message); if(btn) btn.disabled=false; }
+}
+function openMemberManage(id){
+  const p=TEAM.find(x=>x.id===id); if(!p) return;
+  _teamSheet('Manage · '+esc(p.name||''),
+    _tf('Name','tm-name',p.name)
+    +_tf('Role','tm-role',p.role||'florist','text','admin / cs / florist / driver')
+    +_tf('Position','tm-pos',p.position)
+    +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1" onclick="_teamSheetClose()">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="saveMemberEdit(\''+id+'\',this)">Save</button></div>'
+    +'<button onclick="removeMember(\''+id+'\',this)" style="width:100%;margin-top:10px;padding:9px;border:1.5px solid var(--c-red,#c0392b);border-radius:9px;background:none;color:var(--c-red,#c0392b);font-size:12.5px;cursor:pointer">Remove member (deletes their login)</button>');
+}
+async function saveMemberEdit(id,btn){
+  const v=k=>{ const e=document.getElementById(k); return e?e.value.trim():''; };
+  if(btn) btn.disabled=true;
+  try{ await _teamApi({ op:'update', id, patch:{ name:v('tm-name')||null, role:v('tm-role')||'florist', position:v('tm-pos')||null } }); _teamSheetClose(); toast('Saved'); await _teamReload(); }
+  catch(e){ toast('⚠ '+e.message); if(btn) btn.disabled=false; }
+}
+async function removeMember(id,btn){
+  const p=TEAM.find(x=>x.id===id);
+  if(btn && !btn.dataset.arm){ btn.dataset.arm='1'; btn.textContent='Tap again to confirm removing '+((p&&p.name)||'this member'); return; }
+  if(btn) btn.disabled=true;
+  try{ await _teamApi({ op:'remove', id }); _teamSheetClose(); toast('Removed'); await _teamReload(); }
+  catch(e){ toast('⚠ '+e.message); if(btn) btn.disabled=false; }
 }
 // ── Staff "today" dashboard — the DEFAULT home for everyone. Admin can switch to the
 // business/finance dashboard with the toggle. ─────────────────────────────────────────
@@ -4004,7 +4065,7 @@ function _renderStaffDash(el){
     +'<span onclick="toggleBizView()" style="padding:5px 14px;border-radius:99px;color:var(--c-muted);font-size:11.5px;cursor:pointer">Business</span>'
   +'</div>'):'';
   el.innerHTML=
-    '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px"><div><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+'</div>'
+    '<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:14px"><div><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">'+greet+(currentUserName?', '+esc(currentUserName):'')+'</div>'
       +'<div style="font-size:11.5px;color:var(--c-muted);margin-top:2px">'+todayO.length+' order'+(todayO.length===1?'':'s')+' · '+pendingPickups+' pickup'+(pendingPickups===1?'':'s')+(full?' · RM '+Math.round(revToday).toLocaleString('en-MY'):'')+'</div></div>'+seg+'</div>'
     +hero
     +(function(){
