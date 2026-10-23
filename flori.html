@@ -3628,15 +3628,24 @@ async function addTodoFromInput(){
     const i=TODOS.findIndex(x=>x.id===tmp.id); if(i>=0 && data) TODOS[i]=data; renderTodos();
   }catch(e){ TODOS=TODOS.filter(x=>x.id!==tmp.id); renderTodos(); toast('Could not save — run the todos table SQL'); console.warn('addTodo', e&&e.message); }
 }
+// Both verify the write actually landed: supabase-js returns errors as a VALUE (no throw),
+// and an RLS-blocked update/delete "succeeds" touching zero rows — so without .select()
+// the tick only lived in memory and silently reverted on the next reload.
 async function toggleTodo(id){
   const t=TODOS.find(x=>x.id===id); if(!t) return; t.done=!t.done; renderTodos();
   if(String(id).slice(0,4)==='tmp-') return;
-  try{ await sb.from('todos').update({ done:t.done }).eq('id', id); }catch(e){ console.warn('toggleTodo', e&&e.message); }
+  try{
+    const { data, error } = await sb.from('todos').update({ done:t.done }).eq('id', id).select('id');
+    if(error || !data || !data.length) throw (error || new Error('no row updated (RLS?)'));
+  }catch(e){ t.done=!t.done; renderTodos(); toast('⚠ Save failed'); console.warn('toggleTodo', e&&e.message); }
 }
 async function deleteTodo(id){
-  TODOS=TODOS.filter(x=>x.id!==id); renderTodos();
+  const _before=TODOS; TODOS=TODOS.filter(x=>x.id!==id); renderTodos();
   if(String(id).slice(0,4)==='tmp-') return;
-  try{ await sb.from('todos').delete().eq('id', id); }catch(e){ console.warn('deleteTodo', e&&e.message); }
+  try{
+    const { data, error } = await sb.from('todos').delete().eq('id', id).select('id');
+    if(error || !data || !data.length) throw (error || new Error('no row deleted (RLS?)'));
+  }catch(e){ TODOS=_before; renderTodos(); toast('⚠ Delete failed'); console.warn('deleteTodo', e&&e.message); }
 }
 function renderTodos(){
   const host=document.getElementById('home-todo'); if(!host) return;
