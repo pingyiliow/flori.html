@@ -4019,12 +4019,13 @@ function openMemberManage(id){
     _tf('Name','tm-name',p.name)
     +_tf('Role','tm-role',p.role||'florist','text','admin / cs / florist / driver')
     +_tf('Position','tm-pos',p.position)
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'+_tf('Phone','tm-phone',p.phone)+_tf('Birthday','tm-bday',p.birthday,'date')+'</div>'
     +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1" onclick="_teamSheetClose()">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="saveMemberEdit(\''+id+'\',this)">Save</button></div>');
 }
 async function saveMemberEdit(id,btn){
   const v=k=>{ const e=document.getElementById(k); return e?e.value.trim():''; };
   if(btn) btn.disabled=true;
-  try{ await _teamApi({ op:'update', id, patch:{ name:v('tm-name')||null, role:v('tm-role')||'florist', position:v('tm-pos')||null } }); _teamSheetClose(); toast('Saved'); await _teamReload(); }
+  try{ await _teamApi({ op:'update', id, patch:{ name:v('tm-name')||null, role:v('tm-role')||'florist', position:v('tm-pos')||null, phone:v('tm-phone')||null, birthday:v('tm-bday')||null } }); _teamSheetClose(); toast('Saved'); await _teamReload(); }
   catch(e){ toast('⚠ '+e.message); if(btn) btn.disabled=false; }
 }
 async function removeMember(id,btn){
