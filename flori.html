@@ -2275,12 +2275,24 @@ async function syncOrders() {
         // fields, so fetching the entire table here was pure wasted egress. Chunk the
         // id list to keep each request small.
         const freshIdList = shopify.map(o => o.id);
+        // Delta re-read: only rows a teammate touched since the last overlay (memory already
+        // carries the rest via loadFromSupabase) — this was re-downloading every photo-laden
+        // order on each sync. Falls back to the full re-read when updated_at is missing.
         let remote = [];
-        for (let i = 0; i < freshIdList.length; i += 200) {
-          const chunk = freshIdList.slice(i, i + 200);
-          const { data, error } = await sb.from('orders').select(ORDER_COLS).in('id', chunk);
-          if (!error && data) remote = remote.concat(data);
+        let sinceOv = _deltaFilterFor('orders_overlay');
+        for (let pass = 0; pass < 2; pass++) {
+          remote = []; let bad = false;
+          for (let i = 0; i < freshIdList.length; i += 200) {
+            const chunk = freshIdList.slice(i, i + 200);
+            let q = sb.from('orders').select(ORDER_COLS).in('id', chunk);
+            if (sinceOv) q = q.gt('updated_at', sinceOv);
+            const { data, error } = await q;
+            if (error) { if (sinceOv && /updated_at/i.test(error.message||'')) { _dCur._noUA = true; sinceOv = null; bad = true; break; } }
+            else if (data) remote = remote.concat(data);
+          }
+          if (!bad) break;
         }
+        _deltaMark('orders_overlay', !!sinceOv);
         const byRemote = {}; remote.forEach(r => { byRemote[shopId(r.id)] = r; });
         ORDERS.forEach(o => {
           const r = byRemote[shopId(o.id)]; if (!r) return;   // new order not yet in DB → keep Shopify data
@@ -2869,6 +2881,52 @@ function _orderCutoffISO(){ return _orderPastISO(); }
 // due_date text → ISO date string (or null) using the UI's parser, so the stored
 // due_on always matches the date staff see on the card.
 function _computeDueOn(s){ const d = pd(s); return d ? tdi(d) : null; }
+// ── Delta sync (egress diet): after the first full fetch of a session, re-fetches pull
+// only rows whose updated_at moved (needs the touch-trigger SQL; falls back to full
+// fetches automatically if the column is missing). Every 30 min a full fetch runs anyway
+// so deletions/windows reconcile. Cursors are per table, with a 2-min clock-skew overlap. ──
+const _dCur = {};
+function _deltaFilterFor(table){
+  if (_dCur._noUA) return null;
+  const c = _dCur[table];
+  if (!c || !c.at) return null;
+  if (Date.now() - c.fullAt > 1800000) return null;   // periodic full fetch → deletions reconcile
+  return new Date(c.at - 120000).toISOString();
+}
+function _deltaMark(table, wasDelta){
+  const c = _dCur[table] || (_dCur[table] = { at: 0, fullAt: 0 });
+  c.at = Date.now();
+  if (!wasDelta) c.fullAt = Date.now();
+}
+function _mergeById(cur, rows){
+  const m = new Map(); (cur||[]).forEach(x => m.set(String(x.id), x)); (rows||[]).forEach(x => m.set(String(x.id), x));
+  return [...m.values()];
+}
+// Full-or-delta table fetch → { rows, delta } (delta rows are merged by the caller).
+async function sbGetSmart(table){
+  if (!hasSB()) return null;
+  const since = _deltaFilterFor(table);
+  const PAGE = 1000; let from = 0, all = [];
+  while (true) {
+    let q = sb.from(table).select('*').range(from, from + PAGE - 1);
+    if (since) q = q.gt('updated_at', since);
+    const { data, error } = await q;
+    if (error) {
+      if (since && /updated_at/i.test(error.message||'')) {   // SQL not run yet → plain full fetch
+        _dCur._noUA = true;
+        const full = await sbGet(table);
+        if (full) _deltaMark(table, false);
+        return full ? { rows: full, delta: false } : null;
+      }
+      console.error('sbGetSmart', table, error.message); return from ? { rows: all, delta: !!since } : null;
+    }
+    all = all.concat(data || []);
+    if (!data || data.length < PAGE) break;
+    from += PAGE;
+  }
+  _deltaMark(table, !!since);
+  return { rows: all, delta: !!since };
+}
 async function sbGetRecentOrders(){
   if (!hasSB()) return null;
   const past = _orderPastISO(), future = _orderFutureISO(), pendingFrom = _dayISO(-_ORDER_PENDING_DAYS);
@@ -2876,19 +2934,28 @@ async function sbGetRecentOrders(){
   // OR no parseable date yet (due_on IS NULL) — so nothing silently disappears, and
   // this stays correct even before the one-time backfill has run.
   const filter = `and(due_on.gte.${past},due_on.lte.${future}),and(fulfilled.eq.false,due_on.gte.${pendingFrom}),and(due_on.is.null,fulfilled.eq.false)`;
-  try {
-    let from = 0, all = [];
-    while (true) {
-      const { data, error } = await sb.from('orders').select(ORDER_COLS)
-        .or(filter)
-        .range(from, from + 999);
-      if (error) { console.warn('sbGetRecentOrders', error.message); return all.length ? all : null; }
-      all = all.concat(data || []);
-      if (!data || data.length < 1000) break;
-      from += 1000;
-    }
-    return all;
-  } catch(e){ console.warn('sbGetRecentOrders', e); return null; }
+  let since = _deltaFilterFor('orders');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      let from = 0, all = [], retryFull = false;
+      while (true) {
+        let q = sb.from('orders').select(ORDER_COLS).or(filter).range(from, from + 999);
+        if (since) q = q.gt('updated_at', since);
+        const { data, error } = await q;
+        if (error) {
+          if (since && /updated_at/i.test(error.message||'')) { _dCur._noUA = true; since = null; retryFull = true; break; }
+          console.warn('sbGetRecentOrders', error.message); return all.length ? all : null;
+        }
+        all = all.concat(data || []);
+        if (!data || data.length < 1000) break;
+        from += 1000;
+      }
+      if (retryFull) continue;
+      _deltaMark('orders', !!since);
+      return all;
+    } catch(e){ console.warn('sbGetRecentOrders', e); return null; }
+  }
+  return null;
 }
 // One-time (idempotent) backfill: compute due_on for every order from its due_date
 // text using pd(). Reads only id+due_date (tiny) and upserts due_on in chunks. Safe
@@ -2938,8 +3005,8 @@ async function loadFromSupabase(opts = {}) {
   try {
     loadTodos();   // personal to-do list (private per login) — fire-and-forget
     loadTeam();    // profiles directory (Team page + @mentions) — fire-and-forget
-    const [orders, followups, inventory, purchases, remoteRemoved, remoteDeleted] = await Promise.all([
-      sbGetRecentOrders(), sbGet('followups'), sbGet('inventory'), sbGet('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
+    const [orders, fuRes, invRes, purRes, remoteRemoved, remoteDeleted] = await Promise.all([
+      sbGetRecentOrders(), sbGetSmart('followups'), sbGetSmart('inventory'), sbGetSmart('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
     ]);
     // Order-delete tombstones (shared). Union the remote list with any local deletes
     // so a just-deleted order isn't resurrected before its tombstone has synced.
@@ -2998,8 +3065,8 @@ async function loadFromSupabase(opts = {}) {
       _seedOrderHashes();   // baseline = DB state, so the next bulk sync writes only real diffs
       if(typeof _lalaHydrateIds==='function') _lalaHydrateIds();   // pull Lalamove booking ids (cross-device)
     }
-    if (followups && followups.length) {
-      FOLLOWUPS = followups.map(f => ({
+    if (fuRes && fuRes.rows.length) {
+      const mappedFu = fuRes.rows.map(f => ({
         id: f.id, name: f.name, contact: f.contact||'',
         email: f.email||'', staff: f.staff||'', recipName: f.recip_name||'',
         recipPhone: f.recip_phone||'', channel: f.channel||'whatsapp',
@@ -3012,11 +3079,12 @@ async function loadFromSupabase(opts = {}) {
         needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
+      FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
       _lsSetLean('flori-followup', FOLLOWUPS);
       changed = true;
     }
-    if (inventory && inventory.length) {
-      INVENTORY = inventory;
+    if (invRes && invRes.rows.length) {
+      INVENTORY = invRes.delta ? _mergeById(INVENTORY, invRes.rows) : invRes.rows;
       // Sizes/sell now come from the row itself (jsonb/numeric columns), so a refresh
       // reflects another device's live stock count. _hydrateSizes rolls up per-size
       // counts and backfills any legacy item still only in the settings blob — persist
@@ -3026,8 +3094,8 @@ async function loadFromSupabase(opts = {}) {
       if (_bf && _bf.length && typeof _invSaveOne==='function') { _bf.forEach(it=>{ try{ _invSaveOne(it); }catch(_){} }); }
       changed = true;
     }
-    if (purchases && purchases.length) {
-      PURCHASES = purchases;
+    if (purRes && purRes.rows.length) {
+      PURCHASES = purRes.delta ? _mergeById(PURCHASES, purRes.rows) : purRes.rows;
       _lsSetLean('flori-purchases', PURCHASES);
       changed = true;
     }
@@ -3653,10 +3721,20 @@ function homeMiniCard(o, item, idx) {
 // own copy. Dashboard card shows the top 3 by due date; the full list lives on pg-todo.
 let TODOS = [];
 let TEAM  = [];   // profiles directory — Team page, @mention suggestions, avatars
-async function loadTeam(){
+let _teamFull=false;
+async function loadTeam(full){
   if(!hasSB()) return;
-  try{ const { data, error } = await sb.from('profiles').select('*'); if(!error && Array.isArray(data)) TEAM = data.filter(p=>p.name); }
-  catch(e){ console.warn('loadTeam', e&&e.message); }
+  try{
+    // Light by default (no avatar/bio base64 — they cost real egress on every refresh);
+    // the full load happens once per session when the Team page opens. Mention dropdowns
+    // simply show initials until then.
+    const cols = full ? '*' : 'id,name,role,position,phone,birthday';
+    const { data, error } = await sb.from('profiles').select(cols);
+    if(!error && Array.isArray(data)){
+      if(full){ TEAM = data.filter(p=>p.name); _teamFull=true; }
+      else if(!_teamFull){ TEAM = data.filter(p=>p.name); }
+    }
+  }catch(e){ console.warn('loadTeam', e&&e.message); }
 }
 const _AVA_C=[['#EEEDFE','#3C3489'],['#EAF3DE','#3B6D11'],['#FAECE7','#993C1D'],['#FAEEDA','#854F0B'],['#FBEAF0','#993556'],['#E1F5EE','#0F6E56'],['#E6F1FB','#0C447C']];
 function _avaColor(name){ let h=0; const s=String(name||''); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return _AVA_C[h%_AVA_C.length]; }
@@ -3876,7 +3954,7 @@ function renderTodoPage(){
 function _roleBg(r){ return r==='admin'?['#EEEDFE','#3C3489'] : r==='cs'?['#FAECE7','#993C1D'] : r==='driver'?['#FAEEDA','#854F0B'] : ['#EAF3DE','#3B6D11']; }
 async function renderTeam(){
   const host=document.getElementById('team-page'); if(!host) return;
-  if(!TEAM.length) await loadTeam();
+  if(!_teamFull) await loadTeam(true);
   await _checkOwner();
   const me=currentUser&&currentUser.id;
   const bd=d=>{ if(!d) return ''; try{ return new Date(d+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}); }catch(_){ return ''; } };
@@ -3968,7 +4046,7 @@ async function _teamApi(T){
   if(!r.ok) throw new Error(j.error||('HTTP '+r.status));
   return j;
 }
-async function _teamReload(){ TEAM=[]; await loadTeam(); renderTeam(); }
+async function _teamReload(){ TEAM=[]; _teamFull=false; await loadTeam(true); renderTeam(); }
 function _teamSheetClose(){ const el=document.getElementById('team-sheet'); if(el) el.remove(); }
 function _teamSheet(title, inner){
   const ov=document.createElement('div'); ov.id='team-sheet';
