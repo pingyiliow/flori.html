@@ -3872,6 +3872,24 @@ async function deleteTodo(id){
     if(error || !data || !data.length) throw (error || new Error('no row deleted (RLS?)'));
   }catch(e){ TODOS=_before; renderTodos(); renderTodoPage(); toast('⚠ Delete failed'); console.warn('deleteTodo', e&&e.message); }
 }
+// Inline edit: the task text itself is editable — click, type, Enter/blur saves.
+// Empty text reverts (deleting is the × button's job); failures roll back + toast.
+function _todoEditKey(ev,el){ if(ev.key==='Enter'){ ev.preventDefault(); el.blur(); } }
+async function _todoEditSave(el,id){
+  const t=TODOS.find(x=>x.id===id); if(!t) return;
+  const txt=(el.textContent||'').trim();
+  if(!txt){ el.textContent=t.text||''; return; }
+  if(txt===t.text) return;
+  const old=t.text; t.text=txt; renderTodos(); renderTodoPage();
+  if(String(id).slice(0,4)==='tmp-') return;
+  try{
+    const { data, error } = await sb.from('todos').update({ text: txt }).eq('id', id).select('id');
+    if(error||!data||!data.length) throw (error||new Error('no row updated (RLS?)'));
+  }catch(e){ t.text=old; renderTodos(); renderTodoPage(); toast('⚠ Save failed'); console.warn('editTodo', e&&e.message); }
+}
+function _todoText(t,fs){
+  return '<span contenteditable="plaintext-only" spellcheck="false" onkeydown="_todoEditKey(event,this)" onblur="_todoEditSave(this,\''+t.id+'\')" style="flex:1;min-width:0;font-size:'+fs+'px;color:'+(t.done?'var(--c-muted)':'var(--c-ink)')+';'+(t.done?'text-decoration:line-through;':'')+'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;outline:none;cursor:text">'+esc(t.text||'')+'</span>';
+}
 function _todoTick(t){
   return '<button onclick="toggleTodo(\''+t.id+'\')" aria-label="toggle" style="width:18px;height:18px;border-radius:5px;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;'
     +(t.done?'background:var(--c-burg);border:1.5px solid var(--c-burg);color:#fff':'background:var(--c-surface);border:1.5px solid var(--c-border);color:transparent')+'">'+di('check',12)+'</button>';
@@ -3896,7 +3914,7 @@ function renderTodos(){
   const open=openAll.slice(0,3);
   const row=t=>'<div style="display:flex;align-items:center;gap:10px;padding:6px 0">'
     +_todoTick(t)
-    +'<span style="flex:1;min-width:0;font-size:12.5px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.text||'')+'</span>'
+    +_todoText(t,12.5)
     +_todoTags(t)+_todoDueChip(t)
   +'</div>';
   if(!open.length){ list.innerHTML='<div style="font-size:11.5px;color:var(--c-muted);padding:8px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>'; return; }
@@ -3946,7 +3964,7 @@ function renderTodoPage(){
   if(tabD){ tabD.innerHTML='Done <span style="color:var(--c-muted);font-weight:400">'+done.length+'</span>'; tabD.style.cssText=(_todoTab==='done'?onCss:offCss); }
   const row=t=>'<div style="display:flex;align-items:center;gap:10px;padding:7px 0">'
     +_todoTick(t)
-    +'<span style="flex:1;min-width:0;font-size:13px;color:'+(t.done?'var(--c-muted)':'var(--c-ink)')+';'+(t.done?'text-decoration:line-through;':'')+'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.text||'')+'</span>'
+    +_todoText(t,13)
     +_todoTags(t)+_todoDueChip(t)
     +'<button onclick="deleteTodo(\''+t.id+'\')" aria-label="remove" style="border:none;background:none;color:var(--c-muted);cursor:pointer;font-size:15px;line-height:1;padding:0 2px;flex:none">×</button>'
   +'</div>';
