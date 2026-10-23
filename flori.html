@@ -3763,26 +3763,36 @@ function _todoTick(t){
   return '<button onclick="toggleTodo(\''+t.id+'\')" aria-label="toggle" style="width:18px;height:18px;border-radius:5px;flex:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;'
     +(t.done?'background:var(--c-burg);border:1.5px solid var(--c-burg);color:#fff':'background:var(--c-surface);border:1.5px solid var(--c-border);color:transparent')+'">'+di('check',12)+'</button>';
 }
+const _TODO_MONO="ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,'Courier New',monospace";
 function renderTodos(){
   const host=document.getElementById('home-todo'); if(!host) return;
-  // Build the card shell once (so the input never re-renders mid-typing); then update only the list.
+  // Same design language as the full To-do page: frosted panel, typewriter font, grouped
+  // rows with colour dots, pill input + round add button BELOW the list.
   if(!document.getElementById('todo-input')){
-    host.innerHTML='<div class="card" style="padding:14px 16px">'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px"><span style="width:26px;height:26px;border-radius:8px;background:#534AB7;display:inline-flex;align-items:center;justify-content:center;color:#fff;flex:none">'+di('check',14)+'</span><div class="h-sec-ttl">'+(LANG==='zh'?'我的待办':'My to-do')+'</div><button id="todo-viewall" class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="goPage(\'todo\')">View all →</button></div>'
-      +'<div style="display:flex;gap:6px;margin-bottom:4px;position:relative">'
-        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12.5px;background:var(--c-surface);color:var(--c-ink);outline:none">'
-        +'<button onclick="addTodoFromInput()" aria-label="Add" style="padding:7px 13px;border:none;border-radius:var(--r);background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer">+</button>'
-      +'</div><div id="todo-list"></div></div>';
+    host.innerHTML='<div style="background:rgba(255,255,255,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.8);border-radius:18px;padding:15px 18px;box-shadow:0 12px 40px rgba(60,40,30,.10);font-family:'+_TODO_MONO+'">'
+      +'<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13.5px;color:var(--c-ink)">'+(LANG==='zh'?'我的待办':'My to-do')+'</span><button id="todo-viewall" onclick="goPage(\'todo\')" style="margin-left:auto;border:none;background:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;font-family:inherit;padding:0">View all →</button></div>'
+      +'<div id="todo-list" style="margin-bottom:10px"></div>'
+      +'<div style="display:flex;gap:7px;position:relative">'
+        +'<input id="todo-input" placeholder="'+(LANG==='zh'?'加一个待办… #组 @名字':'Add a task… #list @name')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore name="bf-todo-'+Math.random().toString(36).slice(2,8)+'" readonly onfocus="this.removeAttribute(\'readonly\')" oninput="_mentionBox(\'todo-input\')" onkeydown="if(event.key===\'Enter\')addTodoFromInput()" style="flex:1;min-width:0;padding:8px 14px;border:1.5px solid var(--c-border);border-radius:99px;font-size:12.5px;background:rgba(255,255,255,.7);color:var(--c-ink);outline:none;font-family:inherit">'
+        +'<button onclick="addTodoFromInput()" aria-label="Add" style="width:32px;height:32px;border:none;border-radius:50%;background:var(--c-burg);color:var(--c-bg);font-weight:700;font-size:15px;line-height:1;cursor:pointer;flex:none">+</button>'
+      +'</div></div>';
   }
   const list=document.getElementById('todo-list'); if(!list) return;
-  const open=_todoSortOpen(TODOS.filter(t=>!t.done));
-  const va=document.getElementById('todo-viewall'); if(va) va.textContent='View all · '+open.length+' →';
-  const row=t=>'<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--c-border)">'
+  const openAll=_todoSortOpen(TODOS.filter(t=>!t.done));
+  const va=document.getElementById('todo-viewall'); if(va) va.textContent='View all · '+openAll.length+' →';
+  const open=openAll.slice(0,3);
+  const row=t=>'<div style="display:flex;align-items:center;gap:10px;padding:6px 0">'
     +_todoTick(t)
     +'<span style="flex:1;min-width:0;font-size:12.5px;color:var(--c-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(t.text||'')+'</span>'
     +_todoTags(t)+_todoDueChip(t)
   +'</div>';
-  list.innerHTML = open.length ? open.slice(0,3).map(row).join('') : '<div style="font-size:11.5px;color:var(--c-muted);padding:8px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>';
+  if(!open.length){ list.innerHTML='<div style="font-size:11.5px;color:var(--c-muted);padding:8px 0">'+(LANG==='zh'?'还没有待办':'No tasks yet')+'</div>'; return; }
+  const groups={}; open.forEach(t=>{ const g=String(t.grp||'others'); (groups[g]=groups[g]||[]).push(t); });
+  const names=Object.keys(groups).sort((a,b)=>{ if(a==='others') return 1; if(b==='others') return -1; return _todoDueRank(groups[a][0])-_todoDueRank(groups[b][0]); });
+  list.innerHTML=names.map(g=>{ const c=_avaColor(g);
+    return '<div style="font-size:11px;color:var(--c-muted);margin:8px 0 1px;display:flex;align-items:center;gap:6px"><span style="width:5px;height:5px;border-radius:50%;background:'+c[1]+';flex:none"></span>'+esc(g)+'</div>'
+      + groups[g].map(row).join('');
+  }).join('');
 }
 // ── Full to-do page (More → To-do) ──────────────────────────────────────────
 // Frosted panel, typewriter font, two tabs (To-do / Done), tasks grouped by #list.
@@ -3790,7 +3800,7 @@ let _todoTab='open';
 function todoTabSet(t){ _todoTab=t; renderTodoPage(); }
 function renderTodoPage(){
   const host=document.getElementById('todo-page'); if(!host) return;
-  const MONO="ui-monospace,'SF Mono','Cascadia Mono',Menlo,Consolas,'Courier New',monospace";
+  const MONO=_TODO_MONO;
   if(!document.getElementById('todop-input')){
     host.innerHTML='<div style="display:flex;justify-content:center;padding-top:6px">'
       +'<div style="width:100%;max-width:470px;background:rgba(255,255,255,.62);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.8);border-radius:18px;padding:18px 20px;box-shadow:0 12px 40px rgba(60,40,30,.10);font-family:'+MONO+'">'
