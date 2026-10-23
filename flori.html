@@ -1206,6 +1206,24 @@ const DI = {
 };
 function di(name, size){ size=size||15; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;flex:none">'+(DI[name]||'')+'</svg>'; }
 function dif(name, size){ size=size||13; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-2px;flex:none">'+(DI[name]||'')+'</svg>'; }
+// ── Kill Chrome's password/autofill popup on EVERY field except the login form. ──
+// autocomplete="off" alone is ignored by Chrome's password manager, so empty fields are
+// also kept readonly until first focus (readonly fields get no autofill offer); focusin
+// lifts it instantly so typing is unaffected. Re-sweeps on an interval because the app
+// re-renders inputs via innerHTML constantly.
+function _killAutofill(){
+  document.querySelectorAll('input:not([data-af]), textarea:not([data-af])').forEach(el=>{
+    el.dataset.af='1';
+    if(el.id==='login-email'||el.id==='login-pass'||el.closest('#login-screen,#pw-reset-screen')) return;   // keep real sign-in autofill
+    const t=(el.type||'text').toLowerCase();
+    if(['checkbox','radio','file','range','color','submit','button','hidden','password','date','time','datetime-local'].includes(t)) return;
+    el.setAttribute('autocomplete','off'); el.setAttribute('data-lpignore','true'); el.setAttribute('data-1p-ignore','');
+    if(!el.value && document.activeElement!==el){ el.setAttribute('readonly',''); el.dataset.afr='1'; }
+  });
+}
+document.addEventListener('focusin',e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afr){ el.removeAttribute('readonly'); delete el.dataset.afr; } },true);
+setInterval(_killAutofill,800);
+if(document.readyState!=='loading') _killAutofill(); else document.addEventListener('DOMContentLoaded',_killAutofill);
 function dot(color, size){ size=size||10; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="vertical-align:-1px;flex:none"><circle cx="12" cy="12" r="10" fill="'+color+'"/></svg>'; }
 // Missing-image fallbacks (used from <img onerror>) — replace the broken image with a
 // muted flower glyph instead of an emoji, keeping the surrounding markup intact.
