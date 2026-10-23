@@ -3678,9 +3678,13 @@ function _mentionBox(inpId){
   const hits=(TEAM||[]).filter(p=>p.name&&(!q||p.name.toLowerCase().startsWith(q))&&(!currentUser||p.id!==currentUser.id)).slice(0,6);
   if(!hits.length){ if(box) box.style.display='none'; return; }
   if(!box){ box=document.createElement('div'); box.id=inpId+'-sug';
-    box.style.cssText='position:absolute;top:100%;left:0;margin-top:3px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow:hidden;z-index:60;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.14)';
-    inp.parentElement.style.position='relative'; inp.parentElement.appendChild(box); }
-  box.innerHTML=hits.map((p,i)=>'<div onmousedown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+esc(p.name).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:7px 11px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+_avatarHTML(p,22)+'<span>'+esc(p.name)+'</span><span style="color:var(--c-muted);font-size:10.5px">'+esc(p.position||p.role||'')+'</span></div>').join('');
+    // Fixed + appended to <body>: a card's rounded overflow can never clip the list.
+    box.style.cssText='position:fixed;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow:hidden;z-index:100000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+    document.body.appendChild(box);
+    inp.addEventListener('blur',()=>setTimeout(()=>{ box.style.display='none'; },200)); }
+  const r=inp.getBoundingClientRect();
+  box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.maxWidth=Math.max(220,Math.round(r.width))+'px';
+  box.innerHTML=hits.map((p,i)=>'<div onmousedown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+esc(p.name).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+_avatarHTML(p,22)+'<span>'+esc(p.name)+'</span><span style="color:var(--c-muted);font-size:10.5px">'+esc(p.position||p.role||'')+'</span></div>').join('');
   box.style.display='block';
 }
 function _mentionPick(inpId,name){
