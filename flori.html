@@ -3819,6 +3819,9 @@ async function _addTodo(inpId, dateId, timeId){
   if(inp) inp.value=''; if(te) te.value='';
   const box=document.getElementById(inpId+'-sug'); if(box) box.style.display='none';
   const assigned=targets.length?targets.map(p=>p.name).join(', '):null;
+  // Linked copies: every @-assigned copy shares one link_id, and a DB trigger mirrors the
+  // done tick across all of them — when the teammate finishes it, your copy completes too.
+  let link=null; if(targets.length){ try{ link=crypto.randomUUID(); }catch(_){} }
   const tmp={ id:'tmp-'+Date.now(), text, done:false, created_at:new Date().toISOString(), due_date, due_time, grp, assigned_to_name:assigned };
   TODOS.push(tmp); renderTodos(); renderTodoPage();
   try{
@@ -3827,11 +3830,12 @@ async function _addTodo(inpId, dateId, timeId){
     if(due_time) payload.due_time=due_time;
     if(grp) payload.grp=grp;
     if(assigned) payload.assigned_to_name=assigned;
+    if(link) payload.link_id=link;
     const { data, error } = await sb.from('todos').insert(payload).select().single();
     if(error) throw error;
     const i=TODOS.findIndex(x=>x.id===tmp.id); if(i>=0 && data) TODOS[i]=data; renderTodos(); renderTodoPage();
     if(targets.length){
-      const rows=targets.map(p=>{ const r={ text, user_id:p.id, created_by_name:currentUserName||'teammate' }; if(due_date)r.due_date=due_date; if(due_time)r.due_time=due_time; if(grp)r.grp=grp; return r; });
+      const rows=targets.map(p=>{ const r={ text, user_id:p.id, created_by_name:currentUserName||'teammate' }; if(due_date)r.due_date=due_date; if(due_time)r.due_time=due_time; if(grp)r.grp=grp; if(link)r.link_id=link; return r; });
       const { error: e2 } = await sb.from('todos').insert(rows);
       if(e2){ toast('⚠ Could not add to teammate — run the todos SQL'); console.warn('assignTodo', e2.message); }
       else toast('Added to '+targets.map(p=>p.name).join(', '));
