@@ -1516,6 +1516,9 @@ async function showApp() {
   // Don't pull the whole customer table at launch (it's ~20k rows / lots of egress).
   // The dashboard reminder widget only needs birthday/anniversary, so fetch just those
   // light fields; the full list loads lazily when the Customers tab is opened.
+  // RLS is ON for orders/routes/todos: realtime silently filters EVERYTHING unless the
+  // channel joins with the USER's JWT, so hand the token to realtime BEFORE subscribing.
+  await _rtSetAuth();
   if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
   subscribeTodos();    // live to-do sync (@-assigned tasks + linked done ticks)
@@ -1592,7 +1595,12 @@ async function checkSession() {
     // If the session is lost later (refresh-token expired), Supabase fires SIGNED_OUT — show
     // the login screen so ANY role can re-sign-in (Sign Out otherwise lives only in
     // admin-only Settings, trapping non-admin devices whose session expired mid-use).
-    try { sb.auth.onAuthStateChange((event, session) => { if (event === 'PASSWORD_RECOVERY') { _showResetPassword(); return; } if (event === 'SIGNED_OUT' && !session) _showLogin(); }); } catch(_){}
+    try { sb.auth.onAuthStateChange((event, session) => {
+      // Keep realtime authorised across token refreshes — RLS tables drop events otherwise.
+      try { if (session && session.access_token && sb.realtime && typeof sb.realtime.setAuth==='function') sb.realtime.setAuth(session.access_token); } catch(_){}
+      if (event === 'PASSWORD_RECOVERY') { _showResetPassword(); return; }
+      if (event === 'SIGNED_OUT' && !session) _showLogin();
+    }); } catch(_){}
   } catch(e) {
     console.error('Session check failed:', e);
     // Fallback — show login
@@ -7942,6 +7950,17 @@ function subscribeOrders(){
         if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_ordRealtime); }catch(_){} _ordRealtime=null; } });
   } catch(e){ console.warn('subscribeOrders', e && e.message); }
 }
+// Hand the signed-in user's JWT to the realtime socket. postgres_changes on RLS tables
+// evaluates the subscriber's claims — an anon-joined channel reports SUBSCRIBED but
+// receives zero events, which looked exactly like "realtime is broken".
+async function _rtSetAuth(){
+  try{
+    if(!hasSB() || !sb.realtime || typeof sb.realtime.setAuth!=='function') return;
+    const { data } = await sb.auth.getSession();
+    const tok = data && data.session && data.session.access_token;
+    if (tok) sb.realtime.setAuth(tok);
+  }catch(e){ console.warn('rtSetAuth', e&&e.message); }
+}
 let _todoRealtime=null;
 function subscribeTodos(){
   if(!hasSB() || _todoRealtime || typeof sb.channel!=='function') return;
@@ -13431,8 +13450,7 @@ let _lastRefresh = 0;
 const _AUTO_REFRESH_MS = 300000; // 5 minutes
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
-  subscribeOrders();   // re-arm the live channel on focus in case it dropped (idempotent)
-  subscribeTodos();
+  _rtSetAuth().then(()=>{ subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
   const now = Date.now();
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
