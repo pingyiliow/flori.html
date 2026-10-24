@@ -1518,6 +1518,7 @@ async function showApp() {
   // light fields; the full list loads lazily when the Customers tab is opened.
   if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
+  subscribeTodos();    // live to-do sync (@-assigned tasks + linked done ticks)
   subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
   loadRoutes().then(()=>{ if (typeof renderDriver==='function') renderDriver(); });
   loadInvCats();       // editable stock categories (shared settings)
@@ -2239,7 +2240,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -2262,7 +2263,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -2299,7 +2300,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2338,6 +2339,10 @@ async function syncOrders() {
           }
           o.image        = ('image' in r ? r.image : o.image) || (o.lineItems||[]).find(i => itemPhotos(i).length)?.image || null;
           o.ready        = !!r.ready;
+          o.readyBy      = r.ready_by || null;
+          o.readyAt      = r.ready_at || null;
+          o.fulfilledBy  = r.fulfilled_by || null;
+          o.fulfilledAt  = r.fulfilled_at || null;
           o.designer     = r.designer || null;
           o.priority     = r.priority || 'normal';
           o.internalNote = r.internal_note || null;
@@ -2449,6 +2454,15 @@ function _orderRow(o){
     proof_photo: o.proofPhoto||null, proof_photos: o.proofPhotos||null, cake: o.cake||null,
     delivered_lat: o.deliveredLat??null, delivered_lng: o.deliveredLng??null, delivered_at: o.deliveredAt||null, delivered_by: o.deliveredBy||null
   };
+  // Attribution stamps (who ticked ready / completed). Display gates on the ready/fulfilled
+  // flags, so a stale stamp on an unticked row is invisible — which lets the falsy-delete
+  // below keep untouched rows byte-identical (no re-hash/re-upsert wave).
+  row.ready_by=o.readyBy||null; row.ready_at=o.readyAt||null;
+  row.fulfilled_by=o.fulfilledBy||null; row.fulfilled_at=o.fulfilledAt||null;
+  if (!o.readyBy) delete row.ready_by;
+  if (!o.readyAt) delete row.ready_at;
+  if (!o.fulfilledBy) delete row.fulfilled_by;
+  if (!o.fulfilledAt) delete row.fulfilled_at;
   // Keep rows for orders without a saved contact byte-identical to before (so adding
   // these columns doesn't re-hash/re-upsert every existing order — avoids an egress spike).
   if (!o.custPhone) delete row.cust_phone;
@@ -2855,6 +2869,8 @@ function _mapDbOrder(o){
     dueDate: o.due_date||null, dueOn: o.due_on||null, dueTime: o.due_time||null,
     type: o.type||'delivery', fulfilled: o.fulfilled||false,
     ready: o.ready||false, createdAt: o.created_at||null,
+    readyBy: o.ready_by||null, readyAt: o.ready_at||null,
+    fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -2873,7 +2889,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3169,6 +3185,10 @@ function mergeOrderRows(a, b){
     });
   }
   m.ready        = a.ready || b.ready;
+  m.readyBy      = a.readyBy || b.readyBy || null;
+  m.readyAt      = a.readyAt || b.readyAt || null;
+  m.fulfilledBy  = a.fulfilledBy || b.fulfilledBy || null;
+  m.fulfilledAt  = a.fulfilledAt || b.fulfilledAt || null;
   m.designer     = a.designer || b.designer || null;
   m.priority     = [a.priority,b.priority].find(p=>p&&p!=='normal') || 'normal';
   m.internalNote = a.internalNote || b.internalNote || null;
@@ -3700,6 +3720,7 @@ function toggleItemReady(id, idx) {
   const o = ORDERS.find(x => x.id === id); if (!o || !o.lineItems || !o.lineItems[idx]) return;
   o.lineItems[idx].ready = !o.lineItems[idx].ready;
   o.ready = o.lineItems.length > 0 && o.lineItems.every(i => i.ready);
+  _stampReady(o);
   saveOrders(o); renderHome(); renderOrders();
 }
 
@@ -7920,6 +7941,25 @@ function subscribeOrders(){
       .subscribe();
   } catch(e){ console.warn('subscribeOrders', e && e.message); }
 }
+let _todoRealtime=null;
+function subscribeTodos(){
+  if(!hasSB() || _todoRealtime || typeof sb.channel!=='function') return;
+  try{
+    _todoRealtime = sb.channel('todos-live')
+      .on('postgres_changes',{ event:'*', schema:'public', table:'todos' }, p=>{
+        try{
+          const row=(p.new&&Object.keys(p.new).length)?p.new:p.old;
+          if(!row||row.id==null) return;
+          if(p.eventType==='DELETE'){ TODOS=TODOS.filter(t=>String(t.id)!==String(row.id)); }
+          else{
+            const i=TODOS.findIndex(t=>String(t.id)===String(row.id));
+            if(i>=0) TODOS[i]={...TODOS[i],...p.new}; else TODOS.push(p.new);
+          }
+          renderTodos(); renderTodoPage();
+        }catch(e){ console.warn('todo change apply', e&&e.message); }
+      }).subscribe();
+  }catch(e){ console.warn('subscribeTodos', e&&e.message); }
+}
 function applyOrderChange(p){
   const row = (p.new && Object.keys(p.new).length) ? p.new : p.old;
   if (!row || row.id == null) return;
@@ -12070,7 +12110,18 @@ function quickAssign(id, field, value) {
   toast('✓ Updated');
 }
 
-function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o)o.ready=!o.ready;saveOrders(o);renderHome();renderOrders();}
+function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o){o.ready=!o.ready;_stampReady(o);}saveOrders(o);renderHome();renderOrders();}
+// Attribution stamps: who ticked ready / completed the order (shown in the order panel).
+function _stampReady(o){ if(o.ready){ o.readyBy=currentUserName||'staff'; o.readyAt=new Date().toISOString(); } else { o.readyBy=null; o.readyAt=null; } }
+function _stampDone(o){ const w=currentUserName||'staff', t=new Date().toISOString(); if(!o.fulfilledBy){ o.fulfilledBy=w; o.fulfilledAt=t; } if(!o.readyBy){ o.readyBy=w; o.readyAt=t; } }
+function _whoLine(o){
+  const f=t=>{ try{ return new Date(t).toLocaleString('en-MY',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } };
+  const bits=[];
+  if(o.ready && o.readyBy) bits.push('Ready — '+o.readyBy+(o.readyAt?', '+f(o.readyAt):''));
+  const db=o.deliveredBy||o.fulfilledBy, da=o.deliveredAt||o.fulfilledAt;
+  if(o.fulfilled && db) bits.push((o.deliveredBy?'Delivered — ':'Done — ')+db+(da?', '+f(da):''));
+  return bits.join('   ·   ');
+}
 /* ─── Swipe to deliver (mobile) ────────────────────────────── */
 function initSwipeRows() {
   if (!('ontouchstart' in window)) return;
@@ -12219,13 +12270,13 @@ async function confirmDeliver(id, photos, notify, verb, photoB64s){
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     toast('✓ Marked as '+verb); return;
   }
   toast('Fulfilling in Shopify…');
   try {
     const r = await fulfillInShopify(o, false);   // silent — our own system notifies
-    o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     if (notify){
       toast('Notifying customer…');
       const res = await _notifyDeliveredPhotos(o, _photos, photoB64s || []);
@@ -12242,7 +12293,7 @@ async function confirmDeliver(id, photos, notify, verb, photoB64s){
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
-      o.ready=true; o.fulfilled=true; saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+      o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else { toast('Cancelled'); }
   }
@@ -12884,6 +12935,7 @@ function openDP(id) {
   _dpId = id;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '') + (o.dueTime ? ' · ' + o.dueTime : '');
+  { const _w=document.getElementById('dp-who'); if(_w) _w.textContent=_whoLine(o); }
   const _st = document.getElementById('dp-status');
   if (_st){
     const s = o.fulfilled ? 'done' : (o.otwAt ? 'otw' : 'ready');
@@ -13102,6 +13154,7 @@ function _renderDP(order, localOrder) {
     subHtml += ` · <span style="color:#FFD96A;font-weight:700;font-family:var(--f-head);font-size:15px">RM ${parseFloat(totalAmt).toFixed(2)}</span>`;
   }
   document.getElementById('dp-sub').innerHTML = subHtml;
+  { const _w=document.getElementById('dp-who'); if(_w) _w.textContent=_whoLine(localOrder||order||{}); }
 
   // ── "View in Shopify" header link (Shopify orders only) ──
   const _sl = document.getElementById('dp-shopify-link');
@@ -13376,6 +13429,7 @@ const _AUTO_REFRESH_MS = 300000; // 5 minutes
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
   subscribeOrders();   // re-arm the live channel on focus in case it dropped (idempotent)
+  subscribeTodos();
   const now = Date.now();
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
@@ -13400,6 +13454,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
         <span id="dp-status" class="dp-status" style="display:none"></span>
       </div>
       <div style="font-size:12.5px;color:var(--c-muted);margin-top:3px" id="dp-sub"></div>
+      <div style="font-size:11px;color:var(--c-muted);margin-top:4px" id="dp-who"></div>
     </div>
     <button class="sp-x" aria-label="Close" onclick="closeDP()" style="color:var(--c-ink)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
   </div>
