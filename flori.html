@@ -1381,7 +1381,14 @@ async function sbUpsert(table, rows) {
       const { error } = await sb.from(table).upsert(payload, { onConflict: 'id' });
       if (!error) break;
       const m = /Could not find the '([^']+)' column/.exec(error.message) || /'([^']+)' column/.exec(error.message);
-      if (m && m[1] && tries++ < 15) { const col = m[1]; payload = payload.map(r => { const c = { ...r }; delete c[col]; return c; }); continue; }
+      if (m && m[1] && tries++ < 15) {
+        const col = m[1];
+        // Dropping a column keeps the rest of the save alive, but it IS silent data loss —
+        // say so loudly once per table+column so a missing migration can't hide for months.
+        try{ window._dropWarned=window._dropWarned||{}; const k=table+'.'+col;
+          if(!window._dropWarned[k]){ window._dropWarned[k]=1; console.error('sbUpsert: column missing, saved WITHOUT it:', k); toast('⚠ '+k+' column missing — run the SQL'); } }catch(_){}
+        payload = payload.map(r => { const c = { ...r }; delete c[col]; return c; }); continue;
+      }
       failed = true; errMsg = error.message; console.error('sbUpsert', table, error.message); break;
     }
     batch = []; size = 0;
@@ -10233,7 +10240,9 @@ function renderDriver(){
   // Today's unassigned deliveries — the day's unclaimed pool. Admins can assign them to
   // a route; drivers see the same list read-only (as "Pending deliveries") so they can
   // pick one up and deliver it even before anyone builds a route.
-  const unassigned = stops.filter(o => !o.routeId && !o.fulfilled).sort(bySeq);
+  // Self-heal: an order pointing at a route that no longer exists (e.g. the route save
+  // failed or the route was deleted elsewhere) is unassigned again, not invisible.
+  const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled).sort(bySeq);
   const unassignedBlock = () => (unassigned.length || (isAdmin && !routes.length))
     ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
       + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">'+(isAdmin?'Unassigned, ':'Pending deliveries, ')+unassigned.length+'</div>'
@@ -12671,7 +12680,7 @@ document.addEventListener('keydown', e => {
   if(document.getElementById('zoom')?.classList.contains('on')){
     if(e.key==='ArrowLeft'){galStep(-1);return;} if(e.key==='ArrowRight'){galStep(1);return;}
   }
-  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
   if(e.key==='1') goPage('home'); if(e.key==='2') goPage('orders'); if(e.key==='3') goPage('stock'); if(e.key==='4') goPage('stock');
   if(e.key==='r'||e.key==='R') syncOrders(); if(e.key==='s'||e.key==='S') openSP(); if(e.key==='Escape'){closeSP();closeZoom();closeDP();closeFUDP();}
 });
