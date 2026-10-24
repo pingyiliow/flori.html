@@ -7938,7 +7938,8 @@ function subscribeOrders(){
       .on('postgres_changes', { event:'*', schema:'public', table:'orders' }, p => {
         try { applyOrderChange(p); } catch(e){ console.warn('order change apply', e && e.message); }
       })
-      .subscribe();
+      .subscribe(s => { console.log('[rt orders]', s);
+        if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_ordRealtime); }catch(_){} _ordRealtime=null; } });
   } catch(e){ console.warn('subscribeOrders', e && e.message); }
 }
 let _todoRealtime=null;
@@ -7957,7 +7958,8 @@ function subscribeTodos(){
           }
           renderTodos(); renderTodoPage();
         }catch(e){ console.warn('todo change apply', e&&e.message); }
-      }).subscribe();
+      }).subscribe(s => { console.log('[rt todos]', s);
+        if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_todoRealtime); }catch(_){} _todoRealtime=null; } });
   }catch(e){ console.warn('subscribeTodos', e&&e.message); }
 }
 function applyOrderChange(p){
@@ -8058,7 +8060,8 @@ function subscribeRoutes(){
           _rtRenderTimer = setTimeout(() => { if (typeof renderDriver==='function') renderDriver(); }, 400);
         } catch(e){ console.warn('route change apply', e && e.message); }
       })
-      .subscribe();
+      .subscribe(s => { console.log('[rt routes]', s);
+        if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_rtRealtime); }catch(_){} _rtRealtime=null; } });
   } catch(e){ console.warn('subscribeRoutes', e && e.message); }
 }
 
