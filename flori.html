@@ -1520,6 +1520,7 @@ async function showApp() {
   // channel joins with the USER's JWT, so hand the token to realtime BEFORE subscribing.
   await _rtSetAuth();
   if (canAccess('customers')) { loadReminders().then(()=>{ if(typeof renderCrmReminders==='function') renderCrmReminders(); }); subscribeCustomers(); }
+  subscribeBroadcast(); // PRIMARY live sync (tiny {table,ids} notes + re-pull)
   subscribeOrders();   // live order sync for every role (date changes / deletes / new manual orders)
   subscribeTodos();    // live to-do sync (@-assigned tasks + linked done ticks)
   subscribeRoutes();   // live route sync (driver mode: plans, start, GPS)
@@ -2516,7 +2517,7 @@ function saveOrders(changed) {
         if (_rowHashes[k] !== h) { rows.push(r); _rowHashes[k] = h; }
       });
     }
-    if (rows.length) sbUpsert('orders', rows).catch(console.error);
+    if (rows.length) sbUpsert('orders', rows).then(ok => { if (ok && changed) _bcSend('orders', { ids: rows.map(r => shopId(r.id)) }); }).catch(console.error);
     // Persist delete tombstones (shared settings) — only when something changed, so a
     // no-op sync stays fully silent. Full snapshot, so clearing a tombstone propagates.
     if (rows.length) {
@@ -2547,7 +2548,7 @@ function _lsSetLean(key, arr){
 }
 function saveInventory() {
   _lsSetLean('flori-inventory', INVENTORY);
-  if (hasSB()) sbUpsert('inventory', INVENTORY.map(_invRow)).catch(console.error);
+  if (hasSB()) sbUpsert('inventory', INVENTORY.map(_invRow)).then(ok => { if (ok) _bcSend('inventory'); }).catch(console.error);
 }
 // Upsert just one item — used by the quick +/- adjust so a tap doesn't rewrite every row.
 function _invSaveOne(i){
@@ -3903,6 +3904,7 @@ async function _addTodo(inpId, dateId, timeId){
       if(e2){ toast('⚠ Could not add to teammate — run the todos SQL'); console.warn('assignTodo', e2.message); }
       else toast('Added to '+targets.map(p=>p.name).join(', '));
     }
+    _bcSend('todos');
   }catch(e){ TODOS=TODOS.filter(x=>x.id!==tmp.id); renderTodos(); renderTodoPage(); toast('⚠ Save failed'); console.warn('addTodo', e&&e.message); }
 }
 function addTodoFromInput(){ _addTodo('todo-input', null, null); }
@@ -3915,6 +3917,7 @@ async function toggleTodo(id){
   try{
     const { data, error } = await sb.from('todos').update({ done:t.done }).eq('id', id).select('id');
     if(error || !data || !data.length) throw (error || new Error('no row updated (RLS?)'));
+    _bcSend('todos');
   }catch(e){ t.done=!t.done; renderTodos(); renderTodoPage(); toast('⚠ Save failed'); console.warn('toggleTodo', e&&e.message); }
 }
 async function deleteTodo(id){
@@ -3923,6 +3926,7 @@ async function deleteTodo(id){
   try{
     const { data, error } = await sb.from('todos').delete().eq('id', id).select('id');
     if(error || !data || !data.length) throw (error || new Error('no row deleted (RLS?)'));
+    _bcSend('todos');
   }catch(e){ TODOS=_before; renderTodos(); renderTodoPage(); toast('⚠ Delete failed'); console.warn('deleteTodo', e&&e.message); }
 }
 // Inline edit: the task text itself is editable — click, type, Enter/blur saves.
@@ -3938,6 +3942,7 @@ async function _todoEditSave(el,id){
   try{
     const { data, error } = await sb.from('todos').update({ text: txt }).eq('id', id).select('id');
     if(error||!data||!data.length) throw (error||new Error('no row updated (RLS?)'));
+    _bcSend('todos');
   }catch(e){ t.text=old; renderTodos(); renderTodoPage(); toast('⚠ Save failed'); console.warn('editTodo', e&&e.message); }
 }
 function _todoText(t,fs){
@@ -6107,6 +6112,7 @@ function saveFollowups() {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
       if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, ...r }) => r));
+      _bcSend('followups');
     }).catch(console.error);
   }
 }
@@ -7961,6 +7967,46 @@ async function _rtSetAuth(){
     if (tok) sb.realtime.setAuth(tok);
   }catch(e){ console.warn('rtSetAuth', e&&e.message); }
 }
+// ── Broadcast live-sync (primary): postgres_changes proved unreliable here (photo-laden
+// order rows blow Realtime's message cap and get dropped; RLS adds claim filtering), so
+// writers broadcast a tiny {table, ids} note and every listener re-pulls just those rows
+// over the normal query path. postgres_changes stays as a bonus where it works. ──
+let _bcChannel=null;
+function subscribeBroadcast(){
+  if(!hasSB() || _bcChannel || typeof sb.channel!=='function') return;
+  try{
+    _bcChannel = sb.channel('bf-live', { config:{ broadcast:{ self:false } } })
+      .on('broadcast', { event:'chg' }, async m=>{
+        try{
+          const d=(m&&m.payload)||{};
+          if(d.t==='orders' && Array.isArray(d.ids) && d.ids.length){
+            const { data } = await sb.from('orders').select(ORDER_COLS).in('id', d.ids.slice(0,50));
+            if(data && data.length && _mergeDbOrders(data)){
+              data.forEach(r=>{ try{ const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id)); if(o) _rowHashes[shopId(r.id)]=_rowHash(_orderRow(o)); }catch(_){} });
+              try{ localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }catch(_){}
+              if(typeof renderOrders==='function') renderOrders();
+              if(typeof renderHome==='function') renderHome();
+              if(typeof renderDriver==='function') renderDriver();
+              if(typeof updateBadge==='function') updateBadge();
+              if(_dpId && d.ids.some(id=>shopId(_dpId)===shopId(id))){
+                const o=ORDERS.find(x=>shopId(x.id)===shopId(_dpId));
+                if(o && typeof localToDPOrder==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+              }
+            }
+          } else if(d.t==='routes'){
+            (d.iso?loadRoutesForDate(d.iso):loadRoutes()).then(()=>{ if(typeof renderDriver==='function') renderDriver(); });
+          } else if(d.t==='todos'){
+            loadTodos();
+          } else if(d.t){
+            loadFromSupabase();   // followups/inventory/purchases etc. — delta fetch, cheap
+          }
+        }catch(e){ console.warn('bc apply', e&&e.message); }
+      })
+      .subscribe(s=>{ console.log('[rt bc]', s);
+        if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_bcChannel); }catch(_){} _bcChannel=null; } });
+  }catch(e){ console.warn('subscribeBroadcast', e&&e.message); }
+}
+function _bcSend(t, extra){ try{ if(_bcChannel) _bcChannel.send({ type:'broadcast', event:'chg', payload:{ t, ...(extra||{}) } }); }catch(_){} }
 let _todoRealtime=null;
 function subscribeTodos(){
   if(!hasSB() || _todoRealtime || typeof sb.channel!=='function') return;
@@ -8046,7 +8092,7 @@ async function loadRoutesForDate(iso){
 function saveRoute(rt){
   const i = ROUTES.findIndex(r => r.id === rt.id);
   if (i === -1) ROUTES.push(rt); else ROUTES[i] = rt;
-  if (hasSB()) sbUpsert('routes', [_routeRow(rt)]).catch(console.error);
+  if (hasSB()) sbUpsert('routes', [_routeRow(rt)]).then(ok => { if (ok) _bcSend('routes', { iso: rt.date }); }).catch(console.error);
 }
 function createRoute(name, dateISO, driver){
   const rt = { id: (crypto.randomUUID ? crypto.randomUUID() : 'rt-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)),
@@ -11941,8 +11987,9 @@ function handleFUPhoto(input) {
   });
 }
 
-function handleProductPhoto(input, idx) {
-  const files = Array.from(input.files || []); if (!files.length) return;
+function _productPhotoFiles(idx, files) {
+  files = Array.from(files || []).filter(f => /^image\//i.test(f.type || ''));
+  if (!files.length) return;
   if (!_productImages[idx]) _productImages[idx] = [];
   toast(files.length>1 ? `Uploading ${files.length} photos…` : 'Uploading…');
   let pending = files.length;
@@ -11950,14 +11997,42 @@ function handleProductPhoto(input, idx) {
     _productImages[idx].push(src);
     if (--pending === 0) { renderProductPhotos(idx); toast('✓ Photo added'); }
   }));
+}
+function handleProductPhoto(input, idx) {
+  _productPhotoFiles(idx, input.files);
   input.value = '';   // allow re-picking the same file
 }
+// Drag a picture onto an item card, or Ctrl+V a copied image anywhere while Add Order is
+// open — it lands on the item you last touched (else the last item row).
+function _prodPhotoDrop(ev, idx) {
+  ev.preventDefault();
+  _productPhotoFiles(idx, ev.dataTransfer && ev.dataTransfer.files);
+}
+let _oPasteIdx = null;
+document.addEventListener('focusin', e => {
+  const row = e.target && e.target.closest && e.target.closest('.o-prod-row');
+  if (row && row.id) { const n = parseInt(row.id.replace('oprow-',''), 10); if (!isNaN(n)) _oPasteIdx = n; }
+});
+document.addEventListener('paste', e => {
+  const list = document.getElementById('o-products-list');
+  if (!list || !list.offsetParent) return;   // Add Order modal not open
+  const files = Array.from((e.clipboardData && e.clipboardData.files) || []).filter(f => /^image\//i.test(f.type || ''));
+  if (!files.length) return;
+  e.preventDefault();
+  let idx = (_oPasteIdx != null && document.getElementById('oprow-'+_oPasteIdx)) ? _oPasteIdx : null;
+  if (idx === null) {
+    const rows = list.querySelectorAll('.o-prod-row');
+    if (rows.length) { const n = parseInt(rows[rows.length-1].id.replace('oprow-',''), 10); if (!isNaN(n)) idx = n; }
+  }
+  if (idx === null) return;
+  _productPhotoFiles(idx, files);
+});
 
 /* ─── Multi-product row system ────────────────────────────────── */
 let _productRowCount = 0;
 
 function _productRowHTML(idx, item) {
-  return `<div class="o-prod-row" id="oprow-${idx}" style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--c-surface)">
+  return `<div class="o-prod-row" id="oprow-${idx}" ondragover="event.preventDefault();this.style.borderColor='var(--c-burg)'" ondragleave="this.style.borderColor='var(--c-border)'" ondrop="this.style.borderColor='var(--c-border)';_prodPhotoDrop(event,${idx})" style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--c-surface)">
     <div style="display:flex;gap:8px;align-items:flex-start">
       <div style="flex:1;display:flex;flex-direction:column;gap:6px">
         <input id="opname-${idx}" type="text" placeholder="Product / Bouquet name" value="${esc(item.title||'')}" style="padding:7px 10px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:100%;outline:none;background:var(--c-surface);color:var(--c-ink)">
@@ -13450,7 +13525,7 @@ let _lastRefresh = 0;
 const _AUTO_REFRESH_MS = 300000; // 5 minutes
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
-  _rtSetAuth().then(()=>{ subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
+  _rtSetAuth().then(()=>{ subscribeBroadcast(); subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
   const now = Date.now();
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
