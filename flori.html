@@ -2344,10 +2344,12 @@ async function syncOrders() {
         _deltaMark('orders_overlay', !!sinceOv);
         const byRemote = {}; remote.forEach(r => { byRemote[shopId(r.id)] = r; });
         const byLean   = {}; lean.forEach(r => { byLean[shopId(r.id)] = r; });
+        const _heal = [];   // DB rows that LOST their line items (a degraded cache once wrote []) — re-save full rows from the fresh Shopify data
         ORDERS.forEach(o => {
           const r = byRemote[shopId(o.id)] || byLean[shopId(o.id)];
           if (!r) return;   // new order not yet in DB → keep Shopify data
           o._inDb = true;   // exists in the DB → the bulk save writes Shopify columns only
+          if (('line_items' in r) && (!Array.isArray(r.line_items) || !r.line_items.length) && Array.isArray(o.lineItems) && o.lineItems.length) _heal.push(o);
           if (Array.isArray(r.line_items) && r.line_items.length) {
             // Use the multi-device copy as the base (names/prices/qty + photos & ready),
             // but still append any product just added in Shopify so it isn't lost here.
@@ -2389,6 +2391,10 @@ async function syncOrders() {
           o.address      = o.address    || r.address     || null;
         });
         _ovOk = !_leanErr;
+        if (_ovOk && _heal.length) {
+          console.log('[sync] healing', _heal.length, 'orders whose DB rows lost their line items');
+          saveOrders(_heal.slice(0, 200));   // explicit path → full rows (titles/items/photos) restored
+        }
       } catch (e) { _ovOk = false; console.warn('Sync merge read failed:', e && e.message); }
     }
     // Auto-fill product photos from Shopify: if a line item has no user-uploaded
