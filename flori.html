@@ -13326,7 +13326,12 @@ function _fmt(amount, currency) {
 }
 
 let _dpLastOrder = null;
-function _renderDP(order, localOrder) {
+// A render error must never strand the panel on "Loading…" — show it and log it.
+function _renderDP(order, localOrder){
+  try{ _renderDPInner(order, localOrder); }
+  catch(e){ console.error('renderDP', e); const b=document.getElementById('dp-body'); if(b) b.innerHTML='<div style="padding:30px 16px;text-align:center;color:var(--c-red);font-size:12.5px">Could not render this order</div>'; }
+}
+function _renderDPInner(order, localOrder) {
   // The passed localOrder can be a stale snapshot captured before a load/sync (e.g.
   // the Shopify-enrichment re-render reuses the reference from openDP time), which
   // would miss recently-saved photos. Always work from the live order in ORDERS.
@@ -13563,11 +13568,11 @@ function _renderDP(order, localOrder) {
   </div>`;
 
   // ── Lalamove (visible on EVERY device — booking id lives on the order row) ──
-  if ((typeof _lalaHasBooking==='function' && _lalaHasBooking(o)) || o.lalamoveUrl) {
+  if ((typeof _lalaHasBooking==='function' && _lalaHasBooking(localOrder)) || localOrder.lalamoveUrl) {
     html += `<div><div class="dp-section-ttl">Lalamove</div>
       <div style="display:flex;align-items:center;gap:10px">
-        ${o.lalamoveUrl?`<a href="${esc(o.lalamoveUrl)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--c-sage);text-decoration:underline;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tracking link</a>`:`<span style="font-size:12px;color:var(--c-muted)">Booked</span>`}
-        ${(typeof _lalaHasBooking==='function' && _lalaHasBooking(o))?`<button onclick="closeDP();manageLalamove('${o.id}')" class="btn btn-ghost btn-sm" style="margin-left:auto">Manage</button>`:''}
+        ${localOrder.lalamoveUrl?`<a href="${esc(localOrder.lalamoveUrl)}" target="_blank" rel="noopener" style="font-size:12px;color:var(--c-sage);text-decoration:underline;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tracking link</a>`:`<span style="font-size:12px;color:var(--c-muted)">Booked</span>`}
+        ${(typeof _lalaHasBooking==='function' && _lalaHasBooking(localOrder))?`<button onclick="closeDP();manageLalamove('${localOrder.id}')" class="btn btn-ghost btn-sm" style="margin-left:auto">Manage</button>`:''}
       </div></div>`;
   }
   // ── Flower Recipe ──
