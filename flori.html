@@ -122,6 +122,7 @@
   <!-- ── Daily Orders ────────────────────────────────────────── -->
   <div id="pg-orders" class="page">
     <div class="pc" style="padding-bottom:0;gap:20px">
+      <div id="ord-crumb" style="display:none;font-size:13px;margin-bottom:-10px"></div>
       <div class="page-hdr">
         <div>
           <div class="page-title">Orders</div>
@@ -848,11 +849,11 @@
   </div>
 </div>
 
-<!-- ══ MODAL — Business: cake orders this month ═══ -->
-<div id="m-bizcakes" class="modal">
-  <div class="mc" style="max-width:430px">
-    <div class="mc-hdr"><div class="mc-ttl" id="bizcakes-ttl">Cakes</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-bizcakes')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
-    <div class="mc-body" id="bizcakes-body" style="max-height:62vh;overflow:auto"></div>
+<!-- ══ MODAL — Business report (View all) ═══ -->
+<div id="m-bizrep" class="modal">
+  <div class="mc" style="max-width:720px">
+    <div class="mc-hdr" style="align-items:flex-start"><div style="min-width:0"><div id="bizrep-crumb" style="font-size:13px;font-weight:600"></div><div id="bizrep-ttl" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div><button class="mc-x" aria-label="Close" onclick="_repClose()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body" id="bizrep-body" style="max-height:70vh;overflow:auto"></div>
   </div>
 </div>
 
@@ -4453,8 +4454,26 @@ function _bizTip(el){
   clearTimeout(window._bizTipT); window._bizTipT=setTimeout(_bizTipHide,3500);
 }
 function _bizTipHide(){ const t=document.getElementById('biz-tip'); if(t) t.style.display='none'; }
-// Business → a day label → that day's orders on the Orders page.
-function _bizGoDay(iso){ _bizTipHide(); goPage('orders'); calFilter=null; selectCalDay(iso); }
+// Business → a day label → that day's orders on the Orders page, with a breadcrumb back
+// ("Business / Sun, 25 Oct" — or "Business / Days / …" when it came from the report).
+function _bizGoDay(iso){
+  _bizTipHide();
+  const fromRep=!!(document.getElementById('m-bizrep')||{}).classList && document.getElementById('m-bizrep').classList.contains('on');
+  if(fromRep) closeModal('m-bizrep');
+  goPage('orders'); calFilter=null; selectCalDay(iso);
+  const c=document.getElementById('ord-crumb'); if(!c) return;
+  const lab=new Date(iso+'T00:00:00').toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short'});
+  const lk=(t,fn)=>'<span onclick="'+fn+'" style="color:var(--c-burg);cursor:pointer;text-decoration:underline;text-underline-offset:2px">'+t+'</span>';
+  c.innerHTML=lk('Business',"_crumbBiz(false)")+' <span style="color:var(--c-muted)">/</span> '
+    +(fromRep?lk(_REP_VIEWS.find(v=>v[0]===_rep.view)[1],"_crumbBiz(true)")+' <span style="color:var(--c-muted)">/</span> ':'')
+    +'<span style="color:var(--c-ink)">'+esc(lab)+'</span>';
+  c.style.display='';
+}
+function _crumbBiz(rep){
+  if(calFilter) selectCalDay(calFilter);   // drop the day filter → Orders back to Today
+  _bizView=true; goPage('home');
+  if(rep){ openModal('m-bizrep'); _repRender(); }
+}
 // A cake order for the Business stats: an explicit cake record (not the "not a cake"
 // marker), else a product titled "cake" — biz rows are lean (no line_items/productType).
 function _bizIsCake(r){ return (r.cake && typeof r.cake==='object') ? !r.cake.none : /cake/i.test(r.product||''); }
@@ -4463,39 +4482,210 @@ function _bizIsCake(r){ return (r.cake && typeof r.cake==='object') ? !r.cake.no
 function _bizPatchRows(list){
   let hit=false;
   try{
-    if(!_BIZ.rows || !list || !list.length) return;
-    list.forEach(p=>{ const br=_BIZ.rows.find(r=>shopId(r.id)===shopId(p.id)); if(!br) return;
-      Object.keys(p).forEach(k=>{ if(k!=='id' && k in br){ br[k]=p[k]; hit=true; } }); });
-  }catch(_){ return; }   // early boot: the Business cache isn't initialised yet
+    if(!list || !list.length) return;
+    const sets=[_BIZ.rows, ...Object.values(_BIZR).map(c=>c.rows)].filter(Boolean);
+    list.forEach(p=>sets.forEach(rows=>{ const br=rows.find(r=>shopId(r.id)===shopId(p.id)); if(!br) return;
+      Object.keys(p).forEach(k=>{ if(k!=='id' && k in br){ br[k]=p[k]; hit=true; } }); }));
+  }catch(_){ return; }   // early boot: the Business caches aren't initialised yet
   if(!hit) return;
   clearTimeout(window._bizRT);
   window._bizRT=setTimeout(()=>{
     if(_bizView && document.getElementById('home-biz') && typeof renderHome==='function') renderHome();
-    const m=document.getElementById('m-bizcakes'); if(m && m.classList.contains('on')) openBizCakes();
+    const m=document.getElementById('m-bizrep'); if(m && m.classList.contains('on')) _repRender();
   },200);
 }
-// Business → Cakes: this month's cake orders as a list; a row opens the order panel
-// (the row is fetched into ORDERS on demand — biz months aren't fully loaded locally).
-function openBizCakes(){
-  const now=new Date(), a=tdi(new Date(now.getFullYear(),now.getMonth(),1)), b=tdi(new Date(now.getFullYear(),now.getMonth()+1,0));
-  const list=(_BIZ.rows||[]).filter(r=>r.due_on&&r.due_on>=a&&r.due_on<=b&&_bizIsCake(r)).sort((x,y)=>String(x.due_on).localeCompare(String(y.due_on)));
-  const t=document.getElementById('bizcakes-ttl'); if(t) t.textContent='Cakes · '+now.toLocaleDateString('en-MY',{month:'long'})+' · '+list.length;
-  const el=document.getElementById('bizcakes-body'); if(!el) return;
-  el.innerHTML=list.length?list.map((r,i)=>{
-    const c=(r.cake&&typeof r.cake==='object')?r.cake:{};
-    const set=!!c.supplier, col=!!c.collected;
-    const d=r.due_on?new Date(r.due_on+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'';
-    const sub=(set?esc(c.supplier):'<span style="color:var(--c-red)">Not set</span>')+(col?' · <span style="color:#3B6D11">Collected</span>':'');
-    return '<div onclick="_bizCakeOpen(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:10px;padding:9px 2px;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer">'
-      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((r.name?r.name+' · ':'')+(r.customer||'Order'))+'</div>'
-      +'<div style="font-size:11.5px;color:var(--c-muted)">'+sub+'</div></div>'
-      +'<div style="flex:none;text-align:right"><div style="font-size:12px;font-weight:600">'+esc(d)+'</div><div style="font-size:11px;color:var(--c-muted)">RM '+Math.round(parseFloat(r.total)||0).toLocaleString('en-MY')+'</div></div>'
-      +'<span style="color:var(--c-border2);font-size:15px;flex:none">›</span></div>';
-  }).join(''):'<div class="empty" style="padding:24px"><div class="empty-txt">No cake orders this month</div></div>';
-  openModal('m-bizcakes');
+// ── Business report ("View all"): one modal, four views — days / products / sources /
+// cakes — sharing one range picker. Each range is fetched lean (no line_items/photos) and
+// cached 10 min; every list drills down to the full order list, and an order opens its panel.
+const _BIZ_COLS='id,name,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
+const _BIZ_CH={ web:['Online store','#185FA5'], whatsapp:['WhatsApp','#639922'], facebook:['Facebook','#7F77DD'], instagram:['Instagram','#D4537E'], walkin:['Walk-in','#BA7517'], staff:['Staff draft','#888780'], other:['Other','#B4B2A9'], shopify:['Shopify','#185FA5'] };
+function _bizFuCh(){ const m={}; (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f=>{ const n=String(f.orderNo||'').replace(/\D/g,''); if(n&&f.channel) m[n]=f.channel; }); return m; }
+// Channel of one order: manual rows carry their own; Shopify rows use sourceName (web =
+// customer checkout), then the follow-up channel for staff drafts.
+function _bizChOf(r, srcMap, fuCh){
+  if((r.src||'shopify')==='manual') return _BIZ_CH[r.channel]?r.channel:'whatsapp';
+  if(!srcMap) return 'shopify';
+  const sn=srcMap[shopId(r.id)];
+  if(sn==='web') return 'web';
+  const fc=fuCh[String(r.name||'').replace(/\D/g,'')] || r.channel;
+  if(fc && _BIZ_CH[fc]) return fc;
+  return /draft/i.test(sn||'') ? 'staff' : 'other';
 }
-async function _bizCakeOpen(id){
-  closeModal('m-bizcakes');
+function _bizProducts(r){ return String(r.product||'').split(/,\s*/).map(t=>t.trim()).filter(t=>t&&t!=='–'); }
+function _bizSup(r){ return (r.cake&&r.cake.supplier)||'Not set'; }
+const _BIZR={};
+async function loadBizRange(a,b){
+  const k=a+'|'+b, c=_BIZR[k];
+  if(c && Date.now()-c.at < 600000) return c.rows;
+  let from=0, all=[];
+  while(true){
+    const { data, error } = await sb.from('orders').select(_BIZ_COLS).gte('due_on',a).lte('due_on',b).order('due_on').order('id').range(from,from+999);
+    if(error) throw error;
+    all=all.concat(data||[]);
+    if(!data||data.length<1000) break;
+    from+=1000;
+  }
+  _BIZR[k]={ rows:all, at:Date.now() };
+  return all;
+}
+function _bizRangeOf(k){
+  const n=new Date(), y=n.getFullYear(), m=n.getMonth(), q=Math.floor(m/3), D=(Y,M,d)=>tdi(new Date(Y,M,d));
+  if(k==='mtd') return [D(y,m,1), tdi(today0())];
+  if(k==='lastmonth') return [D(y,m-1,1), D(y,m,0)];
+  if(k==='quarter') return [D(y,q*3,1), D(y,q*3+3,0)];
+  if(k==='lastquarter') return [D(y,q*3-3,1), D(y,q*3,0)];
+  if(k==='year') return [D(y,0,1), D(y,11,31)];
+  return [D(y,m,1), D(y,m+1,0)];
+}
+const _REP_RANGES=[['month','This month'],['mtd','Month to date'],['lastmonth','Last month'],['quarter','This quarter'],['lastquarter','Last quarter'],['year','This year']];
+const _REP_VIEWS=[['days','Days'],['products','Products'],['sources','Sources'],['cakes','Cakes']];
+let _rep={ view:'days', range:'month', a:null, b:null, sel:null, more:false, items:[] }, _repSeq=0, _repReturn=false;
+function openBizReport(view, sel){
+  _rep.view=view||'days'; _rep.sel=(sel==null?null:sel); _rep.more=false;
+  openModal('m-bizrep'); _repRender();
+}
+function _repClose(){ _repReturn=false; closeModal('m-bizrep'); }
+function _repUnsel(){ _rep.sel=null; _rep.more=false; _repRender(); }
+// Breadcrumb: Business / <view> / <selection> — every step but the last is a link back.
+function _repCrumb(){
+  const el=document.getElementById('bizrep-crumb'); if(!el) return;
+  const lk=(t,fn)=>'<span onclick="'+fn+'" style="color:var(--c-burg);cursor:pointer;text-decoration:underline;text-underline-offset:2px">'+t+'</span>';
+  const sep=' <span style="color:var(--c-muted);font-weight:400">/</span> ';
+  const vName=(_REP_VIEWS.find(v=>v[0]===_rep.view)||[0,''])[1];
+  const sName=_rep.sel==null?'':(_rep.view==='sources'?(_BIZ_CH[_rep.sel]||[_rep.sel])[0]:_rep.sel);
+  el.innerHTML=lk('Business','_repClose()')+sep+(_rep.sel==null?'<span>'+vName+'</span>':lk(vName,'_repUnsel()')+sep+'<span>'+esc(sName)+'</span>');
+}
+function _repView(v){ _rep.view=v; _rep.sel=null; _rep.more=false; _repRender(); }
+function _repRange(k){ _rep.range=k; _rep.sel=null; _rep.more=false; _repRender(); }
+function _repCustom(){
+  const a=(document.getElementById('rep-a')||{}).value, b=(document.getElementById('rep-b')||{}).value;
+  if(!a||!b) return;
+  _rep.range='custom'; _rep.a=a<=b?a:b; _rep.b=a<=b?b:a; _rep.sel=null; _rep.more=false; _repRender();
+}
+function _repPick(i){ const it=_rep.items[i]; _rep.sel=(it===undefined||_rep.sel===it)?null:it; _rep.more=false; _repRender(); }
+function _repMore(){ _rep.more=true; _repRender(); }
+function _repMonth(a){ const d=new Date(a+'T00:00:00'); _rep.range='custom'; _rep.a=a; _rep.b=tdi(new Date(d.getFullYear(),d.getMonth()+1,0)); _rep.sel=null; _repRender(); }
+async function _repRender(){
+  const body=document.getElementById('bizrep-body'); if(!body) return;
+  const seq=++_repSeq;
+  let a, b;
+  if(_rep.range==='custom' && _rep.a && _rep.b){ a=_rep.a; b=_rep.b; } else { [a,b]=_bizRangeOf(_rep.range); if(_rep.range==='custom') _rep.range='month'; }
+  _rep.a=a; _rep.b=b;
+  const chip=(on,txt,click)=>'<span onclick="'+click+'" style="flex:none;padding:5px 12px;border-radius:99px;font-size:11.5px;cursor:pointer;white-space:nowrap;'+(on?'background:var(--c-burg);color:var(--c-bg);font-weight:700':'border:1px solid var(--c-border);color:var(--c-muted)')+'">'+txt+'</span>';
+  const fdS=iso=>new Date(iso+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'});
+  const ttl=document.getElementById('bizrep-ttl'); if(ttl) ttl.textContent=fdS(a)+' – '+fdS(b);
+  _repCrumb();
+  body.innerHTML=
+    '<div style="display:flex;background:var(--c-bg);border-radius:99px;padding:3px;margin-bottom:10px">'
+      +_REP_VIEWS.map(v=>'<span onclick="_repView(\''+v[0]+'\')" style="flex:1;text-align:center;padding:6px 4px;border-radius:99px;font-size:12px;cursor:pointer;'+(_rep.view===v[0]?'background:var(--c-surface);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)':'color:var(--c-muted)')+'">'+v[1]+'</span>').join('')
+    +'</div>'
+    +'<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;scrollbar-width:none">'
+      +_REP_RANGES.map(r=>chip(_rep.range===r[0],r[1],"_repRange('"+r[0]+"')")).join('')
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;font-size:12px;color:var(--c-muted)">'
+      +'<input id="rep-a" type="date" value="'+a+'" onchange="_repCustom()" style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid '+(_rep.range==='custom'?'var(--c-burg)':'var(--c-border)')+';border-radius:var(--r);font-size:12px;background:var(--c-surface);color:var(--c-ink)">'
+      +'<span>–</span>'
+      +'<input id="rep-b" type="date" value="'+b+'" onchange="_repCustom()" style="flex:1;min-width:0;padding:6px 8px;border:1.5px solid '+(_rep.range==='custom'?'var(--c-burg)':'var(--c-border)')+';border-radius:var(--r);font-size:12px;background:var(--c-surface);color:var(--c-ink)">'
+    +'</div>'
+    +'<div id="rep-main"><div style="padding:30px;text-align:center;color:var(--c-muted);font-size:12px">Loading…</div></div>';
+  let rows, srcMap=null;
+  try{
+    rows=await loadBizRange(a,b);
+    if(_rep.view==='sources'){
+      const tmr=tdi(new Date(today0().getTime()+86400000));
+      srcMap=await loadBizSources(tdi(new Date(new Date(a+'T00:00:00').getTime()-60*86400000)), b<tmr?b:tmr);
+    }
+  }catch(e){
+    if(seq!==_repSeq) return;
+    const m=document.getElementById('rep-main'); if(m) m.innerHTML='<div style="padding:30px;text-align:center;color:var(--c-red);font-size:12px">Could not load this range</div>';
+    return;
+  }
+  if(seq!==_repSeq) return;
+  const m=document.getElementById('rep-main'); if(m) m.innerHTML=_repMain(rows, srcMap);
+}
+function _repMain(rows, srcMap){
+  const v=_rep.view, sel=_rep.sel, fuCh=_bizFuCh();
+  const sum=x=>x.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+  const rm=x=>'RM '+Math.round(x).toLocaleString('en-MY');
+  const base = v==='cakes' ? rows.filter(_bizIsCake) : rows;
+  const match = r => sel==null ? true
+    : v==='products' ? _bizProducts(r).includes(sel)
+    : v==='sources'  ? _bizChOf(r,srcMap,fuCh)===sel
+    : v==='cakes'    ? _bizSup(r)===sel : true;
+  const shown = base.filter(match);
+  const rev=sum(shown);
+  const kc=(bg,lc,nc,l,val)=>'<div style="background:'+bg+';border-radius:10px;padding:8px 11px;min-width:0"><div style="font-size:11px;color:'+lc+'">'+l+'</div><div style="font-size:16px;font-weight:700;font-family:var(--f-head);color:'+nc+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+val+'</div></div>';
+  let h='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px">'
+    +kc('#FAEEDA','#854F0B','#633806','Revenue',rm(rev))
+    +kc('#EEEDFE','#534AB7','#3C3489','Orders',shown.length)
+    +kc('#E6F1FB','#185FA5','#0C447C','Avg order',shown.length?rm(rev/shown.length):'—')
+  +'</div>';
+  const row=(l,r2,click,on,dot)=>'<div onclick="'+click+'" style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-top:1px solid var(--c-border);cursor:pointer;font-size:12.5px'+(on?';background:rgba(122,47,58,.06)':'')+'">'
+    +(dot?'<span style="width:9px;height:9px;border-radius:50%;background:'+dot+';flex:none"></span>':'')
+    +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(on?'font-weight:700;color:var(--c-burg)':'')+'">'+l+'</span><span style="flex:none;color:var(--c-muted)">'+r2+'</span><span style="color:var(--c-border2);flex:none">›</span></div>';
+  const grp=(keyFn)=>{ const g={}; base.forEach(r=>[].concat(keyFn(r)).forEach(k=>{ if(!g[k]) g[k]={n:0,v:0}; g[k].n++; g[k].v+=parseFloat(r.total)||0; })); return Object.entries(g).sort((x,y)=>y[1].n-x[1].n); };
+  if(v==='days'){
+    const span=Math.round((new Date(_rep.b+'T00:00:00')-new Date(_rep.a+'T00:00:00'))/86400000)+1;
+    const byMonth=span>62, tIso=tdi(today0());
+    const buckets=[];
+    if(byMonth){
+      const s=new Date(_rep.a+'T00:00:00'), e=new Date(_rep.b+'T00:00:00');
+      for(let d=new Date(s.getFullYear(),s.getMonth(),1); d<=e; d=new Date(d.getFullYear(),d.getMonth()+1,1)){
+        const k=tdi(d).slice(0,7), dr=rows.filter(r=>String(r.due_on||'').slice(0,7)===k);
+        buckets.push({ iso:tdi(d), lab:d.toLocaleDateString('en-MY',{month:'short',year:'numeric'}), n:dr.length, v:sum(dr), fut:tdi(d)>tIso });
+      }
+    } else {
+      for(let i=0;i<span;i++){
+        const d=new Date(new Date(_rep.a+'T00:00:00').getTime()+i*86400000), k=tdi(d), dr=rows.filter(r=>r.due_on===k);
+        buckets.push({ iso:k, lab:d.toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short'})+(k===tIso?' · today':''), n:dr.length, v:sum(dr), fut:k>tIso, today:k===tIso });
+      }
+    }
+    const mx=Math.max(1,...buckets.map(x=>x.v));
+    h+='<div style="display:flex;align-items:flex-end;gap:2px;height:84px;margin-bottom:4px">'
+      +buckets.map(x=>{ const c=x.today?'#7A2F3A':(x.fut?'#E8DFCE':(x.v>=0.8*mx?'#BA7517':'#D9C9A8'));
+        return '<div data-tip="'+esc(x.lab)+' · '+x.n+(x.n===1?' order':' orders')+'<br><b>'+rm(x.v)+'</b>" onclick="_bizTip(this)" onmouseenter="_bizTip(this)" onmouseleave="_bizTipHide()" style="flex:1;min-width:0;cursor:pointer;background:'+c+';border-radius:2px 2px 0 0;height:'+Math.max(3,Math.round(x.v/mx*100))+'%"></div>'; }).join('')
+    +'</div><div style="height:10px"></div>';
+    h+=buckets.map(x=>'<div style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-top:1px solid var(--c-border);font-size:12.5px">'
+      +'<span onclick="'+(byMonth?"_repMonth('"+x.iso+"')":"_bizGoDay('"+x.iso+"')")+'" style="flex:1;min-width:0;cursor:pointer;color:var(--c-burg);font-weight:600;text-decoration:underline;text-underline-offset:2px">'+esc(x.lab)+'</span>'
+      +'<span style="flex:none;color:var(--c-muted);min-width:64px;text-align:right">'+x.n+(x.n===1?' order':' orders')+'</span>'
+      +'<b style="flex:none;min-width:84px;text-align:right">'+rm(x.v)+'</b></div>').join('');
+    return h;
+  }
+  let groups, label=k=>esc(k), dot=null;
+  if(v==='products'){ groups=grp(_bizProducts); }
+  else if(v==='sources'){ groups=grp(r=>_bizChOf(r,srcMap,fuCh)); label=k=>(_BIZ_CH[k]||[k])[0]; dot=k=>(_BIZ_CH[k]||[0,'#B4B2A9'])[1]; }
+  else { groups=grp(_bizSup).sort((x,y)=>(x[0]==='Not set')-(y[0]==='Not set')||y[1].n-x[1].n); }
+  _rep.items=groups.map(g=>g[0]);
+  if(v==='sources' && groups.length){
+    let acc=0; const grad=groups.map(([k,g])=>{ const p=g.n/base.length*100, s=acc; acc+=p; return dot(k)+' '+s.toFixed(2)+'% '+acc.toFixed(2)+'%'; }).join(',');
+    h+='<div style="display:flex;justify-content:center;margin-bottom:12px"><div style="position:relative;width:92px;height:92px;border-radius:50%;background:conic-gradient('+grad+')"><div style="position:absolute;inset:16px;border-radius:50%;background:var(--c-surface)"></div></div></div>';
+  }
+  h+='<div style="margin-bottom:14px">'+(groups.length
+      ? groups.map(([k,g],i)=>row(label(k), g.n+(base.length?' · '+Math.round(g.n/base.length*100)+'%':''), '_repPick('+i+')', sel===k, dot?dot(k):null)).join('')
+      : '<div style="padding:20px;text-align:center;color:var(--c-muted);font-size:12px">No orders in this range</div>')
+    +'</div>';
+  if(v==='products' && sel==null) return h;
+  const list=shown.slice().sort((x,y)=>String(y.due_on||'').localeCompare(String(x.due_on||'')));
+  const cap=_rep.more?list.length:300;
+  h+='<div style="display:flex;align-items:center;font-size:12.5px;font-weight:700;margin-bottom:2px">'+(sel==null?'All orders':esc(v==='sources'?label(sel):sel))+'<span style="margin-left:auto;color:var(--c-muted);font-weight:400">'+list.length+'</span></div>';
+  h+=list.slice(0,cap).map(r=>{
+    const d=r.due_on?new Date(r.due_on+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'';
+    let sub;
+    if(v==='cakes'){ const c=(r.cake&&typeof r.cake==='object')?r.cake:{}; sub=(c.supplier?esc(c.supplier):'<span style="color:var(--c-red)">Not set</span>')+(c.collected?' · <span style="color:#3B6D11">Collected</span>':''); }
+    else if(v==='sources'){ const k=_bizChOf(r,srcMap,fuCh); sub=(_BIZ_CH[k]||[k])[0]+' · '+esc(_bizProducts(r).join(', ')); }
+    else sub=esc(_bizProducts(r).join(', '));
+    return '<div onclick="_bizOpenOrder(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((r.name?r.name+' · ':'')+(r.customer||'Order'))+'</div>'
+      +'<div style="font-size:11.5px;color:var(--c-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
+      +'<div style="flex:none;text-align:right"><div style="font-size:12px;font-weight:600">'+esc(d)+'</div><div style="font-size:11px;color:var(--c-muted)">'+rm(parseFloat(r.total)||0)+'</div></div>'
+      +'<span style="color:var(--c-border2);font-size:15px;flex:none">›</span></div>';
+  }).join('');
+  if(list.length>cap) h+='<div style="text-align:center;padding:12px"><button class="btn btn-ghost btn-sm" onclick="_repMore()">Show all '+list.length+'</button></div>';
+  return h;
+}
+async function _bizOpenOrder(id){
+  closeModal('m-bizrep');
+  _repReturn=true;   // closing the order panel brings the report back
   id=String(id);
   let o=ORDERS.find(x=>shopId(x.id)===shopId(id));
   if(!o){
@@ -4509,19 +4699,24 @@ async function _bizCakeOpen(id){
 // Where each Shopify order really came from: sourceName 'web' = customer checkout on the
 // site; 'shopify_draft_order' = staff-created (WhatsApp/FB/IG/walk-in follow-ups). The
 // orders table doesn't store it, so read it from Shopify (ids only, cached 10 min).
-let _BIZSRC={ map:null, at:0 };
-async function loadBizSources(){
-  if(_BIZSRC.map && Date.now()-_BIZSRC.at < 600000) return _BIZSRC.map;
-  const now=new Date(), since=tdi(new Date(now.getFullYear(), now.getMonth()-2, 1));
-  const map={}; let after=null;
+// Covers orders CREATED between since..until (an order due in a range is created up to
+// ~2 months before it). Default = the dashboard's window. Cached 10 min per coverage.
+let _BIZSRC={ map:null, at:0, since:null, until:null };
+async function loadBizSources(since, until){
+  if(!since){ const now=new Date(); since=tdi(new Date(now.getFullYear(), now.getMonth()-2, 1)); }
+  if(!until) until=tdi(new Date(today0().getTime()+86400000));
+  if(_BIZSRC.map && Date.now()-_BIZSRC.at < 600000 && _BIZSRC.since<=since && _BIZSRC.until>=until) return _BIZSRC.map;
+  const fresh=_BIZSRC.map && Date.now()-_BIZSRC.at < 600000;
+  const map=Object.assign({}, fresh?_BIZSRC.map:{}); let after=null;
   try{
-    for(let p=0;p<8;p++){
-      const d=await shopifyGQL('query($a:String){ orders(first:250, after:$a, query:'+JSON.stringify('created_at:>='+since)+'){ pageInfo{ hasNextPage endCursor } edges{ node{ id sourceName } } } }', { a:after });
+    for(let p=0;p<40;p++){
+      const d=await shopifyGQL('query($a:String){ orders(first:250, after:$a, query:'+JSON.stringify('created_at:>='+since+' created_at:<='+until)+'){ pageInfo{ hasNextPage endCursor } edges{ node{ id sourceName } } } }', { a:after });
       (d.orders?.edges||[]).forEach(e=>{ map[shopId(e.node.id)]=e.node.sourceName||''; });
       if(!d.orders?.pageInfo?.hasNextPage) break;
       after=d.orders.pageInfo.endCursor;
     }
-    _BIZSRC={ map, at:Date.now() };
+    const keep=fresh && _BIZSRC.since<=until && _BIZSRC.until>=since;   // overlapping → coverage widens
+    _BIZSRC={ map, at:Date.now(), since: keep&&_BIZSRC.since<since?_BIZSRC.since:since, until: keep&&_BIZSRC.until>until?_BIZSRC.until:until };
     return map;
   }catch(e){ console.warn('loadBizSources', e&&e.message); return _BIZSRC.map; }
 }
@@ -4587,18 +4782,8 @@ async function _renderBizDash(el){
   // Channel split — Shopify's sourceName (web checkout vs staff draft); staff orders are
   // broken down by the channel recorded on their follow-up (matched by order number).
   const srcMap=await loadBizSources();
-  const fuCh={}; (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f=>{ const n=String(f.orderNo||'').replace(/\D/g,''); if(n&&f.channel) fuCh[n]=f.channel; });
-  const CH={ web:['Online store','#185FA5'], whatsapp:['WhatsApp','#639922'], facebook:['Facebook','#7F77DD'], instagram:['Instagram','#D4537E'], walkin:['Walk-in','#BA7517'], staff:['Staff draft','#888780'], other:['Other','#B4B2A9'], shopify:['Shopify','#185FA5'] };
-  const chOf=r=>{
-    if((r.src||'shopify')==='manual') return CH[r.channel]?r.channel:'whatsapp';
-    if(!srcMap) return 'shopify';
-    const sn=srcMap[shopId(r.id)];
-    if(sn==='web') return 'web';
-    const fc=fuCh[String(r.name||'').replace(/\D/g,'')] || r.channel;
-    if(fc && CH[fc]) return fc;
-    return /draft/i.test(sn||'') ? 'staff' : 'other';
-  };
-  const chN={}; cur.forEach(r=>{ const k=chOf(r); chN[k]=(chN[k]||0)+1; });
+  const fuCh=_bizFuCh(), CH=_BIZ_CH;
+  const chN={}; cur.forEach(r=>{ const k=_bizChOf(r,srcMap,fuCh); chN[k]=(chN[k]||0)+1; });
   const chSeg=Object.entries(chN).sort((a,b)=>b[1]-a[1]).map(([k,n])=>({ k, n, pct: cur.length?n/cur.length*100:0 }));
   let _acc=0; const chGrad=chSeg.length?chSeg.map(s=>{ const a=_acc; _acc+=s.pct; return CH[s.k][1]+' '+a.toFixed(2)+'% '+_acc.toFixed(2)+'%'; }).join(','):'rgba(140,125,110,.15) 0 100%';
   // Customers: key by phone digits (fallback name)
@@ -4612,7 +4797,10 @@ async function _renderBizDash(el){
   const cakes=cur.filter(_bizIsCake);
   const supC={}; cakes.forEach(r=>{ const s=(r.cake&&r.cake.supplier)||'Not set'; supC[s]=(supC[s]||0)+1; });
   const sups=Object.entries(supC).sort((a,b)=>(a[0]==='Not set')-(b[0]==='Not set')||b[1]-a[1]);
-  const liRow=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3.5px 0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l)+'</span><b style="flex:none">'+v+'</b></div>';
+  const liRow=(l,v,click)=>'<div'+(click?' onclick="event.stopPropagation();'+click+'"':'')+' style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3.5px 0'+(click?';cursor:pointer':'')+'"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l)+'</span><b style="flex:none">'+v+'</b></div>';
+  // "View all" header link → the report on that view (this month by default).
+  const hdr=(t,view,col)=>'<div style="display:flex;align-items:center;font-size:12.5px;font-weight:700;margin-bottom:8px'+(col?';color:'+col:'')+'"><span>'+t+'</span><span onclick="event.stopPropagation();_rep.range=\'month\';openBizReport(\''+view+'\')" style="margin-left:auto;font-size:11.5px;font-weight:600;color:var(--c-burg);cursor:pointer;white-space:nowrap">View all ›</span></div>';
+  window._bizDashSel={ p:topP.map(p=>p[0]), s:sups.map(s=>s[0]) };
   el.innerHTML=
     '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div><div style="font-size:11px;color:var(--c-muted)">'+now.toLocaleDateString('en-MY',{month:'long',year:'numeric'})+'</div><div style="font-size:19px;font-weight:700;font-family:var(--f-head)">Business</div></div>'
       +'<div style="margin-left:auto;flex:none;display:flex;background:rgba(255,255,255,.65);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.8);border-radius:99px;padding:3px;align-self:flex-start">'
@@ -4626,25 +4814,26 @@ async function _renderBizDash(el){
       +kpi('#993C1D','#712B13','Unpaid',rm(unpaid),'<div style="font-size:10.5px;color:#993C1D">'+unpaidList.length+' bill'+(unpaidList.length===1?'':'s')+' →</div>','rgba(250,236,231,.75)',"goPage('followup')")
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:11px;margin-bottom:12px">'
-      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;grid-column:span 1;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Daily revenue · last 14 days</div>'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;grid-column:span 1;min-width:0">'+hdr('Daily revenue · last 14 days','days')
         +'<div style="display:flex;align-items:flex-end;gap:4px;height:76px">'+bars+'</div>'
         +'<div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--c-muted);margin-top:4px"><span>'+days[0].k.slice(5)+'</span><span>today</span></div></div>'
-      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Next 7 days</div>'+nxRows+'</div>'
+      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0">'+hdr('Next 7 days','days')+nxRows+'</div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px">'
-      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Top products</div>'
-        +(topP.length?topP.map(p=>liRow(p[0],p[1])).join(''):'<div style="font-size:12px;color:var(--c-muted)">No orders yet</div>')+'</div>'
-      +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0;display:flex;align-items:center;gap:14px">'
+      +'<div onclick="_rep.range=\'month\';openBizReport(\'products\')" style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0;cursor:pointer">'+hdr('Top products','products')
+        +(topP.length?topP.map((p,i)=>liRow(p[0],p[1],"_rep.range='month';openBizReport('products',_bizDashSel.p["+i+"])")).join(''):'<div style="font-size:12px;color:var(--c-muted)">No orders yet</div>')+'</div>'
+      +'<div onclick="_rep.range=\'month\';openBizReport(\'sources\')" style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0;cursor:pointer">'+hdr('Orders from','sources')
+        +'<div style="display:flex;align-items:center;gap:14px">'
         +'<div style="position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:conic-gradient('+chGrad+')"><div style="position:absolute;inset:11px;border-radius:50%;background:rgba(255,255,255,.92)"></div></div>'
-        +'<div style="font-size:12px;min-width:0;flex:1"><div style="font-weight:700;margin-bottom:5px">Orders from</div>'
-          +chSeg.map(s=>'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:'+CH[s.k][1]+';flex:none"></span>'+CH[s.k][0]+' <b>'+Math.round(s.pct)+'%</b><span style="color:var(--c-muted)">· '+s.n+'</span></div>').join('')
-        +'</div></div>'
+        +'<div style="font-size:12px;min-width:0;flex:1">'
+          +chSeg.map(s=>'<div onclick="event.stopPropagation();_rep.range=\'month\';openBizReport(\'sources\',\''+s.k+'\')" style="display:flex;align-items:center;gap:6px;padding:2px 0;cursor:pointer"><span style="width:8px;height:8px;border-radius:50%;background:'+CH[s.k][1]+';flex:none"></span>'+CH[s.k][0]+' <b>'+Math.round(s.pct)+'%</b><span style="color:var(--c-muted)">· '+s.n+'</span></div>').join('')
+        +'</div></div></div>'
       +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Customers</div>'
         +'<div style="display:flex;gap:18px;margin-bottom:6px"><div><div style="font-size:10.5px;color:#3B6D11">New</div><div style="font-size:19px;font-weight:700;color:#27500A">'+newC+'</div></div>'
         +'<div><div style="font-size:10.5px;color:#3C3489">Returning</div><div style="font-size:19px;font-weight:700;color:#26215C">'+retC+'</div></div></div>'
         +(topC.length?'<div style="border-top:1px solid var(--c-border);padding-top:5px">'+topC.map(c=>liRow(c.name||'—',c.n+'×')).join('')+'</div>':'')+'</div>'
-      +'<div onclick="openBizCakes()" style="'+GLB('rgba(251,234,240,.6)')+';padding:13px 16px;min-width:0;cursor:pointer"><div style="display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#993556"><span>Cakes</span><b style="margin-left:auto">'+cakes.length+'</b><span style="color:#C98BA4;font-size:15px;margin-left:6px">›</span></div>'
-        +(sups.length?'<div style="margin-top:5px">'+sups.map(s=>liRow(s[0],s[1])).join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted);margin-top:5px">None this month</div>')+'</div>'
+      +'<div onclick="_rep.range=\'month\';openBizReport(\'cakes\')" style="'+GLB('rgba(251,234,240,.6)')+';padding:13px 16px;min-width:0;cursor:pointer">'+hdr('Cakes · '+cakes.length,'cakes','#993556')
+        +(sups.length?sups.map((s,i)=>liRow(s[0],s[1],"_rep.range='month';openBizReport('cakes',_bizDashSel.s["+i+"])")).join(''):'<div style="font-size:12px;color:var(--c-muted)">None this month</div>')+'</div>'
     +'</div>';
 }
 function renderHome() {
@@ -7811,6 +8000,7 @@ function goPage(pg) {
   // Role guard — bounce to the dashboard if allowed, else to the driver page
   // (driver-role users can't access 'home', so bouncing there would blank them).
   if(!canAccess(pg)) pg = canAccess('home') ? 'home' : 'driver';
+  if(pg!=='orders'){ const _oc=document.getElementById('ord-crumb'); if(_oc) _oc.style.display='none'; }
   if(pg==='followup') renderFollowup();
   if(pg==='customers') renderCustomers();
   if(pg==='wanotify') renderWaNotify();
@@ -13323,6 +13513,12 @@ function closeDP() {
   _dpId = null;
   document.getElementById('dp').classList.remove('on');
   document.getElementById('dp-ov').classList.remove('on');
+  // Opened from the Business report → closing the order goes back to that report, unless
+  // the close was a hand-off to another window (Edit order, Lalamove…).
+  if (typeof _repReturn!=='undefined' && _repReturn) setTimeout(()=>{
+    if (_repReturn && !_dpId && !document.querySelector('.modal.on')) openModal('m-bizrep');
+    _repReturn=false;
+  },60);
 }
 
 /* ─── Order photo (detail panel): click / drag / paste ───────────── */
