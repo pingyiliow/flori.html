@@ -1234,7 +1234,7 @@ if(_AF_TOUCH) document.addEventListener('focusin',_afUnlock,true);
 document.addEventListener('keydown',_afUnlock,true);
 document.addEventListener('beforeinput',_afUnlock,true);
 document.addEventListener('focusout',e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&!el.value) el.setAttribute('readonly',''); },true);
-setInterval(_killAutofill,800);
+setInterval(_killAutofill,2500);
 if(document.readyState!=='loading') _killAutofill(); else document.addEventListener('DOMContentLoaded',_killAutofill);
 function dot(color, size){ size=size||10; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="vertical-align:-1px;flex:none"><circle cx="12" cy="12" r="10" fill="'+color+'"/></svg>'; }
 // Missing-image fallbacks (used from <img onerror>) — replace the broken image with a
@@ -2341,6 +2341,7 @@ async function syncOrders() {
         ORDERS.forEach(o => {
           const r = byRemote[shopId(o.id)] || byLean[shopId(o.id)];
           if (!r) return;   // new order not yet in DB → keep Shopify data
+          o._inDb = true;   // exists in the DB → the bulk save writes Shopify columns only
           if (Array.isArray(r.line_items) && r.line_items.length) {
             // Use the multi-device copy as the base (names/prices/qty + photos & ready),
             // but still append any product just added in Shopify so it isn't lost here.
@@ -2514,10 +2515,13 @@ function saveOrders(changed) {
     } else {
       // Bulk (sync) path — upsert only rows whose content changed since we last
       // read/wrote them, so an unchanged sync writes nothing (no Realtime fan-out).
+      // Rows already IN the DB get the Shopify-only column subset: the bulk sync can
+      // refresh totals/dates/status but can never overwrite app-managed state (ticks,
+      // item photos, routes, cake, stamps) — only explicit user saves write those.
       rows = [];
       ORDERS.forEach(o => {
-        const k = shopId(o.id), r = _orderRow(o), h = _rowHash(r);
-        if (_rowHashes[k] !== h) { rows.push(r); _rowHashes[k] = h; }
+        const k = shopId(o.id), full = _orderRow(o), h = _rowHash(full);
+        if (_rowHashes[k] !== h) { rows.push(o._inDb ? _orderRowShopify(o) : full); _rowHashes[k] = h; }
       });
     }
     if (rows.length) sbUpsert('orders', rows).then(ok => { if (ok && changed) _bcSend('orders', { ids: rows.map(r => shopId(r.id)) }); }).catch(console.error);
@@ -2529,6 +2533,28 @@ function saveOrders(changed) {
       sbSet('removed_items', removedMap).catch(()=>{});
     }
   }
+}
+// Shopify-sourced columns ONLY — what the bulk sync is allowed to write for orders that
+// already exist in the DB. PostgREST upsert touches only the keys provided, so app-managed
+// state (ready/items/photos/routes/cake/designer/stamps) is STRUCTURALLY out of its reach;
+// those change only through explicit user saves (full _orderRow) and the webhook's merge.
+function _orderRowShopify(o){
+  const row = {
+    id: o.id, name: o.name, src: o.src||'shopify',
+    customer: o.customer,
+    total: o.total||null, currency: o.currency||'MYR',
+    due_date: o.dueDate||null, due_on: _computeDueOn(o.dueDate), due_time: o.dueTime||null,
+    type: o.type||'delivery', fulfilled: o.fulfilled||false,
+    created_at: o.createdAt||null,
+    recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
+    cust_phone: o.custPhone||null, cust_email: o.custEmail||null,
+    channel: o.channel||null, cust_ig: o.custIg||null,
+  };
+  if (!o.custPhone) delete row.cust_phone;
+  if (!o.custEmail) delete row.cust_email;
+  if (!o.channel)   delete row.channel;
+  if (!o.custIg)    delete row.cust_ig;
+  return row;
 }
 function _invRow(i){
   return { id:i.id, name:i.name, cat:i.cat||'other', qty:i.qty||0, unit:i.unit||'pcs', untracked:!!i.untracked,
@@ -2874,6 +2900,7 @@ function loadData() {
 // Map a Supabase order row → the in-memory order shape (shared by the loaders).
 function _mapDbOrder(o){
   return {
+    _inDb: true,   // loaded FROM the DB → bulk sync writes only Shopify-sourced columns for it
     id: shopId(o.id), _rawId: o.id, name: o.name, src: o.src||'shopify',
     customer: o.customer, product: o.product,
     lineItems: o.line_items||[], image: o.image||null,
@@ -7985,37 +8012,54 @@ function subscribeBroadcast(){
   if(!hasSB() || _bcChannel || typeof sb.channel!=='function') return;
   try{
     _bcChannel = sb.channel('bf-live', { config:{ broadcast:{ self:false } } })
-      .on('broadcast', { event:'chg' }, async m=>{
+      .on('broadcast', { event:'chg' }, m=>{
+        // Coalesce bursts: notes within the window merge into ONE fetch + ONE repaint,
+        // otherwise a teammate working fast makes every other device re-render per click.
         try{
           const d=(m&&m.payload)||{};
-          if(d.t==='orders' && Array.isArray(d.ids) && d.ids.length){
-            const { data } = await sb.from('orders').select(ORDER_COLS).in('id', d.ids.slice(0,50));
-            if(data && data.length && _mergeDbOrders(data)){
-              data.forEach(r=>{ try{ const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id)); if(o) _rowHashes[shopId(r.id)]=_rowHash(_orderRow(o)); }catch(_){} });
-              try{ localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }catch(_){}
-              if(typeof renderOrders==='function') renderOrders();
-              if(typeof renderHome==='function') renderHome();
-              if(typeof renderDriver==='function') renderDriver();
-              if(typeof updateBadge==='function') updateBadge();
-              if(_dpId && d.ids.some(id=>shopId(_dpId)===shopId(id))){
-                const o=ORDERS.find(x=>shopId(x.id)===shopId(_dpId));
-                if(o && typeof localToDPOrder==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
-              }
-            }
-          } else if(d.t==='routes'){
-            (d.iso?loadRoutesForDate(d.iso):loadRoutes()).then(()=>{ if(typeof renderDriver==='function') renderDriver(); });
-          } else if(d.t==='todos'){
-            loadTodos();
-          } else if(d.t){
-            loadFromSupabase();   // followups/inventory/purchases etc. — delta fetch, cheap
-          }
-        }catch(e){ console.warn('bc apply', e&&e.message); }
+          if(d.t==='orders' && Array.isArray(d.ids)) d.ids.forEach(id=>_bcPendIds.add(String(id)));
+          else if(d.t==='routes'){ _bcPendRoutes=true; if(d.iso)_bcPendRouteIso=d.iso; }
+          else if(d.t==='todos') _bcPendTodos=true;
+          else if(d.t) _bcPendOther=true;
+          clearTimeout(_bcFlushTimer);
+          _bcFlushTimer=setTimeout(_bcFlush, 600);
+        }catch(e){ console.warn('bc queue', e&&e.message); }
       })
       .subscribe(s=>{ console.log('[rt bc]', s);
         if (s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED'){ try{ sb.removeChannel(_bcChannel); }catch(_){} _bcChannel=null; } });
   }catch(e){ console.warn('subscribeBroadcast', e&&e.message); }
 }
 function _bcSend(t, extra){ try{ if(_bcChannel) _bcChannel.send({ type:'broadcast', event:'chg', payload:{ t, ...(extra||{}) } }); }catch(_){} }
+let _bcPendIds=new Set(), _bcPendRoutes=false, _bcPendRouteIso=null, _bcPendTodos=false, _bcPendOther=false, _bcFlushTimer=null, _bcOtherAt=0;
+async function _bcFlush(){
+  try{
+    if(_bcPendIds.size){
+      const ids=[..._bcPendIds].slice(0,100); _bcPendIds.clear();
+      const { data } = await sb.from('orders').select(ORDER_COLS).in('id', ids);
+      if(data && data.length && _mergeDbOrders(data)){
+        data.forEach(r=>{ try{ const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id)); if(o) _rowHashes[shopId(r.id)]=_rowHash(_orderRow(o)); }catch(_){} });
+        try{ localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }catch(_){}
+        // Share the orders-realtime debounce so overlapping channels paint ONCE.
+        clearTimeout(_ordRenderTimer);
+        _ordRenderTimer=setTimeout(()=>{
+          if(typeof renderOrders==='function') renderOrders();
+          if(typeof renderHome==='function') renderHome();
+          if(typeof renderDriver==='function') renderDriver();
+          if(typeof updateBadge==='function') updateBadge();
+          if(_dpId && ids.some(id=>shopId(_dpId)===shopId(id))){
+            const o=ORDERS.find(x=>shopId(x.id)===shopId(_dpId));
+            if(o && typeof localToDPOrder==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+          }
+        },150);
+      }
+    }
+    if(_bcPendRoutes){ const iso=_bcPendRouteIso; _bcPendRoutes=false; _bcPendRouteIso=null;
+      (iso?loadRoutesForDate(iso):loadRoutes()).then(()=>{ if(typeof renderDriver==='function') renderDriver(); }); }
+    if(_bcPendTodos){ _bcPendTodos=false; loadTodos(); }
+    if(_bcPendOther){ _bcPendOther=false;
+      if(Date.now()-_bcOtherAt>3000){ _bcOtherAt=Date.now(); loadFromSupabase(); } }   // delta fetch, min 3s apart
+  }catch(e){ console.warn('bc apply', e&&e.message); }
+}
 let _todoRealtime=null;
 function subscribeTodos(){
   if(!hasSB() || _todoRealtime || typeof sb.channel!=='function') return;
