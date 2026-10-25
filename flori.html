@@ -2379,7 +2379,7 @@ async function syncOrders() {
           o.otwAt        = o.otwAt || r.otw_at || null;
           o.proofPhoto   = o.proofPhoto || r.proof_photo || null;
           o.proofPhotos  = o.proofPhotos || r.proof_photos || null;
-          o.cake         = o.cake || r.cake || null;
+          o.cake         = ('cake' in r) ? (r.cake || null) : (o.cake || null);   // DB wins — cake is read-modify state, a stale memory copy must never outlive a teammate's edit
           o.lat          = r.lat ?? o.lat ?? null;
           o.lng          = r.lng ?? o.lng ?? null;
           o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
@@ -2514,6 +2514,20 @@ function _orderRow(o){
 function _cacheOrders(){
   try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o => ({...o, dateObj:undefined})))); }
   catch(e){ try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); } catch(_){} }
+}
+// Targeted PATCH for hot single-field actions (ticks, cake, route assignment): updates ONLY
+// the named columns, so a device whose memory is stale on OTHER fields cannot regress them
+// the way a full-row save can. Verified write + broadcast, like everything else.
+async function saveOrderPatch(o, patch){
+  if(!o) return;
+  _cacheOrders();
+  if(!hasSB()) return;
+  try{
+    const { data, error } = await sb.from('orders').update({ ...patch, wb: APP_BUILD }).eq('id', String(o.id)).select('id');
+    if(error || !data || !data.length) throw (error || new Error('no row updated'));
+    try{ _rowHashes[shopId(o.id)] = _rowHash(_orderRow(o)); }catch(_){}
+    _bcSend('orders', { ids:[shopId(o.id)] });
+  }catch(e){ toast('⚠ Save failed'); console.warn('saveOrderPatch', e&&e.message); }
 }
 function saveOrders(changed) {
   const clean = ORDERS.map(o => ({...o, dateObj:undefined}));
@@ -3785,7 +3799,8 @@ function toggleItemReady(id, idx) {
   o.lineItems[idx].ready = !o.lineItems[idx].ready;
   o.ready = o.lineItems.length > 0 && o.lineItems.every(i => i.ready);
   _stampReady(o);
-  saveOrders(o); renderHome(); renderOrders();
+  saveOrderPatch(o,{ line_items:o.lineItems, ready:o.ready, ready_by:o.readyBy, ready_at:o.readyAt });
+  renderHome(); renderOrders();
 }
 
 function renderAll() { updateBadge(); renderHome(); renderCalendar(); renderOrders(); renderInventory(); renderPurchase(); renderFollowup(); if (typeof renderDriver==='function') renderDriver(); }
@@ -8561,7 +8576,8 @@ function assignStopToRoute(orderId, routeId){
     const seqs = ORDERS.filter(x => x.routeId === routeId && x.id !== o.id).map(x => x.routeSeq).filter(v => v != null);
     o.routeSeq = (seqs.length ? Math.max(...seqs) : 0) + 1;
   } else o.routeSeq = null;
-  saveOrders(o); renderDriver();
+  saveOrderPatch(o,{ route_id:o.routeId, route_seq:o.routeSeq });
+  renderDriver();
 }
 let _drvReorderRoute = null;   // route id currently in reorder (drag) mode
 function toggleReorder(routeId){ _drvReorderRoute = _drvReorderRoute === routeId ? null : routeId; renderDriver(); }
@@ -10337,7 +10353,7 @@ function saveCake(){
     // teach a saved supplier its address the first time it's entered
     if(supplier && address){ const s=CAKE_SUPPLIERS.find(x=>x.name===supplier); if(s && s.address!==address){ s.address=address; saveCakeSuppliers(); } }
   }
-  saveOrders(o); closeModal('m-cake');
+  saveOrderPatch(o,{ cake:o.cake }); closeModal('m-cake');
   renderHome(); renderOrders(); if(typeof renderDriver==='function') renderDriver();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);
   toast(LANG==='zh'?'✓ 蛋糕已更新':'✓ Cake updated');
@@ -10389,7 +10405,7 @@ function toggleCakeCollected(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   if(!o.cake) o.cake={ supplier:'', address:'', remark:'', auto:true };
   o.cake.collected = !o.cake.collected;
-  saveOrders(o);
+  saveOrderPatch(o,{ cake:o.cake });
   if(typeof renderHome==='function') renderHome();
   if(typeof renderDriver==='function') renderDriver();
   if(_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
@@ -12293,7 +12309,7 @@ function quickAssign(id, field, value) {
   toast('✓ Updated');
 }
 
-function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(o){o.ready=!o.ready;_stampReady(o);}saveOrders(o);renderHome();renderOrders();}
+function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(!o)return;o.ready=!o.ready;_stampReady(o);saveOrderPatch(o,{ready:o.ready,ready_by:o.readyBy,ready_at:o.readyAt});renderHome();renderOrders();}
 // Attribution stamps: who ticked ready / completed the order (shown in the order panel).
 function _stampReady(o){ if(o.ready){ o.readyBy=currentUserName||'staff'; o.readyAt=new Date().toISOString(); } else { o.readyBy=null; o.readyAt=null; } }
 function _stampDone(o){ const w=currentUserName||'staff', t=new Date().toISOString(); if(!o.fulfilledBy){ o.fulfilledBy=w; o.fulfilledAt=t; } if(!o.readyBy){ o.readyBy=w; o.readyAt=t; } }
