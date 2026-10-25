@@ -2556,6 +2556,7 @@ function _cacheOrders(){
 async function saveOrderPatch(o, patch){
   if(!o) return;
   _cacheOrders();
+  _bizPatchRows([{ id:shopId(o.id), ...patch }]);
   if(!hasSB()) return;
   try{
     const { data, error } = await sb.from('orders').update({ ...patch, wb: APP_BUILD }).eq('id', String(o.id)).select('id');
@@ -4452,11 +4453,30 @@ function _bizTip(el){
   clearTimeout(window._bizTipT); window._bizTipT=setTimeout(_bizTipHide,3500);
 }
 function _bizTipHide(){ const t=document.getElementById('biz-tip'); if(t) t.style.display='none'; }
+// A cake order for the Business stats: an explicit cake record (not the "not a cake"
+// marker), else a product titled "cake" — biz rows are lean (no line_items/productType).
+function _bizIsCake(r){ return (r.cake && typeof r.cake==='object') ? !r.cake.none : /cake/i.test(r.product||''); }
+// Keep the cached Business rows in step with local saves AND teammates' broadcasts, so the
+// dashboard / cake list update live instead of waiting out the 10-minute cache.
+function _bizPatchRows(list){
+  let hit=false;
+  try{
+    if(!_BIZ.rows || !list || !list.length) return;
+    list.forEach(p=>{ const br=_BIZ.rows.find(r=>shopId(r.id)===shopId(p.id)); if(!br) return;
+      Object.keys(p).forEach(k=>{ if(k!=='id' && k in br){ br[k]=p[k]; hit=true; } }); });
+  }catch(_){ return; }   // early boot: the Business cache isn't initialised yet
+  if(!hit) return;
+  clearTimeout(window._bizRT);
+  window._bizRT=setTimeout(()=>{
+    if(_bizView && document.getElementById('home-biz') && typeof renderHome==='function') renderHome();
+    const m=document.getElementById('m-bizcakes'); if(m && m.classList.contains('on')) openBizCakes();
+  },200);
+}
 // Business → Cakes: this month's cake orders as a list; a row opens the order panel
 // (the row is fetched into ORDERS on demand — biz months aren't fully loaded locally).
 function openBizCakes(){
   const now=new Date(), a=tdi(new Date(now.getFullYear(),now.getMonth(),1)), b=tdi(new Date(now.getFullYear(),now.getMonth()+1,0));
-  const list=(_BIZ.rows||[]).filter(r=>r.due_on&&r.due_on>=a&&r.due_on<=b&&((r.cake&&typeof r.cake==='object')||/cake/i.test(r.product||''))).sort((x,y)=>String(x.due_on).localeCompare(String(y.due_on)));
+  const list=(_BIZ.rows||[]).filter(r=>r.due_on&&r.due_on>=a&&r.due_on<=b&&_bizIsCake(r)).sort((x,y)=>String(x.due_on).localeCompare(String(y.due_on)));
   const t=document.getElementById('bizcakes-ttl'); if(t) t.textContent='Cakes · '+now.toLocaleDateString('en-MY',{month:'long'})+' · '+list.length;
   const el=document.getElementById('bizcakes-body'); if(!el) return;
   el.innerHTML=list.length?list.map((r,i)=>{
@@ -4483,6 +4503,25 @@ async function _bizCakeOpen(id){
     }catch(_){}
   }
   if(o) openDP(o.id); else toast('Order not found');
+}
+// Where each Shopify order really came from: sourceName 'web' = customer checkout on the
+// site; 'shopify_draft_order' = staff-created (WhatsApp/FB/IG/walk-in follow-ups). The
+// orders table doesn't store it, so read it from Shopify (ids only, cached 10 min).
+let _BIZSRC={ map:null, at:0 };
+async function loadBizSources(){
+  if(_BIZSRC.map && Date.now()-_BIZSRC.at < 600000) return _BIZSRC.map;
+  const now=new Date(), since=tdi(new Date(now.getFullYear(), now.getMonth()-2, 1));
+  const map={}; let after=null;
+  try{
+    for(let p=0;p<8;p++){
+      const d=await shopifyGQL('query($a:String){ orders(first:250, after:$a, query:'+JSON.stringify('created_at:>='+since)+'){ pageInfo{ hasNextPage endCursor } edges{ node{ id sourceName } } } }', { a:after });
+      (d.orders?.edges||[]).forEach(e=>{ map[shopId(e.node.id)]=e.node.sourceName||''; });
+      if(!d.orders?.pageInfo?.hasNextPage) break;
+      after=d.orders.pageInfo.endCursor;
+    }
+    _BIZSRC={ map, at:Date.now() };
+    return map;
+  }catch(e){ console.warn('loadBizSources', e&&e.message); return _BIZSRC.map; }
 }
 let _BIZ={ rows:null, at:0 };
 async function loadBizMonths(){
@@ -4538,9 +4577,23 @@ async function _renderBizDash(el){
   // Top products (titles ride the comma-joined `product` column)
   const pc={}; cur.forEach(r=>String(r.product||'').split(/,\s*/).forEach(t=>{ t=t.trim(); if(!t||t==='–')return; pc[t]=(pc[t]||0)+1; }));
   const topP=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  // Channel split
-  const online=cur.filter(r=>(r.src||'shopify')!=='manual').length, manual=cur.length-online;
-  const onPct=cur.length?Math.round(online/cur.length*100):0;
+  // Channel split — Shopify's sourceName (web checkout vs staff draft); staff orders are
+  // broken down by the channel recorded on their follow-up (matched by order number).
+  const srcMap=await loadBizSources();
+  const fuCh={}; (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f=>{ const n=String(f.orderNo||'').replace(/\D/g,''); if(n&&f.channel) fuCh[n]=f.channel; });
+  const CH={ web:['Online store','#185FA5'], whatsapp:['WhatsApp','#639922'], facebook:['Facebook','#7F77DD'], instagram:['Instagram','#D4537E'], walkin:['Walk-in','#BA7517'], staff:['Staff draft','#888780'], other:['Other','#B4B2A9'], shopify:['Shopify','#185FA5'] };
+  const chOf=r=>{
+    if((r.src||'shopify')==='manual') return CH[r.channel]?r.channel:'whatsapp';
+    if(!srcMap) return 'shopify';
+    const sn=srcMap[shopId(r.id)];
+    if(sn==='web') return 'web';
+    const fc=fuCh[String(r.name||'').replace(/\D/g,'')] || r.channel;
+    if(fc && CH[fc]) return fc;
+    return /draft/i.test(sn||'') ? 'staff' : 'other';
+  };
+  const chN={}; cur.forEach(r=>{ const k=chOf(r); chN[k]=(chN[k]||0)+1; });
+  const chSeg=Object.entries(chN).sort((a,b)=>b[1]-a[1]).map(([k,n])=>({ k, n, pct: cur.length?n/cur.length*100:0 }));
+  let _acc=0; const chGrad=chSeg.length?chSeg.map(s=>{ const a=_acc; _acc+=s.pct; return CH[s.k][1]+' '+a.toFixed(2)+'% '+_acc.toFixed(2)+'%'; }).join(','):'rgba(140,125,110,.15) 0 100%';
   // Customers: key by phone digits (fallback name)
   const key=r=>{ const d=String(r.cust_phone||'').replace(/\D/g,''); return d||String(r.customer||'').trim().toLowerCase()||null; };
   const curK={}, lastK=new Set(last.map(key).filter(Boolean));
@@ -4549,7 +4602,7 @@ async function _renderBizDash(el){
   const newC=kList.filter(k=>!lastK.has(k)).length, retC=kList.length-newC;
   const topC=kList.map(k=>curK[k]).filter(c=>c.n>=2).sort((a,b)=>b.n-a.n).slice(0,3);
   // Cakes this month + supplier breakdown
-  const cakes=cur.filter(r=>(r.cake&&typeof r.cake==='object')||/cake/i.test(r.product||''));
+  const cakes=cur.filter(_bizIsCake);
   const supC={}; cakes.forEach(r=>{ const s=(r.cake&&r.cake.supplier)||'Not set'; supC[s]=(supC[s]||0)+1; });
   const sups=Object.entries(supC).sort((a,b)=>(a[0]==='Not set')-(b[0]==='Not set')||b[1]-a[1]);
   const liRow=(l,v)=>'<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3.5px 0"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(l)+'</span><b style="flex:none">'+v+'</b></div>';
@@ -4575,10 +4628,10 @@ async function _renderBizDash(el){
       +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Top products</div>'
         +(topP.length?topP.map(p=>liRow(p[0],p[1])).join(''):'<div style="font-size:12px;color:var(--c-muted)">No orders yet</div>')+'</div>'
       +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0;display:flex;align-items:center;gap:14px">'
-        +'<div style="position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:conic-gradient(#185FA5 0 '+onPct+'%,#639922 '+onPct+'% 100%)"><div style="position:absolute;inset:11px;border-radius:50%;background:rgba(255,255,255,.92)"></div></div>'
-        +'<div style="font-size:12px;min-width:0"><div style="font-weight:700;margin-bottom:5px">Orders from</div>'
-          +'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:#185FA5;flex:none"></span>Online store <b>'+onPct+'%</b><span style="color:var(--c-muted)">· '+online+'</span></div>'
-          +'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:#639922;flex:none"></span>WhatsApp · manual <b>'+(cur.length?100-onPct:0)+'%</b><span style="color:var(--c-muted)">· '+manual+'</span></div></div></div>'
+        +'<div style="position:relative;width:64px;height:64px;flex:none;border-radius:50%;background:conic-gradient('+chGrad+')"><div style="position:absolute;inset:11px;border-radius:50%;background:rgba(255,255,255,.92)"></div></div>'
+        +'<div style="font-size:12px;min-width:0;flex:1"><div style="font-weight:700;margin-bottom:5px">Orders from</div>'
+          +chSeg.map(s=>'<div style="display:flex;align-items:center;gap:6px;padding:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:'+CH[s.k][1]+';flex:none"></span>'+CH[s.k][0]+' <b>'+Math.round(s.pct)+'%</b><span style="color:var(--c-muted)">· '+s.n+'</span></div>').join('')
+        +'</div></div>'
       +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Customers</div>'
         +'<div style="display:flex;gap:18px;margin-bottom:6px"><div><div style="font-size:10.5px;color:#3B6D11">New</div><div style="font-size:19px;font-weight:700;color:#27500A">'+newC+'</div></div>'
         +'<div><div style="font-size:10.5px;color:#3C3489">Returning</div><div style="font-size:19px;font-weight:700;color:#26215C">'+retC+'</div></div></div>'
@@ -8167,6 +8220,7 @@ async function _bcFlush(){
     if(_bcPendIds.size){
       const ids=[..._bcPendIds].slice(0,100); _bcPendIds.clear();
       const { data } = await sb.from('orders').select(ORDER_COLS).in('id', ids);
+      if(data && data.length) _bizPatchRows(data);
       if(data && data.length && _mergeDbOrders(data)){
         data.forEach(r=>{ try{ const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id)); if(o) _rowHashes[shopId(r.id)]=_rowHash(_orderRow(o)); }catch(_){} });
         try{ localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o=>({...o,dateObj:undefined})))); }catch(_){}
@@ -10422,7 +10476,7 @@ function _cakeSupplierChange(){
 function openCakeModal(id){
   const o=ORDERS.find(x=>String(x.id)===String(id)); if(!o) return;
   document.getElementById('cake-order-id').value=id;
-  const ck=o.cake, on=!!ck || _orderHasCake(o), supplier=ck?(ck.supplier||''):'', known=CAKE_SUPPLIERS.some(s=>s.name===supplier);
+  const ck=(o.cake&&!o.cake.none)?o.cake:null, on=o.cake?!o.cake.none:_orderHasCake(o), supplier=ck?(ck.supplier||''):'', known=CAKE_SUPPLIERS.some(s=>s.name===supplier);
   document.getElementById('cake-on').checked=on;
   document.getElementById('cake-fields').style.display=on?'':'none';
   _fillCakeSupplier(known?supplier:(supplier?'__other__':''));
@@ -10435,7 +10489,9 @@ function openCakeModal(id){
 function saveCake(){
   const id=document.getElementById('cake-order-id').value, o=ORDERS.find(x=>String(x.id)===String(id));
   if(!o){ closeModal('m-cake'); return; }
-  if(!document.getElementById('cake-on').checked){ o.cake=null; }
+  // Unticked = an explicit "not a cake" record, so a wrong auto-detection (product type /
+  // title) can't bring it back on the next render or sync.
+  if(!document.getElementById('cake-on').checked){ o.cake={ none:true }; }
   else{
     const sel=document.getElementById('cake-supplier').value;
     const supplier = (sel==='__other__') ? (document.getElementById('cake-supplier-name').value.trim())
@@ -10457,7 +10513,7 @@ function _cakeNav(addr){ const q=encodeURIComponent(addr); return /Android/i.tes
 function _orderHasCake(o){ return !!(o && o.lineItems && o.lineItems.some(li => /^cake$/i.test(String((li&&li.productType)||'').trim()))); }
 // Effective cake record: the manually-set one, or an auto stub for a detected-but-unassigned
 // cake so it flows through the collection lists as 待定供应商.
-function _effCake(o){ if(o && o.cake) return o.cake; if(_orderHasCake(o)) return { supplier:'', address:'', remark:'', auto:true }; return null; }
+function _effCake(o){ if(o && o.cake) return o.cake.none ? null : o.cake; if(_orderHasCake(o)) return { supplier:'', address:'', remark:'', auto:true }; return null; }
 function _cakeOrdersFor(iso){ return ORDERS.filter(o => _effCake(o) && _drvIsOnDate(o, iso)); }
 function _cakeCollected(o){ return !!(o && o.cake && o.cake.collected); }
 let _cakeCollapse = {};   // iso -> explicit user open/close override; default: collapsed once all collected
@@ -10496,7 +10552,7 @@ function _drvCakeList(iso){
 // the collected flag persists; stored on order.cake (jsonb, no new column).
 function toggleCakeCollected(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
-  if(!o.cake) o.cake={ supplier:'', address:'', remark:'', auto:true };
+  if(!o.cake || o.cake.none) o.cake={ supplier:'', address:'', remark:'', auto:true };
   o.cake.collected = !o.cake.collected;
   saveOrderPatch(o,{ cake:o.cake });
   if(typeof renderHome==='function') renderHome();
@@ -13384,8 +13440,8 @@ function _renderDPInner(order, localOrder) {
   // ── Cake collection ──
   // Auto-detected from Shopify (any line item's product type is "Cake") or manually
   // flagged. Non-cake orders (wreaths, condolence flowers) show nothing here.
-  { const _ck = localOrder.cake;
-    const _auto = !_ck && _orderHasCake(localOrder);
+  { const _ck = (localOrder.cake && !localOrder.cake.none) ? localOrder.cake : null;
+    const _auto = !localOrder.cake && _orderHasCake(localOrder);
     if (_ck || _auto) {
       const _done = _cakeCollected(localOrder);
       html += '<div style="border:1.5px solid #E6C65A;border-radius:var(--r-lg);padding:10px 13px;background:#FBF3D9;margin-bottom:10px;display:flex;align-items:center;gap:10px'+(_done?';opacity:.7':'')+'">'
@@ -13628,7 +13684,7 @@ function _renderDPInner(order, localOrder) {
 function _dpMenuHtml(o){
   const handle = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
   const shopUrl = o.src==='shopify' && handle ? `https://admin.shopify.com/store/${handle}/orders/${shopId(o.id)}` : '';
-  const noCake = !o.cake && !_orderHasCake(o);
+  const noCake = !_effCake(o);
   return '<div id="dp-menu" class="dp-menu" hidden>'
     + `<button class="dp-mi" onclick="closeDpMenu();closeDP();editOrder('${o.id}')">${di('edit',16)} Edit order</button>`
     + `<button class="dp-mi" onclick="closeDpMenu();closeDP();openRepeat('${o.id}')">${di('sync',16)} Repeat order</button>`
