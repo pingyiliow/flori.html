@@ -13523,15 +13523,32 @@ let _lastRefresh = 0;
 // every 5 minutes now — teammates' changes still arrive within a few minutes, and the
 // manual "Sync Orders" button is always there for an instant refresh.
 const _AUTO_REFRESH_MS = 300000; // 5 minutes
+// ── Auto-update: with no service worker, a tab left open keeps running OLD code for days,
+// and old builds have old bugs (incl. the sync clobber that ate ticks/routes). Compare the
+// server's build fingerprint (deploy etag) on every focus refresh; new deploy → reload.
+let _buildTag = null;
+async function _buildCheck(){
+  try{
+    const r = await fetch(location.pathname + '?bc=' + Date.now(), { method:'HEAD', cache:'no-store' });
+    const t = r.headers.get('etag') || r.headers.get('last-modified') || '';
+    if (!t) return false;
+    if (_buildTag === null){ _buildTag = t; console.log('[build]', t); return false; }
+    return t !== _buildTag;
+  }catch(_){ return false; }
+}
+if (document.readyState !== 'loading') _buildCheck(); else document.addEventListener('DOMContentLoaded', ()=>_buildCheck());
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
   _rtSetAuth().then(()=>{ subscribeBroadcast(); subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
   const now = Date.now();
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
-  // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
-  // single paint settles the UI, so there's no intermediate stale frame.
-  loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
+  _buildCheck().then(stale => {
+    if (stale) { console.log('[build] new version — reloading'); location.reload(); return; }
+    // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
+    // single paint settles the UI, so there's no intermediate stale frame.
+    loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
+  });
 }
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') _maybeAutoRefresh();
