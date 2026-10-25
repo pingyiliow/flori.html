@@ -13537,6 +13537,24 @@ async function _buildCheck(){
   }catch(_){ return false; }
 }
 if (document.readyState !== 'loading') _buildCheck(); else document.addEventListener('DOMContentLoaded', ()=>_buildCheck());
+// FORCED periodic update — staff forget to reopen, so every tab checks on a timer and
+// reloads itself when a new build ships. Defers while the person is actively typing or
+// clicking (last 90s), but never longer than 30 minutes.
+let _lastAct = 0;
+['keydown','pointerdown'].forEach(ev => document.addEventListener(ev, () => { _lastAct = Date.now(); }, true));
+let _staleSince = null;
+setInterval(async () => {
+  try {
+    if (!(await _buildCheck())) { _staleSince = null; return; }
+    if (_staleSince === null) _staleSince = Date.now();
+    const busy = (Date.now() - _lastAct < 90000)
+      || (document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.value)
+      || (document.activeElement && document.activeElement.isContentEditable);
+    if (busy && Date.now() - _staleSince < 1800000) return;   // retry on the next tick
+    console.log('[build] new version — reloading');
+    location.reload();
+  } catch(_){}
+}, 240000);
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
   _rtSetAuth().then(()=>{ subscribeBroadcast(); subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
