@@ -2456,6 +2456,7 @@ function _liteOrder(o){
 }
 function _orderRow(o){
   const row = {
+    wb: APP_BUILD,   // write-build stamp — the DB gate trigger rejects writes without a current one
     id: o.id, name: o.name, src: o.src||'shopify',
     customer: o.customer, product: o.product,
     line_items: o.lineItems||[], image: o.image||null,
@@ -2502,6 +2503,12 @@ function _orderRow(o){
 // saveOrders(changed?) — when a caller knows which order(s) changed, pass them so
 // only those rows are upserted (a tiny request that can't be dragged down by other
 // orders' base64 blobs). With no argument it upserts everything (used by sync).
+// Cache-only persist for READ paths (date/month/search/fulfilled loaders): merging remote
+// rows into memory must never trigger a bulk upsert back — loads are loads, not writes.
+function _cacheOrders(){
+  try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(o => ({...o, dateObj:undefined})))); }
+  catch(e){ try { localStorage.setItem('flori-orders', JSON.stringify(ORDERS.map(_liteOrder))); } catch(_){} }
+}
 function saveOrders(changed) {
   const clean = ORDERS.map(o => ({...o, dateObj:undefined}));
   // localStorage is a best-effort offline cache. A QuotaExceededError here (old
@@ -2549,6 +2556,7 @@ function saveOrders(changed) {
 // those change only through explicit user saves (full _orderRow) and the webhook's merge.
 function _orderRowShopify(o){
   const row = {
+    wb: APP_BUILD,   // write-build stamp — the DB gate trigger rejects writes without a current one
     id: o.id, name: o.name, src: o.src||'shopify',
     customer: o.customer,
     total: o.total||null, currency: o.currency||'MYR',
@@ -3097,7 +3105,7 @@ async function loadOrdersForDate(dateStr){
   try {
     const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('due_on', dateStr).range(0, 999);
     if (error) { console.warn('loadOrdersForDate', error.message); return; }
-    if (_mergeDbOrders(data || [])) saveOrders();
+    if (_mergeDbOrders(data || [])) _cacheOrders();
   } catch(e){ console.warn('loadOrdersForDate', e); }
 }
 async function loadFromSupabase(opts = {}) {
@@ -4710,7 +4718,7 @@ async function _orderSearchFetch(srch){
     if(digits.length>=4){ const tail=digits.slice(-8); ors.push(`cust_phone.ilike.%${tail}%`); ors.push(`recip_phone.ilike.%${tail}%`); }
     const { data, error } = await sb.from('orders').select(ORDER_COLS).or(ors.join(',')).limit(400);
     if(error){ console.warn('order search fetch', error.message); return; }
-    if(_mergeDbOrders(data||[])){ saveOrders(); const cur=(document.getElementById('order-search')?.value||'').trim().toLowerCase(); if(cur===q.toLowerCase()) renderOrders(); }
+    if(_mergeDbOrders(data||[])){ _cacheOrders(); const cur=(document.getElementById('order-search')?.value||'').trim().toLowerCase(); if(cur===q.toLowerCase()) renderOrders(); }
   }catch(e){ console.warn('order search fetch', e&&e.message); }
 }
 function renderOrders() {
@@ -7495,7 +7503,7 @@ async function loadOrdersForMonth(y, m){
   try {
     const { data, error } = await sb.from('orders').select(ORDER_COLS).gte('due_on',start).lte('due_on',end).range(0,999);
     if (error){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', error.message); return; }
-    if (_mergeDbOrders(data||[])){ saveOrders(); renderCalendar(); }
+    if (_mergeDbOrders(data||[])){ _cacheOrders(); renderCalendar(); }
   } catch(e){ _loadedMonths.delete(key); console.warn('loadOrdersForMonth', e); }
 }
 
@@ -7695,7 +7703,7 @@ async function loadFulfilledRecent(){
   try {
     const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('fulfilled',true).gte('due_on',from).lte('due_on',to).range(0,999);
     if (error){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', error.message); return; }
-    if (_mergeDbOrders(data||[])){ saveOrders(); renderOrders(); }
+    if (_mergeDbOrders(data||[])){ _cacheOrders(); renderOrders(); }
   } catch(e){ _fulfilledLoaded=false; console.warn('loadFulfilledRecent', e); }
 }
 document.querySelectorAll('[data-f]').forEach(btn => {
