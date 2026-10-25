@@ -97,15 +97,23 @@ export default async function handler(req, res) {
   const type    = /pick|collect|store pick/.test(typeRaw) ? 'pickup' : 'delivery';
   const fulfilled = order.fulfillment_status === 'fulfilled';
 
-  const lineItems = (order.line_items || []).map(i => ({
-    title:    i.title,
-    quantity: i.quantity,
-    price:    i.price,
-    currency: order.currency || 'MYR',
-    image:    i.image?.src || null,
-    variantTitle: i.variant_title || null,   // e.g. "10 Stalks / Red Roses"
-    sku:      i.sku || null,
-  }));
+  const lineItems = (order.line_items || []).map(i => {
+    const li = {
+      title:    i.title,
+      quantity: i.quantity,
+      price:    i.price,
+      currency: order.currency || 'MYR',
+      image:    i.image?.src || null,
+      variantTitle: i.variant_title || null,   // e.g. "10 Stalks / Red Roses"
+      sku:      i.sku || null,
+    };
+    // Per-item BloomFlow photos (draft line-item attribute → order line-item property):
+    // each product keeps ITS OWN photos instead of everything landing on the first item.
+    const prop = (i.properties || []).find(p => p && p.name === '_bf_photos');
+    const urls = prop && prop.value ? String(prop.value).split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u)) : [];
+    if (urls.length) { li.images = urls; li.image = urls[0]; }
+    return li;
+  });
 
   const customer = [
     order.customer?.first_name || '',
@@ -155,7 +163,9 @@ export default async function handler(req, res) {
   // links). On first insert, attach them to the first line item so the daily-order card /
   // panel show them. On update the stored line items already carry the photos, so leave them.
   const bfPhotos = (getAttr('BloomFlow Photos') || '').split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u));
-  if (!existing && bfPhotos.length && mergedLineItems[0] && !(mergedLineItems[0].images && mergedLineItems[0].images.length)) {
+  if (!existing && bfPhotos.length && mergedLineItems[0]
+      && !mergedLineItems.some(li => li.images && li.images.length)   // per-item photos already placed → don't dump the flat list on item 0
+      && !(mergedLineItems[0].images && mergedLineItems[0].images.length)) {
     mergedLineItems[0].images = bfPhotos;
     if (!mergedLineItems[0].image) mergedLineItems[0].image = bfPhotos[0];
   }
