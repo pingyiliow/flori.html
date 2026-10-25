@@ -13741,23 +13741,40 @@ async function _buildCheck(){
 }
 if (document.readyState !== 'loading') _buildCheck(); else document.addEventListener('DOMContentLoaded', ()=>_buildCheck());
 // FORCED periodic update — staff forget to reopen, so every tab checks on a timer and
-// reloads itself when a new build ships. Defers while the person is actively typing or
-// clicking (last 90s), but never longer than 30 minutes.
+// applies new builds at a moment the person won't notice: instantly while the app is
+// hidden/backgrounded, otherwise deferred while they type, were active in the last 90s,
+// or have ANYTHING open on top (photo zoom, order panel, any modal). A pending update
+// also applies the moment the app goes to the background. Typing and open overlays are
+// never interrupted, however long — the wb DB gate + API kill switch cover the data
+// risk of a very stale tab, so a reload is never allowed to yank work off the screen.
 let _lastAct = 0;
 ['keydown','pointerdown'].forEach(ev => document.addEventListener(ev, () => { _lastAct = Date.now(); }, true));
-let _staleSince = null;
+let _staleSince = null, _updPending = false;
+function _overlayOpen(){
+  return !!(document.querySelector('.modal.on') || document.querySelector('.ov.on')
+    || (document.getElementById('zoom')||{}).classList && document.getElementById('zoom').classList.contains('on')
+    || (document.getElementById('dp')||{}).classList && document.getElementById('dp').classList.contains('on'));
+}
+let _updReloading = false;
+function _updNow(){ _updReloading = true; console.log('[build] new version — reloading'); location.reload(); }
+function _updTry(){
+  _updPending = true;
+  if (document.hidden) { _updNow(); return; }                    // invisible moment — free reload
+  if (_staleSince === null) _staleSince = Date.now();
+  const ae = document.activeElement;
+  const typing = (ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && ae.value) || (ae && ae.isContentEditable);
+  const recent = Date.now() - _lastAct < 90000;
+  const capped = Date.now() - _staleSince > 1800000;             // 30 min: recency stops deferring
+  if (!typing && !_overlayOpen() && (!recent || capped)) _updNow();
+}
 setInterval(async () => {
   try {
-    if (!(await _buildCheck())) { _staleSince = null; return; }
-    if (_staleSince === null) _staleSince = Date.now();
-    const busy = (Date.now() - _lastAct < 90000)
-      || (document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.value)
-      || (document.activeElement && document.activeElement.isContentEditable);
-    if (busy && Date.now() - _staleSince < 1800000) return;   // retry on the next tick
-    console.log('[build] new version — reloading');
-    location.reload();
+    if (await _buildCheck()) _updTry();
+    else { _staleSince = null; _updPending = false; }
   } catch(_){}
 }, 240000);
+// App goes to the background → a pending update applies where nobody sees it.
+document.addEventListener('visibilitychange', () => { if (_updPending && document.hidden) _updNow(); });
 function _maybeAutoRefresh() {
   if (!hasSB() || !currentUser) return;
   _rtSetAuth().then(()=>{ subscribeBroadcast(); subscribeOrders(); subscribeTodos(); subscribeRoutes(); });   // re-arm live channels on focus (idempotent; token first — RLS filters anon joins)
@@ -13765,7 +13782,9 @@ function _maybeAutoRefresh() {
   if (now - _lastRefresh < _AUTO_REFRESH_MS) return;
   _lastRefresh = now;
   _buildCheck().then(stale => {
-    if (stale) { console.log('[build] new version — reloading'); location.reload(); return; }
+    // Reload now only if nothing's open; otherwise arm the next invisible moment and
+    // carry on with the data refresh — the tab missed broadcasts while backgrounded.
+    if (stale) { _updTry(); if (_updReloading) return; }
     // Pull authoritative Supabase data silently, THEN sync Shopify — syncOrders'
     // single paint settles the UI, so there's no intermediate stale frame.
     loadFromSupabase({ skipRender: true }).then(() => syncOrders()).catch(()=>{});
