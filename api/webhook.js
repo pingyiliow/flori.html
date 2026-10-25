@@ -163,8 +163,9 @@ export default async function handler(req, res) {
   // links). On first insert, attach them to the first line item so the daily-order card /
   // panel show them. On update the stored line items already carry the photos, so leave them.
   const bfPhotos = (getAttr('BloomFlow Photos') || '').split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u));
-  if (!existing && bfPhotos.length && mergedLineItems[0]
-      && !mergedLineItems.some(li => li.images && li.images.length)   // per-item photos already placed → don't dump the flat list on item 0
+  // The flat list can't say which product each photo belongs to → only trusted on a
+  // single-product order (multi-item orders used to get every photo on the first item).
+  if (!existing && bfPhotos.length && mergedLineItems.length === 1
       && !(mergedLineItems[0].images && mergedLineItems[0].images.length)) {
     mergedLineItems[0].images = bfPhotos;
     if (!mergedLineItems[0].image) mergedLineItems[0].image = bfPhotos[0];
