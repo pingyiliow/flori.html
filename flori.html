@@ -848,6 +848,14 @@
   </div>
 </div>
 
+<!-- ══ MODAL — Business: cake orders this month ═══ -->
+<div id="m-bizcakes" class="modal">
+  <div class="mc" style="max-width:430px">
+    <div class="mc-hdr"><div class="mc-ttl" id="bizcakes-ttl">Cakes</div><button class="mc-x" aria-label="Close" onclick="closeModal('m-bizcakes')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body" id="bizcakes-body" style="max-height:62vh;overflow:auto"></div>
+  </div>
+</div>
+
 <!-- ══ MODAL — Driver date picker (custom calendar, matches main) ═══ -->
 <div id="m-drvcal" class="modal">
   <div class="mc" style="max-width:340px">
@@ -4434,6 +4442,38 @@ function _bizTip(el){
   clearTimeout(window._bizTipT); window._bizTipT=setTimeout(_bizTipHide,3500);
 }
 function _bizTipHide(){ const t=document.getElementById('biz-tip'); if(t) t.style.display='none'; }
+// Business → Cakes: this month's cake orders as a list; a row opens the order panel
+// (the row is fetched into ORDERS on demand — biz months aren't fully loaded locally).
+function openBizCakes(){
+  const now=new Date(), a=tdi(new Date(now.getFullYear(),now.getMonth(),1)), b=tdi(new Date(now.getFullYear(),now.getMonth()+1,0));
+  const list=(_BIZ.rows||[]).filter(r=>r.due_on&&r.due_on>=a&&r.due_on<=b&&((r.cake&&typeof r.cake==='object')||/cake/i.test(r.product||''))).sort((x,y)=>String(x.due_on).localeCompare(String(y.due_on)));
+  const t=document.getElementById('bizcakes-ttl'); if(t) t.textContent='Cakes · '+now.toLocaleDateString('en-MY',{month:'long'})+' · '+list.length;
+  const el=document.getElementById('bizcakes-body'); if(!el) return;
+  el.innerHTML=list.length?list.map((r,i)=>{
+    const c=(r.cake&&typeof r.cake==='object')?r.cake:{};
+    const set=!!c.supplier, col=!!c.collected;
+    const d=r.due_on?new Date(r.due_on+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'';
+    const sub=(set?esc(c.supplier):'<span style="color:var(--c-red)">Not set</span>')+(col?' · <span style="color:#3B6D11">Collected</span>':'');
+    return '<div onclick="_bizCakeOpen(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:10px;padding:9px 2px;'+(i?'border-top:1px solid var(--c-border);':'')+'cursor:pointer">'
+      +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((r.name?r.name+' · ':'')+(r.customer||'Order'))+'</div>'
+      +'<div style="font-size:11.5px;color:var(--c-muted)">'+sub+'</div></div>'
+      +'<div style="flex:none;text-align:right"><div style="font-size:12px;font-weight:600">'+esc(d)+'</div><div style="font-size:11px;color:var(--c-muted)">RM '+Math.round(parseFloat(r.total)||0).toLocaleString('en-MY')+'</div></div>'
+      +'<span style="color:var(--c-border2);font-size:15px;flex:none">›</span></div>';
+  }).join(''):'<div class="empty" style="padding:24px"><div class="empty-txt">No cake orders this month</div></div>';
+  openModal('m-bizcakes');
+}
+async function _bizCakeOpen(id){
+  closeModal('m-bizcakes');
+  id=String(id);
+  let o=ORDERS.find(x=>shopId(x.id)===shopId(id));
+  if(!o){
+    try{
+      const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('id', id);
+      if(!error&&data&&data.length){ _mergeDbOrders(data); _cacheOrders(); o=ORDERS.find(x=>shopId(x.id)===shopId(id)); }
+    }catch(_){}
+  }
+  if(o) openDP(o.id); else toast('Order not found');
+}
 let _BIZ={ rows:null, at:0 };
 async function loadBizMonths(){
   if(!hasSB()) return [];
@@ -4443,7 +4483,7 @@ async function loadBizMonths(){
   const endD=new Date(now.getFullYear(), now.getMonth()+1, 0);
   const end7=new Date(today0().getTime()+7*86400000);
   const end=tdi(endD>end7?endD:end7);
-  const COLS='id,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
+  const COLS='id,name,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
   try{
     let from=0, all=[];
     while(true){
@@ -4533,7 +4573,7 @@ async function _renderBizDash(el){
         +'<div style="display:flex;gap:18px;margin-bottom:6px"><div><div style="font-size:10.5px;color:#3B6D11">New</div><div style="font-size:19px;font-weight:700;color:#27500A">'+newC+'</div></div>'
         +'<div><div style="font-size:10.5px;color:#3C3489">Returning</div><div style="font-size:19px;font-weight:700;color:#26215C">'+retC+'</div></div></div>'
         +(topC.length?'<div style="border-top:1px solid var(--c-border);padding-top:5px">'+topC.map(c=>liRow(c.name||'—',c.n+'×')).join('')+'</div>':'')+'</div>'
-      +'<div style="'+GLB('rgba(251,234,240,.6)')+';padding:13px 16px;min-width:0"><div style="display:flex;font-size:12.5px;font-weight:700;color:#993556"><span>Cakes</span><b style="margin-left:auto">'+cakes.length+'</b></div>'
+      +'<div onclick="openBizCakes()" style="'+GLB('rgba(251,234,240,.6)')+';padding:13px 16px;min-width:0;cursor:pointer"><div style="display:flex;align-items:center;font-size:12.5px;font-weight:700;color:#993556"><span>Cakes</span><b style="margin-left:auto">'+cakes.length+'</b><span style="color:#C98BA4;font-size:15px;margin-left:6px">›</span></div>'
         +(sups.length?'<div style="margin-top:5px">'+sups.map(s=>liRow(s[0],s[1])).join('')+'</div>':'<div style="font-size:12px;color:var(--c-muted);margin-top:5px">None this month</div>')+'</div>'
     +'</div>';
 }
