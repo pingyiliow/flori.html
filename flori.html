@@ -4453,6 +4453,8 @@ function _bizTip(el){
   clearTimeout(window._bizTipT); window._bizTipT=setTimeout(_bizTipHide,3500);
 }
 function _bizTipHide(){ const t=document.getElementById('biz-tip'); if(t) t.style.display='none'; }
+// Business → a day label → that day's orders on the Orders page.
+function _bizGoDay(iso){ _bizTipHide(); goPage('orders'); calFilter=null; selectCalDay(iso); }
 // A cake order for the Business stats: an explicit cake record (not the "not a cake"
 // marker), else a product titled "cake" — biz rows are lean (no line_items/productType).
 function _bizIsCake(r){ return (r.cake && typeof r.cake==='object') ? !r.cake.none : /cake/i.test(r.product||''); }
@@ -4559,7 +4561,7 @@ async function _renderBizDash(el){
   const rm=v=>'RM '+Math.round(v).toLocaleString('en-MY');
   const delta=(a,b)=>{ if(!b) return ''; const p=Math.round((a-b)/b*100); if(!p) return '<div style="font-size:10.5px;color:var(--c-muted)">= '+now.toLocaleDateString('en-MY',{month:'short'})+' vs last</div>';
     return '<div style="font-size:10.5px;color:'+(p>0?'#3B6D11':'#A32D2D')+'">'+(p>0?'▲':'▼')+' '+Math.abs(p)+'% vs '+lS.toLocaleDateString('en-MY',{month:'short'})+'</div>'; };
-  const kpi=(labCol,numCol,label,val,sub,extra)=>'<div style="'+GLB(extra||'rgba(255,255,255,.6)')+';padding:13px 16px'+(label==='Unpaid'?';cursor:pointer" onclick="goPage(\'followup\')':'"')+'><div style="font-size:11px;color:'+labCol+'">'+label+'</div><div style="font-size:22px;font-weight:700;font-family:var(--f-head);color:'+numCol+'">'+val+'</div>'+(sub||'')+'</div>';
+  const kpi=(labCol,numCol,label,val,sub,extra,click)=>'<div'+(click?' onclick="'+click+'"':'')+' style="'+GLB(extra||'rgba(255,255,255,.6)')+';padding:13px 16px'+(click?';cursor:pointer':'')+'"><div style="font-size:11px;color:'+labCol+'">'+label+'</div><div style="font-size:22px;font-weight:700;font-family:var(--f-head);color:'+numCol+'">'+val+'</div>'+(sub||'')+'</div>';
   // Unpaid — pending-payment follow-ups
   const unpaidList=(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).filter(f=>f.status!=='completed'&&f.payment==='pending');
   const unpaid=unpaidList.reduce((s,f)=>s+(parseFloat(f.amount)||0)+(parseFloat(f.deliveryFee)||0),0);
@@ -4573,7 +4575,12 @@ async function _renderBizDash(el){
   const nx=[]; for(let i=0;i<7;i++){ const d=new Date(today0().getTime()+i*86400000); const k=tdi(d); const dr=rows.filter(r=>r.due_on===k); nx.push({ d, n:dr.length, v:sum(dr) }); }
   const maxN=Math.max(1,...nx.map(x=>x.n));
   const nxRows=nx.map((x,i)=>{ const w=Math.round(x.n/maxN*100); const c=w>=75?'#D85A30':(w>=40?'#BA7517':'#639922');
-    return '<div data-tip="'+esc(dLab(x.d))+' · '+x.n+(x.n===1?' order':' orders')+'<br><b>'+rm(x.v)+'</b>" onclick="_bizTip(this)" onmouseenter="_bizTip(this)" onmouseleave="_bizTipHide()" style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--c-muted);padding:2px 0;cursor:pointer"><span style="width:30px">'+(i===0?'Today':x.d.toLocaleDateString('en-MY',{weekday:'short'}))+'</span><div style="flex:1;height:9px;background:rgba(140,125,110,.15);border-radius:99px"><div style="width:'+Math.max(w,3)+'%;height:100%;background:'+c+';border-radius:99px"></div></div><b style="color:var(--c-ink);min-width:16px;text-align:right">'+x.n+'</b></div>'; }).join('');
+    // Day label = link to that day's orders; the bar = detail bubble (kept apart so a
+    // tap meant for the bubble never navigates away).
+    return '<div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--c-muted);padding:2px 0">'
+      +'<span onclick="_bizGoDay(\''+tdi(x.d)+'\')" style="width:36px;flex:none;cursor:pointer;color:var(--c-burg);font-weight:600;text-decoration:underline;text-underline-offset:2px">'+(i===0?'Today':x.d.toLocaleDateString('en-MY',{weekday:'short'}))+'</span>'
+      +'<div data-tip="'+esc(dLab(x.d))+' · '+x.n+(x.n===1?' order':' orders')+'<br><b>'+rm(x.v)+'</b>" onclick="_bizTip(this)" onmouseenter="_bizTip(this)" onmouseleave="_bizTipHide()" style="flex:1;height:9px;background:rgba(140,125,110,.15);border-radius:99px;cursor:pointer"><div style="width:'+Math.max(w,3)+'%;height:100%;background:'+c+';border-radius:99px"></div></div>'
+      +'<b style="color:var(--c-ink);min-width:16px;text-align:right">'+x.n+'</b></div>'; }).join('');
   // Top products (titles ride the comma-joined `product` column)
   const pc={}; cur.forEach(r=>String(r.product||'').split(/,\s*/).forEach(t=>{ t=t.trim(); if(!t||t==='–')return; pc[t]=(pc[t]||0)+1; }));
   const topP=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -4616,7 +4623,7 @@ async function _renderBizDash(el){
       +kpi('#854F0B','#633806','This month',rm(rev),delta(rev,revL))
       +kpi('#3C3489','#26215C','Orders',cur.length,delta(cur.length,last.length))
       +kpi('#0C447C','#042C53','Avg order',cur.length?rm(rev/cur.length):'—','')
-      +kpi('#993C1D','#712B13','Unpaid',rm(unpaid),'<div style="font-size:10.5px;color:#993C1D">'+unpaidList.length+' bill'+(unpaidList.length===1?'':'s')+' →</div>','rgba(250,236,231,.75)')
+      +kpi('#993C1D','#712B13','Unpaid',rm(unpaid),'<div style="font-size:10.5px;color:#993C1D">'+unpaidList.length+' bill'+(unpaidList.length===1?'':'s')+' →</div>','rgba(250,236,231,.75)',"goPage('followup')")
     +'</div>'
     +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:11px;margin-bottom:12px">'
       +'<div style="'+GLB('rgba(255,255,255,.6)')+';padding:13px 16px;grid-column:span 1;min-width:0"><div style="font-size:12.5px;font-weight:700;margin-bottom:8px">Daily revenue · last 14 days</div>'
