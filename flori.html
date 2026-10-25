@@ -8975,7 +8975,7 @@ function _lalaEditStop(i){
   const s=_lalaResolve(e); if(!s) return;
   _lalaPickLoc('Set location · '+(s.title||'stop'), (s.address||''), (lat,lng,addr)=>{
     if(e && e.manual){ e.lat=lat; e.lng=lng; if(addr) e.address=addr; }
-    else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=lat; o.lng=lng; if(addr) o.address=addr; if(typeof saveOrders==='function') saveOrders(o); } }
+    else { const o=ORDERS.find(x=>x.id===e); if(o){ o.lat=lat; o.lng=lng; if(addr) o.address=addr; saveOrderPatch(o,{ lat:o.lat, lng:o.lng, address:o.address||null }); } }
     _lala.poly=null; _lala.polySig=null;
     _lalaRenderPanel(); _lalaScheduleQuote();
     toast('✓ Location set');
@@ -9211,7 +9211,7 @@ async function _lalaBook(){
   const single=sel.length===1;
   const url = single ? rawUrl : null;
   const orders=sel.filter(s=>s.order).map(s=>s.order);         // stamp real orders only (manual stops have none)
-  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; _lalaLSset(o.id, od.orderId); saveOrders(o); _lalaPersistId(o.id, od.orderId); });
+  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; _lalaLSset(o.id, od.orderId); saveOrderPatch(o,{ lalamove_url:o.lalamoveUrl||null }); _lalaPersistId(o.id, od.orderId); });
   const otwId=(document.getElementById('otw-order-id')||{}).value;
   if(otwId && url && orders.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
   _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lala.quoteErr=null; _lalaClose();
@@ -9383,7 +9383,7 @@ async function _lalaMngCancel(){
   _lalaMng.busy=false;
   if(r && (r.ok || r.status===200)){
     const o=ORDERS.find(x=>x.id===_lalaMng.orderId);
-    if(o){ o.lalamoveOrderId=null; o.lalamoveUrl=null; if(typeof saveOrders==='function') saveOrders(o); }
+    if(o){ o.lalamoveOrderId=null; o.lalamoveUrl=null; saveOrderPatch(o,{ lalamove_url:null }); }
     _lalaLSclear(_lalaMng.orderId); _lalaPersistId(_lalaMng.orderId, null);
     toast('✓ Lalamove order canceled'); _lalaMngClose();
     if(typeof renderOrders==='function') renderOrders(); if(typeof renderDriver==='function') renderDriver();
@@ -9407,7 +9407,7 @@ async function sendOTW(){
   const notify = document.getElementById('otw-notify').checked;
   o.lalamoveUrl = link || null;
   if (!o.otwAt) o.otwAt = new Date().toISOString();   // stamp on-the-way (forward-only)
-  saveOrders(o);
+  saveOrderPatch(o,{ lalamove_url:o.lalamoveUrl, otw_at:o.otwAt });
   closeModal('m-otw');
   if (typeof renderHome==='function') renderHome();
   if (typeof renderOrders==='function') renderOrders();
@@ -9442,8 +9442,8 @@ async function _otwNotify(stops){
     const o = stops[i];
     toast('Notifying '+(i+1)+'/'+stops.length+'…');
     const r = await notifyOTW(o);
-    if (r && (r.ok || r.alreadySent || r.dryRun)){ o.otwAt = new Date().toISOString(); saveOrders(o); sent++; }
-    else if (r && (r.csFlag || r.skipped)){ o.otwAt = new Date().toISOString(); o._otwFlag = r.csFlag ? 'no contact' : r.skipped; saveOrders(o); flagged++; }
+    if (r && (r.ok || r.alreadySent || r.dryRun)){ o.otwAt = new Date().toISOString(); saveOrderPatch(o,{ otw_at:o.otwAt }); sent++; }
+    else if (r && (r.csFlag || r.skipped)){ o.otwAt = new Date().toISOString(); o._otwFlag = r.csFlag ? 'no contact' : r.skipped; saveOrderPatch(o,{ otw_at:o.otwAt }); flagged++; }
     else flagged++;
   }
   return { sent, flagged };
@@ -9481,7 +9481,7 @@ async function resendOTW(orderId){
   const o = ORDERS.find(x => x.id === orderId); if (!o) return;
   toast('Sending…');
   const r = await notifyOTW(o);
-  if (r && (r.ok || r.dryRun)){ o.otwAt = o.otwAt || new Date().toISOString(); saveOrders(o); toast(r.dryRun ? '✓ Dry run (test gate)' : '✓ On-the-way sent'); }
+  if (r && (r.ok || r.dryRun)){ o.otwAt = o.otwAt || new Date().toISOString(); saveOrderPatch(o,{ otw_at:o.otwAt }); toast(r.dryRun ? '✓ Dry run (test gate)' : '✓ On-the-way sent'); }
   else if (r && r.alreadySent) toast('Already notified');
   else if (r && r.csFlag) toast('⚠ No buyer contact — flagged');
   else toast('⚠ Send failed — see WhatsApp Log');
@@ -9845,7 +9845,7 @@ function replaceProof(id){
     const notify = canNotify && ov.querySelector('#rpNotify').checked;
     close();
     o.proofPhotos = photoUrls.slice(); o.proofPhoto = photoUrls[0];
-    saveOrders(o);
+    saveOrderPatch(o,{ proof_photo:o.proofPhoto||null, proof_photos:o.proofPhotos||null });
     if (typeof renderDriver==='function') renderDriver();
     if (!notify){ toast('✓ Photo updated'); return; }
     toast('Sending new photo'+(photoUrls.length>1?'s':'')+' to customer…');
@@ -12305,7 +12305,8 @@ function quickAssign(id, field, value) {
   if (field === 'designer') o.designer = value || null;
   if (field === 'priority') o.priority = value || 'normal';
   if (field === 'internalNote') o.internalNote = value || null;
-  saveOrders(o); renderOrders(); renderHome();
+  saveOrderPatch(o,{ designer:o.designer||null, priority:o.priority||'normal', internal_note:o.internalNote||null });
+  renderOrders(); renderHome();
   toast('✓ Updated');
 }
 
@@ -12313,6 +12314,13 @@ function toggleReady(id){const o=ORDERS.find(x=>x.id===id);if(!o)return;o.ready=
 // Attribution stamps: who ticked ready / completed the order (shown in the order panel).
 function _stampReady(o){ if(o.ready){ o.readyBy=currentUserName||'staff'; o.readyAt=new Date().toISOString(); } else { o.readyBy=null; o.readyAt=null; } }
 function _stampDone(o){ const w=currentUserName||'staff', t=new Date().toISOString(); if(!o.fulfilledBy){ o.fulfilledBy=w; o.fulfilledAt=t; } if(!o.readyBy){ o.readyBy=w; o.readyAt=t; } }
+function _patchDone(o){
+  saveOrderPatch(o,{ ready:true, fulfilled:true, ready_by:o.readyBy||null, ready_at:o.readyAt||null,
+    fulfilled_by:o.fulfilledBy||null, fulfilled_at:o.fulfilledAt||null,
+    delivered_at:o.deliveredAt||null, delivered_by:o.deliveredBy||null,
+    delivered_lat:o.deliveredLat??null, delivered_lng:o.deliveredLng??null,
+    proof_photo:o.proofPhoto||null, proof_photos:o.proofPhotos||null });
+}
 function _whoLine(o){
   const f=t=>{ try{ return new Date(t).toLocaleString('en-MY',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } };
   const bits=[];
@@ -12470,13 +12478,13 @@ async function confirmDeliver(id, photos, notify, verb, photoB64s){
   try { const pos = await _capturePos(6000); if (pos){ o.deliveredLat = pos.lat; o.deliveredLng = pos.lng; } } catch(_){}
   // Manual (non-Shopify) orders: mark locally only.
   if (o.src !== 'shopify'){
-    o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; _stampDone(o); _patchDone(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     toast('✓ Marked as '+verb); return;
   }
   toast('Fulfilling in Shopify…');
   try {
     const r = await fulfillInShopify(o, false);   // silent — our own system notifies
-    o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+    o.ready=true; o.fulfilled=true; _stampDone(o); _patchDone(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
     if (notify){
       toast('Notifying customer…');
       const res = await _notifyDeliveredPhotos(o, _photos, photoB64s || []);
@@ -12493,7 +12501,7 @@ async function confirmDeliver(id, photos, notify, verb, photoB64s){
     const scopeHint = /permission|scope|denied|not authorized|403/i.test(msg)
       ? '\n\nThe Shopify app may be missing the "write_merchant_managed_fulfillment_orders" permission.' : '';
     if (confirm(`⚠ Couldn't fulfill in Shopify:\n${msg}${scopeHint}\n\nMark ${verb.toLowerCase()} locally anyway?`)){
-      o.ready=true; o.fulfilled=true; _stampDone(o); saveOrders(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
+      o.ready=true; o.fulfilled=true; _stampDone(o); _patchDone(o); if(typeof _applyBOM==='function')_applyBOM(); renderHome(); renderOrders(); if(typeof renderDriver==='function')renderDriver(); closeDP(); if(o.routeId&&typeof _otwAdvance==='function')_otwAdvance(o.routeId);
       toast(`Marked ${verb.toLowerCase()} locally — not synced to Shopify`);
     } else { toast('Cancelled'); }
   }
@@ -12769,7 +12777,7 @@ function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
 function _persistItemPhotos(o){
   // keep the order-level thumbnail pointed at the first available product photo
   o.image = (o.lineItems.find(i=>itemPhotos(i).length)||{}).image || null;
-  saveOrders(o); renderHome(); renderOrders();
+  saveOrderPatch(o,{ line_items:o.lineItems, image:o.image }); renderHome(); renderOrders();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // re-render panel in place
   if(typeof _drvDetail!=='undefined' && _drvDetail===o.id && typeof renderDriver==='function') renderDriver();   // driver stop detail open → refresh its strip
   toast('✓ Photos updated');
@@ -12831,7 +12839,7 @@ function editItemNote(orderId, itemIdx){
   const val = prompt('Special instruction for "'+String(it.title||'this item').slice(0,40)+'":', it.note||'');
   if (val===null) return;                 // cancelled
   it.note = val.trim() || null;
-  saveOrders(o); renderHome(); renderOrders();
+  saveOrderPatch(o,{ line_items:o.lineItems }); renderHome(); renderOrders();
   if(_dpId===o.id) _renderDP(_dpLastOrder||localToDPOrder(o), o);   // refresh panel in place
   toast(it.note ? '✓ Instruction saved' : 'Instruction cleared');
 }
@@ -13075,7 +13083,7 @@ function saveRecipe() {
     if (name) recipe.push({name, qty, unit});
   });
   o.recipe = recipe;
-  saveOrders(o);
+  saveOrderPatch(o,{ recipe:o.recipe });
   closeModal('m-recipe');
   toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':''));
   renderOrders(); renderHome();
@@ -13132,7 +13140,7 @@ function _migrateCoverToProduct(o){
 let _dpId = null;
 function openDP(id) {
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
-  if(_migrateCoverToProduct(o)) saveOrders(o);   // attach legacy cover to its product, persist once
+  if(_migrateCoverToProduct(o)) saveOrderPatch(o,{ line_items:o.lineItems, image:o.image });   // attach legacy cover to its product, persist once
   _dpId = id;
   document.getElementById('dp-ttl').textContent = o.name;
   document.getElementById('dp-sub').textContent = (o.type==='pickup'?'Pickup':'Delivery') + (o.dueDate ? ' · ' + fd(o.dateObj||pd(o.dueDate)) : '') + (o.dueTime ? ' · ' + o.dueTime : '');
@@ -13186,7 +13194,7 @@ function setOrderPhoto(id,src){
   } else {
     o.image=src;
   }
-  saveOrders(o); renderHome(); renderOrders();   // persists to Supabase + updates cards
+  saveOrderPatch(o,{ line_items:o.lineItems, image:o.image }); renderHome(); renderOrders();   // persists to Supabase + updates cards
   if(_dpId===id) _renderDP(_dpLastOrder||localToDPOrder(o), o);
   toast('✓ Photo added');
 }
