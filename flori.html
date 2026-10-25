@@ -2297,7 +2297,12 @@ async function syncOrders() {
     // status/totals on top of the newest app data instead of erasing a teammate's
     // change. (Shopify-sourced fields — totals, dates, customer, fulfilled — keep the
     // fresh values from this sync; only app-managed fields are taken from Supabase.)
+    // If the clobber-guard overlay cannot complete (a failed read, e.g. a column the SQL
+    // migration hasn't created yet), the bulk save MUST NOT run — writing un-overlaid
+    // memory is exactly the mass-wipe this guard exists to prevent.
+    let _ovOk = !hasSB();
     if (hasSB()) {
+      let _leanErr = false;
       try {
         // Only re-read the orders we're about to overwrite (the freshly-synced ones) —
         // not the whole 5k+ table. This overlay just needs those orders' app-managed
@@ -2315,7 +2320,8 @@ async function syncOrders() {
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
           const { data, error } = await sb.from('orders').select(LEAN_COLS).in('id', chunk);
-          if (!error && data) lean = lean.concat(data);
+          if (error) { _leanErr = true; console.warn('clobber-guard lean read failed:', error.message); }
+          else if (data) lean = lean.concat(data);
         }
         let sinceOv = _deltaFilterFor('orders_overlay');
         if (sinceOv) {
@@ -2382,7 +2388,8 @@ async function syncOrders() {
           o.recipPhone   = o.recipPhone || r.recip_phone || null;
           o.address      = o.address    || r.address     || null;
         });
-      } catch (e) { console.warn('Sync merge read failed:', e && e.message); }
+        _ovOk = !_leanErr;
+      } catch (e) { _ovOk = false; console.warn('Sync merge read failed:', e && e.message); }
     }
     // Auto-fill product photos from Shopify: if a line item has no user-uploaded
     // photo but Shopify carries a product image, adopt it (stored in .image, so a
@@ -2398,7 +2405,9 @@ async function syncOrders() {
       if (!o.image) o.image = (o.lineItems.find(i => itemPhotos(i).length)||{}).image || null;
     });
     _dropSupersededManualOrders();   // clear manual-draft ghosts once the real Shopify order exists
-    saveOrders(); rehydrateOrders();
+    if (_ovOk) saveOrders();
+    else { console.warn('[sync] clobber guard incomplete — bulk save SKIPPED this round'); toast('⚠ Sync read failed — changes not written this round'); }
+    rehydrateOrders();
     const now = new Date().toLocaleTimeString('en-MY',{hour:'2-digit',minute:'2-digit'});
     setPill(`Synced ${shopify.length} · ${now}`);
     setSBFoot(`Last sync: ${now}`);
