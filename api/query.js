@@ -177,6 +177,15 @@ export default async function handler(req, res) {
   let { shop, token, authToken } = body;
   if (!query) return res.status(400).json({ error: 'Missing: query' });
 
+  // Kill switch for stale app builds: pages left open on old code used to clobber
+  // teammates' data through this very sync path. Old builds send no `build` (or an old
+  // one) and get refused — they can still read, but can no longer write stale state.
+  const MIN_BUILD = parseInt(process.env.MIN_BUILD || '20261025', 10);
+  const clientBuild = parseInt(body.build || 0, 10);
+  if (!clientBuild || clientBuild < MIN_BUILD) {
+    return res.status(426).json({ error: 'App updated — close and reopen BloomFlow on this device' });
+  }
+
   shop = norm(shop) || norm(process.env.SHOPIFY_SHOP);
   if (!shop) return res.status(400).json({ error: 'Missing: shop' });
 

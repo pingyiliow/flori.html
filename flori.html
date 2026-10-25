@@ -542,6 +542,7 @@
             <select id="o-designer"><option value="">— Unassigned —</option><option value="Madeleine">Madeleine</option><option value="Audrey">Audrey</option><option value="Amanda">Amanda</option><option value="Apple">Apple</option><option value="Fang Ler">Fang Ler</option></select></div>
           <div class="ff"><label class="ff-l">Priority</label>
             <select id="o-priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
+          <div class="ff"><label class="ff-l">Staff</label><input id="o-staff" type="text" placeholder="Staff name"></div>
         </div>
         <div class="ff" style="margin-top:10px">
           <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Special Instructions (internal)</label>
@@ -1956,7 +1957,7 @@ async function shopifyGQL(query, variables, opts) {
   try { if (hasSB()) { const { data } = await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_) {}
   let r;
   try {
-    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken, refreshToken: !!(opts && opts.refreshToken) }) });
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken, build: APP_BUILD, refreshToken: !!(opts && opts.refreshToken) }) });
   } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
   let text = ''; try { text = await r.text(); } catch(_) {}
   if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
@@ -2249,7 +2250,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -2272,7 +2273,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -2309,7 +2310,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2352,6 +2353,7 @@ async function syncOrders() {
           o.readyAt      = r.ready_at || null;
           o.fulfilledBy  = r.fulfilled_by || null;
           o.fulfilledAt  = r.fulfilled_at || null;
+          o.staff        = r.staff || null;
           o.designer     = r.designer || null;
           o.priority     = r.priority || 'normal';
           o.internalNote = r.internal_note || null;
@@ -2468,6 +2470,7 @@ function _orderRow(o){
   // below keep untouched rows byte-identical (no re-hash/re-upsert wave).
   row.ready_by=o.readyBy||null; row.ready_at=o.readyAt||null;
   row.fulfilled_by=o.fulfilledBy||null; row.fulfilled_at=o.fulfilledAt||null;
+  row.staff=o.staff||null; if(!o.staff) delete row.staff;
   if (!o.readyBy) delete row.ready_by;
   if (!o.readyAt) delete row.ready_at;
   if (!o.fulfilledBy) delete row.fulfilled_by;
@@ -2880,6 +2883,7 @@ function _mapDbOrder(o){
     ready: o.ready||false, createdAt: o.created_at||null,
     readyBy: o.ready_by||null, readyAt: o.ready_at||null,
     fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
+    staff: o.staff||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -2898,7 +2902,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3198,6 +3202,7 @@ function mergeOrderRows(a, b){
   m.readyAt      = a.readyAt || b.readyAt || null;
   m.fulfilledBy  = a.fulfilledBy || b.fulfilledBy || null;
   m.fulfilledAt  = a.fulfilledAt || b.fulfilledAt || null;
+  m.staff        = a.staff || b.staff || null;
   m.designer     = a.designer || b.designer || null;
   m.priority     = [a.priority,b.priority].find(p=>p&&p!=='normal') || 'normal';
   m.internalNote = a.internalNote || b.internalNote || null;
@@ -7088,7 +7093,7 @@ async function createShopifyDraft() {
   const customAttributes = [
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
     { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
-    { key:'Order Due Time', value: '' },
+    { key:'Order Due Time', value: f.dueTime || '' },
     { key:'Paid By', value: '' },
   ];
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
@@ -7579,6 +7584,10 @@ async function selectCalDay(key) {
 }
 
 /* ─── Navigation ─────────────────────────────────────────────── */
+// Build number sent with every /api/query call. The server rejects older builds' Shopify
+// syncs (the path stale pages used to clobber teammates' data through) — bump BOTH this
+// and MIN_BUILD in api/query.js when a breaking data-safety fix ships.
+const APP_BUILD = 20261025;
 const PAGES = ['home','orders','stock','followup','customers','wanotify','driver','records','todo','team'];
 function goPage(pg) {
   // Role guard — bounce to the dashboard if allowed, else to the driver page
@@ -8295,6 +8304,15 @@ function _staffOrderRecords(){
     const o = dig ? byNo[dig] : null;
     const dObj = (o && o.dateObj) ? o.dateObj : (f.dueDate ? pd(f.dueDate) : (f.createdAt ? new Date(f.createdAt) : null));
     recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:(o&&o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:dObj });
+  });
+  // Orders carry their own Staff field too (Add/Edit Order → Details) — include them,
+  // skipping any already represented by a follow-up with the same order number.
+  const seenNo = new Set(recs.map(r=>String(r.orderNo||'').replace(/[^0-9]/g,'')).filter(Boolean));
+  (typeof ORDERS!=='undefined'?ORDERS:[]).forEach(o=>{
+    if(!o || !o.staff || !String(o.staff).trim()) return;
+    const dig = String(o.name||'').replace(/[^0-9]/g,'');
+    if(dig && seenNo.has(dig)) return;
+    recs.push({ staff:String(o.staff).trim(), orderNo:o.name||'', customer:o.customer||'', amount:(o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:o.dateObj||null });
   });
   return recs;
 }
@@ -12144,6 +12162,7 @@ function saveOrder() {
     manualAddr: addrVal || null,
     lalamoveUrl: prevOrder?.lalamoveUrl || null,   // set during dispatch (On the way), not here
     designer: document.getElementById('o-designer')?.value||null,
+    staff: document.getElementById('o-staff')?.value.trim()||null,
     priority: document.getElementById('o-priority')?.value||'normal',
     internalNote: document.getElementById('o-internal-note')?.value.trim()||null,
     custPhone: custPhone||null,
@@ -12153,7 +12172,7 @@ function saveOrder() {
   };
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
-  ['o-designer','o-priority','o-internal-note'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
+  ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
 }
@@ -12214,6 +12233,7 @@ function _stampDone(o){ const w=currentUserName||'staff', t=new Date().toISOStri
 function _whoLine(o){
   const f=t=>{ try{ return new Date(t).toLocaleString('en-MY',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } };
   const bits=[];
+  if(o.staff) bits.push('Staff — '+o.staff);
   if(o.ready && o.readyBy) bits.push('Ready — '+o.readyBy+(o.readyAt?', '+f(o.readyAt):''));
   const db=o.deliveredBy||o.fulfilledBy, da=o.deliveredAt||o.fulfilledAt;
   if(o.fulfilled && db) bits.push((o.deliveredBy?'Delivered — ':'Done — ')+db+(da?', '+f(da):''));
@@ -12521,6 +12541,7 @@ function editOrder(id) {
   const addrEl=document.getElementById('o-addr');if(addrEl)addrEl.value=o.manualAddr||'';
   const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync(); _oTypeChange();
   const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
+  const stfEl2=document.getElementById('o-staff');if(stfEl2)stfEl2.value=o.staff||'';
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
   // Build product rows from lineItems (or legacy product string)
