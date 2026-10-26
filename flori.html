@@ -2020,7 +2020,10 @@ function _mergeShopItems(stored, shop, removed){
   // Keep stored items still present in Shopify (or app-local), backfilling productType
   // from the fresh Shopify item so cake auto-detection works on kept items too.
   const kept = stored.filter(i => i && (shopTitles.has(i.title) || i.local === true))
-    .map(i => { const s = _shopByTitle[i.title]; if(!s) return i; const patch={}; if(s.productType && !i.productType) patch.productType=s.productType; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
+    .map(i => { const s = _shopByTitle[i.title]; if(!s) return i; const patch={}; if(s.productType && !i.productType) patch.productType=s.productType;
+      // Webhook rows carry no product image (Shopify's REST line items have none) — fill the
+      // product's own Shopify photo, unless staff deliberately cleared this item's photos.
+      if(s.image && !i.image && !(i.images && i.images.length) && !i.imgCleared) patch.image=s.image; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
   const have = new Set(kept.map(i => i.title));
   const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
@@ -13094,7 +13097,7 @@ function addItemPhoto(orderId,itemIdx){
     if(!Array.isArray(it.images)) it.images=itemPhotos(it);   // migrate single image -> array
     toast(files.length>1?`Uploading ${files.length} photos…`:'Uploading photo…');
     let pending=files.length;
-    files.forEach(f=>storePhoto(f,src=>{ it.images.push(src); it.image=it.images[0]; if(--pending===0) _persistItemPhotos(o); }));
+    files.forEach(f=>storePhoto(f,src=>{ it.images.push(src); it.image=it.images[0]; delete it.imgCleared; if(--pending===0) _persistItemPhotos(o); }));
   };
   inp.click();
 }
@@ -13109,7 +13112,7 @@ function addItemPhotoDrop(e,orderId,itemIdx){
   if(!Array.isArray(it.images)) it.images=itemPhotos(it);
   toast(files.length>1?`Uploading ${files.length} photos…`:'Uploading photo…');
   let pending=files.length;
-  files.forEach(f=>storePhoto(f,src=>{ it.images.push(src); it.image=it.images[0]; if(--pending===0) _persistItemPhotos(o); }));
+  files.forEach(f=>storePhoto(f,src=>{ it.images.push(src); it.image=it.images[0]; delete it.imgCleared; if(--pending===0) _persistItemPhotos(o); }));
 }
 function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
   if(e)e.stopPropagation();
@@ -13118,6 +13121,7 @@ function deleteItemPhoto(orderId,itemIdx,photoIdx,e){
   const it=o.lineItems[itemIdx];
   const imgs=itemPhotos(it); imgs.splice(photoIdx,1);
   it.images=imgs; it.image=imgs[0]||null;
+  if(!imgs.length) it.imgCleared=true; else delete it.imgCleared;   // emptied on purpose → sync must not refill it
   _persistItemPhotos(o);
 }
 function _persistItemPhotos(o){
