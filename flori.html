@@ -2138,6 +2138,7 @@ function _mapShopifyOrder(n){
       if (ph.length) { li.images = ph; li.image = ph[0]; }
       return li;
     });
+  _shopImgRemember(n.id, n.lineItems.edges.map(e => ({ title: e.node.title, image: e.node.image?.url || null })));
   // Older drafts carried photos only as one flat 'BloomFlow Photos' order attribute. That
   // list can't say which product each photo belongs to, so it's only trusted on a
   // single-product order — on multi-item orders it used to pile every photo (even other
@@ -3399,7 +3400,39 @@ async function migrateOrderIds({ dryRun = false } = {}) {
 }
 if (typeof window !== 'undefined') window.migrateOrderIds = migrateOrderIds;
 
+// Shopify catalog photo per order item. Webhook-inserted DB rows carry none (Shopify's REST
+// line items have no image), so every DB merge — realtime echo, broadcast re-pull, load —
+// replaced the sync-filled photo with an image-less row ("flashes then disappears").
+// Remembered from each Shopify sync, cached locally, re-applied on every rehydrate.
+var _SHOPIMG = null;
+function _shopImgMap(){
+  if (!_SHOPIMG){ try{ _SHOPIMG = JSON.parse(localStorage.getItem('flori-shopimg')||'{}') || {}; }catch(_){ _SHOPIMG = {}; } }
+  return _SHOPIMG;
+}
+function _shopImgRemember(id, items){
+  const m = _shopImgMap(), e = {};
+  (items||[]).forEach(li => { if (li && li.title && li.image) e[li.title] = li.image; });
+  if (!Object.keys(e).length) return;
+  const k = shopId(id);
+  if (JSON.stringify(m[k]) === JSON.stringify(e)) return;
+  delete m[k]; m[k] = e;   // re-insert → newest last, so pruning drops the oldest
+  clearTimeout(window._shopImgT);
+  window._shopImgT = setTimeout(() => { try{
+    const ks = Object.keys(m); if (ks.length > 1500) ks.slice(0, ks.length-1500).forEach(x => delete m[x]);
+    localStorage.setItem('flori-shopimg', JSON.stringify(m));
+  }catch(_){} }, 1500);
+}
+function _shopImgApply(){
+  const m = _shopImgMap();
+  ORDERS.forEach(o => {
+    const e = m[shopId(o.id)]; if (!e || !Array.isArray(o.lineItems)) return;
+    let hit = false;
+    o.lineItems.forEach(li => { if (li && !li.image && !(li.images && li.images.length) && !li.imgCleared && e[li.title]) { li.image = e[li.title]; hit = true; } });
+    if (hit && !o.image) { const c = o.lineItems.find(i => itemPhotos(i).length); if (c) o.image = itemPhotos(c)[0]; }
+  });
+}
 function rehydrateOrders() {
+  try { _shopImgApply(); } catch(_){}
   const now = today0();
   ORDERS.forEach(o => {
     // Prefer the authoritative due_on date column when present; fall back to parsing
