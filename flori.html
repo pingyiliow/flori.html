@@ -1230,19 +1230,23 @@ function _killAutofill(){
     if(['checkbox','radio','file','range','color','submit','button','hidden','password','date','time','datetime-local'].includes(t)) return;
     el.setAttribute('autocomplete','off'); el.setAttribute('data-lpignore','true'); el.setAttribute('data-1p-ignore','');
     el.dataset.afk='1';
-    if(!el.value && document.activeElement!==el) el.setAttribute('readonly','');
+    if(_AF_TOUCH){ if(el.readOnly && el.dataset.afro) { el.removeAttribute('readonly'); delete el.dataset.afro; } return; }
+    if(!el.value && document.activeElement!==el){ el.setAttribute('readonly',''); el.dataset.afro='1'; }
   });
 }
 // Desktop: stay readonly through the whole CLICK (Chrome decides the popup at click time)
 // and unlock on the first KEYSTROKE instead — typing/paste-by-keyboard work from key one.
-// Touch devices: unlock on focus (a readonly field never raises the on-screen keyboard).
-// An empty field re-locks on blur so the next click is silent again.
-const _AF_TOUCH=(typeof matchMedia==='function')&&matchMedia('(pointer:coarse)').matches;
-const _afUnlock=e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&el.readOnly) el.removeAttribute('readonly'); };
-if(_AF_TOUCH) document.addEventListener('focusin',_afUnlock,true);
+// Touch-capable devices NEVER get the readonly trick: a readonly field doesn't raise the
+// on-screen keyboard, and unlocking it on focus doesn't bring the keyboard up either, so
+// fields became untypeable on phones/tablets. Any lingering lock is lifted at finger-down,
+// before focus happens. An empty desktop field re-locks on blur so the next click is silent.
+const _AF_TOUCH=((typeof matchMedia==='function')&&(matchMedia('(pointer:coarse)').matches||matchMedia('(any-pointer:coarse)').matches))
+  || (navigator.maxTouchPoints||0)>0 || ('ontouchstart' in window);
+const _afUnlock=e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&el.readOnly){ el.removeAttribute('readonly'); delete el.dataset.afro; } };
+['pointerdown','touchstart','focusin'].forEach(ev=>document.addEventListener(ev,e=>{ if(_AF_TOUCH||(e.pointerType&&e.pointerType!=='mouse')) _afUnlock(e); },{capture:true,passive:true}));
 document.addEventListener('keydown',_afUnlock,true);
 document.addEventListener('beforeinput',_afUnlock,true);
-document.addEventListener('focusout',e=>{ const el=e.target; if(el&&el.dataset&&el.dataset.afk&&!el.value) el.setAttribute('readonly',''); },true);
+document.addEventListener('focusout',e=>{ const el=e.target; if(!_AF_TOUCH&&el&&el.dataset&&el.dataset.afk&&!el.value){ el.setAttribute('readonly',''); el.dataset.afro='1'; } },true);
 setInterval(_killAutofill,2500);
 if(document.readyState!=='loading') _killAutofill(); else document.addEventListener('DOMContentLoaded',_killAutofill);
 function dot(color, size){ size=size||10; return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24" style="vertical-align:-1px;flex:none"><circle cx="12" cy="12" r="10" fill="'+color+'"/></svg>'; }
