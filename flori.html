@@ -501,6 +501,7 @@
         <div class="fg fg-2">
           <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
           <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Staff</label><input id="o-staff" type="text" list="o-staff-opts" placeholder="Staff name" autocomplete="off"><datalist id="o-staff-opts"></datalist></div>
         </div>
       </div>
 
@@ -543,7 +544,6 @@
             <select id="o-designer"><option value="">— Unassigned —</option><option value="Madeleine">Madeleine</option><option value="Audrey">Audrey</option><option value="Amanda">Amanda</option><option value="Apple">Apple</option><option value="Fang Ler">Fang Ler</option></select></div>
           <div class="ff"><label class="ff-l">Priority</label>
             <select id="o-priority"><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></div>
-          <div class="ff"><label class="ff-l">Staff</label><input id="o-staff" type="text" placeholder="Staff name"></div>
         </div>
         <div class="ff" style="margin-top:10px">
           <label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Special Instructions (internal)</label>
@@ -12710,6 +12710,7 @@ function saveOrder() {
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
+  _oStaffOpts();
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
 }
@@ -12774,6 +12775,14 @@ function _patchDone(o){
     delivered_at:o.deliveredAt||null, delivered_by:o.deliveredBy||null,
     delivered_lat:o.deliveredLat??null, delivered_lng:o.deliveredLng??null,
     proof_photo:o.proofPhoto||null, proof_photos:o.proofPhotos||null });
+}
+// Staff suggestions for the order form: names already used on orders and follow-ups,
+// most used first — keeps one spelling per person so Records → Staff orders groups cleanly.
+function _oStaffOpts(){
+  const dl=document.getElementById('o-staff-opts'); if(!dl) return;
+  const c={};
+  [...(typeof ORDERS!=='undefined'?ORDERS:[]), ...(typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[])].forEach(x=>{ const v=String((x&&x.staff)||'').trim(); if(v) c[v]=(c[v]||0)+1; });
+  dl.innerHTML=Object.entries(c).sort((a,b)=>b[1]-a[1]).slice(0,30).map(([v])=>'<option value="'+esc(v)+'">').join('');
 }
 function _whoLine(o){
   const f=t=>{ try{ return new Date(t).toLocaleString('en-MY',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}); }catch(_){ return ''; } };
@@ -13087,6 +13096,7 @@ function editOrder(id) {
   const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync(); _oTypeChange();
   const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
   const stfEl2=document.getElementById('o-staff');if(stfEl2)stfEl2.value=o.staff||'';
+  _oStaffOpts();
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
   // Build product rows from lineItems (or legacy product string)
