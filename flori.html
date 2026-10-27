@@ -1073,9 +1073,11 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <div class="ff"><label class="ff-l">Order Channel</label>
             <select id="fu-channel"><option value="whatsapp">WhatsApp</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="shopify">Shopify</option><option value="walkin">Walk-in</option><option value="other">Other</option></select>
           </div>
-          <div class="ff"><label class="ff-l">Payment</label>
+          <div class="ff" style="display:none"><label class="ff-l">Payment</label>
             <select id="fu-payment"><option value="pending">Pending</option><option value="paid">Paid</option></select>
           </div>
+          <div class="ff"><label class="ff-l">Paid By</label><select id="fu-paid-m" onchange="_fuPayUI()"></select>
+            <input id="fu-paid-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
           <div class="ff"><label class="ff-l">Follow-up Status</label>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
@@ -3245,7 +3247,7 @@ async function loadFromSupabase(opts = {}) {
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
-        addr: f.addr||'', payment: f.payment||'pending',
+        addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'',
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'',
         needInvoice: !!f.need_invoice,
@@ -6547,7 +6549,7 @@ function saveFollowups() {
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
-      addr: f.addr||null, payment: f.payment||'pending',
+      addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null,
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null,
       need_invoice: !!f.needInvoice,
@@ -6556,7 +6558,7 @@ function saveFollowups() {
     sbUpsert('followups', rows).then(ok => {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -6579,6 +6581,7 @@ function _fuClearFields() {
   });
   document.getElementById('fu-channel').value = 'whatsapp';
   document.getElementById('fu-payment').value = 'pending';
+  _fuPaySet('', 'pending');
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
   _fuFulfilSet('delivery');
   const pr = document.getElementById('fu-parse-result'); if(pr) pr.style.display='none';
@@ -6948,6 +6951,7 @@ function editFollowup(id) {
   const rp = document.getElementById('fu-recip-phone'); if(rp) rp.value = f.recipPhone||'';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
+  _fuPaySet(f.paidBy||'', f.payment||'pending');
   const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
   _fuFulfilSet(f.fulfil || 'delivery');
   const od = document.getElementById('fu-order-date'); if(od) od.value = f.orderDate||'';
@@ -7152,7 +7156,8 @@ function saveFollowup() {
     amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
     deliveryFee:parseFloat(document.getElementById('fu-fee')?.value)||0,
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
-    payment:    document.getElementById('fu-payment').value,
+    payment:    _fuPayGet().payment,
+    paidBy:     _fuPayGet().paidBy,
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
     items:      _itemsText,
     cardMsg:    _cardAgg,
@@ -7203,7 +7208,68 @@ function doCompleteFollowup() {
   saveFollowups(); renderFollowup(); closeModal('m-fu-complete');
   toast('✓ Marked completed' + (f.orderNo ? ' · '+f.orderNo : ''));
 }
-function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(f) f.payment=f.payment==='paid'?'pending':'paid'; saveFollowups(); renderFollowup(); }
+// ── Paid By: one method list (Pending payment = unpaid; any method = paid). Card and
+// cheque carry a reference; Other is free text. Stored as one string in paid_by:
+// "Cash" · "Credit card — Approval code: 123456" · "Cheque — Cheque number: 000123" · free text.
+const PAY_METHODS=['Cash','Bank transfer','Credit card','Cheque','Payex','PayPal','2C2P','HitPay','Other'];
+const PAY_REF={ 'Credit card':'Approval code', 'Cheque':'Cheque number', 'Other':'Paid by' };
+function _payParse(s){
+  s=String(s||'').trim(); if(!s) return { m:'', ref:'' };
+  const i=s.indexOf(' — '), head=i>=0?s.slice(0,i):s, tail=i>=0?s.slice(i+3):'';
+  if(head!=='Other' && PAY_METHODS.includes(head)) return { m:head, ref:tail.replace(/^(Approval code|Cheque number):\s*/,'') };
+  return { m:'Other', ref:s };
+}
+function _payFmt(m, ref){
+  ref=String(ref||'').trim();
+  if(!m || m==='__paid') return '';
+  if(m==='Other') return ref || 'Other';
+  return (PAY_REF[m] && ref) ? m+' — '+PAY_REF[m]+': '+ref : m;
+}
+function _payOpts(sel, legacyPaid){
+  return '<option value="">Pending payment</option>'
+    +(legacyPaid?'<option value="__paid"'+(sel==='__paid'?' selected':'')+'>Paid</option>':'')
+    +PAY_METHODS.map(m=>'<option value="'+m+'"'+(sel===m?' selected':'')+'>'+m+'</option>').join('');
+}
+// Form
+function _fuPaySet(paidBy, payment){
+  const sel=document.getElementById('fu-paid-m'), ref=document.getElementById('fu-paid-ref'); if(!sel) return;
+  const p=_payParse(paidBy), legacy=(payment==='paid' && !p.m);
+  sel.innerHTML=_payOpts(legacy?'__paid':p.m, legacy);
+  if(ref) ref.value=(p.m==='Other' && p.ref==='Other') ? '' : (p.ref||'');
+  _fuPayUI();
+}
+function _fuPayUI(){
+  const m=(document.getElementById('fu-paid-m')||{}).value||'', ref=document.getElementById('fu-paid-ref'); if(!ref) return;
+  ref.style.display=PAY_REF[m]?'':'none'; ref.placeholder=PAY_REF[m]||'';
+  const pay=document.getElementById('fu-payment'); if(pay) pay.value=m?'paid':'pending';
+}
+function _fuPayGet(){
+  const m=(document.getElementById('fu-paid-m')||{}).value||'', ref=(document.getElementById('fu-paid-ref')||{}).value||'';
+  return { payment: m?'paid':'pending', paidBy: _payFmt(m, ref) };
+}
+// List cell
+function _fuPayCell(f){
+  const p=_payParse(f.paidBy), legacy=(f.payment==='paid' && !p.m), cur=legacy?'__paid':p.m;
+  const st='width:100%;max-width:140px;padding:4px 6px;border:1px solid var(--c-border);border-radius:6px;font-size:10.5px;background:var(--c-surface);color:var(--c-ink);outline:none';
+  const refVal=(p.m==='Other' && p.ref==='Other') ? '' : (p.ref||'');
+  return '<select aria-label="Paid by" onclick="event.stopPropagation()" onchange="setFUPay(\''+f.id+'\',this.value)" style="'+st+'">'+_payOpts(cur, legacy)+'</select>'
+    +(PAY_REF[p.m]?'<input data-payref="'+f.id+'" value="'+esc(refVal)+'" placeholder="'+PAY_REF[p.m]+'" aria-label="'+PAY_REF[p.m]+'" autocomplete="off" onclick="event.stopPropagation()" onkeydown="event.stopPropagation();if(event.key===\'Enter\')this.blur()" onchange="setFUPayRef(\''+f.id+'\',this.value)" style="'+st+';margin-top:4px">':'');
+}
+function setFUPay(id, m){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  const old=_payParse(f.paidBy);
+  f.paidBy=_payFmt(m, m===old.m?old.ref:'');
+  f.payment=m?'paid':'pending';
+  saveFollowups(); renderFollowup();
+  if(PAY_REF[m] && m!==old.m) setTimeout(()=>{ const i=document.querySelector('[data-payref="'+id+'"]'); if(i) i.focus(); },50);
+}
+function setFUPayRef(id, v){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  const p=_payParse(f.paidBy), nv=_payFmt(p.m, v);
+  if(nv===(f.paidBy||'')) return;
+  f.paidBy=nv; saveFollowups(); toast('✓ Saved');
+}
+function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return; f.payment=f.payment==='paid'?'pending':'paid'; if(f.payment==='pending') f.paidBy=''; saveFollowups(); renderFollowup(); }
 function toggleInvoice(id) {
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   f.needInvoice = !f.needInvoice;
@@ -7538,7 +7604,7 @@ async function createShopifyDraft() {
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
     { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
     { key:'Order Due Time', value: f.dueTime || '' },
-    { key:'Paid By', value: '' },
+    { key:'Paid By', value: f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment') },
   ];
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
   // they show clearly on the Shopify order and sync back into the daily-order detail.
@@ -7765,6 +7831,7 @@ function renderFollowup() {
       <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}${feeLine}</div>
       <div class="fu-c-badges">
         <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
+        ${_fuPayCell(f)}
         <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
       </div>
       <div class="fu-c-tick" style="display:flex;flex-direction:column;gap:6px;align-items:center">
@@ -7834,6 +7901,7 @@ function openFUDP(id) {
     rows.push(['Total',        'RM '+(parseFloat(f.amount||0)+parseFloat(f.deliveryFee)).toFixed(2)]);
   }
   rows.push(['Payment', payLbl]);
+  if (f.paidBy) rows.push(['Paid By', f.paidBy]);
   if (f.orderNo) rows.push(['Shopify Order', f.orderNo]);
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
