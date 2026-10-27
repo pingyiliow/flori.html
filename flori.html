@@ -8837,7 +8837,7 @@ function _staffOrderRecords(){
     const dig = String(f.orderNo||'').replace(/[^0-9]/g,'');
     const o = dig ? byNo[dig] : null;
     const dObj = (o && o.dateObj) ? o.dateObj : (f.dueDate ? pd(f.dueDate) : (f.createdAt ? new Date(f.createdAt) : null));
-    recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:(o&&o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:dObj });
+    recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:(o&&o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:dObj, oid:o?o.id:null, fuId:f.id });
   });
   // Orders carry their own Staff field too (Add/Edit Order → Details) — include them,
   // skipping any already represented by a follow-up with the same order number.
@@ -8846,9 +8846,26 @@ function _staffOrderRecords(){
     if(!o || !o.staff || !String(o.staff).trim()) return;
     const dig = String(o.name||'').replace(/[^0-9]/g,'');
     if(dig && seenNo.has(dig)) return;
-    recs.push({ staff:String(o.staff).trim(), orderNo:o.name||'', customer:o.customer||'', amount:(o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:o.dateObj||null });
+    recs.push({ staff:String(o.staff).trim(), orderNo:o.name||'', customer:o.customer||'', amount:(o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:o.dateObj||null, oid:o.id, fuId:null });
   });
   return recs;
+}
+let _staffRecList = [];
+async function _staffOpen(i){
+  const r=_staffRecList[i]; if(!r) return;
+  const find=()=>{ if(r.oid){ const o=ORDERS.find(x=>shopId(x.id)===shopId(r.oid)); if(o) return o; }
+    const d=String(r.orderNo||'').replace(/[^0-9]/g,''); return d ? ORDERS.find(x=>String(x.name||'').replace(/[^0-9]/g,'')===d) : null; };
+  let o=find();
+  if(!o && hasSB() && r.orderNo){
+    const d=String(r.orderNo).replace(/[^0-9]/g,'');
+    try{
+      const { data, error } = await sb.from('orders').select(ORDER_COLS).in('name', [String(r.orderNo).trim(), '#'+d]).limit(5);
+      if(!error && data && data.length){ _mergeDbOrders(data); _cacheOrders(); o=find(); }
+    }catch(_){}
+  }
+  if(o) openDP(o.id);
+  else if(r.fuId && typeof openFUDP==='function') openFUDP(r.fuId);
+  else toast('Order not found');
 }
 function _staffOrdersHTML(){
   const recs = _staffOrderRecords();
@@ -8859,16 +8876,18 @@ function _staffOrdersHTML(){
   const monthName = k => { if(k==='0000-00') return 'No date'; const p=k.split('-'); return new Date(+p[0],+p[1]-1,1).toLocaleDateString('en-MY',{month:'long',year:'numeric'}); };
   const av = s => String(s||'?').trim().slice(0,2).toUpperCase();
   let h = '<div style="max-width:640px">';
+  _staffRecList = [];
   keys.forEach(k=>{
     const list = groups[k].sort((a,b)=>((b.date?b.date.getTime():0)-(a.date?a.date.getTime():0)));
     const total = list.reduce((s,r)=>s+(r.amount||0),0);
     h += '<div style="display:flex;align-items:baseline;justify-content:space-between;margin:0 2px 8px"><div style="font-size:13px;font-weight:700">'+monthName(k)+'</div><div style="font-size:11.5px;color:var(--c-muted)">'+list.length+' order'+(list.length>1?'s':'')+(total>0?' · '+_recMoney(total):'')+'</div></div>';
     h += '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;overflow:hidden;margin-bottom:20px">';
-    h += list.map((r,i)=> '<div style="display:flex;align-items:center;gap:11px;padding:11px 14px;'+(i?'border-top:1px solid var(--c-border);':'')+'">'
+    h += list.map((r,i)=> '<div onclick="_staffOpen('+(_staffRecList.push(r)-1)+')" style="display:flex;align-items:center;gap:11px;padding:11px 14px;cursor:pointer;'+(i?'border-top:1px solid var(--c-border);':'')+'">'
       + '<span style="width:34px;height:34px;border-radius:50%;background:var(--p-lav);color:var(--p-lav-ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:none">'+esc(av(r.staff))+'</span>'
       + '<div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">'+esc(r.staff)+' <span style="color:var(--c-muted);font-weight:400">· '+esc(r.customer||'—')+'</span></div>'
       + '<div style="font-size:11.5px;color:var(--c-muted)">'+esc(r.orderNo||'—')+(r.date?' · '+r.date.toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'')+'</div></div>'
       + (r.amount!=null?'<div style="font-size:13.5px;font-weight:700;white-space:nowrap">'+_recMoney(r.amount)+'</div>':'')
+      + '<span style="color:var(--c-border2);font-size:15px;flex:none">›</span>'
     + '</div>').join('');
     h += '</div>';
   });
@@ -13907,6 +13926,7 @@ function _renderDPInner(order, localOrder) {
     const shipping = order.totalShippingPriceSet?.shopMoney?.amount;
     const total    = order.currentTotalPriceSet?.shopMoney?.amount || localOrder.total;
     const sameCount = items.length === liLocal.length;
+    const _lineTotals = [];
     const itemRows = dispItems.map((li,k) => {
       const title = li.title || '–';
       const qty   = li.quantity || 1;
@@ -13917,6 +13937,7 @@ function _renderDPInner(order, localOrder) {
       const shopTotal = shopMatch?.originalTotalSet?.shopMoney?.amount;
       const unit = (useLocal && li.price != null && li.price !== '') ? parseFloat(li.price) : null;
       const lineTotal = unit != null ? unit * qty : (shopTotal || null);
+      _lineTotals.push(lineTotal != null && lineTotal !== '' ? parseFloat(lineTotal) : null);
       // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
       // stored line items (liIdx>=0) so edits hit the right item.
       const liIdx = useLocal ? k : -1;
@@ -13931,12 +13952,22 @@ function _renderDPInner(order, localOrder) {
       </div>${_variantLine(li)}${noteHtml}${strip}`;
     }).join('');
 
+    // The stored items are the source of truth once staff edit them (an added product
+    // exists only in the app), so Subtotal/Total add up what's listed. When that differs
+    // from Shopify's own figure, Shopify's total is shown too — it wasn't changed there.
+    const _priced = useLocal && _lineTotals.length && _lineTotals.every(v => v != null && !isNaN(v));
+    const _ship = (shipping && parseFloat(shipping) > 0) ? parseFloat(shipping) : 0;
+    const subShow = _priced ? _lineTotals.reduce((a,b)=>a+b,0) : (subtotal != null ? parseFloat(subtotal) : null);
+    const totShow = _priced ? subShow + _ship : (total != null && total !== '' ? parseFloat(total) : null);
+    const shopTot = order.currentTotalPriceSet?.shopMoney?.amount;
+    const shopDiff = _priced && shopTot != null && Math.abs(parseFloat(shopTot) - totShow) > 0.005;
     html += `<div>
       <div class="dp-section-ttl">Items & Price</div>
       ${itemRows}
-      ${subtotal?`<div class="dp-row" style="margin-top:8px"><div class="dp-row-lbl" style="color:var(--c-muted)">Subtotal</div><div class="dp-row-val">${_fmt(subtotal,currency)}</div></div>`:''}
-      ${shipping && parseFloat(shipping)>0?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">Delivery fee</div><div class="dp-row-val">${_fmt(shipping,currency)}</div></div>`:''}
-      ${total?`<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">${_fmt(total,currency)}</div></div>`:''}
+      ${subShow!=null?`<div class="dp-row" style="margin-top:8px"><div class="dp-row-lbl" style="color:var(--c-muted)">Subtotal</div><div class="dp-row-val">${_fmt(subShow,currency)}</div></div>`:''}
+      ${_ship?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">Delivery fee</div><div class="dp-row-val">${_fmt(_ship,currency)}</div></div>`:''}
+      ${totShow!=null?`<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">${_fmt(totShow,currency)}</div></div>`:''}
+      ${shopDiff?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">In Shopify</div><div class="dp-row-val" style="color:var(--c-muted)">${_fmt(shopTot,currency)}</div></div>`:''}
     </div>`;
   }
 
