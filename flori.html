@@ -2145,6 +2145,7 @@ function _mapShopifyOrder(n){
       return li;
     });
   _shopImgRemember(n.id, n.lineItems.edges.map(e => ({ title: e.node.title, image: e.node.image?.url || null })));
+  _shopSubRemember(n.id, n.lineItems.edges.reduce((sum, e) => { const q = (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 0; return sum + (parseFloat(e.node.originalUnitPriceSet?.shopMoney?.amount) || 0) * q; }, 0));
   // Older drafts carried photos only as one flat 'BloomFlow Photos' order attribute. That
   // list can't say which product each photo belongs to, so it's only trusted on a
   // single-product order — on multi-item orders it used to pile every photo (even other
@@ -2296,7 +2297,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,totalAdj:o.totalAdj,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -2319,7 +2320,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.totalAdj=pm.totalAdj||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -2361,7 +2362,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2409,6 +2410,7 @@ async function syncOrders() {
           o.fulfilledBy  = r.fulfilled_by || null;
           o.fulfilledAt  = r.fulfilled_at || null;
           o.staff        = r.staff || null;
+          o.totalAdj     = ('total_adj' in r) ? (r.total_adj || null) : (o.totalAdj || null);   // app-managed amount difference — DB wins
           o.designer     = r.designer || null;
           o.priority     = r.priority || 'normal';
           o.internalNote = r.internal_note || null;
@@ -2534,6 +2536,7 @@ function _orderRow(o){
   row.ready_by=o.readyBy||null; row.ready_at=o.readyAt||null;
   row.fulfilled_by=o.fulfilledBy||null; row.fulfilled_at=o.fulfilledAt||null;
   row.staff=o.staff||null; if(!o.staff) delete row.staff;
+  row.total_adj=o.totalAdj||null; if(!o.totalAdj) delete row.total_adj;
   if (!o.readyBy) delete row.ready_by;
   if (!o.readyAt) delete row.ready_at;
   if (!o.fulfilledBy) delete row.fulfilled_by;
@@ -2994,7 +2997,7 @@ function _mapDbOrder(o){
     ready: o.ready||false, createdAt: o.created_at||null,
     readyBy: o.ready_by||null, readyAt: o.ready_at||null,
     fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
-    staff: o.staff||null,
+    staff: o.staff||null, totalAdj: o.total_adj||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, lalamoveOrderId: o.lalamove_order_id||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -3013,7 +3016,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3437,6 +3440,27 @@ function _shopImgApply(){
     if (hit && !o.image) { const c = o.lineItems.find(i => itemPhotos(i).length); if (c) o.image = itemPhotos(c)[0]; }
   });
 }
+// Shopify's own item subtotal per order (from each sync, cached locally) — the base an
+// in-app edit is measured against, so an item added earlier is still counted on re-save.
+var _SHOPSUB = null;
+function _shopSubMap(){ if (!_SHOPSUB){ try{ _SHOPSUB = JSON.parse(localStorage.getItem('flori-shopsub')||'{}') || {}; }catch(_){ _SHOPSUB = {}; } } return _SHOPSUB; }
+function _shopSubRemember(id, sum){
+  const m = _shopSubMap(), k = shopId(id), v = Math.round((sum||0)*100)/100;
+  if (m[k] === v) return; delete m[k]; m[k] = v;
+  clearTimeout(window._shopSubT);
+  window._shopSubT = setTimeout(() => { try{ const ks = Object.keys(m); if (ks.length > 3000) ks.slice(0, ks.length-3000).forEach(x => delete m[x]); localStorage.setItem('flori-shopsub', JSON.stringify(m)); }catch(_){} }, 1500);
+}
+// Money. An order's real amount = Shopify's total + any difference made in the app
+// (total_adj = {delta, base}); the difference is dropped once Shopify's own total moves
+// off its base (the order was edited in Shopify too), so nothing is counted twice.
+function _adjOK(total, adj){ return !!(adj && typeof adj === 'object' && isFinite(parseFloat(adj.delta)) && Math.abs((parseFloat(total)||0) - (parseFloat(adj.base)||0)) < 0.005); }
+function _bizAmt(r){
+  let t = parseFloat(r.total) || 0;
+  if (!t && r.manual_price) t = parseFloat(r.manual_price) || 0;
+  if (_adjOK(r.total, r.total_adj)) t += parseFloat(r.total_adj.delta);
+  return t;
+}
+function _sumItems(arr){ return (arr||[]).reduce((s,i) => s + (parseFloat(i && i.price) || 0) * (parseInt(i && i.quantity) || 1), 0); }
 function rehydrateOrders() {
   try { _shopImgApply(); } catch(_){}
   const now = today0();
@@ -3684,7 +3708,7 @@ function orderRow(o, showDate=true) {
 /* ─── Order card (Daily Orders + Dashboard) ──────────────────── */
 function orderTotal(o) {
   if (o.manualPrice && parseFloat(o.manualPrice) > 0) return parseFloat(o.manualPrice);
-  if (o.total && parseFloat(o.total) > 0) return parseFloat(o.total);
+  if (o.total && parseFloat(o.total) > 0) return parseFloat(o.total) + (_adjOK(o.total, o.totalAdj) ? parseFloat(o.totalAdj.delta) : 0);
   if (o.lineItems && o.lineItems.length) {
     let sum = 0, has = false;
     o.lineItems.forEach(i => { const p = parseFloat(i.price) || 0; if (p > 0) { sum += p * (i.quantity || 1); has = true; } });
@@ -4539,7 +4563,7 @@ function _bizPatchRows(list){
 // ── Business report ("View all"): one modal, four views — days / products / sources /
 // cakes — sharing one range picker. Each range is fetched lean (no line_items/photos) and
 // cached 10 min; every list drills down to the full order list, and an order opens its panel.
-const _BIZ_COLS='id,name,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
+const _BIZ_COLS='id,name,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at,manual_price,total_adj';
 const _BIZ_CH={ web:['Online store','#185FA5'], whatsapp:['WhatsApp','#639922'], facebook:['Facebook','#7F77DD'], instagram:['Instagram','#D4537E'], walkin:['Walk-in','#BA7517'], staff:['Staff draft','#888780'], other:['Other','#B4B2A9'], shopify:['Shopify','#185FA5'] };
 function _bizFuCh(){ const m={}; (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).forEach(f=>{ const n=String(f.orderNo||'').replace(/\D/g,''); if(n&&f.channel) m[n]=f.channel; }); return m; }
 // Channel of one order: manual rows carry their own; Shopify rows use sourceName (web =
@@ -4647,7 +4671,7 @@ async function _repRender(){
 }
 function _repMain(rows, srcMap){
   const v=_rep.view, sel=_rep.sel, fuCh=_bizFuCh();
-  const sum=x=>x.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+  const sum=x=>x.reduce((s,r)=>s+_bizAmt(r),0);
   const rm=x=>'RM '+Math.round(x).toLocaleString('en-MY');
   const base = v==='cakes' ? rows.filter(_bizIsCake) : rows;
   const match = r => sel==null ? true
@@ -4665,7 +4689,7 @@ function _repMain(rows, srcMap){
   const row=(l,r2,click,on,dot)=>'<div onclick="'+click+'" style="display:flex;align-items:center;gap:8px;padding:8px 2px;border-top:1px solid var(--c-border);cursor:pointer;font-size:12.5px'+(on?';background:rgba(122,47,58,.06)':'')+'">'
     +(dot?'<span style="width:9px;height:9px;border-radius:50%;background:'+dot+';flex:none"></span>':'')
     +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'+(on?'font-weight:700;color:var(--c-burg)':'')+'">'+l+'</span><span style="flex:none;color:var(--c-muted)">'+r2+'</span><span style="color:var(--c-border2);flex:none">›</span></div>';
-  const grp=(keyFn)=>{ const g={}; base.forEach(r=>[].concat(keyFn(r)).forEach(k=>{ if(!g[k]) g[k]={n:0,v:0}; g[k].n++; g[k].v+=parseFloat(r.total)||0; })); return Object.entries(g).sort((x,y)=>y[1].n-x[1].n); };
+  const grp=(keyFn)=>{ const g={}; base.forEach(r=>[].concat(keyFn(r)).forEach(k=>{ if(!g[k]) g[k]={n:0,v:0}; g[k].n++; g[k].v+=_bizAmt(r); })); return Object.entries(g).sort((x,y)=>y[1].n-x[1].n); };
   if(v==='days'){
     const span=Math.round((new Date(_rep.b+'T00:00:00')-new Date(_rep.a+'T00:00:00'))/86400000)+1;
     const byMonth=span>62, tIso=tdi(today0());
@@ -4719,7 +4743,7 @@ function _repMain(rows, srcMap){
     return '<div onclick="_bizOpenOrder(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid var(--c-border);cursor:pointer">'
       +'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc((r.name?r.name+' · ':'')+(r.customer||'Order'))+'</div>'
       +'<div style="font-size:11.5px;color:var(--c-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+sub+'</div></div>'
-      +'<div style="flex:none;text-align:right"><div style="font-size:12px;font-weight:600">'+esc(d)+'</div><div style="font-size:11px;color:var(--c-muted)">'+rm(parseFloat(r.total)||0)+'</div></div>'
+      +'<div style="flex:none;text-align:right"><div style="font-size:12px;font-weight:600">'+esc(d)+'</div><div style="font-size:11px;color:var(--c-muted)">'+rm(_bizAmt(r))+'</div></div>'
       +'<span style="color:var(--c-border2);font-size:15px;flex:none">›</span></div>';
   }).join('');
   if(list.length>cap) h+='<div style="text-align:center;padding:12px"><button class="btn btn-ghost btn-sm" onclick="_repMore()">Show all '+list.length+'</button></div>';
@@ -4771,7 +4795,7 @@ async function loadBizMonths(){
   const endD=new Date(now.getFullYear(), now.getMonth()+1, 0);
   const end7=new Date(today0().getTime()+7*86400000);
   const end=tdi(endD>end7?endD:end7);
-  const COLS='id,name,total,currency,due_on,product,type,channel,src,customer,cust_phone,cake,fulfilled,created_at';
+  const COLS=_BIZ_COLS;
   try{
     let from=0, all=[];
     while(true){
@@ -4793,7 +4817,7 @@ async function _renderBizDash(el){
   const lS=new Date(now.getFullYear(),now.getMonth()-1,1), lE=new Date(now.getFullYear(),now.getMonth(),0);
   const inR=(r,a,b)=>r.due_on&&r.due_on>=tdi(a)&&r.due_on<=tdi(b);
   const cur=rows.filter(r=>inR(r,mS,mE)), last=rows.filter(r=>inR(r,lS,lE));
-  const sum=a=>a.reduce((s,r)=>s+(parseFloat(r.total)||0),0);
+  const sum=a=>a.reduce((s,r)=>s+_bizAmt(r),0);
   const rev=sum(cur), revL=sum(last);
   const rm=v=>'RM '+Math.round(v).toLocaleString('en-MY');
   const delta=(a,b)=>{ if(!b) return ''; const p=Math.round((a-b)/b*100); if(!p) return '<div style="font-size:10.5px;color:var(--c-muted)">= '+now.toLocaleDateString('en-MY',{month:'short'})+' vs last</div>';
@@ -7586,6 +7610,20 @@ function _parseMyAddr(raw){
   const address1 = street.join(', ') || full;
   return { address1, city, zip, province };
 }
+// Shopify admin link for a draft (gid://shopify/DraftOrder/123 → …/draft_orders/123).
+function _draftAdminUrl(draftId, fallback){
+  const numId = (String(draftId||'').match(/(\d+)$/)||[])[1];
+  const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
+  return (shopUrl && numId) ? 'https://admin.shopify.com/store/'+shopUrl+'/draft_orders/'+numId : (fallback||'');
+}
+// Browsers only allow a new window during the tap itself; the draft takes several
+// round-trips, so open the window up front and point it at the draft when it exists.
+function _draftWinOpen(){
+  let w=null;
+  try{ w=window.open('', '_blank'); if(w && w.document){ w.document.title='Creating draft…'; w.document.body.innerHTML='<p style="font:15px -apple-system,system-ui,sans-serif;color:#6b5d55;padding:48px 20px;text-align:center">Creating draft in Shopify…</p>'; } }catch(_){}
+  return w;
+}
+function _draftWinClose(w){ try{ if(w && !w.closed) w.close(); }catch(_){} }
 async function createShopifyDraft() {
   const id = document.getElementById('fu-draft-id').value;
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f){ toast('Follow-up not found'); return; }
@@ -7622,6 +7660,7 @@ async function createShopifyDraft() {
 
   const btn = document.getElementById('fu-draft-create-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+  const _win = _draftWinOpen();
   toast('Creating Shopify draft…');
   try {
     // Build line items from ALL the follow-up's items (variant-linked where picked). Fall back
@@ -7631,7 +7670,7 @@ async function createShopifyDraft() {
       let li;
       if (_fuDraftVariant) li = { variantId: _fuDraftVariant.id, quantity: qty };
       else if (customName) li = { title: customName, originalUnitPrice: (parseFloat(customPrice)||0).toFixed(2), quantity: qty, taxable: false };
-      else { toast('No items to send'); if(btn){ btn.disabled=false; btn.textContent='Create Draft →'; } return; }
+      else { _draftWinClose(_win); toast('No items to send'); if(btn){ btn.disabled=false; btn.textContent='Create Draft →'; } return; }
       li.requiresShipping = true; li.customAttributes = [{ key:'_bloomflow_followup', value: f.id }];
       lineItems = [li];
     }
@@ -7695,11 +7734,11 @@ async function createShopifyDraft() {
     toast('✓ Draft ' + (draft.name||'') + ' created in Shopify');
     // Open the ADMIN draft editor (where staff do the final check + Create Order),
     // falling back to the customer invoice URL if we can't build the admin link.
-    const numId = (String(draft.id).match(/(\d+)$/)||[])[1];
-    const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
-    const adminUrl = (shopUrl && numId) ? `https://admin.shopify.com/store/${shopUrl}/draft_orders/${numId}` : draft.invoiceUrl;
-    if (adminUrl) window.open(adminUrl, '_blank');
+    const adminUrl = _draftAdminUrl(draft.id, draft.invoiceUrl);
+    if (adminUrl) { if (_win && !_win.closed) _win.location.href = adminUrl; else window.open(adminUrl, '_blank'); }
+    else _draftWinClose(_win);
   } catch(e) {
+    _draftWinClose(_win);
     toast('⚠ Draft failed: ' + (e.message||'error'));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Draft →'; }
@@ -7929,7 +7968,7 @@ function openFUDP(id) {
     <button onclick="openFUDraftModal('${f.id}')" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
       <span style="display:inline-flex">${di('bag',15)}</span> ${isDraft2 ? 'Re-send to Shopify Draft' : 'Send to Shopify Draft'}
     </button>
-    ${isDraft2 ? `<div style="font-size:11px;color:#1565C0;text-align:center">↗ A draft was created in Shopify — open Shopify → Drafts to confirm &amp; create the order.</div>` : ''}
+    ${(isDraft2 && f.shopifyDraftId) ? `<a href="${esc(_draftAdminUrl(f.shopifyDraftId))}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#E3F2FD;color:#1565C0;border:1.5px solid #90CAF9;border-radius:var(--r);font-size:12px;font-weight:600;text-decoration:none">${di('nav',14)} Open draft in Shopify</a>` : ''}
     <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;font-weight:500;text-decoration:none">
       Open Shopify Admin
     </a>
@@ -8837,7 +8876,7 @@ function _staffOrderRecords(){
     const dig = String(f.orderNo||'').replace(/[^0-9]/g,'');
     const o = dig ? byNo[dig] : null;
     const dObj = (o && o.dateObj) ? o.dateObj : (f.dueDate ? pd(f.dueDate) : (f.createdAt ? new Date(f.createdAt) : null));
-    recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:(o&&o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:dObj, oid:o?o.id:null, fuId:f.id });
+    recs.push({ staff:String(f.staff).trim(), orderNo:(f.orderNo || (o?o.name:'') || ''), customer:(f.name || (o?o.customer:'') || ''), amount:o?orderTotal(o):null, date:dObj, oid:o?o.id:null, fuId:f.id });
   });
   // Orders carry their own Staff field too (Add/Edit Order → Details) — include them,
   // skipping any already represented by a follow-up with the same order number.
@@ -8846,7 +8885,7 @@ function _staffOrderRecords(){
     if(!o || !o.staff || !String(o.staff).trim()) return;
     const dig = String(o.name||'').replace(/[^0-9]/g,'');
     if(dig && seenNo.has(dig)) return;
-    recs.push({ staff:String(o.staff).trim(), orderNo:o.name||'', customer:o.customer||'', amount:(o.total!=null&&o.total!=='')?parseFloat(o.total):null, date:o.dateObj||null, oid:o.id, fuId:null });
+    recs.push({ staff:String(o.staff).trim(), orderNo:o.name||'', customer:o.customer||'', amount:orderTotal(o), date:o.dateObj||null, oid:o.id, fuId:null });
   });
   return recs;
 }
@@ -12726,6 +12765,17 @@ function saveOrder() {
     channel: channel,
     custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null)
   };
+  { const newSum=_sumItems(lineItems);
+    if((entry.src||'manual')==='manual'){ if(newSum>0) entry.total=newSum.toFixed(2); }
+    else if(prevOrder){
+      const sub=_shopSubMap()[shopId(prevOrder.id)];
+      let d;
+      if(sub!=null) d=newSum-sub;                                    // vs Shopify's own items
+      else { const cur=_adjOK(prevOrder.total,prevOrder.totalAdj)?parseFloat(prevOrder.totalAdj.delta):0; d=cur+(newSum-_sumItems(prevOrder.lineItems)); }
+      d=Math.round(d*100)/100;
+      entry.totalAdj = Math.abs(d)>0.005 ? { delta:d, base:String(parseFloat(prevOrder.total)||0) } : null;
+    }
+  }
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
