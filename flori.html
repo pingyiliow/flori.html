@@ -7722,11 +7722,24 @@ async function createShopifyDraft() {
     }
 
     const mutation = `mutation($input: DraftOrderInput!) { draftOrderCreate(input:$input) { draftOrder { id name invoiceUrl } userErrors { field message } } }`;
-    const data = await shopifyGQL(mutation, { input });
-    const ue = data.draftOrderCreate?.userErrors || [];
-    if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
-    const draft = data.draftOrderCreate?.draftOrder;
-    if (!draft) throw new Error('No draft returned');
+    const _run = async inp => {
+      try { const d = await shopifyGQL(mutation, { input: inp }); return { draft: d.draftOrderCreate?.draftOrder || null, ue: d.draftOrderCreate?.userErrors || [] }; }
+      catch (err) { return { draft: null, ue: [{ message: err.message || 'error' }] }; }
+    };
+    let res = await _run(input);
+    if (!res.draft) {
+      // Retry once without the newest extras (order-level phone; per-item photo links) —
+      // the phone stays on the billing address and photos still ride the order attribute.
+      const firstErr = res.ue.map(e => e.message).join('; ') || 'No draft returned';
+      console.warn('[draft] first attempt failed:', firstErr, input);
+      const safe = JSON.parse(JSON.stringify(input));
+      delete safe.phone;
+      (safe.lineItems || []).forEach(li => { if (Array.isArray(li.customAttributes)) li.customAttributes = li.customAttributes.filter(a => a.key !== '_bf_photos'); });
+      res = await _run(safe);
+      if (!res.draft) throw new Error(res.ue.map(e => e.message).join('; ') || firstErr);
+      console.warn('[draft] created on retry without phone / item photo links');
+    }
+    const draft = res.draft;
     f.status = 'draft';
     f.shopifyDraftId = draft.id;
     saveFollowups(); renderFollowup();
@@ -7738,7 +7751,14 @@ async function createShopifyDraft() {
     if (adminUrl) { if (_win && !_win.closed) _win.location.href = adminUrl; else window.open(adminUrl, '_blank'); }
     else _draftWinClose(_win);
   } catch(e) {
-    _draftWinClose(_win);
+    // Keep the tab and say why, so the reason can be read (and screenshotted).
+    try {
+      if (_win && !_win.closed && _win.document) {
+        _win.document.title = 'Draft failed';
+        _win.document.body.innerHTML = '<div style="font:15px -apple-system,system-ui,sans-serif;color:#3a2a24;padding:40px 22px;max-width:560px;margin:0 auto"><div style="font-size:18px;font-weight:700;color:#A32D2D;margin-bottom:10px">Draft failed</div><div style="line-height:1.6;white-space:pre-wrap"></div></div>';
+        _win.document.body.querySelector('div div:last-child').textContent = String(e.message || 'error');
+      } else _draftWinClose(_win);
+    } catch(_) { _draftWinClose(_win); }
     toast('⚠ Draft failed: ' + (e.message||'error'));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Draft →'; }
