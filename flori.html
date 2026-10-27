@@ -7534,9 +7534,15 @@ function _e164(s){
 // Find an existing Shopify customer (by phone/email) or create one for the sender.
 // Best-effort: any failure returns null and the draft is created without a linked
 // customer (admin can attach one). Returns a customer GID or null.
+// Shopify rejects the WHOLE draft ("Email is invalid") for a malformed address — a typo,
+// spaces, a note like "none". Only a well-formed address is sent; anything else is skipped.
+function _validEmail(e){
+  const v = String(e||'').trim().replace(/[.,;:]+$/,'');
+  return /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(v) ? v : '';
+}
 async function _draftFindOrCreateCustomer(f) {
   const phone = _e164(f.contact);
-  const email = (f.email||'').trim().toLowerCase();
+  const email = _validEmail(f.email).toLowerCase();
   const src = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
   const _tail = p => String(p||'').replace(/\D/g,'').slice(-8);
   // Make sure the linked Shopify customer carries the WhatsApp number — so order confirmations
@@ -7698,7 +7704,9 @@ async function createShopifyDraft() {
       if (sParts.length) input.billingAddress.lastName = sParts.join(' ');
       if (e164c) input.billingAddress.phone = e164c;
     }
-    if (!customerId && f.email) input.email = String(f.email).trim();
+    const _em = _validEmail(f.email);
+    if (!customerId && _em) input.email = _em;
+    if (String(f.email||'').trim() && !_em) toast('Email skipped — "' + String(f.email).trim() + '" is not a valid address');
 
     // Recipient + delivery address → shipping address (delivery orders). If no
     // separate recipient was captured, fall back to the sender's name/contact.
@@ -7733,7 +7741,7 @@ async function createShopifyDraft() {
       const firstErr = res.ue.map(e => e.message).join('; ') || 'No draft returned';
       console.warn('[draft] first attempt failed:', firstErr, input);
       const safe = JSON.parse(JSON.stringify(input));
-      delete safe.phone;
+      delete safe.phone; delete safe.email;
       (safe.lineItems || []).forEach(li => { if (Array.isArray(li.customAttributes)) li.customAttributes = li.customAttributes.filter(a => a.key !== '_bf_photos'); });
       res = await _run(safe);
       if (!res.draft) throw new Error(res.ue.map(e => e.message).join('; ') || firstErr);
