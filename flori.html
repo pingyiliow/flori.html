@@ -2709,7 +2709,7 @@ function _flowerStdFor(name){ const e=FLOWER_STD[_fstdKey(name)]; return (e&&Arr
 function _orderProducts(o){ const its=(o&&o.lineItems&&o.lineItems.length)?o.lineItems.map(i=>i&&i.title):[o&&o.product]; return [...new Set(its.map(t=>String(t||'').trim()).filter(Boolean))]; }
 function _orderPrimaryProduct(o){ return ((o&&o.lineItems&&o.lineItems[0]&&o.lineItems[0].title) || (o&&o.product) || '').trim(); }
 // Standard flowers for an order = concat of each product's standard (pre-fill / fallback).
-function _orderStdFlowers(o){ const out=[]; _orderProducts(o).forEach(p=>{ const f=_flowerStdFor(p); if(f) f.forEach(x=>out.push({name:x.name,qty:x.qty,unit:x.unit})); }); return out; }
+function _orderStdFlowers(o){ const out=[]; _orderProducts(o).forEach(p=>{ const f=_flowerStdFor(p); if(f) f.forEach(x=>out.push({name:x.name,qty:x.qty,unit:x.unit,mid:x.mid||undefined})); }); return out; }
 // Effective flowers for display/aggregation: the order's own (possibly resized) recipe if set,
 // otherwise the product's standard. Used by the recipe view + tomorrow-prep totals.
 function _orderEffectiveFlowers(o){ return (o&&o.recipe&&o.recipe.length)?o.recipe:_orderStdFlowers(o); }
@@ -13615,9 +13615,12 @@ function openRecipe(id) {
   let recipe = o.recipe && o.recipe.length ? o.recipe.slice() : [];
   _recipeFromStd = false;
   // No per-order recipe yet → pre-fill from the product's standard recipe (editable here).
-  if (!recipe.length) { const std = _orderStdFlowers(o); if (std.length) { recipe = std.map(f=>({name:f.name,qty:f.qty,unit:f.unit})); _recipeFromStd = true; } }
+  if (!recipe.length) { const std = _orderStdFlowers(o); if (std.length) { recipe = std.map(f=>({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid})); _recipeFromStd = true; } }
   if (!recipe.length) recipe.push({name:'',qty:1,unit:'stems'});
+  _recipeOrig = JSON.parse(JSON.stringify(o.recipe||[]));
+  _recipeMatOpts();
   recipe.forEach((f,i) => _renderRecipeRow(f, i));
+  _recipeIdx = recipe.length;
   _renderRecipeStdBanner(o);
   openModal('m-recipe');
 }
@@ -13642,7 +13645,8 @@ function _recipeResetToStd(){
   const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
   const std = _orderStdFlowers(o);
   const rows = document.getElementById('recipe-rows'); rows.innerHTML='';
-  (std.length?std:[{name:'',qty:1,unit:'stems'}]).forEach((f,i)=>_renderRecipeRow({name:f.name,qty:f.qty,unit:f.unit},i));
+  (std.length?std:[{name:'',qty:1,unit:'stems'}]).forEach((f,i)=>_renderRecipeRow({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid},i));
+  _recipeIdx = Math.max(std.length,1);
   toast('Reset to standard');
 }
 // Save the current rows as the standard flower recipe for this order's primary product.
@@ -13650,7 +13654,7 @@ function _recipeSetAsStd(){
   const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
   const prim = _orderPrimaryProduct(o); if(!prim){ toast('No product on this order'); return; }
   const flowers=[];
-  document.querySelectorAll('.recipe-row').forEach(r=>{ const name=r.querySelector('.recipe-flower-name')?.value.trim()||''; const qty=parseInt(r.querySelector('.recipe-qty')?.value)||1; const unit=r.querySelector('.recipe-unit')?.value||'stems'; if(name) flowers.push({name,qty,unit}); });
+  document.querySelectorAll('.recipe-row').forEach(r=>{ const name=r.querySelector('.recipe-flower-name')?.value.trim()||''; const qty=parseInt(r.querySelector('.recipe-qty')?.value)||1; const unit=r.querySelector('.recipe-unit')?.value||'stems'; const mid=r.dataset.mid||''; if(name) flowers.push(mid?{name,qty,unit,mid}:{name,qty,unit}); });
   if(!flowers.length){ toast('Add flowers first'); return; }
   FLOWER_STD[_fstdKey(prim)] = { name:prim, flowers, updatedAt:new Date().toISOString(), by:(currentUserName||'') };
   saveFlowerStd();
@@ -13663,15 +13667,17 @@ function _renderRecipeRow(f, idx) {
   const div = document.createElement('div');
   div.className = 'recipe-row';
   div.id = 'rrow-'+idx;
+  const _it = f.mid ? (INVENTORY||[]).find(x=>x.id===f.mid) : null;
+  if (_it) div.dataset.mid = _it.id;
+  const _units = ['stems','pcs','bunches','sprays','rolls']; if (f.unit && !_units.includes(f.unit)) _units.push(f.unit);
   div.innerHTML = `
-    <input class="recipe-flower-name" placeholder="e.g. Red Rose, Baby's Breath" value="${esc(f.name||'')}" oninput="updateRecipeRow(${idx},'name',this.value)">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+      <input class="recipe-flower-name" list="recipe-mat-opts" autocomplete="off" style="width:100%" placeholder="e.g. Red Rose, Baby's Breath" value="${esc(f.name||'')}" oninput="updateRecipeRow(${idx},'name',this.value);_recipeMatPick(this)">
+      <span class="recipe-stk" style="font-size:10.5px;color:var(--c-sage);padding-left:2px;${_it?'':'display:none'}">${_it?_recipeStkLbl(_it):''}</span>
+    </div>
     <input class="recipe-qty" type="number" min="1" value="${f.qty||1}" oninput="updateRecipeRow(${idx},'qty',this.value)">
     <select class="recipe-unit" onchange="updateRecipeRow(${idx},'unit',this.value)">
-      <option value="stems"   ${f.unit==='stems'?'selected':''}>stems</option>
-      <option value="pcs"     ${f.unit==='pcs'?'selected':''}>pcs</option>
-      <option value="bunches" ${f.unit==='bunches'?'selected':''}>bunches</option>
-      <option value="sprays"  ${f.unit==='sprays'?'selected':''}>sprays</option>
-      <option value="rolls"   ${f.unit==='rolls'?'selected':''}>rolls</option>
+      ${_units.map(u=>'<option value="'+esc(u)+'"'+(f.unit===u?' selected':'')+'>'+esc(u)+'</option>').join('')}
     </select>
     <button class="recipe-del" onclick="removeRecipeRow(${idx})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>`;
   rows.appendChild(div);
@@ -13684,18 +13690,61 @@ function updateRecipeRow(idx, field, val) {
 }
 
 function addRecipeRow() {
-  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
-  if (!o.recipe) o.recipe = [];
-  o.recipe.push({name:'',qty:1,unit:'stems'});
-  const idx = o.recipe.length - 1;
-  _renderRecipeRow(o.recipe[idx], idx);
+  if (!ORDERS.find(x=>x.id===_recipeId)) return;
+  _renderRecipeRow({name:'',qty:1,unit:'stems'}, _recipeIdx++);
 }
 
 function removeRecipeRow(idx) {
-  const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
-  if (!o.recipe || idx >= o.recipe.length) return;
-  o.recipe.splice(idx, 1);
-  openRecipe(_recipeId); // re-render
+  const el = document.getElementById('rrow-'+idx); if (el) el.remove();
+  if (!document.querySelector('#recipe-rows .recipe-row')) addRecipeRow();
+}
+
+// ── Recipe ↔ stock: a row picked from Stock carries the material id (mid). Saving the
+// recipe deducts that material for this order; editing it later only applies the
+// difference (each saved row records what it took as ded), and removing a row puts the
+// stock back. Materials the product's own recipe already deducts are left to it.
+let _recipeOrig = [], _recipeIdx = 0;
+function _recipeMatOpts(){
+  const dl = document.getElementById('recipe-mat-opts'); if (!dl) return;
+  dl.innerHTML = (INVENTORY||[]).filter(i=>i && i.name).map(i=>String(i.name)).sort((a,b)=>a.localeCompare(b)).map(nm=>'<option value="'+esc(nm)+'">').join('');
+}
+function _recipeStkLbl(it){ return it.untracked ? 'Stock · not tracked' : ('Stock · '+(it.qty||0)+(it.unit?' '+esc(it.unit):'')+' left'); }
+function _recipeMatPick(inp){
+  const row = inp.closest('.recipe-row'); if (!row) return;
+  const k = String(inp.value||'').trim().toLowerCase();
+  const it = k ? (INVENTORY||[]).find(i=>String(i.name||'').trim().toLowerCase()===k) : null;
+  if (it) row.dataset.mid = it.id; else delete row.dataset.mid;
+  const lbl = row.querySelector('.recipe-stk');
+  if (lbl){ lbl.innerHTML = it ? _recipeStkLbl(it) : ''; lbl.style.display = it ? '' : 'none'; }
+  if (it && it.unit){ const sel = row.querySelector('.recipe-unit');
+    if (sel){ if (![...sel.options].some(o=>o.value===it.unit)){ const op=document.createElement('option'); op.value=it.unit; op.textContent=it.unit; sel.appendChild(op); } sel.value = it.unit; } }
+}
+function _orderProdRecipeMids(o){
+  const titles = new Set((o.lineItems||[]).map(li=>String((li&&li.title)||'').trim()));
+  const mids = new Set();
+  (typeof RECIPES!=='undefined'?RECIPES:[]).forEach(r=>{ if (r && titles.has(String(r.name||'').trim())) (r.components||[]).forEach(c=>{ if (c && c.mid) mids.add(c.mid); }); });
+  return mids;
+}
+function _recipeApplyStock(o, oldRows, newRows){
+  const prod = _orderProdRecipeMids(o);
+  const had = {}; (oldRows||[]).forEach(r=>{ if (r && r.mid && r.ded) had[r.mid] = (had[r.mid]||0) + (parseFloat(r.ded)||0); });
+  const want = {}; newRows.forEach(r=>{ if (r.mid && !prod.has(r.mid)) want[r.mid] = (want[r.mid]||0) + r.qty; });
+  const touched = [];
+  new Set([...Object.keys(had), ...Object.keys(want)]).forEach(mid=>{
+    const it = (INVENTORY||[]).find(x=>x.id===mid);
+    const tracked = it && !it.untracked;
+    const take = tracked ? ((want[mid]||0) - (had[mid]||0)) : -(had[mid]||0);   // untracked/removed material: return what was taken
+    if (!it || !take) return;
+    it.qty = (it.qty||0) - take;
+    it.moves = Array.isArray(it.moves) ? it.moves : [];
+    it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:-take, type:'auto', orderId:o.id, orderNo:o.name||'', src:'recipe' });
+    if (it.moves.length > 80) it.moves = it.moves.slice(0,80);
+    touched.push(it);
+  });
+  newRows.forEach(r=>{ const it = r.mid ? (INVENTORY||[]).find(x=>x.id===r.mid) : null; if (it && !it.untracked && !prod.has(r.mid)) r.ded = r.qty; else delete r.ded; });
+  touched.forEach(it=>{ _invSaveOne(it); if (typeof stockCtl==='function' && stockCtl(it.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(it); });
+  if (touched.length){ if (typeof _bcSend==='function') _bcSend('inventory'); if (typeof renderInventory==='function') renderInventory(); }
+  return touched.length;
 }
 
 function saveRecipe() {
@@ -13707,12 +13756,15 @@ function saveRecipe() {
     const name = row.querySelector('.recipe-flower-name')?.value.trim() || '';
     const qty  = parseInt(row.querySelector('.recipe-qty')?.value) || 1;
     const unit = row.querySelector('.recipe-unit')?.value || 'stems';
-    if (name) recipe.push({name, qty, unit});
+    const mid  = row.dataset.mid || '';
+    if (name) recipe.push(mid ? {name, qty, unit, mid} : {name, qty, unit});
   });
+  const _moved = _recipeApplyStock(o, _recipeOrig, recipe);
   o.recipe = recipe;
+  _recipeOrig = JSON.parse(JSON.stringify(recipe));
   saveOrderPatch(o,{ recipe:o.recipe });
   closeModal('m-recipe');
-  toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':''));
+  toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':'') + (_moved ? ' · stock updated' : ''));
   renderOrders(); renderHome();
 }
 
@@ -14411,6 +14463,7 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) _maybeAutoRefresh(
       <div style="font-size:11px;color:var(--c-muted);font-style:italic;font-family:var(--f-head);margin-bottom:8px">List the flowers for this arrangement — resize freely per order. Saved to this order.</div>
       <div id="recipe-std-banner"></div>
       <div id="recipe-rows" style="display:flex;flex-direction:column"></div>
+      <datalist id="recipe-mat-opts"></datalist>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px">
         <button class="btn btn-ghost btn-sm" onclick="addRecipeRow()" style="align-self:flex-start">+ Add flower</button>
         <button class="btn btn-ghost btn-sm" onclick="_recipeSetAsStd()" title="Reuse this recipe on future orders of this product" style="color:var(--c-burg);border-color:var(--c-burg)">Set as standard</button>
