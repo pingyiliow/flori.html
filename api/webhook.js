@@ -112,6 +112,11 @@ export default async function handler(req, res) {
     const prop = (i.properties || []).find(p => p && p.name === '_bf_photos');
     const urls = prop && prop.value ? String(prop.value).split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u)) : [];
     if (urls.length) { li.images = urls; li.image = urls[0]; }
+    // Visible line-item properties (card size, card message, voice message add-ons…);
+    // underscore keys are internal and stay hidden.
+    const props = (i.properties || []).map(p => ({ k: String((p && p.name) || '').trim(), v: String((p && p.value) || '').trim() }))
+      .filter(p => p.k && p.v && p.k.charAt(0) !== '_');
+    if (props.length) li.props = props;
     return li;
   });
 
@@ -158,6 +163,12 @@ export default async function handler(req, res) {
   const mergedLineItems = (existing && Array.isArray(existing.line_items) && existing.line_items.length)
     ? existing.line_items
     : lineItems.filter(i => !removed.has(i.title));
+  // Properties are Shopify-owned: refresh them on the stored items (matched by title)
+  // so add-ons show for orders that were stored before properties were captured.
+  if (existing && mergedLineItems === existing.line_items) {
+    const byTitle = {}; lineItems.forEach(i => { if (i.props) byTitle[i.title] = i.props; });
+    mergedLineItems.forEach(li => { if (li && byTitle[li.title]) li.props = byTitle[li.title]; });
+  }
 
   // BloomFlow-added photos travel as the 'BloomFlow Photos' order attribute (durable R2
   // links). On first insert, attach them to the first line item so the daily-order card /

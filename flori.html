@@ -2029,7 +2029,8 @@ function _mergeShopItems(stored, shop, removed){
     .map(i => { const s = _shopByTitle[i.title]; if(!s) return i; const patch={}; if(s.productType && !i.productType) patch.productType=s.productType;
       // Webhook rows carry no product image (Shopify's REST line items have none) — fill the
       // product's own Shopify photo, unless staff deliberately cleared this item's photos.
-      if(s.image && !i.image && !(i.images && i.images.length) && !i.imgCleared) patch.image=s.image; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
+      if(s.image && !i.image && !(i.images && i.images.length) && !i.imgCleared) patch.image=s.image;
+      if(s.props && s.props.length && JSON.stringify(s.props)!==JSON.stringify(i.props||[])) patch.props=s.props; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
   const have = new Set(kept.map(i => i.title));
   const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
@@ -2142,9 +2143,11 @@ function _mapShopifyOrder(n){
       const pa = (e.node.customAttributes || []).find(a => a && a.key === '_bf_photos');
       const ph = pa && pa.value ? String(pa.value).split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u)) : [];
       if (ph.length) { li.images = ph; li.image = ph[0]; }
+      const pr = _liProps(e.node.customAttributes); if (pr.length) li.props = pr;
       return li;
     });
   _shopImgRemember(n.id, n.lineItems.edges.map(e => ({ title: e.node.title, image: e.node.image?.url || null })));
+  _shopPropsRemember(n.id, lineItems);
   _shopSubRemember(n.id, n.lineItems.edges.reduce((sum, e) => { const q = (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 0; return sum + (parseFloat(e.node.originalUnitPriceSet?.shopMoney?.amount) || 0) * q; }, 0));
   // Older drafts carried photos only as one flat 'BloomFlow Photos' order attribute. That
   // list can't say which product each photo belongs to, so it's only trusted on a
@@ -3431,6 +3434,17 @@ function _shopImgRemember(id, items){
     localStorage.setItem('flori-shopimg', JSON.stringify(m));
   }catch(_){} }, 1500);
 }
+// Shopify line-item properties (Globo add-ons: card size, card message, voice message…).
+// Underscore keys are internal (_has_gpo, _bf_photos) and stay hidden.
+function _liProps(attrs){
+  return (attrs||[]).map(a => ({ k: String((a && (a.key != null ? a.key : a.name)) || '').trim(), v: String((a && a.value) || '').trim() }))
+    .filter(p => p.k && p.v && p.k.charAt(0) !== '_');
+}
+var _SHOPPROPS = {};   // order id → { item title: props } from the latest Shopify sync (memory only)
+function _shopPropsRemember(id, items){
+  const e = {}; (items||[]).forEach(li => { if (li && li.title && li.props && li.props.length) e[li.title] = li.props; });
+  if (Object.keys(e).length) _SHOPPROPS[shopId(id)] = e; else delete _SHOPPROPS[shopId(id)];
+}
 function _shopImgApply(){
   const m = _shopImgMap();
   ORDERS.forEach(o => {
@@ -3438,6 +3452,10 @@ function _shopImgApply(){
     let hit = false;
     o.lineItems.forEach(li => { if (li && !li.image && !(li.images && li.images.length) && !li.imgCleared && e[li.title]) { li.image = e[li.title]; hit = true; } });
     if (hit && !o.image) { const c = o.lineItems.find(i => itemPhotos(i).length); if (c) o.image = itemPhotos(c)[0]; }
+  });
+  ORDERS.forEach(o => {
+    const e = _SHOPPROPS[shopId(o.id)]; if (!e || !Array.isArray(o.lineItems)) return;
+    o.lineItems.forEach(li => { if (li && !(li.props && li.props.length) && e[li.title]) li.props = e[li.title]; });
   });
 }
 // Shopify's own item subtotal per order (from each sync, cached locally) — the base an
@@ -13656,6 +13674,14 @@ function saveRecipe() {
 // detail panel can render instantly without a live Shopify call.
 // The variant the customer chose (e.g. "10 Stalks / Red Roses") + SKU, shown under a
 // line item's product title. Hides the meaningless "Default Title". Captured at sync.
+// Add-ons / card details under a product in the order panel — multi-line values keep
+// their line breaks (card messages).
+function _propsBlock(props){
+  if(!props || !props.length) return '';
+  return '<div style="margin:6px 0 2px;padding:8px 10px;border-radius:8px;background:#FBF6EC;border:1px solid #EFE3C8;font-size:12px;line-height:1.5">'
+    + props.map(p => '<div style="display:flex;gap:6px;align-items:baseline'+(p.v.indexOf('\n')>=0?';flex-direction:column;gap:1px':'')+'"><span style="color:#8A6D3B;font-weight:600;flex:none">'+esc(p.k)+'</span><span style="color:var(--c-ink);white-space:pre-wrap;min-width:0;word-break:break-word">'+esc(p.v)+'</span></div>').join('')
+  + '</div>';
+}
 function _variantLine(li){
   if(!li) return '';
   const vt=String(li.variantTitle||'').trim();
@@ -13787,6 +13813,7 @@ async function _fetchOrderDetail(id, o) {
       billingAddress { phone }
       lineItems(first:50){ edges{ node{
         title quantity variantTitle sku
+        customAttributes { key value }
         variant { inventoryItem { id } }
         originalUnitPriceSet { shopMoney { amount currencyCode } }
         originalTotalSet     { shopMoney { amount currencyCode } }
@@ -14027,7 +14054,7 @@ function _renderDPInner(order, localOrder) {
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
         <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
-      </div>${_variantLine(li)}${noteHtml}${strip}`;
+      </div>${_variantLine(li)}${_propsBlock((li.props && li.props.length) ? li.props : _liProps(shopMatch && shopMatch.customAttributes))}${noteHtml}${strip}`;
     }).join('');
 
     // The stored items are the source of truth once staff edit them (an added product
