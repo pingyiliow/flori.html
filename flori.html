@@ -5764,6 +5764,51 @@ function openStkView(kind, id){
   el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
   openModal('m-stkview');
 }
+// Orders that contain a Shopify product (exact title within the comma-joined product
+// column), newest due date first. Lean columns; quantity comes from loaded orders.
+let _stkOrdSeq=0, _stkReturn=false;
+async function _stkLoadOrders(title){
+  const seq=++_stkOrdSeq, zh=LANG==='zh';
+  const box=()=>{ const el=document.getElementById('skv-orders'); return (el && el.dataset.title===title) ? el : null; };
+  const t=String(title||'').trim(); if(!t){ const b=box(); if(b) b.textContent='—'; return; }
+  let rows=[];
+  try{
+    if(hasSB()){
+      const pat='%'+t.replace(/[\\%_]/g,m=>'\\'+m)+'%';
+      const { data, error } = await sb.from('orders').select('id,name,customer,due_on,product,fulfilled').ilike('product', pat).order('due_on',{ascending:false}).limit(60);
+      if(error) throw error; rows=data||[];
+    }
+  }catch(e){ console.warn('stk orders', e&&e.message); }
+  if(seq!==_stkOrdSeq) return;
+  const tl=t.toLowerCase();
+  rows=rows.filter(r=>_bizProducts(r).some(x=>x.toLowerCase()===tl)).filter(r=>!DELETED_ORDERS.has(shopId(r.id))).slice(0,30);
+  const b=box(); if(!b) return;
+  if(!rows.length){ b.textContent=zh?'还没有订单':'No orders yet'; return; }
+  b.style.color='';
+  b.innerHTML=rows.map((r,i)=>{
+    const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id));
+    const li=o&&Array.isArray(o.lineItems)?o.lineItems.find(x=>String(x.title||'').trim().toLowerCase()===tl):null;
+    const qty=li?(parseInt(li.quantity)||1):null;
+    const d=r.due_on?new Date(r.due_on+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'';
+    return '<div onclick="_stkOpenOrder(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 2px;cursor:pointer;'+(i?'border-top:1px solid var(--c-border);':'')+'">'
+      +'<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="font-weight:600;color:var(--c-ink)">'+esc(r.name||'')+'</b> <span style="color:var(--c-muted)">· '+esc(r.customer||'')+'</span></div>'
+      +(qty!=null?'<span style="flex:none;color:var(--c-ink);font-weight:600">× '+qty+'</span>':'')
+      +'<span style="flex:none;color:var(--c-muted);min-width:44px;text-align:right">'+esc(d)+'</span>'
+      +(r.fulfilled?'<span style="flex:none;font-size:10px;color:var(--c-sage);font-weight:700">'+(zh?'完成':'Done')+'</span>':'')
+      +'<span style="color:var(--c-border2);flex:none">›</span></div>';
+  }).join('');
+}
+async function _stkOpenOrder(id){
+  id=String(id);
+  let o=ORDERS.find(x=>shopId(x.id)===shopId(id));
+  if(!o && hasSB()){
+    try{ const { data, error } = await sb.from('orders').select(ORDER_COLS).eq('id', id);
+      if(!error&&data&&data.length){ _mergeDbOrders(data); _cacheOrders(); o=ORDERS.find(x=>shopId(x.id)===shopId(id)); } }catch(_){}
+  }
+  if(!o){ toast('Order not found'); return; }
+  closeModal('m-stkview'); _stkReturn=true;   // closing the order brings the product back
+  openDP(o.id);
+}
 function _stkRefresh(){ if(document.getElementById('m-stkview') && document.getElementById('m-stkview').classList.contains('on') && _stkViewId!=null) openStkView(_stkViewKind, _stkViewId); }
 function _stkThumb(src, ic, zoom){
   if(src){ const ss=String(src).replace(/'/g,"\\'"); return '<span class="skv-th"'+(zoom?' onclick="openZoom(\''+ss+'\')" style="cursor:zoom-in"':'')+'><img src="'+src+'" onerror="this.style.display=\'none\'"></span>'; }
@@ -5913,6 +5958,8 @@ function _stkViewShop(p){
       +'</div>';
     });
   }
+  h+='<div class="skv-sec">'+(zh?'订单':'Orders')+'</div><div id="skv-orders" data-title="'+esc(p.title)+'" style="font-size:12px;color:var(--c-muted);padding:4px 0">'+(zh?'载入中…':'Loading…')+'</div>';
+  setTimeout(()=>_stkLoadOrders(p.title),0);
   h+='</div>';
   h+='<div class="skv-foot"><button class="btn btn-primary" style="flex:1" onclick="openShopMeta(\''+p.id+'\')">'+di('edit',14)+' '+(zh?'编辑资料':'Edit details')+'</button><button class="btn btn-ghost" style="flex:none;color:var(--c-red);border-color:#e0a8a0" onclick="removeStkShop(\''+p.id+'\')" title="'+(zh?'从库存移除':'Remove from stock')+'" aria-label="Remove from stock">'+di('trash',14)+'</button></div>';
   return h;
@@ -13757,6 +13804,10 @@ function closeDP() {
   document.getElementById('dp-ov').classList.remove('on');
   // Opened from the Business report → closing the order goes back to that report, unless
   // the close was a hand-off to another window (Edit order, Lalamove…).
+  if (typeof _stkReturn!=='undefined' && _stkReturn) setTimeout(()=>{
+    if (_stkReturn && !_dpId && !document.querySelector('.modal.on')) openModal('m-stkview');
+    _stkReturn=false;
+  },60);
   if (typeof _repReturn!=='undefined' && _repReturn) setTimeout(()=>{
     if (_repReturn && !_dpId && !document.querySelector('.modal.on')) openModal('m-bizrep');
     _repReturn=false;
