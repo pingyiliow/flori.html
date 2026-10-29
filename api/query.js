@@ -66,14 +66,29 @@ async function getServerToken(shop) {
   const clientId = process.env.SHOPIFY_CLIENT_ID || '';
   const clientSecret = process.env.SHOPIFY_CLIENT_SECRET || '';
   if (!clientId || !clientSecret) throw new Error('Server not configured (SHOPIFY_CLIENT_ID/SECRET)');
-  const r = await fetch(`https://${shop}/admin/oauth/access_token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
-    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }).toString(),
-  });
-  const text = await r.text();
-  let data; try { data = JSON.parse(text); } catch (_) { throw new Error('Unexpected token response: ' + text.slice(0, 120)); }
-  if (!data.access_token) throw new Error(data.error_description || data.error || 'No access_token');
+  // Shopify's token endpoint occasionally times out (504 HTML page). Each attempt is capped
+  // at 5s and a timeout / 5xx / non-JSON reply is retried once; a real refusal is not.
+  let data = null, lastErr = null;
+  for (let attempt = 0; attempt < 2 && !data; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, 800));
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 5000);
+    try {
+      const r = await fetch(`https://${shop}/admin/oauth/access_token`, {
+        method: 'POST', signal: ctl.signal,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: new URLSearchParams({ grant_type: 'client_credentials', client_id: clientId, client_secret: clientSecret }).toString(),
+      });
+      const text = await r.text();
+      let j = null; try { j = JSON.parse(text); } catch (_) {}
+      if (j && j.access_token) { data = j; break; }
+      if (j && r.status < 500) throw Object.assign(new Error(j.error_description || j.error || 'No access_token'), { final: true });
+      lastErr = new Error('SHOPIFY_UNAVAILABLE');
+    } catch (e) {
+      if (e && e.final) throw e;
+      lastErr = new Error('SHOPIFY_UNAVAILABLE');
+    } finally { clearTimeout(timer); }
+  }
+  if (!data) throw lastErr || new Error('SHOPIFY_UNAVAILABLE');
   _tok = data.access_token; _tokShop = shop;
   const ttlMs = data.expires_in ? data.expires_in * 1000 : 3600 * 1000;
   _tokExp = now + Math.max(60000, ttlMs - 60000); // refresh a minute early
@@ -196,7 +211,10 @@ export default async function handler(req, res) {
     if (!(await isAuthedUser(jwt))) return res.status(401).json({ error: 'Sign in required' });
     if (body.refreshToken) { _tok = null; _tokExp = 0; }   // force a fresh mint (e.g. after a scope change)
     try { token = await getServerToken(shop); serverMinted = true; }
-    catch (e) { return res.status(500).json({ error: 'Could not obtain Shopify token: ' + e.message }); }
+    catch (e) {
+      if (e && e.message === 'SHOPIFY_UNAVAILABLE') return res.status(503).json({ error: 'Shopify is not responding — try again in a minute' });
+      return res.status(500).json({ error: 'Could not obtain Shopify token: ' + e.message });
+    }
   }
 
   let out;

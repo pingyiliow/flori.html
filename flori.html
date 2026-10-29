@@ -1977,7 +1977,7 @@ async function shopifyGQL(query, variables, opts) {
   let text = ''; try { text = await r.text(); } catch(_) {}
   if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
   if (r.status === 403) throw new Error('Token lacks permission (403)');
-  if (!r.ok) throw new Error('Server error ' + r.status + ': ' + text.slice(0,150));
+  if (!r.ok) { let m = ''; try { m = (JSON.parse(text)||{}).error || ''; } catch(_) {} throw new Error(m || ('Server error ' + r.status + ': ' + text.slice(0,150))); }
   let j; try { j = JSON.parse(text); } catch(_) { throw new Error('Bad response: ' + text.slice(0,150)); }
   if (j.error) throw new Error('Proxy error: ' + j.error);
   if (j.errors) throw new Error('Shopify: ' + (j.errors[0]?.message || JSON.stringify(j.errors[0])));
