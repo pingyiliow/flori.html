@@ -5098,13 +5098,15 @@ function _printStatement(orders, custName, custPhone){
     const am=a.dateObj?+a.dateObj:(a.dueDate?(+pd(a.dueDate)||0):0), bm=b.dateObj?+b.dateObj:(b.dueDate?(+pd(b.dueDate)||0):0);
     return am-bm;
   });
-  let grand=0, anyMissing=false;
-  const body = rows.map(o=>{
-    const t=orderTotal(o); if(t!=null) grand+=t; else anyMissing=true;
+  // One record per order; the statement page filters them by the chosen dates itself.
+  const data = rows.map(o=>{
+    const t=orderTotal(o);
+    const iso=o.dateObj?tdi(o.dateObj):(o.dueOn||'');
     const date=o.dateObj?fd(o.dateObj):(o.dueDate||'');
     const items=(o.lineItems&&o.lineItems.length)?o.lineItems.map(i=>esc(i.title)+(i.quantity>1?' &times;'+i.quantity:'')).join('<br>'):esc(o.product||'');
-    return `<tr><td>${esc(date)}</td><td>${esc(o.name||'')}</td><td>${items}</td><td class="r">${t!=null?_stmtMoney(t):'<span class="muted">&mdash;</span>'}</td></tr>`;
-  }).join('');
+    return { iso, row:`<tr><td>${esc(date)}</td><td>${esc(o.name||'')}</td><td>${items}</td><td class="r">${t!=null?_stmtMoney(t):'<span class="muted">&mdash;</span>'}</td></tr>`, amt:(t!=null?t:null) };
+  });
+  const isos = data.map(d=>d.iso).filter(Boolean).sort();
   const today=fd(new Date());
   const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Statement — ${esc(custName||'')}</title>
   <style>
@@ -5119,22 +5121,50 @@ function _printStatement(orders, custName, custPhone){
     tfoot td{border-top:2px solid #4d0e13;border-bottom:none;font-weight:800;font-size:15px;padding-top:12px}
     .muted{color:#bbb} .note{font-size:10px;color:#a00;margin-top:10px}
     .pay{margin-top:26px;font-size:11px;color:#444;line-height:1.6;border-top:1px solid #eee;padding-top:14px}
-    .noprint{margin-bottom:18px} .noprint button{font:inherit;padding:9px 18px;border:0;border-radius:6px;background:#4d0e13;color:#fff;font-weight:700;cursor:pointer}
+    .noprint{margin-bottom:18px;display:flex;flex-wrap:wrap;align-items:center;gap:8px} .noprint button{font:inherit;padding:9px 18px;border:0;border-radius:6px;background:#4d0e13;color:#fff;font-weight:700;cursor:pointer}
+    .noprint .back{background:#fff;color:#4d0e13;border:1.5px solid #4d0e13}
+    .noprint label{font-size:12px;color:#666;display:flex;align-items:center;gap:5px}
+    .noprint input{font:inherit;font-size:13px;padding:6px 8px;border:1px solid #ccc;border-radius:6px}
+    .period{font-size:11px;color:#666;margin-top:2px}
+    @media (max-width:600px){ body{padding:16px} .top{flex-direction:column} .doc{text-align:left} }
     @media print{ body{padding:0} .noprint{display:none} }
   </style></head><body>
-  <div class="noprint"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="noprint">
+    <button class="back" onclick="goBack()">&larr; Back</button>
+    <button onclick="window.print()">Print / Save as PDF</button>
+    <label>From <input type="date" id="f" value="${isos[0]||''}" onchange="draw()"></label>
+    <label>To <input type="date" id="t" value="${isos[isos.length-1]||''}" onchange="draw()"></label>
+  </div>
   <div class="top">
-    <div><div class="brand">Bamboo Flower Club</div><div class="biz">Bamboo Green Florist (M) Sdn Bhd<br>${esc(SHOP_ADDR)}</div></div>
-    <div class="doc"><h1>STATEMENT</h1><div class="meta">Date: ${esc(today)}<br>${rows.length} order${rows.length===1?'':'s'}</div></div>
+    <div><div class="brand">Bamboo Green Florist (M) Sdn Bhd</div><div class="biz">${esc(SHOP_ADDR)}</div></div>
+    <div class="doc"><h1>STATEMENT</h1><div class="meta">Date: ${esc(today)}<br><span id="cnt"></span></div><div class="period" id="per"></div></div>
   </div>
   <div class="to"><div class="lbl">Bill to</div><div class="nm">${esc(custName||'Customer')}</div>${custPhone?`<div style="color:#666">${esc(custPhone)}</div>`:''}</div>
   <table>
     <thead><tr><th>Date</th><th>Order</th><th>Item</th><th class="r">Amount</th></tr></thead>
-    <tbody>${body}</tbody>
-    <tfoot><tr><td colspan="3">Total due</td><td class="r">${_stmtMoney(grand)}</td></tr></tfoot>
+    <tbody id="tb"></tbody>
+    <tfoot><tr><td colspan="3">Total due</td><td class="r" id="tot"></td></tr></tfoot>
   </table>
-  ${anyMissing?'<div class="note">* Some orders have no price set (shown as &mdash;) and are not included in the total.</div>':''}
+  <div class="note" id="miss" style="display:none">* Some orders have no price set (shown as &mdash;) and are not included in the total.</div>
   <div class="pay">Thank you for your order. Kindly make payment to <b>Bamboo Green Florist (M) Sdn Bhd</b>. For any queries, please reach us on WhatsApp.</div>
+  <script>
+    var D=${JSON.stringify(data).replace(/</g,'\\u003c')};
+    var F0=${JSON.stringify(isos[0]||'')}, T0=${JSON.stringify(isos[isos.length-1]||'')};
+    function money(v){ return 'RM '+v.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+    function fmt(iso){ try{ return new Date(iso+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'}); }catch(e){ return iso; } }
+    function draw(){
+      var f=document.getElementById('f').value, t=document.getElementById('t').value, all=(!f&&!t)||(f===F0&&t===T0);
+      var L=D.filter(function(d){ if(!d.iso) return all; return (!f||d.iso>=f)&&(!t||d.iso<=t); });
+      var tot=0, miss=false; L.forEach(function(d){ if(d.amt==null) miss=true; else tot+=d.amt; });
+      document.getElementById('tb').innerHTML=L.map(function(d){ return d.row; }).join('');
+      document.getElementById('tot').textContent=money(tot);
+      document.getElementById('cnt').textContent=L.length+' order'+(L.length===1?'':'s');
+      document.getElementById('per').textContent=(f||t)?('Period: '+(f?fmt(f):'…')+' – '+(t?fmt(t):'…')):'';
+      document.getElementById('miss').style.display=miss?'':'none';
+    }
+    function goBack(){ try{ window.close(); }catch(e){} setTimeout(function(){ if(history.length>1) history.back(); else location.href=${JSON.stringify(location.origin+'/')}; },150); }
+    draw();
+  <\/script>
   </body></html>`;
   const w = window.open('', '_blank');
   if(!w){ toast('Allow pop-ups to open the statement'); return; }
@@ -10096,7 +10126,7 @@ let _drvView = 'list';           // 'map' | 'list' — list is the default landi
 let _drvDetail = null;           // order id whose detail view is open
 let _drvMap = null, _geoOff = false; const _geoTried = new Set();
 const SHOP_LATLNG = [5.3695432, 100.4554098];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
-const SHOP_ADDR = '9, Persiaran Sunway Wellesley, Taman Sunway Wellesley, Bukit Mertajam';
+const SHOP_ADDR = '9, Persiaran Sunway Wellesley, Pusat Perniagaan Sunway Wellesley, 14000 Bukit Mertajam, Penang';
 const DRV_C = { pending:'#D84343', otw:'#2E7BD0', done:'#2E9E6B' };
 
 // ── Delivery start point (origin for optimize + distance + map) ──
