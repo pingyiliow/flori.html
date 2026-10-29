@@ -2436,6 +2436,7 @@ async function syncOrders() {
           o.deliveredLat = o.deliveredLat ?? r.delivered_lat ?? null;   // forward-only: never regress a recorded delivery spot
           o.deliveredLng = o.deliveredLng ?? r.delivered_lng ?? null;
           o.deliveredAt  = o.deliveredAt || r.delivered_at || null;
+          _stampHeal(o, r);
           o.deliveredBy  = o.deliveredBy || r.delivered_by || null;
           o.recipName    = o.recipName  || r.recip_name  || null;
           o.recipPhone   = o.recipPhone || r.recip_phone || null;
@@ -3161,12 +3162,44 @@ async function backfillDueOn(){
 }
 // Merge a batch of DB order rows into ORDERS (DB wins for those ids; cached older
 // orders are kept; deleted ones dropped). Used by the on-demand date loader.
+// Delivered stamps are forward-only (there is no "undeliver"). Mid-Oct full-row clobbers
+// blanked delivered_by in the DB while the delivering device still remembered it; any
+// device that still holds a stamp the DB lacks writes it back, and a DB row without the
+// stamp never erases a remembered one.
+const _stampHealQ = new Map();
+function _stampHeal(prev, row){
+  if (!prev || !row) return;
+  const p = {};
+  if (prev.deliveredBy && ('delivered_by' in row) && !row.delivered_by) p.delivered_by = prev.deliveredBy;
+  if (prev.deliveredAt && ('delivered_at' in row) && !row.delivered_at) p.delivered_at = prev.deliveredAt;
+  if (!Object.keys(p).length) return;
+  _stampHealQ.set(shopId(prev.id), p);
+  clearTimeout(window._stampHealT); window._stampHealT = setTimeout(_stampHealFlush, 3000);
+}
+async function _stampHealFlush(){
+  const items = [..._stampHealQ.entries()].slice(0, 50); _stampHealQ.clear();
+  for (const [id, p] of items){
+    const o = ORDERS.find(x => shopId(x.id) === id); if (!o) continue;
+    if (p.delivered_by) o.deliveredBy = p.delivered_by;
+    if (p.delivered_at) o.deliveredAt = p.delivered_at;
+    await saveOrderPatch(o, p);
+  }
+  if (items.length) console.log('[heal] restored delivered stamps on', items.length, 'order(s)');
+}
 function _mergeDbOrders(rows){
   const incoming = (rows||[]).filter(o => !DELETED_ORDERS.has(shopId(o.id))).map(_mapDbOrder);
   if (!incoming.length) return false;
   const merged = new Map();
   ORDERS.forEach(o => merged.set(shopId(o.id), o));
-  incoming.forEach(o => merged.set(o.id, o));
+  incoming.forEach(o => {
+    const prev = merged.get(o.id);
+    if (prev){
+      _stampHeal(prev, { delivered_by: o.deliveredBy, delivered_at: o.deliveredAt });
+      if (!o.deliveredBy && prev.deliveredBy) o.deliveredBy = prev.deliveredBy;
+      if (!o.deliveredAt && prev.deliveredAt) o.deliveredAt = prev.deliveredAt;
+    }
+    merged.set(o.id, o);
+  });
   ORDERS = [...merged.values()].filter(o => !DELETED_ORDERS.has(shopId(o.id)));
   rehydrateOrders();
   return true;
