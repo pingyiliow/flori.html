@@ -11758,7 +11758,7 @@ function renderCustomerProfile(c, prefs, notes){
 
     <div class="dp-section-ttl" style="margin-top:18px">Address</div>
     <div class="fg fg-2">
-      <div class="ff" style="grid-column:1/-1"><label class="ff-l">Address line 1</label><input id="cust-address1" type="text" value="${esc(c.address1||'')}"></div>
+      <div class="ff" style="grid-column:1/-1;position:relative"><label class="ff-l">Address line 1</label><input id="cust-address1" type="text" autocomplete="off" value="${esc(c.address1||'')}" oninput="_custAddrSearch(this.value)" onblur="setTimeout(_cAddrHide,200)"><div id="cust-addr-sug" class="rcp-sug" style="display:none"></div></div>
       <div class="ff" style="grid-column:1/-1"><label class="ff-l">Address line 2</label><input id="cust-address2" type="text" value="${esc(c.address2||'')}"></div>
       <div class="ff"><label class="ff-l">City</label><input id="cust-city" type="text" value="${esc(c.city||'')}"></div>
       <div class="ff"><label class="ff-l">State</label><input id="cust-state" type="text" value="${esc(c.state||'')}"></div>
@@ -12384,14 +12384,83 @@ async function _oAddrChoose(i){
   const p=_oAddrPreds[i]; if(!p) return;
   _oAddrHide();
   const ta=document.getElementById('o-addr'); if(!ta) return;
-  let lat=p.lat, lng=p.lng, text=p.description||'';
+  let lat=p.lat, lng=p.lng, text=p.description||'', parts=null;
   if(typeof lat!=='number' && p.placeId){
     const r=await _lalaGeoReq({ mode:'place', placeId:p.placeId, sessionToken:_oAddrTok });
-    if(r && typeof r.lat==='number'){ lat=r.lat; lng=r.lng; if(r.address) text=r.address; }
+    if(r && typeof r.lat==='number'){ lat=r.lat; lng=r.lng; if(r.address) text=r.address; parts=r.parts||null; }
   }
   _oAddrTok=null;
   ta.value=text;
-  _oAddrPick=(typeof lat==='number') ? { text, lat, lng } : null;
+  _oAddrPick=(typeof lat==='number') ? { text, lat, lng, parts } : null;
+}
+// Free-text Malaysian address → customer-profile fields (used when no place was picked).
+function _addrPartsFromText(text){
+  const a=_parseMyAddr(text);
+  return { address1:a.address1||String(text||'').trim(), address2:'', city:a.city||'', state:a.province||'', zip:a.zip||'', country:'Malaysia' };
+}
+// Customer profile: the same address suggestions on Address line 1; a pick fills all six fields.
+let _cAddrTimer=null, _cAddrTok=null, _cAddrPreds=[];
+function _cAddrHide(){ const s=document.getElementById('cust-addr-sug'); if(s) s.style.display='none'; }
+function _custAddrSearch(v){
+  clearTimeout(_cAddrTimer);
+  const q=String(v||'').trim(), sug=document.getElementById('cust-addr-sug'); if(!sug) return;
+  if(q.length<4){ _cAddrHide(); return; }
+  if(!_cAddrTok) _cAddrTok='c'+Date.now()+Math.random().toString(36).slice(2,8);
+  _cAddrTimer=setTimeout(async()=>{
+    const r=await _lalaGeoReq({ mode:'autocomplete', input:q, sessionToken:_cAddrTok });
+    const cur=(document.getElementById('cust-address1')||{}).value||''; if(cur.trim()!==q) return;
+    _cAddrPreds=(r&&r.predictions)||[];
+    if(!_cAddrPreds.length){ _cAddrHide(); return; }
+    sug.innerHTML=_cAddrPreds.map((p,i)=>'<div class="rcp-sug-row" onmousedown="event.preventDefault();_custAddrChoose('+i+')" style="display:flex;gap:7px;align-items:flex-start">'+_LALA_PIN_SVG+'<span style="min-width:0">'+esc(p.description||'')+'</span></div>').join('');
+    sug.style.display='';
+  }, 350);
+}
+async function _custAddrChoose(i){
+  const p=_cAddrPreds[i]; if(!p) return;
+  _cAddrHide();
+  let parts=null, text=p.description||'';
+  if(p.placeId){
+    const r=await _lalaGeoReq({ mode:'place', placeId:p.placeId, sessionToken:_cAddrTok });
+    if(r && r.parts) parts=r.parts; else if(r && r.address) text=r.address;
+  }
+  _cAddrTok=null;
+  if(!parts || !parts.address1) parts=_addrPartsFromText(text);
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el){ el.removeAttribute('readonly'); el.value=v||''; } };
+  set('cust-address1',parts.address1); set('cust-address2',parts.address2); set('cust-city',parts.city);
+  set('cust-state',parts.state); set('cust-zip',parts.zip); set('cust-country',parts.country||'Malaysia');
+}
+// Saving a manual order keeps the CRM in step: the customer (matched by phone) gets the
+// delivery address if their profile has none yet — an existing address is never
+// overwritten, since deliveries often go to a recipient — and a new number creates a profile.
+async function _orderToCustomer(o, parts){
+  try{
+    if(!hasSB() || (o.src||'manual')!=='manual') return;
+    const phone=String(o.custPhone||'').trim(); const key=_normPhone(phone); if(!key) return;
+    const { data, error } = await sb.from('customers').select('id,name,phone,email,address1').ilike('phone','%'+key.slice(-8)+'%').limit(10);
+    if(error) throw error;
+    const hit=(data||[]).find(c=>_normPhone(c.phone)===key);
+    const addr=(o.type!=='pickup' && o.manualAddr) ? (parts && parts.address1 ? parts : _addrPartsFromText(o.manualAddr)) : null;
+    const addrCols=addr?{ address1:addr.address1||null, address2:addr.address2||null, city:addr.city||null, state:addr.state||null, zip:addr.zip||null, country:addr.country||'Malaysia' }:{};
+    const nm=(o.customer && o.customer!=='Guest') ? o.customer : null;
+    if(hit){
+      const upd={};
+      if(addr && !String(hit.address1||'').trim()) Object.assign(upd, addrCols);
+      if(!hit.email && o.custEmail) upd.email=o.custEmail;
+      if(!hit.name && nm) upd.name=nm;
+      if(!Object.keys(upd).length) return;
+      upd.updated_at=new Date().toISOString();
+      const { error:e2 } = await sb.from('customers').update(upd).eq('id', hit.id); if(e2) throw e2;
+      const mem=(typeof CUSTOMERS!=='undefined'?CUSTOMERS:[]).find(x=>x.id===hit.id); if(mem) Object.assign(mem, upd);
+      if(upd.address1) toast('✓ Address saved to '+(hit.name||nm||'customer')+'\'s profile');
+    } else {
+      const src={ whatsapp:'whatsapp', instagram:'instagram', facebook:'facebook', walkin:'walkin' }[o.channel]||null;
+      const row=Object.assign({ name:nm, phone, email:o.custEmail||null, tag:'regular', source:src, updated_at:new Date().toISOString() }, addrCols);
+      const { data:ins, error:e3 } = await sb.from('customers').insert(row).select().single(); if(e3) throw e3;
+      if(ins && typeof CUSTOMERS!=='undefined') CUSTOMERS.unshift(ins);
+      toast('✓ New customer profile: '+(nm||phone));
+    }
+    if(typeof _bcSend==='function') _bcSend('customers');
+  }catch(e){ console.warn('order → customer profile', e&&e.message); }
 }
 function oCustSearch(val){
   const sug=document.getElementById('o-cust-sug'); if(!sug) return;
@@ -12960,8 +13029,9 @@ function saveOrder() {
     channel: channel,
     custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null)
   };
+  let _pickParts=null;
   { const _pick=_oAddrPick, _prevAddr=String((prevOrder&&prevOrder.manualAddr)||'').trim();
-    if(_pick && addrVal && addrVal.toLowerCase().indexOf(_pick.text.slice(0,15).toLowerCase())>=0){ entry.lat=_pick.lat; entry.lng=_pick.lng; }
+    if(_pick && addrVal && addrVal.toLowerCase().indexOf(_pick.text.slice(0,15).toLowerCase())>=0){ entry.lat=_pick.lat; entry.lng=_pick.lng; if(addrVal===_pick.text) _pickParts=_pick.parts||null; }
     else if(prevOrder && addrVal!==_prevAddr){ entry.lat=null; entry.lng=null; }
     _oAddrPick=null;
   }
@@ -12978,6 +13048,7 @@ function saveOrder() {
   }
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
+  _orderToCustomer(entry, _pickParts);
   ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   _oStaffOpts(); _oAddrPick=null; _oAddrHide();
   document.getElementById('o-modal-ttl').textContent = 'Add Order';

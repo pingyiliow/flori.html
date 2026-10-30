@@ -108,11 +108,24 @@ export default async function handler(req, res) {
     try {
       const u = 'https://places.googleapis.com/v1/places/' + encodeURIComponent(pid) + '?languageCode=en'
         + (body.sessionToken ? '&sessionToken=' + encodeURIComponent(String(body.sessionToken)) : '');
-      const r = await fetch(u, { headers: { 'X-Goog-Api-Key': KEY, 'X-Goog-FieldMask': 'location,formattedAddress' } });
+      const r = await fetch(u, { headers: { 'X-Goog-Api-Key': KEY, 'X-Goog-FieldMask': 'location,formattedAddress,addressComponents' } });
       const j = await r.json().catch(() => ({}));
       const loc = j && j.location;
       if (!loc || typeof loc.latitude !== 'number') return res.status(200).json({ error: (j.error && j.error.message) || 'no_geometry' });
-      return res.status(200).json({ lat: loc.latitude, lng: loc.longitude, address: (j.formattedAddress || null) });
+      // Address split into the customer-profile fields (line 1/2, city, state, postcode, country).
+      const comp = t => { const c = (j.addressComponents || []).find(x => (x.types || []).includes(t)); return c ? (c.longText || c.shortText || '') : ''; };
+      const street = [comp('street_number'), comp('route')].filter(Boolean).join(' ');
+      const line1 = [comp('subpremise'), comp('premise'), street].filter(Boolean).join(', ')
+        || String(j.formattedAddress || '').split(',')[0].trim();
+      const parts = {
+        address1: line1,
+        address2: comp('sublocality_level_1') || comp('sublocality') || comp('neighborhood'),
+        city: comp('locality') || comp('administrative_area_level_2'),
+        state: comp('administrative_area_level_1'),
+        zip: comp('postal_code'),
+        country: comp('country'),
+      };
+      return res.status(200).json({ lat: loc.latitude, lng: loc.longitude, address: (j.formattedAddress || null), parts });
     } catch (e) { return res.status(200).json({ error: String(e && e.message || e) }); }
   }
 
