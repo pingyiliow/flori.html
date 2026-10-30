@@ -509,13 +509,16 @@
       <div style="margin-bottom:18px">
         <div class="osec">Customer</div>
         <input type="hidden" id="o-channel" value="whatsapp">
-        <div class="oseg-row" style="margin-bottom:10px">
+        <div class="oseg-row" id="o-chan-row" style="margin-bottom:10px;flex-wrap:wrap">
           <button type="button" id="o-chan-wa" class="oseg on" onclick="oSetChannel('whatsapp')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.15c-1.52 0-3.01-.41-4.3-1.18l-.31-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23 0 4.54-3.69 8.44-8.24 8.44zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg> WhatsApp</button>
           <button type="button" id="o-chan-ig" class="oseg" onclick="oSetChannel('instagram')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none"/></svg> Instagram</button>
+          <button type="button" id="o-chan-fb" class="oseg" onclick="oSetChannel('facebook')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg> Facebook</button>
+          <button type="button" id="o-chan-wi" class="oseg" onclick="oSetChannel('walkin')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="4" r="1.6"/><path d="M12 7v6"/><path d="m8 9 4 1.2 4-1.2"/><path d="m9.2 20 2.8-7 2.8 7"/></svg> Walk-in</button>
+          <button type="button" id="o-chan-ot" class="oseg" onclick="oSetChannel('other')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg> Other</button>
         </div>
         <div class="fg fg-2">
           <div class="ff" style="grid-column:1/-1;position:relative"><label class="ff-l">Customer Name</label><input id="o-cust" type="text" placeholder="Type name — search existing or add new…" autocomplete="off" oninput="oCustSearch(this.value)"><div id="o-cust-sug" class="rcp-sug" style="display:none"></div></div>
-          <div class="ff"><label class="ff-l">WhatsApp number <span id="o-phone-req" style="color:var(--c-red)">*</span></label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
+          <div class="ff"><label class="ff-l"><span id="o-phone-lbl">WhatsApp number</span> <span id="o-phone-req" style="color:var(--c-red)">*</span></label><input id="o-cust-phone" type="text" placeholder="+60…"></div>
           <div class="ff"><label class="ff-l">Email</label><input id="o-cust-email" type="email" placeholder="optional"></div>
           <div class="ff" style="grid-column:1/-1;display:none" id="o-ig-wrap"><label class="ff-l">Instagram username <span style="color:var(--c-red)">*</span></label><input id="o-cust-ig" type="text" placeholder="@username"></div>
         </div>
@@ -12411,13 +12414,17 @@ function _oTypeChange(){
 }
 // Order channel toggle (WhatsApp / Instagram). Instagram reveals a required username
 // field; a WhatsApp number is required for both channels.
+// Order channels (same set as follow-ups). A phone is required for WhatsApp/Instagram
+// orders (customer notifications go there); Facebook, walk-in and other may have none.
+const O_CHANNELS = { whatsapp:'o-chan-wa', instagram:'o-chan-ig', facebook:'o-chan-fb', walkin:'o-chan-wi', other:'o-chan-ot' };
+const _oPhoneRequired = ch => ch==='whatsapp' || ch==='instagram';
 function oSetChannel(ch){
-  ch = ch==='instagram' ? 'instagram' : 'whatsapp';
+  if (!O_CHANNELS[ch]) ch = 'whatsapp';
   const el=document.getElementById('o-channel'); if(el) el.value=ch;
-  const wa=document.getElementById('o-chan-wa'), ig=document.getElementById('o-chan-ig');
-  if(wa) wa.classList.toggle('on', ch==='whatsapp');
-  if(ig) ig.classList.toggle('on', ch==='instagram');
+  Object.entries(O_CHANNELS).forEach(([k,id])=>{ const b=document.getElementById(id); if(b){ b.classList.toggle('on', k===ch); b.style.minWidth='calc(33.33% - 6px)'; } });
   const igw=document.getElementById('o-ig-wrap'); if(igw) igw.style.display = ch==='instagram' ? '' : 'none';
+  const req=document.getElementById('o-phone-req'); if(req) req.style.display = _oPhoneRequired(ch) ? '' : 'none';
+  const lbl=document.getElementById('o-phone-lbl'); if(lbl) lbl.textContent = (ch==='whatsapp'||ch==='instagram') ? 'WhatsApp number' : 'Phone number';
 }
 // Follow-up modal: same segmented Delivery / Self-collect toggle. Sets the hidden
 // fu-fulfil, syncs button state, and hides the delivery address for pickup.
@@ -12871,7 +12878,7 @@ function saveOrder() {
   const channel = (document.getElementById('o-channel')?.value)||'whatsapp';
   const custPhone = document.getElementById('o-cust-phone')?.value.trim()||'';
   const custIg = (document.getElementById('o-cust-ig')?.value.trim()||'').replace(/^@+/,'');
-  if (!custPhone){ toast(LANG==='zh'?'请填写 WhatsApp 号码':'WhatsApp number is required'); const el=document.getElementById('o-cust-phone'); if(el) el.focus(); return; }
+  if (!custPhone && _oPhoneRequired(channel)){ toast(LANG==='zh'?'请填写 WhatsApp 号码':'WhatsApp number is required'); const el=document.getElementById('o-cust-phone'); if(el) el.focus(); return; }
   if (channel==='instagram' && !custIg){ toast(LANG==='zh'?'请填写 Instagram 用户名':'Instagram username is required'); const el=document.getElementById('o-cust-ig'); if(el) el.focus(); return; }
   document.getElementById('o-prod').value = lineItems.map(i=>i.title).join(', ');
   const dateVal = document.getElementById('o-date').value;
