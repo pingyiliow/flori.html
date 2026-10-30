@@ -17,7 +17,7 @@
 <title>Bamboo Flower Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:wght@400;700&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/styles.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
 </head>
@@ -30,15 +30,8 @@
 <!-- ══ HEADER ═════════════════════════════════════════════════ -->
 <header class="hdr">
   <div class="hdr-logo-zone">
-    <img src="/logo-mark.png" alt="Bamboo Flower Club" class="hdr-logo-mark">
-    <div>
-      <div style="display:flex;align-items:baseline;gap:2px">
-        <span class="hdr-bloom" style="font-size:17px">Bamboo</span>
-        <span class="hdr-dot"></span>
-        <span class="hdr-flow" style="font-size:17px">Flower&nbsp;Club</span>
-      </div>
-      <span class="hdr-tagline">Florist Studio</span>
-    </div>
+    <img src="/logo-green.png" alt="" class="hdr-logo-mark" width="35" height="40">
+    <span class="hdr-word">Bamboo Flower Club</span>
   </div>
   <div style="flex:1"></div>
   <div id="hdr-pill" class="hdr-pill"></div>
@@ -126,42 +119,37 @@
       <div class="page-hdr">
         <div>
           <div class="page-title">Orders</div>
+          <div class="ord-date" id="ord-date"></div>
         </div>
         <div class="btn-row">
-          <input id="order-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search #order or customer…" style="padding:7px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:12px;width:200px;outline:none;background:var(--c-surface)" oninput="renderOrders()">
-          <button class="btn btn-primary" onclick="openAddOrder()">+ New order</button>
+          <input id="order-search" class="ord-search" type="search" inputmode="search" aria-label="Search orders by number or customer" placeholder="Search order or customer" oninput="renderOrders()">
+          <button class="btn btn-primary" type="button" onclick="openAddOrder()" style="height:40px;padding:0 18px">New order</button>
         </div>
       </div>
 
-      <!-- Calendar toggle button -->
-      <div style="position:relative">
-      <button id="cal-toggle-btn" onclick="toggleCalendar()"
-        style="display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);cursor:pointer;font-size:12px;color:var(--c-muted);transition:all .12s">
+      <div class="ord-bar">
+        <div class="filters" id="filters">
+          <button class="f-btn on" data-f="today">Today</button>
+          <button class="f-btn" data-f="tomorrow">Tomorrow</button>
+          <button class="f-btn" data-f="week">This week</button>
+          <button class="f-btn" data-f="all">All upcoming</button>
+        </div>
+        <div style="position:relative">
+      <button id="cal-toggle-btn" class="ord-pick" type="button" onclick="toggleCalendar()">
         <span style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-        <span id="cal-selected-lbl" style="font-style:italic;font-family:var(--f-head)"></span>
-        <span id="cal-btn-label">Select date</span>
+        <span id="cal-selected-lbl" style="color:var(--c-ink)"></span>
+        <span id="cal-btn-label">Pick a date</span>
         <span id="cal-chevron" style="font-size:10px;opacity:.5">▾</span>
       </button>
       <div id="cal-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:min(320px,90vw);overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--c-border)">
           <button class="hdr-btn" onclick="calPrev()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
-          <div id="cal-title" style="font-family:var(--f-head);font-size:14px;font-weight:400;font-style:italic;color:var(--c-ink)"></div>
+          <div id="cal-title" style="font-family:var(--f-head);font-size:14px;font-weight:400;color:var(--c-ink)"></div>
           <button class="hdr-btn" onclick="calNext()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">›</button>
         </div>
         <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
       </div>
     </div>
-
-
-    <!-- Filters -->
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div class="filters" id="filters">
-          <button class="f-btn on" data-f="today">Today</button>
-          <button class="f-btn" data-f="tomorrow">Tomorrow</button>
-          <button class="f-btn" data-f="week">This Week</button>
-          <button class="f-btn" data-f="all">All</button>
-        </div>
         <div style="position:relative">
           <button id="filter-toggle-btn" class="filter-ico-btn" onclick="toggleFilterPanel()" aria-label="Filters" title="Filters">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
@@ -199,8 +187,7 @@
       <div id="cal-active-lbl" style="font-size:11px;color:var(--c-muted);display:none">
         <button onclick="clearCalFilter()" style="font-size:11px;color:var(--c-muted);text-decoration:underline;cursor:pointer;background:none;border:none">× Clear date filter</button>
       </div>
-    </div>
-
+      <div id="ord-tally" class="ord-tally"></div>
     </div><!-- /pc -->
     <div class="pc" style="padding-top:18px">
       <div class="ord-cards" id="orders-list"></div>
@@ -1681,7 +1668,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -3919,7 +3906,8 @@ function orderCard(o, item, idx) {
 // Consolidated Daily-Orders card: ONE card per order (kills the "1/2, 2/2" split), with
 // its products nested inside — each product keeps its own ready-tick + price. Header carries
 // the shared info once (order #, type, status, time, customer, summed total, remarks).
-function orderCardConsolidated(o){
+function orderCardConsolidated(o, opts){
+  opts = opts || {};
   const zh = LANG === 'zh';
   const items = (o.lineItems && o.lineItems.length) ? o.lineItems : [{ title: o.product || '–', quantity: 1 }];
   const state = orderState(o);
@@ -3936,17 +3924,17 @@ function orderCardConsolidated(o){
   const rows = items.map((it, idx) => {
     const ready = o.fulfilled ? true : (multi ? !!it.ready : !!o.ready);
     const img = itemPhotos(it)[0] || (idx === 0 ? o.image : null) || null;
-    const thumb = img ? `<span class="ocx-th"><img src="${String(img).replace(/"/g,'&quot;')}" loading="lazy" onerror="imgFlower(this)"></span>` : `<span class="ocx-th">${di('flower',16)}</span>`;
-    const qty = (it.quantity > 1) ? ` <span class="ocx-qty">× ${it.quantity}</span>` : '';
-    const p = parseFloat(it.price) || 0; const priceTxt = p > 0 ? `<span class="ocx-price">RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
+    const thumb = img ? `<span class="orw-th"><img src="${String(img).replace(/"/g,'&quot;')}" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>` : '';
+    const qty = (it.quantity > 1) ? ` <span class="q">× ${it.quantity}</span>` : '';
+    const p = parseFloat(it.price) || 0; const priceTxt = (p > 0 && multi) ? `<span class="orw-price num">RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
     const on = o.fulfilled ? `event.stopPropagation()` : (multi ? `event.stopPropagation();toggleItemReady('${o.id}',${idx})` : `event.stopPropagation();toggleReady('${o.id}')`);
     const _vt = String(it.variantTitle||'').trim();
-    const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<div style="font-size:11px;font-weight:400;color:var(--c-sage,#5B7355);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${esc(_vt)}</div>` : '';
-    const nameCell = `<div class="ocx-pname" style="white-space:normal"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(it.title||'–')}${qty}</div>${vLine}</div>`;
+    const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<span class="v">${esc(_vt)}</span>` : '';
+    const nameCell = `<div class="orw-pname">${esc(it.title||'–')}${qty}${vLine}</div>`;
     // Per-product instruction shown under its OWN product (not merged into one card line).
     const _nt = String(it.note||'').trim();
     const noteHtml = _nt ? `<div class="ocx-inote">${di('warn',11)}<span>${esc(_nt.length>120?_nt.slice(0,120)+'…':_nt)}</span></div>` : '';
-    return `<div class="ocx-row">${thumb}${nameCell}${priceTxt}<button type="button" class="ocx-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'ready':'mark ready'}">${di('check',14)}</button></div>${noteHtml}`;
+    return `<div class="orw-item">${thumb}${nameCell}${priceTxt}<button type="button" class="orw-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'Ready':'Mark ready'}">${di('check',14)}</button></div>${noteHtml}`;
   }).join('');
   const cn = _cardNotes(o);
   const _tr = (s,n) => (s && s.length > n) ? s.slice(0,n)+'…' : s;
@@ -3956,12 +3944,18 @@ function orderCardConsolidated(o){
   const _anyItemNote = Array.isArray(o.lineItems) && o.lineItems.some(li=>li && String(li.note||'').trim());
   if (cn.flower && !_anyItemNote) notes += `<div class="ocx-note">${di('flower',12)}<span>${esc(_tr(cn.flower,90))}</span></div>`;
   if (cn.remark) notes += `<div class="ocx-remark">${di('note',12)} ${esc(_tr(cn.remark,90))}</div>`;
-  const cls = ['ocx']; if (o.fulfilled) cls.push('done'); else if (urgent) cls.push('urg'); else if (state === 'ready') cls.push('rdy');
+  const cls = ['orw']; if (o.fulfilled) cls.push('done'); else if (urgent) cls.push('urg');
+  const typeTxt = o.type === 'pickup' ? (zh?'自取':'Pickup') : (zh?'送货':'Delivery');
+  const stateTxt = opts.byState ? '' : (state === 'fulfilled' ? (o.type==='pickup'?(zh?'已取':'Picked up'):(zh?'已送达':'Delivered')) : state === 'ready' ? (zh?'已准备':'Ready') : '');
+  const desTxt = o.designer ? `<span class="orw-tag">${esc(o.designer)}</span>` : '';
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
-    <div class="ocx-hdr"><span class="ocx-num">${esc(o.name||'')}</span>${typeTag}${statusBadge}${urgentBadge}${timeTxt}</div>
-    <div class="ocx-sub"><span class="ocx-cust">${esc(o.customer||'Guest')}</span>${multi?`<span class="ocx-cnt">${items.length} items</span>`:''}${des}${totTxt?`<span class="ocx-total">${totTxt}</span>`:''}</div>
-    <div class="ocx-items">${rows}</div>
-    ${notes}
+    <div class="orw-time num">${o.dueTime ? esc(o.dueTime) : '&ndash;'}</div>
+    <div class="orw-body">
+      <div class="orw-who"><span class="orw-cust">${esc(o.customer||'Guest')}</span><span class="orw-no num">${esc(o.name||'')}</span>${urgent?`<span class="orw-tag urg">${zh?'紧急':'Urgent'}</span>`:''}<span class="orw-tag">${typeTxt}</span>${stateTxt?`<span class="orw-tag">${stateTxt}</span>`:''}${desTxt}</div>
+      <div class="orw-items">${rows}</div>
+      ${notes}
+    </div>
+    <div class="orw-amt num">${totTxt}</div>
   </div>`;
 }
 
@@ -5243,6 +5237,27 @@ async function _orderSearchFetch(srch){
     if(_mergeDbOrders(data||[])){ _cacheOrders(); const cur=(document.getElementById('order-search')?.value||'').trim().toLowerCase(); if(cur===q.toLowerCase()) renderOrders(); }
   }catch(e){ console.warn('order search fetch', e&&e.message); }
 }
+// Orders head: the day being looked at, and the tally (to make / ready / done, and the
+// day's takings for admin + CS; florists don't see money).
+function _ordHead(list, srch){
+  const dEl=document.getElementById('ord-date'), tEl=document.getElementById('ord-tally');
+  const t0=today0();
+  let d=null;
+  if (calFilter){ const [y,m,dd]=calFilter.split('-').map(Number); d=new Date(y,m-1,dd); }
+  else if (orderFilter==='today') d=t0;
+  else if (orderFilter==='tomorrow') d=new Date(t0.getTime()+86400000);
+  if (dEl) dEl.textContent = d ? d.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'}) : '';
+  if (!tEl) return;
+  if (srch || !d){ tEl.innerHTML=''; return; }
+  const zh=LANG==='zh';
+  const n=st=>list.filter(o=>orderState(o)===st).length;
+  const money=(typeof hasRole==='function') && (hasRole('admin')||hasRole('cs'));
+  const sum=list.reduce((s,o)=>s+(orderTotal(o)||0),0);
+  tEl.innerHTML='<div><b>'+n('pending')+'</b><span>'+(zh?'待制作':'to make')+'</span></div>'
+    +'<div><b>'+n('ready')+'</b><span>'+(zh?'已准备':'ready')+'</span></div>'
+    +'<div><b>'+n('fulfilled')+'</b><span>'+(zh?'已完成':'done')+'</span></div>'
+    +(money?'<div class="money"><b>RM '+Math.round(sum).toLocaleString('en-MY')+'</b><span>'+(zh?'当日金额':'today')+'</span></div>':'');
+}
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   if (srch && srch.length>=3) _orderSearchFetchDebounced(srch);
@@ -5258,6 +5273,8 @@ function renderOrders() {
     return;
   }
   let html = srch ? _custSearchSummary(list) : '';
+  _ordHead(list, srch);
+  const _oneDay = !srch && (calFilter || orderFilter==='today' || orderFilter==='tomorrow');
   if (prodMode) {
     // Production mode: split each order into per-product units and group by product so the
     // same item across orders is batch-made. Biggest batches first; within a batch by date.
@@ -5275,9 +5292,18 @@ function renderOrders() {
     groups.forEach(g => {
       const lbl = `${di('factory',13)} ${esc(g.prod)} <span style="font-weight:400;color:var(--c-muted)">× ${g.items.length}</span>`;
       const gP=g.items.filter(u=>unitState(u)==='pending').length, gR=g.items.filter(u=>unitState(u)==='ready').length, gF=g.items.filter(u=>unitState(u)==='fulfilled').length;
-      const stats = [gP?`<span class="ord-gc p">${gP} pending</span>`:'', gR?`<span class="ord-gc r">${gR} ready</span>`:'', gF?`<span class="ord-gc f">${gF} fulfilled</span>`:''].filter(Boolean).join('');
+      const stats = '<span class="ord-gc">'+[gP?gP+' to make':'', gR?gR+' ready':'', gF?gF+' done':''].filter(Boolean).join(', ')+'</span>';
       html += `<div class="ord-grp"><div class="ord-grp-dot"></div><div class="ord-grp-lbl">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
       html += g.items.map(u=>orderCard(u.o, u.item, u.idx)).join('');
+    });
+  } else if (_oneDay) {
+    // One day: grouped by what is left to do (To make / Ready / Done); urgent first within
+    // each group (sortedOrders already pins urgent and orders by time).
+    const zh = LANG==='zh';
+    [['pending', zh?'待制作':'To make'], ['ready', zh?'已准备':'Ready'], ['fulfilled', zh?'已完成':'Done']].forEach(([st, lbl]) => {
+      const g = list.filter(o => orderState(o)===st); if (!g.length) return;
+      html += `<div class="ord-grp"><div class="ord-grp-lbl">${lbl}</div><span class="ord-grp-n">${g.length}</span></div>`;
+      html += g.map(o => orderCardConsolidated(o, { byState:true })).join('');
     });
   } else {
     // Default: ONE consolidated card per order (products nested), grouped by due date.
@@ -5285,10 +5311,11 @@ function renderOrders() {
     list.forEach(o => { const k=o.dateObj?o.dateObj.toDateString():'__'; let g=groups.find(x=>x.k===k); if(!g){g={k,d:o.dateObj,items:[]};groups.push(g);} g.items.push(o); });
     groups.forEach(g => {
       const isGrpLate = g.d && isPast(g.d);
-      const lbl = g.d ? (isPast(g.d) ? 'Overdue · '+fd(g.d) : isToday(g.d) ? 'Today · '+fd(g.d) : fd(g.d)) : 'No date set';
+      const _dl = g.d ? g.d.toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'}) : '';
+      const lbl = g.d ? (isPast(g.d) ? 'Overdue, '+_dl : isToday(g.d) ? 'Today, '+_dl : _dl) : 'No date set';
       const gP=g.items.filter(o=>orderState(o)==='pending').length, gR=g.items.filter(o=>orderState(o)==='ready').length, gF=g.items.filter(o=>orderState(o)==='fulfilled').length;
-      const stats = [gP?`<span class="ord-gc p">${gP} pending</span>`:'', gR?`<span class="ord-gc r">${gR} ready</span>`:'', gF?`<span class="ord-gc f">${gF} fulfilled</span>`:''].filter(Boolean).join('');
-      html += `<div class="ord-grp"><div class="ord-grp-dot${isGrpLate?' late':''}"></div><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div><div class="ord-gline"></div></div>`;
+      const stats = '<span class="ord-gc">'+[gP?gP+' to make':'', gR?gR+' ready':'', gF?gF+' done':''].filter(Boolean).join(', ')+'</span>';
+      html += `<div class="ord-grp"><div class="ord-grp-lbl${isGrpLate?' late':''}">${lbl}</div><div class="ord-grp-stats">${stats}</div></div>`;
       html += g.items.map(orderCardConsolidated).join('');
     });
   }
@@ -8259,7 +8286,7 @@ function clearCalFilter() {
   document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on', b.dataset.f==='today'));
   const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
   const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
-  if(btnLbl) btnLbl.textContent='Select date'; if(selLbl) selLbl.textContent='';
+  if(btnLbl) btnLbl.textContent='Pick a date'; if(selLbl) selLbl.textContent='';
   const tb=document.getElementById('cal-toggle-btn'); if(tb) tb.style.color='var(--c-muted)';
   renderCalendar(); renderOrders();
 }
@@ -8367,8 +8394,8 @@ async function selectCalDay(key) {
   }
   const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display=calFilter?'':'none';
   const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl'),chevron=document.getElementById('cal-chevron');
-  if(calFilter){const[cy,cm,cd]=calFilter.split('-').map(Number);const formatted=new Date(cy,cm-1,cd).toLocaleDateString('en-MY',{day:'numeric',month:'short'});if(btnLbl)btnLbl.textContent='';if(selLbl)selLbl.textContent=formatted;const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-burg)';}
-  else{if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-muted)';}
+  if(calFilter){const[cy,cm,cd]=calFilter.split('-').map(Number);const formatted=new Date(cy,cm-1,cd).toLocaleDateString('en-MY',{day:'numeric',month:'short'});if(btnLbl)btnLbl.textContent='';if(selLbl)selLbl.textContent=formatted;const tb=document.getElementById('cal-toggle-btn');}
+  else{if(btnLbl)btnLbl.textContent='Pick a date';if(selLbl)selLbl.textContent='';const tb=document.getElementById('cal-toggle-btn');}
   const panel=document.getElementById('cal-panel');if(panel&&calFilter){panel.style.display='none';if(chevron)chevron.textContent='▾';}
   renderCalendar(); renderOrders();
 }
@@ -8459,8 +8486,8 @@ document.querySelectorAll('[data-f]').forEach(btn => {
     if (orderFilter==='all' || orderFilter==='week') loadFulfilledRecent();
     const lbl=document.getElementById('cal-active-lbl'); if(lbl) lbl.style.display='none';
     const btnLbl=document.getElementById('cal-btn-label'),selLbl=document.getElementById('cal-selected-lbl');
-    if(btnLbl)btnLbl.textContent='Select date';if(selLbl)selLbl.textContent='';
-    const tb=document.getElementById('cal-toggle-btn');if(tb)tb.style.color='var(--c-muted)';
+    if(btnLbl)btnLbl.textContent='Pick a date';if(selLbl)selLbl.textContent='';
+    const tb=document.getElementById('cal-toggle-btn');
     document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===orderFilter));
     renderCalendar(); renderOrders();
   });
