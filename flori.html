@@ -499,15 +499,15 @@
           <button type="button" id="o-type-pick" class="oseg" onclick="_oPickType('pickup')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg> Self collect</button>
         </div>
         <div class="fg fg-2">
-          <div class="ff"><label class="ff-l">Due Date</label><input id="o-date" type="date"></div>
-          <div class="ff"><label class="ff-l">Due Time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
+          <div class="ff"><label class="ff-l" id="o-date-lbl">Delivery date</label><input id="o-date" type="date"></div>
+          <div class="ff"><label class="ff-l" id="o-time-lbl">Delivery time</label><input id="o-time" type="text" placeholder="e.g. 2pm – 4pm"></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Staff</label><input id="o-staff" type="text" list="o-staff-opts" placeholder="Staff name" autocomplete="off"><datalist id="o-staff-opts"></datalist></div>
         </div>
       </div>
 
       <!-- 2 · Customer -->
       <div style="margin-bottom:18px">
-        <div class="osec">Customer</div>
+        <div class="osec">Sender</div>
         <input type="hidden" id="o-channel" value="whatsapp">
         <div class="oseg-row" id="o-chan-row" style="margin-bottom:10px;flex-wrap:wrap">
           <button type="button" id="o-chan-wa" class="oseg on" onclick="oSetChannel('whatsapp')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-3px"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm0 18.15c-1.52 0-3.01-.41-4.3-1.18l-.31-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.37c0-4.54 3.7-8.23 8.24-8.23 4.54 0 8.23 3.69 8.23 8.23 0 4.54-3.69 8.44-8.24 8.44zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.14-1.18-.06-.11-.22-.17-.47-.29z"/></svg> WhatsApp</button>
@@ -526,7 +526,12 @@
 
       <!-- 3 · Delivery address (delivery only) -->
       <div style="margin-bottom:18px" id="o-deliv-sec">
-        <div class="osec">Delivery address</div>
+        <div class="osec">Recipient</div>
+        <div class="fg fg-2" style="margin-bottom:10px">
+          <div class="ff"><label class="ff-l">Recipient name</label><input id="o-recip-name" type="text" autocomplete="off" placeholder="Who receives the flowers"></div>
+          <div class="ff"><label class="ff-l">Recipient phone</label><input id="o-recip-phone" type="text" autocomplete="off" placeholder="+60…"></div>
+        </div>
+        <label class="ff-l">Delivery address</label>
         <div class="ff" id="o-addr-wrap" style="position:relative"><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…" oninput="_oAddrSearch(this.value)" onblur="setTimeout(_oAddrHide,200)"></textarea><div id="o-addr-sug" class="rcp-sug" style="display:none"></div></div>
         <div style="font-size:11px;color:var(--c-muted);margin-top:8px;line-height:1.5">Lalamove tracking link is added later, when you send the <b style="color:var(--c-ink);font-weight:600">On the way</b> notification.</div>
       </div>
@@ -1688,7 +1693,7 @@ const I18N_ZH = {
   'Purchase List':'采购清单','Sync orders':'同步订单','Data':'数据',
   'Export all data':'导出所有数据','Clear all local data':'清除所有本地数据','About':'关于',
   // Modal — Add Order
-  'Customer Name':'顾客姓名','Order #':'订单编号','Due Date':'截止日期','Due Time':'截止时间',
+  'Customer Name':'顾客姓名','Order #':'订单编号','Due Date':'截止日期','Due Time':'截止时间','Delivery date':'送货日期','Delivery time':'送货时间','Pickup date':'取货日期','Pickup time':'取货时间','Sender':'订购人','Recipient':'收花人','Recipient name':'收花人姓名','Recipient phone':'收花人电话','Delivery address':'送货地址','Who receives the flowers':'收花人是谁',
   'Type':'类型','Self Collect / Pickup':'自取','Delivery Address':'送货地址','Designer':'设计师',
   '— Unassigned —':'— 未分配 —','Priority':'优先级','Normal':'普通','High':'重要','Urgent':'紧急',
   'Special Instructions (internal)':'特别说明（内部）','Products':'产品','+ Add product':'+ 新增产品',
@@ -12429,9 +12434,31 @@ async function _custAddrChoose(i){
   set('cust-address1',parts.address1); set('cust-address2',parts.address2); set('cust-city',parts.city);
   set('cust-state',parts.state); set('cust-zip',parts.zip); set('cust-country',parts.country||'Malaysia');
 }
-// Saving a manual order keeps the CRM in step: the customer (matched by phone) gets the
-// delivery address if their profile has none yet — an existing address is never
-// overwritten, since deliveries often go to a recipient — and a new number creates a profile.
+// Saving a manual order keeps the CRM in step (sender matched by phone; a new number
+// creates a profile). The delivery address belongs to the recipient: when the sender is
+// the recipient (no recipient given, or the same number) it fills the sender's address
+// if empty — never overwriting one — otherwise the recipient joins the sender's
+// Recipients list (name, phone, address in the note), de-duplicated by phone or name.
+async function _addRecipientToCustomer(custId, rcp){
+  if(!custId || !rcp || !(rcp.name || rcp.phone)) return false;
+  const { data, error } = await sb.from('customer_preferences').select('recipients').eq('customer_id', custId).maybeSingle();
+  if(error) throw error;
+  const list=Array.isArray(data && data.recipients) ? data.recipients.slice() : [];
+  const pk=_normPhone(rcp.phone||''), nk=String(rcp.name||'').trim().toLowerCase();
+  const idx=list.findIndex(r=> (pk && _normPhone(r.phone||'')===pk) || (!pk && nk && String(r.name||'').trim().toLowerCase()===nk));
+  if(idx>=0){
+    const r=list[idx], upd={...r};
+    if(!r.name && rcp.name) upd.name=rcp.name;
+    if(!r.phone && rcp.phone) upd.phone=rcp.phone;
+    if(!String(r.note||'').trim() && rcp.note) upd.note=rcp.note;
+    if(JSON.stringify(upd)===JSON.stringify(r)) return false;
+    list[idx]=upd;
+  } else list.push({ name:rcp.name||'', phone:rcp.phone||'', crm_customer_id:null, note:rcp.note||'' });
+  const { error:e2 } = await sb.from('customer_preferences').upsert({ customer_id:custId, recipients:list, updated_at:new Date().toISOString() }, { onConflict:'customer_id' });
+  if(e2) throw e2;
+  if(typeof CUST_PREFS!=='undefined' && CUST_PREFS && CUST_PREFS[custId]) CUST_PREFS[custId].recipients=list;
+  return true;
+}
 async function _orderToCustomer(o, parts){
   try{
     if(!hasSB() || (o.src||'manual')!=='manual') return;
@@ -12439,7 +12466,10 @@ async function _orderToCustomer(o, parts){
     const { data, error } = await sb.from('customers').select('id,name,phone,email,address1').ilike('phone','%'+key.slice(-8)+'%').limit(10);
     if(error) throw error;
     const hit=(data||[]).find(c=>_normPhone(c.phone)===key);
-    const addr=(o.type!=='pickup' && o.manualAddr) ? (parts && parts.address1 ? parts : _addrPartsFromText(o.manualAddr)) : null;
+    const rPhone=_normPhone(o.recipPhone||'');
+    const toSelf=!String(o.recipName||'').trim() && !rPhone || (rPhone && rPhone===key);
+    const rcp=(!toSelf && o.type!=='pickup') ? { name:String(o.recipName||'').trim(), phone:String(o.recipPhone||'').trim(), note:String(o.manualAddr||'').trim() } : null;
+    const addr=(toSelf && o.type!=='pickup' && o.manualAddr) ? (parts && parts.address1 ? parts : _addrPartsFromText(o.manualAddr)) : null;
     const addrCols=addr?{ address1:addr.address1||null, address2:addr.address2||null, city:addr.city||null, state:addr.state||null, zip:addr.zip||null, country:addr.country||'Malaysia' }:{};
     const nm=(o.customer && o.customer!=='Guest') ? o.customer : null;
     if(hit){
@@ -12447,6 +12477,7 @@ async function _orderToCustomer(o, parts){
       if(addr && !String(hit.address1||'').trim()) Object.assign(upd, addrCols);
       if(!hit.email && o.custEmail) upd.email=o.custEmail;
       if(!hit.name && nm) upd.name=nm;
+      if(rcp && await _addRecipientToCustomer(hit.id, rcp)) toast('✓ '+(rcp.name||rcp.phone)+' added to '+(hit.name||nm||'customer')+'\'s recipients');
       if(!Object.keys(upd).length) return;
       upd.updated_at=new Date().toISOString();
       const { error:e2 } = await sb.from('customers').update(upd).eq('id', hit.id); if(e2) throw e2;
@@ -12457,6 +12488,7 @@ async function _orderToCustomer(o, parts){
       const row=Object.assign({ name:nm, phone, email:o.custEmail||null, tag:'regular', source:src, updated_at:new Date().toISOString() }, addrCols);
       const { data:ins, error:e3 } = await sb.from('customers').insert(row).select().single(); if(e3) throw e3;
       if(ins && typeof CUSTOMERS!=='undefined') CUSTOMERS.unshift(ins);
+      if(ins && rcp) await _addRecipientToCustomer(ins.id, rcp);
       toast('✓ New customer profile: '+(nm||phone));
     }
     if(typeof _bcSend==='function') _bcSend('customers');
@@ -12512,6 +12544,9 @@ function _oTypeChange(){
   const sec=document.getElementById('o-deliv-sec'); if(sec) sec.style.display = isPickup ? 'none' : '';
   const del=document.getElementById('o-type-del'); if(del) del.classList.toggle('on', !isPickup);
   const pik=document.getElementById('o-type-pick'); if(pik) pik.classList.toggle('on', isPickup);
+  const zh=(typeof LANG!=='undefined' && LANG==='zh');
+  const dl=document.getElementById('o-date-lbl'); if(dl) dl.textContent = isPickup ? (zh?'取货日期':'Pickup date') : (zh?'送货日期':'Delivery date');
+  const tl=document.getElementById('o-time-lbl'); if(tl) tl.textContent = isPickup ? (zh?'取货时间':'Pickup time') : (zh?'送货时间':'Delivery time');
 }
 // Order channel toggle (WhatsApp / Instagram). Instagram reveals a required username
 // field; a WhatsApp number is required for both channels.
@@ -12537,7 +12572,7 @@ function _fuFulfilSet(v){
   const aw=document.getElementById('fu-addr-wrap'); if(aw) aw.style.display = pk ? 'none' : '';
 }
 function openAddOrder(){
-  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig','o-recip-name','o-recip-phone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const _ty=document.getElementById('o-type'); if(_ty) _ty.value='delivery';
   oSetChannel('whatsapp');
@@ -13027,7 +13062,9 @@ function saveOrder() {
     custPhone: custPhone||null,
     custEmail: document.getElementById('o-cust-email')?.value.trim()||null,
     channel: channel,
-    custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null)
+    custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null),
+    recipName: document.getElementById('o-type').value==='pickup' ? (prevOrder?.recipName||null) : (document.getElementById('o-recip-name')?.value.trim()||null),
+    recipPhone: document.getElementById('o-type').value==='pickup' ? (prevOrder?.recipPhone||null) : (document.getElementById('o-recip-phone')?.value.trim()||null)
   };
   let _pickParts=null;
   { const _pick=_oAddrPick, _prevAddr=String((prevOrder&&prevOrder.manualAddr)||'').trim();
@@ -13421,6 +13458,7 @@ function editOrder(id) {
   const cpEl=document.getElementById('o-cust-phone'); if(cpEl) cpEl.value=o.custPhone||'';
   const ceEl=document.getElementById('o-cust-email'); if(ceEl) ceEl.value=o.custEmail||'';
   const igEl=document.getElementById('o-cust-ig'); if(igEl) igEl.value=o.custIg||'';
+  { const rn=document.getElementById('o-recip-name'); if(rn) rn.value=o.recipName||''; const rp=document.getElementById('o-recip-phone'); if(rp) rp.value=o.recipPhone||''; }
   oSetChannel(o.channel||'whatsapp');
   const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const sumEl=document.getElementById('o-cust-summary'); if(sumEl) sumEl.textContent=o.customer||'Customer details';
