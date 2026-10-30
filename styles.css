@@ -1005,6 +1005,11 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .fu-c-amt{font-size:13px;font-weight:700;color:var(--c-burg);text-align:right;white-space:nowrap}
 .fu-c-badges{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
 .fu-c-tick{display:flex;justify-content:flex-end}
+.fu-stage{display:inline-block;font-size:11.5px;font-weight:600;line-height:1.3;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.fu-act{display:inline-flex;align-items:center;gap:7px;min-height:36px;padding:0 13px;border:1.5px solid var(--c-burg);border-radius:9px;background:transparent;color:var(--c-burg);font-family:var(--f-body);font-size:12.5px;font-weight:600;white-space:nowrap;cursor:pointer;text-decoration:none;transition:background-color .12s,color .12s}
+.fu-act:hover{background:var(--c-burg);color:var(--c-bg)}
+.fu-act:active{transform:translateY(1px)}
+@media (pointer:coarse){.fu-act{min-height:44px;padding:0 15px}}
 @media(max-width:860px){
   .fu-card{grid-template-columns:1fr auto;grid-template-areas:"main main" "date amt" "badges tick";align-items:start;row-gap:8px}
   .fu-c-main{grid-area:main}

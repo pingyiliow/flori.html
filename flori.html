@@ -1179,6 +1179,7 @@ const DI = {
   chat:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
   whatsapp:'<path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.27.86 5.83 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.24-8.25 8.24a8.2 8.2 0 0 1-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm-4.6 4.44c-.15 0-.4.06-.6.28-.2.22-.79.77-.79 1.88s.81 2.18.92 2.33c.11.15 1.58 2.42 3.86 3.39.54.23.96.37 1.29.48.54.17 1.03.15 1.42.09.43-.06 1.34-.55 1.53-1.08.19-.53.19-.98.13-1.08-.06-.09-.2-.15-.43-.26-.22-.11-1.34-.66-1.55-.74-.21-.08-.36-.11-.5.11-.15.22-.58.73-.71.88-.13.15-.26.17-.48.06-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.69-1.66-.18-.43-.36-.37-.5-.38-.13-.01-.28-.01-.42-.01z"/>',
   nav:'<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+  wallet:'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M17 12h4v4h-4a2 2 0 0 1 0-4z"/>',
   note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
   list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
@@ -7939,19 +7940,20 @@ function _fuStage(f){
   return 'enquiry';
 }
 const _fuNeeds = f => { const s=_fuStage(f); return s==='enquiry' || s==='ready'; };
-function _fuStageChip(f){ const s=FU_STAGES[_fuStage(f)]; return '<span class="pay-badge" style="background:'+s.bg+';color:'+s.fg+';border:none;font-weight:700">'+s.label+'</span>'; }
+function _fuChip(label, bg, fg){ return '<span class="fu-stage" style="background:'+bg+';color:'+fg+'">'+label+'</span>'; }
+function _fuStageChip(f){ const s=FU_STAGES[_fuStage(f)]; return _fuChip(s.label, s.bg, s.fg); }
 function _fuFlags(f){
   const st=_fuStage(f), out=[];
-  if ((st==='ready'||st==='shopify') && f.payment!=='paid') out.push('<span class="pay-badge pay-pend">Unpaid</span>');
+  if ((st==='ready'||st==='shopify') && f.payment!=='paid') out.push(_fuChip('Unpaid','#FAEEDA','#854F0B'));
   if (f.payment==='paid' && f.paidBy) out.push('<span style="font-size:10.5px;color:var(--c-muted)">'+esc(_payParse(f.paidBy).m==='Other'?f.paidBy:_payParse(f.paidBy).m)+'</span>');
   return out.join('');
 }
 function _fuActionBtn(f){
   const st=_fuStage(f), stop='event.stopPropagation();';
-  const btn=(label,icon,click)=>'<button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="'+stop+click+'">'+di(icon,13)+' '+label+'</button>';
-  if (st==='enquiry') return btn('Record payment','check',"openFUPay('"+f.id+"')");
+  const btn=(label,icon,click)=>'<button type="button" class="fu-act" onclick="'+stop+click+'">'+di(icon,15)+'<span>'+label+'</span></button>';
+  if (st==='enquiry') return btn('Record payment','wallet',"openFUPay('"+f.id+"')");
   if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')");
-  if (st==='shopify' && f.shopifyDraftId) return '<a class="btn btn-ghost btn-sm" style="white-space:nowrap;text-decoration:none" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',13)+' Open draft</a>';
+  if (st==='shopify' && f.shopifyDraftId) return '<a class="fu-act" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',15)+'<span>Open draft</span></a>';
   return '';
 }
 // Record payment: choose how they paid (+ approval code / cheque no.), or let it go
@@ -8140,7 +8142,7 @@ function openFUDP(id) {
   // Body
   let html = '';
   // Stage + invoice flag
-  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">${_fuStageChip(f)}${(_fuStage(f)!=='enquiry'&&f.payment!=='paid')?'<span class="pay-badge pay-pend">Unpaid</span>':''}
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">${_fuStageChip(f)}${(_fuStage(f)!=='enquiry'&&f.payment!=='paid')?_fuChip('Unpaid','#FAEEDA','#854F0B'):''}
     <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${f.needInvoice?'background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9':'background:var(--c-surface);color:var(--c-muted);border:1px dashed var(--c-border)'}">${f.needInvoice?'Invoice requested':'Invoice needed?'}</span></button>
   </div>`;
   // Contact
@@ -8196,7 +8198,7 @@ function openFUDP(id) {
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
     ${(()=>{ const st=_fuStage(f); const big='display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none';
-      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('check',15)+' Record payment</button>';
+      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('wallet',15)+' Record payment</button>';
       if(st==='ready') return '<button onclick="openFUDraftModal(\''+f.id+'\')" style="'+big+'">'+di('bag',15)+' Send to Shopify</button>'
         + '<button onclick="fuBackToEnquiry(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Move back to Enquiry</button>';
       if(st==='shopify') return (f.shopifyDraftId?'<a href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" style="'+big+'">'+di('nav',15)+' Open draft in Shopify</a>':'')
