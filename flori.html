@@ -527,7 +527,7 @@
       <!-- 3 · Delivery address (delivery only) -->
       <div style="margin-bottom:18px" id="o-deliv-sec">
         <div class="osec">Delivery address</div>
-        <div class="ff" id="o-addr-wrap"><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…"></textarea></div>
+        <div class="ff" id="o-addr-wrap" style="position:relative"><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…" oninput="_oAddrSearch(this.value)" onblur="setTimeout(_oAddrHide,200)"></textarea><div id="o-addr-sug" class="rcp-sug" style="display:none"></div></div>
         <div style="font-size:11px;color:var(--c-muted);margin-top:8px;line-height:1.5">Lalamove tracking link is added later, when you send the <b style="color:var(--c-ink);font-weight:600">On the way</b> notification.</div>
       </div>
 
@@ -12361,6 +12361,38 @@ function toggleOrderCust(open){
 // Find an existing customer by phone / email / name (server-side, since the list is
 // paged) and fill the order's customer fields.
 let _oCustResults=[], _oCustTimer=null;
+// Delivery address type-ahead (Google Places via /api/geo, OpenStreetMap fallback) — the
+// same search the Lalamove stop picker uses. A picked place also brings its map position,
+// so the driver map pins it without a separate geocode; the text stays editable (unit no.).
+let _oAddrPick=null, _oAddrTimer=null, _oAddrTok=null, _oAddrPreds=[];
+function _oAddrHide(){ const s=document.getElementById('o-addr-sug'); if(s){ s.style.display='none'; } }
+function _oAddrSearch(v){
+  clearTimeout(_oAddrTimer);
+  const q=String(v||'').trim(), sug=document.getElementById('o-addr-sug'); if(!sug) return;
+  if(q.length<4 || q.indexOf('\n')>=0){ _oAddrHide(); return; }
+  if(!_oAddrTok) _oAddrTok='o'+Date.now()+Math.random().toString(36).slice(2,8);
+  _oAddrTimer=setTimeout(async()=>{
+    const r=await _lalaGeoReq({ mode:'autocomplete', input:q, sessionToken:_oAddrTok });
+    const cur=(document.getElementById('o-addr')||{}).value||''; if(cur.trim()!==q) return;   // typed on meanwhile
+    _oAddrPreds=(r&&r.predictions)||[];
+    if(!_oAddrPreds.length){ _oAddrHide(); return; }
+    sug.innerHTML=_oAddrPreds.map((p,i)=>'<div class="rcp-sug-row" onmousedown="event.preventDefault();_oAddrChoose('+i+')" style="display:flex;gap:7px;align-items:flex-start">'+_LALA_PIN_SVG+'<span style="min-width:0">'+esc(p.description||'')+'</span></div>').join('');
+    sug.style.display='';
+  }, 350);
+}
+async function _oAddrChoose(i){
+  const p=_oAddrPreds[i]; if(!p) return;
+  _oAddrHide();
+  const ta=document.getElementById('o-addr'); if(!ta) return;
+  let lat=p.lat, lng=p.lng, text=p.description||'';
+  if(typeof lat!=='number' && p.placeId){
+    const r=await _lalaGeoReq({ mode:'place', placeId:p.placeId, sessionToken:_oAddrTok });
+    if(r && typeof r.lat==='number'){ lat=r.lat; lng=r.lng; if(r.address) text=r.address; }
+  }
+  _oAddrTok=null;
+  ta.value=text;
+  _oAddrPick=(typeof lat==='number') ? { text, lat, lng } : null;
+}
 function oCustSearch(val){
   const sug=document.getElementById('o-cust-sug'); if(!sug) return;
   const q=String(val||'').trim();
@@ -12414,10 +12446,10 @@ function _oTypeChange(){
 }
 // Order channel toggle (WhatsApp / Instagram). Instagram reveals a required username
 // field; a WhatsApp number is required for both channels.
-// Order channels (same set as follow-ups). A phone is required for WhatsApp/Instagram
-// orders (customer notifications go there); Facebook, walk-in and other may have none.
+// Order channels (same set as follow-ups). A phone is required for WhatsApp, Instagram
+// and walk-in orders; Facebook and other may have none.
 const O_CHANNELS = { whatsapp:'o-chan-wa', instagram:'o-chan-ig', facebook:'o-chan-fb', walkin:'o-chan-wi', other:'o-chan-ot' };
-const _oPhoneRequired = ch => ch==='whatsapp' || ch==='instagram';
+const _oPhoneRequired = ch => ch==='whatsapp' || ch==='instagram' || ch==='walkin';
 function oSetChannel(ch){
   if (!O_CHANNELS[ch]) ch = 'whatsapp';
   const el=document.getElementById('o-channel'); if(el) el.value=ch;
@@ -12928,6 +12960,11 @@ function saveOrder() {
     channel: channel,
     custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null)
   };
+  { const _pick=_oAddrPick, _prevAddr=String((prevOrder&&prevOrder.manualAddr)||'').trim();
+    if(_pick && addrVal && addrVal.toLowerCase().indexOf(_pick.text.slice(0,15).toLowerCase())>=0){ entry.lat=_pick.lat; entry.lng=_pick.lng; }
+    else if(prevOrder && addrVal!==_prevAddr){ entry.lat=null; entry.lng=null; }
+    _oAddrPick=null;
+  }
   { const newSum=_sumItems(lineItems);
     if((entry.src||'manual')==='manual'){ if(newSum>0) entry.total=newSum.toFixed(2); }
     else if(prevOrder){
@@ -12942,7 +12979,7 @@ function saveOrder() {
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
-  _oStaffOpts();
+  _oStaffOpts(); _oAddrPick=null; _oAddrHide();
   document.getElementById('o-modal-ttl').textContent = 'Add Order';
   toast('✓ Order saved'); renderAll();
 }
@@ -13328,7 +13365,7 @@ function editOrder(id) {
   const lalaEl=document.getElementById('o-lala');if(lalaEl)lalaEl.value=o.lalamoveUrl||''; _oLalaSync(); _oTypeChange();
   const desEl=document.getElementById('o-designer');if(desEl)desEl.value=o.designer||'';
   const stfEl2=document.getElementById('o-staff');if(stfEl2)stfEl2.value=o.staff||'';
-  _oStaffOpts();
+  _oStaffOpts(); _oAddrPick=null; _oAddrHide();
   const priEl=document.getElementById('o-priority');if(priEl)priEl.value=o.priority||'normal';
   const inEl=document.getElementById('o-internal-note');if(inEl)inEl.value=o.internalNote||'';
   // Build product rows from lineItems (or legacy product string)
