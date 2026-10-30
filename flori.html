@@ -60,7 +60,7 @@
     <button class="nav-btn" data-pg="driver"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg></span><span>Delivery</span></button>
     <button class="nav-btn" data-pg="stock"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span><span>Stock</span></button>
     <div class="nav-div"></div>
-    <button class="nav-btn" data-pg="followup"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>Follow-ups</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
+    <button class="nav-btn" data-pg="followup"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span>New Orders</span><span class="nav-badge" id="nb-followup" style="display:none">0</span></button>
     <button class="nav-btn" data-pg="customers"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Customers</span></button>
     <button class="nav-btn" data-pg="records"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Records</span></button>
     <div class="nav-div"></div>
@@ -265,22 +265,14 @@
     <div class="pc">
       <div class="page-hdr">
         <div>
-          <div class="page-title">Follow-up List</div>
+          <div class="page-title">New Orders</div>
         </div>
-        <button class="btn btn-primary" onclick="openAddFollowup()">+ Add Customer</button>
-      </div>
-      <div class="fu-tiles">
-        <div class="fu-tile t-follow"><div class="fu-n" id="fu-t-follow">0</div><div class="fu-l">To follow up</div></div>
-        <div class="fu-tile t-ready"><div class="fu-n" id="fu-t-ready">0</div><div class="fu-l">Ready</div></div>
-        <div class="fu-tile t-unpaid"><div class="fu-n" id="fu-t-unpaid">0</div><div class="fu-l">Unpaid</div></div>
-        <div class="fu-tile t-done"><div class="fu-n" id="fu-t-done">0</div><div class="fu-l">Completed</div></div>
+        <button class="btn btn-primary" onclick="openAddFollowup()">+ New order</button>
       </div>
       <div class="filters" id="fu-filters">
-        <button class="f-btn on" data-fu="all">All</button>
-        <button class="f-btn" data-fu="followup-pending">Follow-up</button>
-        <button class="f-btn" data-fu="ready-pending">Ready <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:-1px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></button>
-        <button class="f-btn" data-fu="payment-pending">Unpaid</button>
-        <button class="f-btn" data-fu="completed">Completed</button>
+        <button class="f-btn on" data-fu="needs">Needs action <span id="fu-c-needs"></span></button>
+        <button class="f-btn" data-fu="shopify">In Shopify <span id="fu-c-shopify"></span></button>
+        <button class="f-btn" data-fu="done">Done</button>
       </div>
       <div class="fu-cards" id="followup-tbody"></div>
     </div>
@@ -378,7 +370,7 @@
   <div class="more-grab"></div>
   <div class="more-ttl">More</div>
   <button class="more-row" data-role-gate="todo" onclick="closeMore();goPage('todo')"><span class="more-ico" style="background:#EEEDFE;color:#534AB7"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m9 12 2 2 4-4"/></svg></span><span class="more-lbl">To-do</span><span class="more-chev">›</span></button>
-  <button class="more-row" data-role-gate="followup" onclick="closeMore();goPage('followup')"><span class="more-ico" style="background:var(--c-amber-bg);color:var(--c-amber)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span class="more-lbl">Follow-ups</span><span class="more-badge" id="more-nb-fu" style="display:none">0</span><span class="more-chev">›</span></button>
+  <button class="more-row" data-role-gate="followup" onclick="closeMore();goPage('followup')"><span class="more-ico" style="background:var(--c-amber-bg);color:var(--c-amber)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span class="more-lbl">New Orders</span><span class="more-badge" id="more-nb-fu" style="display:none">0</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="customers" onclick="closeMore();goPage('customers')"><span class="more-ico" style="background:var(--c-blue-bg);color:var(--c-blue)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="more-lbl">Customers</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="records" onclick="closeMore();goPage('records')"><span class="more-ico" style="background:var(--c-sage-bg);color:var(--c-forest)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="more-lbl">Records</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="team" onclick="closeMore();goPage('team')"><span class="more-ico" style="background:#FBEAF0;color:#993556"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="more-lbl">Team</span><span class="more-chev">›</span></button>
@@ -533,6 +525,7 @@
         </div>
         <label class="ff-l">Delivery address</label>
         <div class="ff" id="o-addr-wrap" style="position:relative"><textarea id="o-addr" style="min-height:52px" placeholder="Street, City, Postcode…" oninput="_oAddrSearch(this.value)" onblur="setTimeout(_oAddrHide,200)"></textarea><div id="o-addr-sug" class="rcp-sug" style="display:none"></div></div>
+        <div class="ff" style="margin-top:10px"><label class="ff-l">Delivery instructions</label><textarea id="o-deliv-instr" style="min-height:40px" placeholder="Call before arriving, leave at the guardhouse…"></textarea></div>
         <div style="font-size:11px;color:var(--c-muted);margin-top:8px;line-height:1.5">Lalamove tracking link is added later, when you send the <b style="color:var(--c-ink);font-weight:600">On the way</b> notification.</div>
       </div>
 
@@ -955,6 +948,19 @@
 
 <!-- ══ MODAL — Add Follow-up ════════════════════════════════ -->
 <!-- ══ FOLLOW-UP → SHOPIFY DRAFT (product picker) ══════════════ -->
+<div id="m-fu-pay" class="modal">
+  <div class="mc" style="max-width:380px">
+    <div class="mc-hdr"><div><div class="mc-ttl">Payment</div><div id="fupay-who" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div><button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-pay')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div class="ff"><label class="ff-l">Paid by</label><select id="fupay-m" onchange="_fuPayModalUI()"></select>
+        <input id="fupay-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" style="flex:1" onclick="fuPayConfirm(true)">Payment verified</button>
+        <button class="btn btn-ghost" onclick="fuPayConfirm(false)">Pay later</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="m-fu-draft" class="modal">
   <div class="mc" style="max-width:480px">
     <div class="mc-hdr">
@@ -1086,7 +1092,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           </div>
           <div class="ff"><label class="ff-l">Paid By</label><select id="fu-paid-m" onchange="_fuPayUI()"></select>
             <input id="fu-paid-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
-          <div class="ff"><label class="ff-l">Follow-up Status</label>
+          <div class="ff" style="display:none"><label class="ff-l">Follow-up Status</label>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
           <div class="ff" style="grid-column:1/-1">
@@ -1109,13 +1115,14 @@ Address: 12 Jalan Bunga, Penang"></textarea>
               <div style="font-size:10px;color:var(--c-muted)">Amount auto-sums the items above — edit to override. Total = amount + delivery.</div>
             </div>
           </div>
-          <div class="ff" style="grid-column:1/-1"><label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Delivery instructions, allergies, other notes for the whole order…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Allergies, other notes for the whole order…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery instructions</label><textarea id="fu-deliv-instr" style="min-height:44px" placeholder="Call before arriving, leave at the guardhouse…"></textarea></div>
           <input type="hidden" id="fu-notes">
         </div>
       </div>
 
       <div class="btn-row" style="margin-top:4px">
-        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save to Follow-up List</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveFollowup()">Save</button>
         <button class="btn btn-ghost" onclick="closeModal('m-followup')">Cancel</button>
       </div>
     </div>
@@ -1662,7 +1669,7 @@ let LANG = localStorage.getItem('flori-lang') || 'en';
 const I18N_ZH = {
   // Header / nav
   'Sync Orders':'同步订单','Operations':'操作','Admin':'管理','Stock':'库存',
-  'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','Customers':'顾客',
+  'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','New Orders':'新订单','Needs action':'待处理','In Shopify':'已在 Shopify','Done':'完成','Enquiry':'询问中','Ready for Shopify':'可送 Shopify','Payment verified':'付款已确认','Pay later':'稍后付款','Send to Shopify':'送去 Shopify','Open draft':'打开草稿','Delivery instructions':'送货指示','Move back to Enquiry':'退回询问中','Customers':'顾客',
   'WhatsApp Log':'WhatsApp 记录','WA Log':'WA 记录','Send Log':'发送记录',
   'Delivery notifications — sent only to the buyer\'s own phone (customer.phone)':'配送通知 — 只发给买家本人电话 (customer.phone)',
   'Sent':'已发送','Dry-run':'试运行','No phone':'无电话','Error':'失败','Skipped':'已跳过',
@@ -2079,6 +2086,7 @@ function _applyShopifyToExisting(prev, m){
     deliveredLng: prev.deliveredLng ?? null,
     deliveredAt:  prev.deliveredAt || null,
     deliveredBy:  prev.deliveredBy || null,
+    deliveryInstr: m.deliveryInstr || prev.deliveryInstr || null,
     recipName:    m.recipName  || prev.recipName  || null,
     recipPhone:   m.recipPhone || prev.recipPhone || null,
     address:      m.address    || prev.address    || null,
@@ -2167,7 +2175,8 @@ function _mapShopifyOrder(n){
   const imgUrl = (withImgs && withImgs.images[0]) || lineItems.find(i => i.image)?.image || null;
   const priceData = n.currentTotalPriceSet?.shopMoney;
   const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
-  return { id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false,
+  const _diA = attrs.find(a => /^(delivery instructions?|delivery note|notes to driver)$/i.test(String(a.key||'').trim()));
+  return { deliveryInstr: (_diA && String(_diA.value||'').trim()) || null, id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false,
     recipName:n.shippingAddress?.name||null, recipPhone:n.shippingAddress?.phone||null, address:_fmtShipAddr(n.shippingAddress) };
 }
 
@@ -2549,6 +2558,7 @@ function _orderRow(o){
   row.fulfilled_by=o.fulfilledBy||null; row.fulfilled_at=o.fulfilledAt||null;
   row.staff=o.staff||null; if(!o.staff) delete row.staff;
   row.total_adj=o.totalAdj||null; if(!o.totalAdj) delete row.total_adj;
+  row.delivery_instr=o.deliveryInstr||null; if(!o.deliveryInstr) delete row.delivery_instr;
   if (!o.readyBy) delete row.ready_by;
   if (!o.readyAt) delete row.ready_at;
   if (!o.fulfilledBy) delete row.fulfilled_by;
@@ -3009,7 +3019,7 @@ function _mapDbOrder(o){
     ready: o.ready||false, createdAt: o.created_at||null,
     readyBy: o.ready_by||null, readyAt: o.ready_at||null,
     fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
-    staff: o.staff||null, totalAdj: o.total_adj||null,
+    staff: o.staff||null, totalAdj: o.total_adj||null, deliveryInstr: o.delivery_instr||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, lalamoveOrderId: o.lalamove_order_id||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -3028,7 +3038,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj,delivery_instr';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3296,7 +3306,7 @@ async function loadFromSupabase(opts = {}) {
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
         addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'',
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
-        cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'',
+        cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
@@ -3565,7 +3575,7 @@ function toggleFilterPanel(){
     document.addEventListener('click',h); },10);
 }
 let calFilter = null, calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
-let fuFilter = 'all';
+let fuFilter = 'needs';
 
 function priorityBadge(o) {
   const p = o.priority || 'normal';
@@ -6711,14 +6721,14 @@ function saveFollowups() {
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
       addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null,
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
-      card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null,
+      card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).then(ok => {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -6736,7 +6746,7 @@ function fuSwitchTab(tab) {
 
 function _fuClearFields() {
   ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
-   'fu-notes','fu-remarks','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
+   'fu-notes','fu-remarks','fu-deliv-instr','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
@@ -7128,6 +7138,7 @@ function editFollowup(id) {
     const _saved=parseFloat(f.amount)||0;
     if(_sub>0 && Math.abs(_saved-_sub)<0.01){ _fuAmountManual=false; } _fuRecalcTotals(); }
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
+  const fdiEl = document.getElementById('fu-deliv-instr'); if(fdiEl) fdiEl.value = f.deliveryInstr||'';
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
   fuSwitchTab('manual');
@@ -7316,6 +7327,7 @@ function saveFollowup() {
     amount:     parseFloat(document.getElementById('fu-amount')?.value)||0,
     deliveryFee:parseFloat(document.getElementById('fu-fee')?.value)||0,
     addr:       document.getElementById('fu-addr')?.value.trim()||'',
+    deliveryInstr: document.getElementById('fu-deliv-instr')?.value.trim()||'',
     payment:    _fuPayGet().payment,
     paidBy:     _fuPayGet().paidBy,
     status:     (prevFu?.status==='draft') ? 'draft' : (stEl?stEl.value:'pending'),
@@ -7791,6 +7803,7 @@ async function createShopifyDraft() {
   if (f.cardMsg)    customAttributes.push({ key:'Card Message',       value: f.cardMsg });
   if (f.flowerNote) customAttributes.push({ key:'Flower Instructions', value: f.flowerNote });
   if (f.remarks)    customAttributes.push({ key:'Remark',             value: f.remarks });
+  if (f.deliveryInstr) customAttributes.push({ key:'Delivery Instructions', value: f.deliveryInstr });
   // Carry the follow-up's product photos to the Shopify order as an attribute of durable R2
   // links (not base64 — short + persistent), so they round-trip back into the daily order.
   const _fuPhotos = [];
@@ -7909,12 +7922,78 @@ async function createShopifyDraft() {
   }
 }
 
+// ── New Orders: one stage per order, one next step per card ──────────────────
+// Enquiry → (Payment verified | Pay later) → Ready for Shopify → (draft created) →
+// In Shopify → (Shopify order created, via webhook) → Done. Derived from the stored
+// status + payment so existing entries map over without migration.
+const FU_STAGES = {
+  enquiry: { label:'Enquiry',           bg:'#F1EFE8', fg:'#444441' },
+  ready:   { label:'Ready for Shopify', bg:'#EEEDFE', fg:'#3C3489' },
+  shopify: { label:'In Shopify',        bg:'#E6F1FB', fg:'#0C447C' },
+  done:    { label:'Done',              bg:'#EAF3DE', fg:'#27500A' },
+};
+function _fuStage(f){
+  if (f.status==='completed') return 'done';
+  if (f.status==='draft') return 'shopify';
+  if (f.status==='ready' || f.payment==='paid') return 'ready';
+  return 'enquiry';
+}
+const _fuNeeds = f => { const s=_fuStage(f); return s==='enquiry' || s==='ready'; };
+function _fuStageChip(f){ const s=FU_STAGES[_fuStage(f)]; return '<span class="pay-badge" style="background:'+s.bg+';color:'+s.fg+';border:none;font-weight:700">'+s.label+'</span>'; }
+function _fuFlags(f){
+  const st=_fuStage(f), out=[];
+  if ((st==='ready'||st==='shopify') && f.payment!=='paid') out.push('<span class="pay-badge pay-pend">Unpaid</span>');
+  if (f.payment==='paid' && f.paidBy) out.push('<span style="font-size:10.5px;color:var(--c-muted)">'+esc(_payParse(f.paidBy).m==='Other'?f.paidBy:_payParse(f.paidBy).m)+'</span>');
+  return out.join('');
+}
+function _fuActionBtn(f){
+  const st=_fuStage(f), stop='event.stopPropagation();';
+  const btn=(label,icon,click)=>'<button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="'+stop+click+'">'+di(icon,13)+' '+label+'</button>';
+  if (st==='enquiry') return btn('Payment verified','check',"openFUPay('"+f.id+"')");
+  if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')");
+  if (st==='shopify' && f.shopifyDraftId) return '<a class="btn btn-ghost btn-sm" style="white-space:nowrap;text-decoration:none" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',13)+' Open draft</a>';
+  return '';
+}
+// Payment verified: choose how they paid (+ approval code / cheque no.), or let it go
+// through unpaid (corporate / invoice orders that pay after delivery).
+let _fuPayId=null;
+function openFUPay(id){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  _fuPayId=id;
+  const tot=(parseFloat(f.amount)||0)+(parseFloat(f.deliveryFee)||0);
+  document.getElementById('fupay-who').textContent=(f.name||'Customer')+(tot?' · RM '+tot.toFixed(2):'');
+  const p=_payParse(f.paidBy);
+  document.getElementById('fupay-m').innerHTML=PAY_METHODS.map(m=>'<option value="'+m+'"'+((p.m||'Bank transfer')===m?' selected':'')+'>'+m+'</option>').join('');
+  document.getElementById('fupay-ref').value=(p.m==='Other'&&p.ref==='Other')?'':(p.ref||'');
+  _fuPayModalUI();
+  openModal('m-fu-pay');
+}
+function _fuPayModalUI(){
+  const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref');
+  ref.style.display=PAY_REF[m]?'':'none'; ref.placeholder=PAY_REF[m]||'';
+}
+function fuPayConfirm(paid){
+  const f=FOLLOWUPS.find(x=>x.id===_fuPayId); if(!f){ closeModal('m-fu-pay'); return; }
+  if (paid){
+    const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref').value;
+    if (PAY_REF[m] && m!=='Other' && !String(ref).trim()){ toast(PAY_REF[m]+' required'); document.getElementById('fupay-ref').focus(); return; }
+    f.payment='paid'; f.paidBy=_payFmt(m, ref);
+  }
+  f.status='ready';
+  saveFollowups(); closeModal('m-fu-pay'); renderFollowup();
+  toast(paid ? '✓ Payment verified · ready for Shopify' : '✓ Ready for Shopify · unpaid');
+}
+function fuBackToEnquiry(id){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  f.status='pending'; f.payment='pending'; f.paidBy='';
+  saveFollowups(); closeFUDP(); renderFollowup(); toast('Moved back to Enquiry');
+}
 function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
-  const fuPending=FOLLOWUPS.filter(x=>x.status!=='completed').length, payPending=FOLLOWUPS.filter(x=>x.payment==='pending'&&x.status!=='completed').length, completed=FOLLOWUPS.filter(x=>x.status==='completed').length;
-  const pendingOnly=FOLLOWUPS.filter(x=>x.status==='pending').length, readyCount=FOLLOWUPS.filter(x=>x.status==='ready').length;
-  const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
-  _fs('fu-t-follow',pendingOnly); _fs('fu-t-ready',readyCount); _fs('fu-t-unpaid',payPending); _fs('fu-t-done',completed);
+  const _needsN=FOLLOWUPS.filter(x=>_fuNeeds(x)).length, _shopN=FOLLOWUPS.filter(x=>_fuStage(x)==='shopify').length;
+  const fuPending=_needsN;
+  const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?('· '+v):'';};
+  _fs('fu-c-needs',_needsN); _fs('fu-c-shopify',_shopN);
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
   // An entry is "archived" once it's marked completed OR its delivery date has
@@ -7923,12 +8002,9 @@ function renderFollowup() {
   // Only COMPLETED entries leave the All tab → they move to Completed. Overdue
   // (past delivery date) but not-yet-completed entries STAY in All so they're not
   // lost — they still need action.
-  const isArchived = x => x.status==='completed';
-  if(fuFilter==='all' || !fuFilter)  list=list.filter(x=>!isArchived(x));
-  if(fuFilter==='followup-pending') list=list.filter(x=>x.status==='pending');
-  if(fuFilter==='ready-pending') list=list.filter(x=>x.status==='ready');
-  if(fuFilter==='payment-pending')  list=list.filter(x=>x.payment==='pending'&&x.status!=='completed');
-  if(fuFilter==='completed')        list=list.filter(x=>isArchived(x));
+  if(fuFilter==='shopify')   list=list.filter(x=>_fuStage(x)==='shopify');
+  else if(fuFilter==='done') list=list.filter(x=>_fuStage(x)==='done');
+  else                       list=list.filter(x=>_fuNeeds(x));
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('phone',34)}</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
@@ -8025,24 +8101,15 @@ function renderFollowup() {
         ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">${di('user',12)}Staff: ${esc(f.staff)}</div>`:''}
         <div class="fu-c-items">${esc(itemsPreview)}</div>
       </div>`;
-    return _hdr + `<div class="fu-card ${isCompleted?'done':isReady?'ready':''}" onclick="openFUDP('${f.id}')">
+    return _hdr + `<div class="fu-card st-${_fuStage(f)}" onclick="openFUDP('${f.id}')">
       <div class="fu-c-main" style="${coverImg?'display:flex;gap:9px;align-items:flex-start':''}">
         ${coverImg?`<img src="${esc(coverImg)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
         ${_nameBlock}
       </div>
       <div class="fu-c-date">${dateCellHtml}</div>
       <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}${feeLine}</div>
-      <div class="fu-c-badges">
-        <button onclick="event.stopPropagation();togglePayment('${f.id}')" aria-label="Toggle payment status" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
-        ${_fuPayCell(f)}
-        <button onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${stBg};color:${stColor};border:1px solid ${stBorder};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLabel} ›</span></button>
-      </div>
-      <div class="fu-c-tick" style="display:flex;flex-direction:column;gap:6px;align-items:center">
-        <button class="act-btn" style="${tickStyle};width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:13px"
-          onclick="event.stopPropagation();toggleFUStatus('${f.id}')" title="${tickTitle}" aria-label="${tickTitle}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>
-        <button class="act-btn" style="width:30px;height:30px;border:1.5px solid;border-radius:var(--r);display:inline-flex;align-items:center;justify-content:center;font-size:12px;${f.needInvoice?'background:#E8F0FE;border-color:#90CAF9':'background:var(--c-surface);border-color:var(--c-border);opacity:.6'}"
-          onclick="event.stopPropagation();toggleInvoice('${f.id}')" title="${f.needInvoice?'Invoice requested — click to clear':'Tick if an invoice is needed'}" aria-label="Toggle invoice needed">${di('receipt',14)}</button>
-      </div>
+      <div class="fu-c-badges">${_fuStageChip(f)}${_fuFlags(f)}</div>
+      <div class="fu-c-tick">${_fuActionBtn(f)}</div>
     </div>`;
   }).join('');
 }
@@ -8072,11 +8139,9 @@ function openFUDP(id) {
   document.getElementById('fu-dp-sub').textContent = subParts.join(' · ');
   // Body
   let html = '';
-  // Status badges row
-  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
-    <button onclick="togglePayment('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge ${payCl}">${payLbl}</span></button>
-    <button onclick="toggleFUStatus('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${stStyle};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${stLbl} →</span></button>
-    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" title="Request an invoice for this order" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="background:${f.needInvoice?'#E8F0FE':'transparent'};color:${f.needInvoice?'#1565C0':'var(--c-muted)'};border:1px solid ${f.needInvoice?'#90CAF9':'var(--c-border)'};font-size:9px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px">${di('receipt',11)} ${f.needInvoice?'Invoice requested':'Request invoice'}</span></button>
+  // Stage + invoice flag
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">${_fuStageChip(f)}${(_fuStage(f)!=='enquiry'&&f.payment!=='paid')?'<span class="pay-badge pay-pend">Unpaid</span>':''}
+    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${f.needInvoice?'background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9':'background:var(--c-surface);color:var(--c-muted);border:1px dashed var(--c-border)'}">${f.needInvoice?'Invoice requested':'Invoice needed?'}</span></button>
   </div>`;
   // Contact
   html += `<div><div class="fu-sec-ttl">Sender</div>`;
@@ -8112,6 +8177,7 @@ function openFUDP(id) {
   html += `</div>`;
   // Address
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
+  if(f.deliveryInstr) html += `<div><div class="fu-sec-ttl">Delivery instructions</div><div style="font-size:12.5px;line-height:1.6;color:var(--c-ink);font-weight:600;white-space:pre-wrap">${esc(f.deliveryInstr)}</div></div>`;
   // Items — each with its own photos, card message and flower instructions.
   if (Array.isArray(f.itemList) && f.itemList.length) {
     html += `<div><div class="fu-sec-ttl">Products / Items</div>${f.itemList.map(it=>`
@@ -8129,10 +8195,14 @@ function openFUDP(id) {
   const shopUrl = (localStorage.getItem('flori-url')||'').replace('.myshopify.com','');
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
-    <button onclick="openFUDraftModal('${f.id}')" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;transition:background .12s" onmouseover="this.style.background='var(--c-burg-mid)'" onmouseout="this.style.background='var(--c-burg)'">
-      <span style="display:inline-flex">${di('bag',15)}</span> ${isDraft2 ? 'Re-send to Shopify Draft' : 'Send to Shopify Draft'}
-    </button>
-    ${(isDraft2 && f.shopifyDraftId) ? `<a href="${esc(_draftAdminUrl(f.shopifyDraftId))}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;background:#E3F2FD;color:#1565C0;border:1.5px solid #90CAF9;border-radius:var(--r);font-size:12px;font-weight:600;text-decoration:none">${di('nav',14)} Open draft in Shopify</a>` : ''}
+    ${(()=>{ const st=_fuStage(f); const big='display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none';
+      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('check',15)+' Payment verified</button>';
+      if(st==='ready') return '<button onclick="openFUDraftModal(\''+f.id+'\')" style="'+big+'">'+di('bag',15)+' Send to Shopify</button>'
+        + '<button onclick="fuBackToEnquiry(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Move back to Enquiry</button>';
+      if(st==='shopify') return (f.shopifyDraftId?'<a href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" style="'+big+'">'+di('nav',15)+' Open draft in Shopify</a>':'')
+        + '<button onclick="openFUDraftModal(\''+f.id+'\')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;cursor:pointer">Re-send to Shopify Draft</button>';
+      return '';
+    })()}
     <a href="${shopifyOrderUrl}" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;font-weight:500;text-decoration:none">
       Open Shopify Admin
     </a>
@@ -9872,7 +9942,7 @@ async function _lalaBook(){
   const addonLabels=[..._lala.addons].map(c=>{ const sp=_lalaSpecials().find(a=>a.code===c); return sp?sp.label:c; });
   const addonTxt=addonLabels.length?(' · ['+addonLabels.join(', ')+']'):'';
   const recipients=sel.map((s,i)=>({ stopId:q.stops[i+1].stopId, name:(s.name||'Recipient'),
-    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:(((s.order&&s.order.name)||s.title||'')+' — flowers'+addonTxt+(note?(' · '+note):'')).slice(0,300) }));
+    phone:_e164(s.phone||'') || SHOP_PHONE, remarks:(((s.order&&s.order.name)||s.title||'')+' — flowers'+addonTxt+((s.order&&s.order.deliveryInstr)?(' · '+s.order.deliveryInstr):'')+(note?(' · '+note):'')).slice(0,300) }));
   const r=await _lalamoveApi({ op:'place', data:{ quotationId:q.quotationId,
     sender:{ stopId:q.stops[0].stopId, name:'Bamboo Green Florist', phone:SHOP_PHONE }, recipients }});
   _lala.busy=false;
@@ -10463,6 +10533,7 @@ function _drvDetailView(o){
     + '<div class="drvd-card">'
       + _drvInfoRow('gift','Recipient', recipVal, contactBtns)
       + _drvInfoRow('pin','Deliver to', addrVal, '')
+      + (o.deliveryInstr ? _drvInfoRow('note','Delivery instructions', '<b style="white-space:pre-wrap">'+esc2(o.deliveryInstr)+'</b>', '') : '')
       + _drvInfoRow('clock','Delivery window'+(o.dueDate?' · '+esc2(o.dueDate):''), esc2(o.dueTime||'—'), '')
       + _drvInfoRow('flower','Items', itemRows, '')
       + (o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px;font-size:13px;color:#795548">'+di('note',14)+' '+esc2(o.internalNote)+'</div>' : '')
@@ -12572,7 +12643,7 @@ function _fuFulfilSet(v){
   const aw=document.getElementById('fu-addr-wrap'); if(aw) aw.style.display = pk ? 'none' : '';
 }
 function openAddOrder(){
-  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig','o-recip-name','o-recip-phone'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig','o-recip-name','o-recip-phone','o-deliv-instr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const _ty=document.getElementById('o-type'); if(_ty) _ty.value='delivery';
   oSetChannel('whatsapp');
@@ -13064,7 +13135,8 @@ function saveOrder() {
     channel: channel,
     custIg: (channel==='instagram' && custIg) ? custIg : (custIg||null),
     recipName: document.getElementById('o-type').value==='pickup' ? (prevOrder?.recipName||null) : (document.getElementById('o-recip-name')?.value.trim()||null),
-    recipPhone: document.getElementById('o-type').value==='pickup' ? (prevOrder?.recipPhone||null) : (document.getElementById('o-recip-phone')?.value.trim()||null)
+    recipPhone: document.getElementById('o-type').value==='pickup' ? (prevOrder?.recipPhone||null) : (document.getElementById('o-recip-phone')?.value.trim()||null),
+    deliveryInstr: document.getElementById('o-type').value==='pickup' ? (prevOrder?.deliveryInstr||null) : (document.getElementById('o-deliv-instr')?.value.trim()||null)
   };
   let _pickParts=null;
   { const _pick=_oAddrPick, _prevAddr=String((prevOrder&&prevOrder.manualAddr)||'').trim();
@@ -13458,7 +13530,7 @@ function editOrder(id) {
   const cpEl=document.getElementById('o-cust-phone'); if(cpEl) cpEl.value=o.custPhone||'';
   const ceEl=document.getElementById('o-cust-email'); if(ceEl) ceEl.value=o.custEmail||'';
   const igEl=document.getElementById('o-cust-ig'); if(igEl) igEl.value=o.custIg||'';
-  { const rn=document.getElementById('o-recip-name'); if(rn) rn.value=o.recipName||''; const rp=document.getElementById('o-recip-phone'); if(rp) rp.value=o.recipPhone||''; }
+  { const rn=document.getElementById('o-recip-name'); if(rn) rn.value=o.recipName||''; const rp=document.getElementById('o-recip-phone'); if(rp) rp.value=o.recipPhone||''; const di_=document.getElementById('o-deliv-instr'); if(di_) di_.value=o.deliveryInstr||''; }
   oSetChannel(o.channel||'whatsapp');
   const _sug=document.getElementById('o-cust-sug'); if(_sug){ _sug.style.display='none'; _sug.innerHTML=''; }
   const sumEl=document.getElementById('o-cust-summary'); if(sumEl) sumEl.textContent=o.customer||'Customer details';
@@ -14318,6 +14390,7 @@ function _renderDPInner(order, localOrder) {
       ? `<div style="margin-top:6px;font-size:11px;color:var(--c-muted)">Recipient: ${waLink(recipPhone)}</div>` : '';
     if (lines.length || recipLine) html += `<div class="dp-addrbox">${lines.map(l=>esc(l)).join('<br>')}${recipLine}</div>`;
   }
+  if (localOrder.deliveryInstr) html += `<div style="border:1.5px solid var(--c-ink);border-radius:var(--r-lg);padding:9px 12px;font-size:12.5px;line-height:1.5"><div style="font-size:10.5px;color:var(--c-muted);margin-bottom:2px">Delivery instructions</div><div style="font-weight:600;white-space:pre-wrap">${esc(localOrder.deliveryInstr)}</div></div>`;
 
   // ── Customer (sender) — avatar ──
   const custName = ((cust.firstName||'')+' '+(cust.lastName||'')).trim() || 'Guest';

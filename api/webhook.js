@@ -221,6 +221,7 @@ export default async function handler(req, res) {
     // (recipient/address edits in Shopify flow through automatically).
     recip_name:  ship?.name  || null,
     recip_phone: ship?.phone || null,
+    delivery_instr: getAttr('Delivery Instructions') || getAttr('Delivery Note') || getAttr('Notes to driver') || (existing ? (existing.delivery_instr || null) : null),
     address:     addrLine,
     // Shopify-sourced fields above are refreshed; app-managed fields below are
     // preserved from the existing row (defaults only on first insert).

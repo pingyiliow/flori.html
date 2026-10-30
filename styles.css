@@ -990,10 +990,14 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .fu-cards{display:flex;flex-direction:column;gap:7px}
 .fu-date-hdr{font-family:var(--f-head);font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--c-burg);background:var(--c-blush-bg);border-radius:8px;padding:5px 12px;margin-top:10px}
 .fu-date-hdr:first-child{margin-top:0}
-.fu-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-left:4px solid var(--c-blush);border-radius:12px;display:grid;grid-template-columns:1fr 132px 96px 150px 46px;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
+.fu-card{background:var(--c-surface);border:1.5px solid var(--c-border);border-left:4px solid var(--c-blush);border-radius:12px;display:grid;grid-template-columns:1fr 132px 96px 150px auto;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;transition:box-shadow .12s,border-color .12s}
 .fu-card:hover{box-shadow:0 3px 16px rgba(77,14,19,.1);border-color:var(--c-border2)}
 .fu-card.ready{border-left-color:var(--c-burg)}
 .fu-card.done{opacity:.55;border-left-color:var(--c-sage)}
+.fu-card.st-enquiry{border-left-color:#B4B2A9}
+.fu-card.st-ready{border-left-color:#534AB7}
+.fu-card.st-shopify{border-left-color:#185FA5}
+.fu-card.st-done{opacity:.6;border-left-color:#639922}
 .fu-c-main{min-width:0}
 .fu-c-name{font-size:13px;font-weight:600;color:var(--c-ink);display:flex;align-items:center;flex-wrap:wrap;gap:2px}
 .fu-c-recip{font-size:10px;color:var(--c-muted);margin-top:1px}
