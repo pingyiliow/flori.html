@@ -950,12 +950,12 @@
 <!-- ══ FOLLOW-UP → SHOPIFY DRAFT (product picker) ══════════════ -->
 <div id="m-fu-pay" class="modal">
   <div class="mc" style="max-width:380px">
-    <div class="mc-hdr"><div><div class="mc-ttl">Payment</div><div id="fupay-who" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div><button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-pay')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-hdr"><div><div class="mc-ttl">Verify payment</div><div id="fupay-who" style="font-size:11px;color:var(--c-muted);margin-top:2px"></div></div><button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-pay')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mc-body">
       <div class="ff"><label class="ff-l">Paid by</label><select id="fupay-m" onchange="_fuPayModalUI()"></select>
         <input id="fupay-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-primary" style="flex:1" onclick="fuPayConfirm(true)">Payment verified</button>
+        <button class="btn btn-primary" style="flex:1" onclick="fuPayConfirm(true)">Mark as paid</button>
         <button class="btn btn-ghost" onclick="fuPayConfirm(false)">Pay later</button>
       </div>
     </div>
@@ -1669,7 +1669,7 @@ let LANG = localStorage.getItem('flori-lang') || 'en';
 const I18N_ZH = {
   // Header / nav
   'Sync Orders':'同步订单','Operations':'操作','Admin':'管理','Stock':'库存',
-  'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','New Orders':'新订单','Needs action':'待处理','In Shopify':'已在 Shopify','Done':'完成','Enquiry':'询问中','Ready for Shopify':'可送 Shopify','Payment verified':'付款已确认','Pay later':'稍后付款','Send to Shopify':'送去 Shopify','Open draft':'打开草稿','Delivery instructions':'送货指示','Move back to Enquiry':'退回询问中','Customers':'顾客',
+  'Dashboard':'仪表板','Daily Orders':'每日订单','Follow-up List':'跟进清单','New Orders':'新订单','Needs action':'待处理','In Shopify':'已在 Shopify','Done':'完成','Enquiry':'询问中','Ready for Shopify':'可送 Shopify','Verify payment':'核对付款','Mark as paid':'确认已付款','Pay later':'稍后付款','Send to Shopify':'送去 Shopify','Open draft':'打开草稿','Delivery instructions':'送货指示','Move back to Enquiry':'退回询问中','Customers':'顾客',
   'WhatsApp Log':'WhatsApp 记录','WA Log':'WA 记录','Send Log':'发送记录',
   'Delivery notifications — sent only to the buyer\'s own phone (customer.phone)':'配送通知 — 只发给买家本人电话 (customer.phone)',
   'Sent':'已发送','Dry-run':'试运行','No phone':'无电话','Error':'失败','Skipped':'已跳过',
@@ -7923,7 +7923,7 @@ async function createShopifyDraft() {
 }
 
 // ── New Orders: one stage per order, one next step per card ──────────────────
-// Enquiry → (Payment verified | Pay later) → Ready for Shopify → (draft created) →
+// Enquiry → (Verify payment: paid | Pay later) → Ready for Shopify → (draft created) →
 // In Shopify → (Shopify order created, via webhook) → Done. Derived from the stored
 // status + payment so existing entries map over without migration.
 const FU_STAGES = {
@@ -7949,12 +7949,12 @@ function _fuFlags(f){
 function _fuActionBtn(f){
   const st=_fuStage(f), stop='event.stopPropagation();';
   const btn=(label,icon,click)=>'<button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="'+stop+click+'">'+di(icon,13)+' '+label+'</button>';
-  if (st==='enquiry') return btn('Payment verified','check',"openFUPay('"+f.id+"')");
+  if (st==='enquiry') return btn('Verify payment','check',"openFUPay('"+f.id+"')");
   if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')");
   if (st==='shopify' && f.shopifyDraftId) return '<a class="btn btn-ghost btn-sm" style="white-space:nowrap;text-decoration:none" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',13)+' Open draft</a>';
   return '';
 }
-// Payment verified: choose how they paid (+ approval code / cheque no.), or let it go
+// Verify payment: choose how they paid (+ approval code / cheque no.), or let it go
 // through unpaid (corporate / invoice orders that pay after delivery).
 let _fuPayId=null;
 function openFUPay(id){
@@ -7981,7 +7981,7 @@ function fuPayConfirm(paid){
   }
   f.status='ready';
   saveFollowups(); closeModal('m-fu-pay'); renderFollowup();
-  toast(paid ? '✓ Payment verified · ready for Shopify' : '✓ Ready for Shopify · unpaid');
+  toast(paid ? '✓ Paid · ready for Shopify' : '✓ Ready for Shopify · unpaid');
 }
 function fuBackToEnquiry(id){
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
@@ -8196,7 +8196,7 @@ function openFUDP(id) {
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
     ${(()=>{ const st=_fuStage(f); const big='display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none';
-      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('check',15)+' Payment verified</button>';
+      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('check',15)+' Verify payment</button>';
       if(st==='ready') return '<button onclick="openFUDraftModal(\''+f.id+'\')" style="'+big+'">'+di('bag',15)+' Send to Shopify</button>'
         + '<button onclick="fuBackToEnquiry(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Move back to Enquiry</button>';
       if(st==='shopify') return (f.shopifyDraftId?'<a href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" style="'+big+'">'+di('nav',15)+' Open draft in Shopify</a>':'')
