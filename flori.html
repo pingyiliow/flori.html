@@ -254,14 +254,15 @@
         <div>
           <div class="page-title">New Orders</div>
         </div>
-        <button class="btn btn-primary" onclick="openAddFollowup()">+ New order</button>
+        <button class="btn btn-primary" type="button" onclick="openAddFollowup()" style="height:40px;padding:0 18px">New order</button>
       </div>
       <div class="filters" id="fu-filters">
-        <button class="f-btn on" data-fu="needs">Needs action <span id="fu-c-needs"></span></button>
-        <button class="f-btn" data-fu="shopify">In Shopify <span id="fu-c-shopify"></span></button>
-        <button class="f-btn" data-fu="done">Done</button>
+        <button class="f-btn on" type="button" data-fu="needs">Needs action<span class="f-n num" id="fu-c-needs"></span></button>
+        <button class="f-btn" type="button" data-fu="shopify">In Shopify<span class="f-n num" id="fu-c-shopify"></span></button>
+        <button class="f-btn" type="button" data-fu="done">Done</button>
       </div>
-      <div class="fu-cards" id="followup-tbody"></div>
+      <div id="fu-tally" class="ord-tally fu-tally"></div>
+      <div class="fu-list" id="followup-tbody"></div>
     </div>
   </div>
 
@@ -941,9 +942,12 @@
     <div class="mc-body">
       <div class="ff"><label class="ff-l">Paid by</label><select id="fupay-m" onchange="_fuPayModalUI()"></select>
         <input id="fupay-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
+      <div class="ff" style="margin-top:12px"><label class="ff-l">Payment slip</label>
+        <div id="fupay-slip" class="pay-slip"></div>
+        <input id="fupay-file" type="file" accept="image/*" style="display:none" onchange="_paySlipPick(this)"></div>
       <div class="btn-row" style="margin-top:16px">
-        <button class="btn btn-primary" style="flex:1" onclick="fuPayConfirm(true)">Mark as paid</button>
-        <button class="btn btn-ghost" onclick="fuPayConfirm(false)">Pay later</button>
+        <button class="btn btn-primary" type="button" style="flex:1" onclick="fuPayConfirm(true)">Mark as paid</button>
+        <button class="btn btn-ghost" type="button" id="fupay-later" onclick="fuPayConfirm(false)">Pay later</button>
       </div>
     </div>
   </div>
@@ -1166,6 +1170,7 @@ const DI = {
   chat:'<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
   whatsapp:'<path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.004c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2zm0 1.67c2.2 0 4.27.86 5.83 2.42a8.2 8.2 0 0 1 2.42 5.82c0 4.54-3.7 8.24-8.25 8.24a8.2 8.2 0 0 1-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.24-8.24zm-4.6 4.44c-.15 0-.4.06-.6.28-.2.22-.79.77-.79 1.88s.81 2.18.92 2.33c.11.15 1.58 2.42 3.86 3.39.54.23.96.37 1.29.48.54.17 1.03.15 1.42.09.43-.06 1.34-.55 1.53-1.08.19-.53.19-.98.13-1.08-.06-.09-.2-.15-.43-.26-.22-.11-1.34-.66-1.55-.74-.21-.08-.36-.11-.5.11-.15.22-.58.73-.71.88-.13.15-.26.17-.48.06-.22-.11-.94-.35-1.79-1.11-.66-.59-1.11-1.32-1.24-1.54-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.21-.69-1.66-.18-.43-.36-.37-.5-.38-.13-.01-.28-.01-.42-.01z"/>',
   nav:'<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
   wallet:'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0 0 4h14a2 2 0 0 1 2 2v3"/><path d="M3 5v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/><path d="M17 12h4v4h-4a2 2 0 0 1 0-4z"/>',
   note:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
   map:'<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
@@ -1668,7 +1673,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -2075,6 +2080,10 @@ function _applyShopifyToExisting(prev, m){
     deliveredAt:  prev.deliveredAt || null,
     deliveredBy:  prev.deliveredBy || null,
     deliveryInstr: m.deliveryInstr || prev.deliveryInstr || null,
+    finStatus:    m.finStatus || prev.finStatus || null,
+    paidBy:       prev.paidBy || null,
+    paidAt:       prev.paidAt || null,
+    paySlip:      prev.paySlip || null,
     recipName:    m.recipName  || prev.recipName  || null,
     recipPhone:   m.recipPhone || prev.recipPhone || null,
     address:      m.address    || prev.address    || null,
@@ -2164,7 +2173,7 @@ function _mapShopifyOrder(n){
   const priceData = n.currentTotalPriceSet?.shopMoney;
   const isFulfilled = n.displayFulfillmentStatus === 'FULFILLED';
   const _diA = attrs.find(a => /^(delivery instructions?|delivery note|notes to driver)$/i.test(String(a.key||'').trim()));
-  return { deliveryInstr: (_diA && String(_diA.value||'').trim()) || null, id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false,
+  return { finStatus: n.displayFinancialStatus ? String(n.displayFinancialStatus).toLowerCase() : null, deliveryInstr: (_diA && String(_diA.value||'').trim()) || null, id:shopId(n.id), name:n.name, src:'shopify', fulfilled:isFulfilled, cancelled:!!n.cancelledAt, createdAt:n.createdAt||null, customer:[(n.customer?.firstName||''),(n.customer?.lastName||'')].filter(Boolean).join(' ')||'Guest', product:lineItems.map(i=>i.title).join(', '), lineItems, image:imgUrl, total:priceData?.amount||null, currency:priceData?.currencyCode||'MYR', dueDate:ds||null, dueTime:getDueTime(attrs), dateObj:null, type:getType(attrs), ready:false,
     recipName:n.shippingAddress?.name||null, recipPhone:n.shippingAddress?.phone||null, address:_fmtShipAddr(n.shippingAddress) };
 }
 
@@ -2177,7 +2186,7 @@ async function importOrderByName(rawName){
   toast('Importing #'+name+'…');
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
-      id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+      id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
       customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
@@ -2221,7 +2230,7 @@ async function importOrdersSince(fromISO){
       const after = cursor ? `, after:${JSON.stringify(cursor)}` : '';
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
-        edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
+        edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
           customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
           customAttributes{key value} } } } }`;
       let data;
@@ -2270,14 +2279,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -2305,7 +2314,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,totalAdj:o.totalAdj,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,totalAdj:o.totalAdj,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff,paidBy:o.paidBy,paidAt:o.paidAt,paySlip:o.paySlip}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -2328,7 +2337,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.totalAdj=pm.totalAdj||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.totalAdj=pm.totalAdj||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null; o.paidBy=pm.paidBy||null; o.paidAt=pm.paidAt||null; o.paySlip=pm.paySlip||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -2370,7 +2379,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj,paid_by,paid_at,pay_slip';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2419,6 +2428,9 @@ async function syncOrders() {
           o.fulfilledAt  = r.fulfilled_at || null;
           o.staff        = r.staff || null;
           o.totalAdj     = ('total_adj' in r) ? (r.total_adj || null) : (o.totalAdj || null);   // app-managed amount difference — DB wins
+          if ('paid_by' in r)  o.paidBy  = r.paid_by  || null;   // payment recorded in BloomFlow — DB wins
+          if ('paid_at' in r)  o.paidAt  = r.paid_at  || null;
+          if ('pay_slip' in r) o.paySlip = r.pay_slip || null;
           o.designer     = r.designer || null;
           o.priority     = r.priority || 'normal';
           o.internalNote = r.internal_note || null;
@@ -2547,6 +2559,10 @@ function _orderRow(o){
   row.staff=o.staff||null; if(!o.staff) delete row.staff;
   row.total_adj=o.totalAdj||null; if(!o.totalAdj) delete row.total_adj;
   row.delivery_instr=o.deliveryInstr||null; if(!o.deliveryInstr) delete row.delivery_instr;
+  if (o.finStatus) row.financial_status=o.finStatus;
+  if (o.paidBy)  row.paid_by=o.paidBy;
+  if (o.paidAt)  row.paid_at=o.paidAt;
+  if (o.paySlip) row.pay_slip=o.paySlip;
   if (!o.readyBy) delete row.ready_by;
   if (!o.readyAt) delete row.ready_at;
   if (!o.fulfilledBy) delete row.fulfilled_by;
@@ -2646,11 +2662,13 @@ function _orderRowShopify(o){
     recip_name: o.recipName||null, recip_phone: o.recipPhone||null, address: o.address||null,
     cust_phone: o.custPhone||null, cust_email: o.custEmail||null,
     channel: o.channel||null, cust_ig: o.custIg||null,
+    financial_status: o.finStatus||null,
   };
   if (!o.custPhone) delete row.cust_phone;
   if (!o.custEmail) delete row.cust_email;
   if (!o.channel)   delete row.channel;
   if (!o.custIg)    delete row.cust_ig;
+  if (!o.finStatus) delete row.financial_status;
   return row;
 }
 function _invRow(i){
@@ -3008,6 +3026,7 @@ function _mapDbOrder(o){
     readyBy: o.ready_by||null, readyAt: o.ready_at||null,
     fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
     staff: o.staff||null, totalAdj: o.total_adj||null, deliveryInstr: o.delivery_instr||null,
+    finStatus: o.financial_status||null, paidBy: o.paid_by||null, paidAt: o.paid_at||null, paySlip: o.pay_slip||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, lalamoveOrderId: o.lalamove_order_id||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -3026,7 +3045,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj,delivery_instr';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj,delivery_instr,financial_status,paid_by,paid_at,pay_slip';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3292,7 +3311,7 @@ async function loadFromSupabase(opts = {}) {
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
-        addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'',
+        addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'', paySlip: f.pay_slip||'',
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice,
@@ -3951,7 +3970,7 @@ function orderCardConsolidated(o, opts){
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     <div class="orw-time num">${o.dueTime ? esc(o.dueTime) : '&ndash;'}</div>
     <div class="orw-body">
-      <div class="orw-who"><span class="orw-cust">${esc(o.customer||'Guest')}</span><span class="orw-no num">${esc(o.name||'')}</span>${urgent?`<span class="orw-tag urg">${zh?'紧急':'Urgent'}</span>`:''}<span class="orw-tag">${typeTxt}</span>${stateTxt?`<span class="orw-tag">${stateTxt}</span>`:''}${desTxt}</div>
+      <div class="orw-who"><span class="orw-cust">${esc(o.customer||'Guest')}</span><span class="orw-no num">${esc(o.name||'')}</span>${urgent?`<span class="orw-tag urg">${zh?'紧急':'Urgent'}</span>`:''}<span class="orw-tag">${typeTxt}</span>${_oUnpaid(o)?'<span class="orw-tag warn">Unpaid</span>':''}${stateTxt?`<span class="orw-tag">${stateTxt}</span>`:''}${desTxt}</div>
       <div class="orw-items">${rows}</div>
       ${notes}
     </div>
@@ -5236,6 +5255,14 @@ async function _orderSearchFetch(srch){
     if(error){ console.warn('order search fetch', error.message); return; }
     if(_mergeDbOrders(data||[])){ _cacheOrders(); const cur=(document.getElementById('order-search')?.value||'').trim().toLowerCase(); if(cur===q.toLowerCase()) renderOrders(); }
   }catch(e){ console.warn('order search fetch', e&&e.message); }
+}
+// Payment: Shopify says pending / partly paid, and nobody has recorded the money in
+// BloomFlow (on the order, or on the New Orders entry it came from).
+function _oFuLink(o){ const d=String(o&&o.name||'').replace(/[^0-9]/g,''); return d ? (typeof FOLLOWUPS!=='undefined'?FOLLOWUPS:[]).find(f=>f.orderNo&&String(f.orderNo).replace(/[^0-9]/g,'')===d) : null; }
+function _oUnpaid(o){
+  if (!o || o.paidAt || o.cancelled) return false;
+  if (!/^(pending|partially_paid)$/.test(o.finStatus||'')) return false;
+  const f=_oFuLink(o); return !(f && f.payment==='paid');
 }
 // Orders head: the day being looked at, and the tally (to make / ready / done, and the
 // day's takings for admin + CS; florists don't see money).
@@ -6747,7 +6774,7 @@ function saveFollowups() {
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
-      addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null,
+      addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null, pay_slip: f.paySlip||null,
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice,
@@ -6756,7 +6783,7 @@ function saveFollowups() {
     sbUpsert('followups', rows).then(ok => {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7826,6 +7853,7 @@ async function createShopifyDraft() {
     { key:'Order Due Time', value: f.dueTime || '' },
     { key:'Paid By', value: f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment') },
   ];
+  if (f.paySlip && /^https?:\/\//.test(f.paySlip)) customAttributes.push({ key:'Payment Slip', value: f.paySlip });
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
   // they show clearly on the Shopify order and sync back into the daily-order detail.
   if (f.cardMsg)    customAttributes.push({ key:'Card Message',       value: f.cardMsg });
@@ -7985,10 +8013,56 @@ function _fuActionBtn(f){
 }
 // Record payment: choose how they paid (+ approval code / cheque no.), or let it go
 // through unpaid (corporate / invoice orders that pay after delivery).
-let _fuPayId=null;
+let _fuPayId=null, _payKind='fu', _paySlipUrl='', _paySlipBusy=false;
+function _paySlipUI(){
+  const el=document.getElementById('fupay-slip'); if(!el) return;
+  if (_paySlipBusy){ el.innerHTML='<span class="pay-slip-busy">Uploading</span>'; return; }
+  el.innerHTML = _paySlipUrl
+    ? '<img src="'+esc(_paySlipUrl)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')"><button type="button" class="btn btn-ghost btn-sm" onclick="_paySlipUrl=\'\';_paySlipUI()">Remove</button>'
+    : '<button type="button" class="fu-act" onclick="document.getElementById(\'fupay-file\').click()">'+di('upload',15)+'<span>Upload slip</span></button>';
+}
+function _paySlipPick(inp){
+  const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
+  _paySlipBusy=true; _paySlipUI();
+  storePhoto(file, url => { _paySlipBusy=false; _paySlipUrl=url||''; _paySlipUI(); });
+}
+function openOrderPay(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  _payKind='order'; _fuPayId=id;
+  const fl=_oFuLink(o), tot=orderTotal(o)||0;
+  document.getElementById('fupay-who').textContent=(o.customer||'Customer')+' '+(o.name||'')+(tot?', RM '+tot.toFixed(2):'');
+  const p=_payParse(o.paidBy||(fl&&fl.paidBy)||'');
+  document.getElementById('fupay-m').innerHTML=PAY_METHODS.filter(m=>m!=='Pending payment').map(m=>'<option value="'+m+'"'+((p.m||'Bank transfer')===m?' selected':'')+'>'+m+'</option>').join('');
+  document.getElementById('fupay-ref').value=(p.m==='Other'&&p.ref==='Other')?'':(p.ref||'');
+  _paySlipUrl=o.paySlip||(fl&&fl.paySlip)||''; _paySlipBusy=false; _paySlipUI();
+  document.getElementById('fupay-later').style.display='none';
+  _fuPayModalUI(); openModal('m-fu-pay');
+}
+function _orderPayConfirm(){
+  const o=ORDERS.find(x=>x.id===_fuPayId); if(!o){ closeModal('m-fu-pay'); return; }
+  const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref').value;
+  if (PAY_REF[m] && m!=='Other' && !String(ref).trim()){ toast(PAY_REF[m]+' required'); document.getElementById('fupay-ref').focus(); return; }
+  o.paidBy=_payFmt(m, ref); o.paidAt=new Date().toISOString(); o.paySlip=_paySlipUrl||null;
+  saveOrderPatch(o, { paid_by:o.paidBy, paid_at:o.paidAt, pay_slip:o.paySlip });
+  const fl=_oFuLink(o);
+  if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; saveFollowups(); }
+  closeModal('m-fu-pay'); renderOrders();
+  if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast('✓ Payment recorded');
+}
+function orderPayUndo(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  o.paidBy=null; o.paidAt=null; o.paySlip=null;
+  saveOrderPatch(o, { paid_by:null, paid_at:null, pay_slip:null });
+  renderOrders();
+  if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast('Payment record removed');
+}
 function openFUPay(id){
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
-  _fuPayId=id;
+  _fuPayId=id; _payKind='fu';
+  _paySlipUrl=f.paySlip||''; _paySlipBusy=false; _paySlipUI();
+  document.getElementById('fupay-later').style.display='';
   const tot=(parseFloat(f.amount)||0)+(parseFloat(f.deliveryFee)||0);
   document.getElementById('fupay-who').textContent=(f.name||'Customer')+(tot?' · RM '+tot.toFixed(2):'');
   const p=_payParse(f.paidBy);
@@ -8002,7 +8076,10 @@ function _fuPayModalUI(){
   ref.style.display=PAY_REF[m]?'':'none'; ref.placeholder=PAY_REF[m]||'';
 }
 function fuPayConfirm(paid){
+  if (_paySlipBusy){ toast('Slip is still uploading'); return; }
+  if (_payKind==='order') return _orderPayConfirm();
   const f=FOLLOWUPS.find(x=>x.id===_fuPayId); if(!f){ closeModal('m-fu-pay'); return; }
+  f.paySlip=_paySlipUrl||'';
   if (paid){
     const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref').value;
     if (PAY_REF[m] && m!=='Other' && !String(ref).trim()){ toast(PAY_REF[m]+' required'); document.getElementById('fupay-ref').focus(); return; }
@@ -8021,8 +8098,10 @@ function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
   const _needsN=FOLLOWUPS.filter(x=>_fuNeeds(x)).length, _shopN=FOLLOWUPS.filter(x=>_fuStage(x)==='shopify').length;
   const fuPending=_needsN;
-  const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?('· '+v):'';};
+  const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?String(v):'';};
   _fs('fu-c-needs',_needsN); _fs('fu-c-shopify',_shopN);
+  { const n=st=>FOLLOWUPS.filter(x=>_fuStage(x)===st).length, tl=document.getElementById('fu-tally');
+    if (tl) tl.innerHTML='<div><b>'+n('enquiry')+'</b><span>need payment</span></div><div><b>'+n('ready')+'</b><span>ready to send</span></div><div><b>'+_shopN+'</b><span>in Shopify</span></div>'; }
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
   // An entry is "archived" once it's marked completed OR its delivery date has
@@ -8037,110 +8116,56 @@ function renderFollowup() {
   if(!list.length){tb.innerHTML=`<div class="empty" style="padding:56px 20px"><div class="empty-ico">${di('phone',34)}</div><div class="empty-txt">No entries</div></div>`;return;}
   const chLabel={whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
   const chCls={whatsapp:'ch-wa',facebook:'ch-fb',instagram:'ch-ig',shopify:'ch-sh',walkin:'ch-wi',other:'ch-ot'};
-  // Sort by ORDER date — newest order on top. Entries are then grouped under an order-
-  // date header in the render below. Falls back to the date the entry was added when
-  // there's no order date. (Delivery date is still shown on each card.)
-  const fuSortMs = f => { if (f.orderDate){ const d=pd(f.orderDate); if(d) return +d; } return f.ts||0; };
-  list.sort((a,b) => fuSortMs(b) - fuSortMs(a));
-  const todayStr = tdi(today0());
-  // Header label for an order-date group, e.g. "10 Jun 2026".
-  const _fuGroupKey = f => { const d = f.orderDate ? pd(f.orderDate) : (f.ts ? new Date(f.ts) : null); return d ? tdi(d) : 'none'; };
-  const _fuGroupLabel = f => {
-    const d = f.orderDate ? pd(f.orderDate) : (f.ts ? new Date(f.ts) : null);
-    if (!d) return 'No order date';
-    return `${f.orderDate ? 'Order date' : 'Added'}: ${d.toLocaleDateString('en-MY', {day:'numeric', month:'short', year:'numeric'})}`;
-  };
-  let _fuLastGroup = null;
-  // Count how many entries share each customer (phone, else name) — flag duplicates
+  // Soonest delivery first (overdue on top), then by time; entries without a date last.
+  const _dueMs = f => { const d = f.dueDate ? pd(f.dueDate) : null; return d ? +d : 8.64e15; };
+  const _tMin = f => { const m = String(f.dueTime||'').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1])*60 + (+m[2]) : 1440; };
+  const _bySoon = (a,b) => _dueMs(a)-_dueMs(b) || _tMin(a)-_tMin(b);
+  const t0 = today0(), todayStr = tdi(t0);
+  // Same customer (phone, else name) more than once on the list — possible duplicate.
   const dupCounts = {};
   FOLLOWUPS.forEach(f => { const k = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(); if (k) dupCounts[k] = (dupCounts[k]||0) + 1; });
-  tb.innerHTML = list.map(f => {
-    const ch=chLabel[f.channel]||f.channel, chCl=chCls[f.channel]||'ch-ot';
-    const payLbl=f.payment==='paid'?'Paid':'Pending', payCl=f.payment==='paid'?'pay-paid':'pay-pend';
-    // Status — pending / ready / draft / completed
-    const isCompleted = f.status==='completed';
-    const isDraft     = f.status==='draft';
-    const isReady     = f.status==='ready';
-    const isPending   = !isCompleted && !isReady && !isDraft;
-    let stLabel, stBg, stColor, stBorder;
-    if (isCompleted) {
-      stLabel='Completed'; stBg='var(--c-sage-bg)'; stColor='var(--c-sage)'; stBorder='#c0d9be';
-    } else if (isDraft) {
-      stLabel='↗ In Shopify Draft'; stBg='#E3F2FD'; stColor='#1565C0'; stBorder='#90CAF9';
-    } else if (isReady) {
-      stLabel='Ready'; stBg='var(--c-burg-lt)'; stColor='var(--c-burg)'; stBorder='var(--c-dpink)';
-    } else {
-      stLabel='Follow-up'; stBg='var(--c-blush-bg)'; stColor='var(--c-blush)'; stBorder='#f0c0b0';
-    }
-    const rowOpacity = isCompleted ? '.45' : '1';
-    const amt = f.amount && parseFloat(f.amount) > 0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '–';
-    // Delivery date — urgency colour (muted when completed)
-    // Order/added date shown on top; delivery date (the sort key) below with urgency.
-    const ordStr = f.orderDate ? fd(pd(f.orderDate)) : (f.ts ? fd(new Date(f.ts)) : '');
-    const ordLine = ordStr ? `<div style="font-size:10px;color:var(--c-muted)">${f.orderDate?'Ordered':'Added'} ${ordStr}</div>` : '';
-    let dueHtml = '';
-    if (f.dueDate) {
-      const dObj = pd(f.dueDate);
-      const dStr = fd(dObj);
-      const isToday2 = tdi(dObj) === todayStr;
-      const isPast2  = dObj && dObj < today0();
-      const color = isCompleted ? 'var(--c-muted)' : isPast2 ? 'var(--c-red)' : isToday2 ? 'var(--c-burg)' : 'var(--c-ink)';
-      const weight = (isToday2 || isPast2) && !isCompleted ? '600' : '400';
-      const dIco = f.fulfil==='pickup' ? di('bag',12) : di('truck',12);   // self-collect vs delivery
-      dueHtml = `<div style="font-size:12px;font-weight:${weight};color:${color}">${dIco} ${dStr}</div>
-        ${f.dueTime?`<div style="font-size:10px;color:${isCompleted?'var(--c-muted)':'var(--c-ink)'};margin-top:1px">${di('clock',10)} ${esc(f.dueTime)}</div>`:''}
-        ${isPast2&&!isCompleted?'<div style="font-size:9px;color:var(--c-red);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Overdue</div>':''}
-        ${isToday2&&!isCompleted?'<div style="font-size:9px;color:var(--c-burg);letter-spacing:.06em;text-transform:uppercase;margin-top:1px">Today</div>':''}`;
-    } else if (f.dueTime) {
-      dueHtml = `<div style="font-size:10px;color:var(--c-ink)">${di('clock',10)} ${esc(f.dueTime)}</div>`;
-    }
-    const dateCellHtml = (ordLine + dueHtml) || '–';
-    const itemsPreview = f.items ? f.items.slice(0,55)+(f.items.length>55?'…':'') : '–';
-    const recipSub = f.recipName ? `<div style="font-size:10px;color:var(--c-muted);margin-top:1px">→ ${esc(f.recipName)}</div>` : '';
-    const dupKey = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase();
-    const dupBadge = (dupKey && dupCounts[dupKey] > 1) ? `<span title="This customer appears ${dupCounts[dupKey]}× on the list — possible duplicate" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#FFF3E0;color:#E65100;border:1px solid #FFCC80;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${di('warn',10)} ${dupCounts[dupKey]}×</span>` : '';
-    // Invoice-requested badge — shown up front so admin processes it correctly.
-    const invBadge = f.needInvoice ? `<span title="Invoice requested" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9;border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${di('receipt',10)} Invoice</span>` : '';
-    // Shopify order number once this follow-up has been turned into an order — shown
-    // on the card so staff can see at a glance which one it became.
-    const orderNoBadge = f.orderNo ? `<span title="Shopify order ${esc(f.orderNo)}" style="font-size:9px;font-weight:700;letter-spacing:.02em;background:var(--c-sage-bg);color:var(--c-sage);border:1px solid #c0d9be;border-radius:3px;padding:1px 6px;margin-left:6px;white-space:nowrap">${di('bag',10)} ${esc(f.orderNo)}</span>` : '';
-    // Tick button style based on status
-    const tickStyle = isCompleted
-      ? 'background:var(--c-sage);border-color:var(--c-sage);color:#fff'
-      : isReady
-        ? 'background:var(--c-burg-lt);border-color:var(--c-burg);color:var(--c-burg)'
-        : 'background:var(--c-surface);border-color:var(--c-border);color:var(--c-muted)';
-    const tickTitle = isCompleted ? 'Completed — click to reset' : isReady ? 'Mark as Completed' : 'Mark as Ready';
-    // Clear self-collect vs delivery sign.
-    const isPickup = f.fulfil==='pickup';
-    const fulfilBadge = `<span title="${isPickup?'Self collect':'Delivery'}" style="font-size:8px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:${isPickup?'#E8F4F8':'#FFF3E0'};color:${isPickup?'#0F6B7B':'#E65100'};border:1px solid ${isPickup?'#4FC3D5':'#FFCC80'};border-radius:3px;padding:1px 5px;margin-left:6px;white-space:nowrap">${isPickup?di('bag',10)+' Self-collect':di('truck',10)+' Delivery'}</span>`;
-    const feeLine = (f.deliveryFee && parseFloat(f.deliveryFee) > 0)
-      ? `<div style="font-size:9px;color:var(--c-muted);margin-top:1px;white-space:nowrap">${di('truck',10)} +RM ${parseFloat(f.deliveryFee).toFixed(2)}</div>` : '';
-    // Order-date group header — printed once whenever the order date changes as we
-    // walk the (order-date-sorted) list, so cards sit under a dated heading.
-    const _gk = _fuGroupKey(f);
-    let _hdr = '';
-    if (_gk !== _fuLastGroup) { _fuLastGroup = _gk; _hdr = `<div class="fu-date-hdr">${esc(_fuGroupLabel(f))}</div>`; }
-    // Cover photo = first product photo on the follow-up's items (falls back to a legacy single photo).
-    const _fuImgs = Array.isArray(f.itemList) ? f.itemList.flatMap(it => Array.isArray(it.images) ? it.images : []) : [];
-    const coverImg = _fuImgs[0] || f.photo || null;
-    const _nameBlock = `<div style="${coverImg?'flex:1;min-width:0':''}">
-        <div class="fu-c-name">${esc(f.name)}${orderNoBadge}${dupBadge}${invBadge}${fulfilBadge}<span class="ch-badge ${chCl}" style="font-size:8px;margin-left:4px">${ch}</span></div>
-        ${f.recipName?`<div class="fu-c-recip">→ ${esc(f.recipName)}</div>`:''}
-        ${f.staff?`<div style="font-size:10px;color:var(--c-burg);font-weight:600;margin-top:1px">${di('user',12)}Staff: ${esc(f.staff)}</div>`:''}
-        <div class="fu-c-items">${esc(itemsPreview)}</div>
-      </div>`;
-    return _hdr + `<div class="fu-card st-${_fuStage(f)}" onclick="openFUDP('${f.id}')">
-      <div class="fu-c-main" style="${coverImg?'display:flex;gap:9px;align-items:flex-start':''}">
-        ${coverImg?`<img src="${esc(coverImg)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0" onerror="this.style.display='none'">`:''}
-        ${_nameBlock}
-      </div>
-      <div class="fu-c-date">${dateCellHtml}</div>
-      <div class="fu-c-amt" style="${isCompleted?'color:var(--c-muted)':''}">${amt}${feeLine}</div>
-      <div class="fu-c-badges">${_fuStageChip(f)}${_fuFlags(f)}</div>
-      <div class="fu-c-tick">${_fuActionBtn(f)}</div>
-    </div>`;
-  }).join('');
+  const row = f => {
+    const st = _fuStage(f), done = st==='done';
+    const d = f.dueDate ? pd(f.dueDate) : null;
+    const late = d && d < t0 && !done, isTd = d && tdi(d)===todayStr && !done;
+    const when = '<span class="d">'+(d ? d.toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short'}) : 'No date')+'</span>'
+      + (f.dueTime ? '<span class="t">'+esc(f.dueTime)+'</span>' : '')
+      + (late ? '<span class="flag late">Overdue</span>' : isTd ? '<span class="flag today">Today</span>' : '');
+    const dk = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(), dn = dk ? dupCounts[dk] : 0;
+    const tags = [chLabel[f.channel]||f.channel||'', f.fulfil==='pickup'?'Pickup':'Delivery', f.needInvoice?'Invoice':'']
+        .filter(Boolean).map(t => '<span class="orw-tag">'+esc(t)+'</span>').join('')
+      + (f.orderNo ? '<span class="orw-no num">'+esc(f.orderNo)+'</span>' : '')
+      + (dn > 1 ? '<span class="orw-tag warn">'+(dn===2?'On the list twice':'On the list '+dn+' times')+'</span>' : '')
+      + (f.staff ? '<span class="orw-tag">Taken by '+esc(f.staff)+'</span>' : '');
+    const imgs = Array.isArray(f.itemList) ? f.itemList.flatMap(it => Array.isArray(it.images) ? it.images : []) : [];
+    const cover = imgs[0] || f.photo || null;
+    const items = f.items ? f.items.slice(0,90)+(f.items.length>90?'…':'') : '';
+    const amt = parseFloat(f.amount) > 0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '';
+    const fee = parseFloat(f.deliveryFee) > 0 ? '<span class="fuw-fee num">+ RM '+parseFloat(f.deliveryFee).toFixed(2)+' delivery</span>' : '';
+    const pm = _payParse(f.paidBy).m;
+    const pay = st==='enquiry' ? '' : f.payment==='paid'
+      ? '<span class="fuw-pay">'+esc(f.paidBy ? 'Paid by '+(pm==='Other'||!pm ? f.paidBy : pm) : 'Paid')+'</span>'
+      : '<span class="fuw-pay warn">Unpaid, pay later</span>';
+    return '<div class="orw fuw'+(done?' done':'')+'" onclick="openFUDP(\''+f.id+'\')">'
+      + '<div class="orw-time num">'+when+'</div>'
+      + '<div class="orw-body"><div class="orw-who"><span class="orw-cust">'+esc(f.name||'Customer')+'</span>'+tags+'</div>'
+      +   (f.recipName ? '<div class="fuw-sub">To '+esc(f.recipName)+'</div>' : '')
+      +   (items||cover ? '<div class="fuw-items">'+(cover?'<span class="orw-th"><img src="'+esc(cover)+'" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>':'')+'<span>'+esc(items)+'</span></div>' : '')
+      + '</div>'
+      + '<div class="fuw-amt"><span class="orw-amt num">'+amt+'</span>'+fee+pay+'</div>'
+      + '<div class="fuw-act">'+_fuActionBtn(f)+'</div>'
+      + '</div>';
+  };
+  let html = '';
+  const grp = (lbl, arr) => { if (!arr.length) return; html += '<div class="ord-grp"><div class="ord-grp-lbl">'+lbl+'</div><span class="ord-grp-n">'+arr.length+'</span></div>' + arr.map(row).join(''); };
+  if (fuFilter==='done') { list.sort((a,b) => _bySoon(b,a)); grp('Done', list); }
+  else if (fuFilter==='shopify') { list.sort(_bySoon); grp('In Shopify', list); }
+  else {
+    list.sort(_bySoon);
+    grp('Waiting for payment', list.filter(f => _fuStage(f)==='enquiry'));
+    grp('Ready for Shopify',   list.filter(f => _fuStage(f)==='ready'));
+  }
+  tb.innerHTML = html;
 }
 
 /* ─── Follow-up Detail Panel ─────────────────────────────────── */
@@ -8203,6 +8228,7 @@ function openFUDP(id) {
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
   });
+  if (f.paySlip) html += `<div class="fu-row"><div class="fu-row-lbl">Payment slip</div><div class="fu-row-val"><img class="dp-pay-slip" src="${esc(f.paySlip)}" alt="Payment slip" onclick="openZoom(this.src,'Payment slip')"></div></div>`;
   html += `</div>`;
   // Address
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
@@ -14398,6 +14424,18 @@ function _renderDPInner(order, localOrder) {
   }
 
   // ── Fulfilment (icon rows) ──
+  { const _unp=_oUnpaid(localOrder);
+    const _pb = localOrder.paidBy || (_fuLink && _fuLink.payment==='paid' && _fuLink.paidBy) || '';
+    const _slip = localOrder.paySlip || (_fuLink && _fuLink.paySlip) || '';
+    if (_unp || _pb || _slip) {
+      html += '<div><div class="dp-section-ttl">Payment</div><div class="dp-pay">'
+        + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : '<span class="dp-pay-st">'+esc(_pb ? 'Paid by '+_pb : 'Paid')+'</span>')
+        + (_slip ? '<img class="dp-pay-slip" src="'+esc(_slip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">' : '')
+        + (_unp ? '<button type="button" class="fu-act" onclick="openOrderPay(\''+localOrder.id+'\')">'+di('wallet',15)+'<span>Record payment</span></button>'
+           : (localOrder.paidAt ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))
+        + '</div></div>';
+    }
+  }
   html += `<div>
     <div class="dp-section-ttl">Fulfilment</div>
     <div class="dp-fl"><div class="dp-fl-ico">${localOrder.type==='pickup'?di('bag',16):di('box',16)}</div><div><div class="dp-fl-val">${fulfType}</div><div class="dp-fl-lbl">Type</div></div></div>

@@ -14,6 +14,7 @@
   --color-accent:  #2E4A3D;
   --color-accent-2:#3D5E4F;
   --color-accent-ink:#F3EFE6;
+  --color-warn:    #8A5A12;
   --font-display: 'Libre Caslon Display','Libre Caslon Text',Georgia,serif;
   --font-num: 'DM Mono',ui-monospace,monospace;
   --c-bg:       var(--color-paper);
@@ -1244,3 +1245,41 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
   .orw.urg{padding-left:12px}
 }
 @media(max-width:360px){.hdr-word{font-size:16px}.hdr-logo-zone{gap:8px;padding:0 12px}}
+
+/* ── New Orders + payment (hallmark redesign) ───────────────── */
+.f-btn .f-n{margin-left:8px;color:var(--c-muted);font-size:12.5px}
+.fu-tally{margin-top:4px}
+.orw-tag.warn{color:var(--color-warn);font-weight:600}
+.orw.fuw{grid-template-columns:120px minmax(0,1fr) auto;grid-template-areas:"time body amt" "time body act";grid-template-rows:auto 1fr;gap:4px 20px}
+.fuw>.orw-time{grid-area:time}
+.fuw>.orw-body{grid-area:body;min-width:0}
+.fuw>.fuw-amt{grid-area:amt}
+.fuw>.fuw-act{grid-area:act;justify-self:end;align-self:start}
+.fuw .orw-time .d{display:block;color:var(--c-ink);font-weight:500}
+.fuw .orw-time .t{display:block;white-space:nowrap}
+.fuw .orw-time .flag{display:block;font-family:var(--f-body);font-size:12px;font-weight:600}
+.fuw .orw-time .flag.late{color:var(--c-red)}
+.fuw .orw-time .flag.today{color:var(--color-accent)}
+.fuw-sub{margin-top:4px;font-size:13.5px;color:var(--c-muted)}
+.fuw-items{margin-top:8px;display:flex;align-items:center;gap:12px;font-size:15px}
+.fuw-amt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;text-align:right}
+.fuw-amt .orw-amt{padding-top:4px}
+.fuw-fee{font-size:12px;color:var(--c-muted)}
+.fuw-pay{font-size:12px;font-weight:500;color:var(--c-muted)}
+.fuw-pay.warn{color:var(--color-warn);font-weight:600}
+.fuw-act:empty{display:none}
+.fu-act{border-radius:0;border-color:var(--color-accent);color:var(--color-accent);transition:background-color .14s,color .14s}
+.fu-act:hover{background:var(--color-accent);color:var(--color-accent-ink)}
+.pay-slip{display:flex;align-items:center;gap:12px}
+.pay-slip img,.dp-pay-slip{width:56px;height:56px;object-fit:cover;cursor:zoom-in;outline:1px solid color-mix(in oklab,var(--color-ink) 8%,transparent);outline-offset:-1px}
+.pay-slip-busy{font-size:13px;color:var(--c-muted)}
+.dp-pay{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dp-pay-st{font-size:14px;font-weight:600;color:var(--c-ink)}
+.dp-pay-st.warn{color:var(--color-warn)}
+@media(max-width:860px){
+  .orw.fuw{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"time amt" "body body" "act act";grid-template-rows:auto}
+  .fuw>.fuw-act{justify-self:start;margin-top:8px}
+  .fuw .orw-time .d,.fuw .orw-time .t{display:inline;margin-right:8px}
+  .fuw .orw-time .flag{display:inline}
+  .fuw .fu-act{min-height:44px}
+}

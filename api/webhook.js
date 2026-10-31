@@ -217,6 +217,9 @@ export default async function handler(req, res) {
     due_time:    dueTime,
     type,
     fulfilled,
+    // Shopify payment status (pending / paid / partially_paid / refunded …). Shopify-owned;
+    // the app's own payment record lives in paid_by / paid_at / pay_slip, never written here.
+    financial_status: order.financial_status || null,
     // Delivery details for the driver page — Shopify-sourced, refreshed every webhook
     // (recipient/address edits in Shopify flow through automatically).
     recip_name:  ship?.name  || null,
