@@ -1673,7 +1673,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -1969,6 +1969,11 @@ function getType(attrs) {
   return 'delivery'; // default
 }
 
+// Inventory writes run on 2026-04: there changeFromQuantity must be passed on every line
+// (null = no compare-and-swap; BloomFlow is the source of truth for these) and each
+// mutation needs an @idempotent key. ignoreCompareQuantity is gone from that version.
+const SHOP_INV_API = '2026-04';
+function _idemKey(){ try{ return crypto.randomUUID(); }catch(_){ return 'bf-'+Date.now()+'-'+Math.random().toString(36).slice(2); } }
 async function shopifyGQL(query, variables, opts) {
   // The Shopify token is managed entirely server-side — staff never connect
   // Shopify on their device. We send the store URL plus the logged-in user's
@@ -1980,7 +1985,7 @@ async function shopifyGQL(query, variables, opts) {
   try { if (hasSB()) { const { data } = await sb.auth.getSession(); authToken = data?.session?.access_token || ''; } } catch(_) {}
   let r;
   try {
-    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken, build: APP_BUILD, refreshToken: !!(opts && opts.refreshToken) }) });
+    r = await fetch('/api/query', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ shop:url, query, variables: variables||{}, authToken, build: APP_BUILD, refreshToken: !!(opts && opts.refreshToken), apiVersion: (opts && opts.apiVersion) || undefined }) });
   } catch (netErr) { throw new Error('Network error: ' + netErr.message); }
   let text = ''; try { text = await r.text(); } catch(_) {}
   if (r.status === 401) throw new Error(LANG==='zh' ? '请先登录' : 'Please sign in again');
@@ -5792,10 +5797,10 @@ async function shopStockAdjust(pid, vIdx, delta){
   if((v.qty||0)+delta < 0) return;
   const locId=await _shopLocation(); if(!locId){ toast(zh?'找不到 Shopify 仓库位置':'No Shopify location found'); return; }
   _shopAdjBusy=true; toast(zh?'更新 Shopify 库存…':'Updating Shopify stock…');
-  const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
-  const vars={ input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId }] } };
+  const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input) @idempotent(key:"${_idemKey()}"){ userErrors{ field message } } }`;
+  const vars={ input:{ reason:'correction', name:'available', changes:[{ delta:delta, inventoryItemId:v.invItemId, locationId:locId, changeFromQuantity:null }] } };
   const isScopeErr=msg=>/access denied|access scope|write_inventory|not approved/i.test(msg||'');
-  const run=async (refresh)=>{ const res=await shopifyGQL(m, vars, refresh?{refreshToken:true}:undefined); const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); return res; };
+  const run=async (refresh)=>{ const res=await shopifyGQL(m, vars, { apiVersion:SHOP_INV_API, refreshToken:!!refresh }); const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); return res; };
   try{
     try{ await run(false); }
     catch(e1){
@@ -5846,8 +5851,8 @@ async function _flushShopDeducts(queue){
     const v=(p.variants||[])[0]; if(!v || !v.invItemId) continue;
     _shopDeductInFlight.add(job.rkey);
     try{
-      const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input){ userErrors{ field message } } }`;
-      const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:-job.need, inventoryItemId:v.invItemId, locationId:locId }] } });
+      const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input) @idempotent(key:"${_idemKey()}"){ userErrors{ field message } } }`;
+      const res=await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:-job.need, inventoryItemId:v.invItemId, locationId:locId, changeFromQuantity:null }] } }, { apiVersion:SHOP_INV_API });
       const ue=(res.inventoryAdjustQuantities&&res.inventoryAdjustQuantities.userErrors)||[];
       if(ue.length) throw new Error(ue.map(e=>e.message).join('; '));
       v.qty=(v.qty||0)-job.need; p.total=p.variants.reduce((s,x)=>s+(x.qty||0),0);
@@ -6306,9 +6311,9 @@ async function _pushStockToShopify(item, opts){
   const zh = LANG==='zh';
   try{
     const locId = await _shopLocation(); if(!locId){ if(opts.toast) toast(zh?'找不到 Shopify 仓库位置':'No Shopify location found'); return; }
-    const quantities = targets.map(t => ({ inventoryItemId:t.iid, locationId:locId, quantity:t.qty }));
-    const m = `mutation($input: InventorySetQuantitiesInput!){ inventorySetQuantities(input:$input){ userErrors{ field message } } }`;
-    const run = async refresh => { const res = await shopifyGQL(m, { input:{ reason:'correction', name:'available', ignoreCompareQuantity:true, quantities } }, refresh?{refreshToken:true}:undefined); const ue=(res.inventorySetQuantities&&res.inventorySetQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); };
+    const quantities = targets.map(t => ({ inventoryItemId:t.iid, locationId:locId, quantity:t.qty, changeFromQuantity:null }));
+    const m = `mutation($input: InventorySetQuantitiesInput!){ inventorySetQuantities(input:$input) @idempotent(key:"${_idemKey()}"){ userErrors{ field message } } }`;
+    const run = async refresh => { const res = await shopifyGQL(m, { input:{ reason:'correction', name:'available', quantities } }, { apiVersion:SHOP_INV_API, refreshToken:!!refresh }); const ue=(res.inventorySetQuantities&&res.inventorySetQuantities.userErrors)||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); };
     try{ await run(false); }
     catch(e1){ if(!/access denied|access scope|write_inventory|not approved/i.test(e1&&e1.message||'')) throw e1; await run(true); }
     // Mirror onto the in-memory Shopify stock so the app's own cards reflect it too.
@@ -9330,7 +9335,7 @@ function _navLinks(o){
 function _navBtn(href,label){
   if (!href) return '';
   const blank = /^https?:/i.test(href) ? ' target="_blank" rel="noopener"' : '';
-  return '<a href="'+href+'"'+blank+' style="flex:1;min-width:92px;text-align:center;padding:10px 8px;border:1.5px solid var(--c-border);border-radius:8px;font-size:12px;text-decoration:none;color:var(--c-ink);font-weight:600;background:var(--c-surface)">'+esc2(label)+'</a>';
+  return '<a class="fu-act" href="'+href+'"'+blank+'>'+esc2(label)+'</a>';
 }
 // Best-effort current GPS fix (foreground). Resolves {lat,lng} or null; never
 // blocks longer than ~timeout so it can't stall a delivery if GPS is slow/denied.
@@ -10293,7 +10298,6 @@ let _drvDetail = null;           // order id whose detail view is open
 let _drvMap = null, _geoOff = false; const _geoTried = new Set();
 const SHOP_LATLNG = [5.3695432, 100.4554098];   // 9 Persiaran Sunway Wellesley, Bukit Mertajam
 const SHOP_ADDR = '9, Persiaran Sunway Wellesley, Pusat Perniagaan Sunway Wellesley, 14000 Bukit Mertajam, Penang';
-const DRV_C = { pending:'#D84343', otw:'#2E7BD0', done:'#2E9E6B' };
 
 // ── Delivery start point (origin for optimize + distance + map) ──
 // Global default lives in the settings KV (`route_origin`), defaulting to the shop; each
@@ -10473,32 +10477,35 @@ function _byTime(a,b){ return _timeRank(a.dueTime) - _timeRank(b.dueTime) || Str
 function _drvRow(o, opts){
   opts = opts || {};
   const st = _drvStatus(o);
-  const seq = o.routeSeq != null ? o.routeSeq : '·';
-  const circle = st==='done'
-    ? '<div style="width:26px;height:26px;border-radius:50%;background:'+DRV_C.done+';color:#fff;display:flex;align-items:center;justify-content:center;flex:none">'+di('check',15)+'</div>'
-    : '<div style="width:26px;height:26px;border-radius:50%;background:'+DRV_C[st]+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none">'+seq+'</div>';
+  const seq = o.routeSeq != null ? o.routeSeq : '–';
+  const box = st==='done'
+    ? '<div class="dstop-seq done">'+di('check',15)+'</div>'
+    : '<div class="dstop-seq num'+(st==='otw'?' otw':'')+'">'+seq+'</div>';
   const handle = opts.reorder
-    ? '<div onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')" style="width:30px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;font-size:17px;color:var(--c-muted);user-select:none;flex:none">≡</div>'
+    ? '<div class="dstop-drag" aria-hidden="true" onpointerdown="_drvDragStart(event,\''+o.id+'\',\''+(o.routeId||'')+'\')">≡</div>'
     : '';
-  const unassign = opts.reorder
-    ? '<button onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)" title="Remove from route" style="width:26px;height:26px;border:none;background:var(--c-bg);border-radius:50%;font-size:11px;cursor:pointer;color:var(--c-muted);flex:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
-    : '<span style="color:var(--c-muted);font-size:14px;flex:none">›</span>';
-  const flame = o.priority==='urgent' ? ' <span title="urgent" style="color:#E65100">'+dif('bolt',12)+'</span>' : '';
+  const remove = opts.reorder
+    ? '<button type="button" class="dstop-x" aria-label="Remove from route" onclick="event.stopPropagation();assignStopToRoute(\''+o.id+'\', null)"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>'
+    : '';
+  const tags = (opts.next ? '<span class="orw-tag urg">Next</span>' : '')
+    + (o.priority==='urgent' ? '<span class="orw-tag urg">Urgent</span>' : '')
+    + (st==='otw' ? '<span class="orw-tag otw">On the way</span>' : '')
+    + ((o.lalamoveOrderId||o.lalamoveUrl) ? '<span class="orw-tag">Lalamove</span>' : '');
   // Cover thumbnail so the driver can see the arrangement before tapping in.
   const _cov = (typeof orderPhotos==='function' ? orderPhotos(o)[0] : null) || o.image || null;
-  const thumb = _cov
-    ? '<img src="'+String(_cov).replace(/"/g,'&quot;')+'" loading="lazy" onerror="imgFlower(this)" style="width:38px;height:38px;border-radius:8px;object-fit:cover;flex:none">'
-    : '<span style="width:38px;height:38px;border-radius:8px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-muted);flex:none">'+di('flower',18)+'</span>';
-  return '<div class="drv-stop" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+' style="display:flex;align-items:center;gap:9px;border:1.5px solid var(--c-border);border-radius:10px;padding:10px 10px;margin-bottom:6px;background:var(--c-surface);cursor:pointer;'+(st==='done'?'opacity:.55;':'')+'">'
-    + handle + circle + thumb
-    + '<div style="flex:1;min-width:0">'
-      + '<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+flame+((o.lalamoveOrderId||o.lalamoveUrl)?' <span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;color:#D8622E;background:#FAECE7;border-radius:5px;padding:1px 5px;vertical-align:1px"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>Lalamove</span>':'')+'</div>'
-      + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o))+(o.dueTime?' · '+esc2(o.dueTime):'')+' · '+_drvStatusText(o)+'</div>'
+  const thumb = _cov ? '<img class="dstop-th" src="'+String(_cov).replace(/"/g,'&quot;')+'" alt="" loading="lazy" onerror="this.remove()">' : '';
+  return '<div class="drv-stop dstop'+(opts.next?' next':'')+(st==='done'?' isdone':'')+'" data-oid="'+o.id+'" '+(opts.reorder?'':'onclick="openStopDetail(\''+o.id+'\')"')+'>'
+    + handle + box
+    + '<div class="dstop-main">'
+      + '<div class="dstop-when num">'+esc2(o.dueTime||'–')+'</div>'
+      + '<div class="dstop-body">'
+        + '<div class="orw-who"><span class="orw-cust">'+esc2(o.recipName||o.customer||'')+'</span><span class="orw-no num">'+esc2(o.name||'')+'</span>'+tags+'</div>'
+        + '<div class="dstop-area">'+esc2(_drvArea(o))+'</div>'
+      + '</div>'
     + '</div>'
-    + unassign
+    + thumb + (opts.end||'') + remove
   + '</div>';
 }
-
 // EasyRoutes-style contact row: label, name with number on the line below, and
 // small round Call + WhatsApp buttons on the right.
 function _drvContactRow(label, name, phone, waHref){
@@ -10518,11 +10525,7 @@ function _drvContactRow(label, name, phone, waHref){
 // Small icon-led info row for the driver detail view (mockup style): a soft round
 // icon, a muted label, and a big value line. `extra` renders on the right.
 function _drvInfoRow(icon, label, valueHtml, extra){
-  return '<div class="drvd-row">'
-    + '<span class="drvd-ico">'+di(icon,17)+'</span>'
-    + '<div style="flex:1;min-width:0"><div class="drvd-lbl">'+label+'</div><div class="drvd-val">'+valueHtml+'</div></div>'
-    + (extra||'')
-  + '</div>';
+  return '<div class="drvd-row"><div class="drvd-lbl">'+label+'</div><div class="drvd-val">'+valueHtml+'</div>'+(extra||'')+'</div>';
 }
 function _drvDetailView(o){
   const st = _drvStatus(o);
@@ -10532,73 +10535,69 @@ function _drvDetailView(o){
   // the legacy single proofPhoto. Rendered as tap-to-zoom thumbnails in the done state.
   const _pp = (o.proofPhotos && o.proofPhotos.length) ? o.proofPhotos : (o.proofPhoto ? [o.proofPhoto] : []);
   const _ppHtml = _pp.length
-    ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">' + _pp.map(s=>{ const ss=String(s).replace(/'/g,"\\'"); return '<img src="'+ss+'" onclick="openZoom(\''+ss+'\')" style="width:90px;height:90px;object-fit:cover;border-radius:9px;cursor:zoom-in" onerror="this.style.display=\'none\'">'; }).join('') + '</div>'
+    ? '<div class="drvd-proof">' + _pp.map(s=>{ const ss=String(s).replace(/'/g,"\\'"); return '<img src="'+ss+'" alt="Delivery photo" onclick="openZoom(\''+ss+'\')" onerror="this.style.display=\'none\'">'; }).join('') + '</div>'
     : '';
-  // Status pill — Ready (default) / On the way / Delivered.
-  const pill = st==='done'
-    ? '<span class="drvd-pill" style="background:var(--c-sage-bg,#E7F0E4);color:var(--c-sage,#5B7355)">'+di('check',13)+' Delivered</span>'
-    : st==='otw' ? '<span class="drvd-pill" style="background:#EDE9FB;color:#5B4B9A">'+di('truck',13)+' On the way</span>'
-    : o.priority==='urgent' ? '<span class="drvd-pill" style="background:#FBEAD9;color:#B4571E">Urgent</span>'
-    : '<span class="drvd-pill" style="background:var(--c-sage-bg,#E7F0E4);color:var(--c-sage,#5B7355)">Ready</span>';
   // Recipient contact quick-actions (call / WhatsApp) — kept for drivers.
   const tel = _drvE164(o.recipPhone);
   const waHref = recipWaLink(o);
-  const rnd = (href, inner, title) => href ? '<a href="'+href+'" target="_blank" rel="noopener" title="'+title+'" style="width:40px;height:40px;border:1.5px solid var(--c-border);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:var(--c-ink);flex:none">'+inner+'</a>' : '';
-  const contactBtns = (tel||waHref) ? '<div style="display:flex;gap:8px;flex:none">'+rnd(tel?'tel:+'+tel:null,di('phone',17),'Call')+rnd(waHref,'<span style="color:#25D366;display:inline-flex">'+dif('whatsapp',18)+'</span>','WhatsApp')+'</div>' : '';
-  const recipVal = esc2(o.recipName || o.customer || '—') + (tel ? ' <span style="color:var(--c-muted)">·</span> <span style="color:#2E7D32">+'+tel+'</span>' : '');
+  const link = (href, inner) => href ? '<a class="fu-act" href="'+href+'" target="_blank" rel="noopener">'+inner+'</a>' : '';
+  const contactBtns = (tel||waHref) ? '<div class="drvd-btns">'+link(tel?'tel:+'+tel:null,di('phone',15)+'<span>Call</span>')+link(waHref,dif('whatsapp',15)+'<span>WhatsApp</span>')+'</div>' : '';
+  const recipVal = esc2(o.recipName || o.customer || '—') + (tel ? ' <span class="num drvd-tel">+'+tel+'</span>' : '');
   // Deliver-to value + navigate buttons underneath.
   const addr = _drvAddr(o);
-  const addrVal = (esc2(addr) || '<span style="color:#B4571E">'+di('warn',14)+' no address on order</span>')
-    + (nav ? '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+'</div>' : '');
+  const addrVal = (esc2(addr) || '<span class="drvd-warn">'+di('warn',14)+' no address on order</span>')
+    + (nav ? '<div class="drvd-btns">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+'</div>' : '');
   // Items with per-line price on the right; overall total below.
   const itemRows = (o.lineItems && o.lineItems.length)
-    ? o.lineItems.map((li,idx) => { const q=li.quantity||1; const lt=(li.price!=null&&li.price!=='')?(cur+' '+_invPriceStr(parseFloat(li.price)*q)):''; return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:14.5px;padding:2px 0"><span style="min-width:0">'+esc2(li.title||'')+' <span style="color:var(--c-muted)">×'+q+'</span></span>'+(lt?'<span style="font-weight:600;white-space:nowrap">'+lt+'</span>':'')+'</div>'+_variantLine(li)+itemPhotoStrip(o.id, idx, li); }).join('')
-    : '<div style="font-size:14.5px">'+esc2(o.product||'—')+'</div>';
+    ? o.lineItems.map((li,idx) => { const q=li.quantity||1; const lt=(li.price!=null&&li.price!=='')?(cur+' '+_invPriceStr(parseFloat(li.price)*q)):''; return '<div class="drvd-item"><span>'+esc2(li.title||'')+' <span class="q">×'+q+'</span></span>'+(lt?'<span class="p num">'+lt+'</span>':'')+'</div>'+_variantLine(li)+itemPhotoStrip(o.id, idx, li); }).join('')
+    : '<div class="drvd-item"><span>'+esc2(o.product||'—')+'</span></div>';
   const totVal = (o.total!=null&&o.total!=='') ? (cur+' '+_invPriceStr(o.total)) : '';
+  const _rt = o.routeId ? (typeof ROUTES!=='undefined'?ROUTES:[]).find(r=>r.id===o.routeId) : null;
   // Footer action buttons.
   let footer;
   if (st==='done'){
     // Who delivered: the recorded deliveredBy, else fall back to the route's assigned
     // driver (older orders delivered before we stamped deliveredBy still show a name).
-    const _rt = o.routeId ? (typeof ROUTES!=='undefined'?ROUTES:[]).find(r=>r.id===o.routeId) : null;
     const deliverer = o.deliveredBy || (_rt && _rt.driver) || null;
     footer = _ppHtml
-      + (o.deliveredLat!=null ? '<a href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;color:var(--c-muted);text-decoration:none;margin-bottom:6px">'+di('nav',12)+' <span style="text-decoration:underline">Delivered location</span>'+(o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : '')
-      + '<div style="font-size:12px;color:var(--c-muted);text-align:center;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:5px">'+di('user',13)+' '+(deliverer?('Delivered by '+esc2(deliverer)):'Delivered')+(o.deliveredLat==null && o.deliveredAt?' · '+esc2(_waTime(o.deliveredAt)):'')+'</div>'
-      + '<button onclick="replaceProof(\''+o.id+'\')" class="drvd-btn drvd-btn-ghost">'+di('camera',17)+' Replace photo</button>';
+      + (o.deliveredLat!=null ? '<a class="drvd-meta" href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener">'+di('nav',13)+' <span style="text-decoration:underline">Delivered location</span>'+(o.deliveredAt?', '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : '')
+      + '<div class="drvd-meta">'+di('user',13)+' '+(deliverer?('Delivered by '+esc2(deliverer)):'Delivered')+(o.deliveredLat==null && o.deliveredAt?', '+esc2(_waTime(o.deliveredAt)):'')+'</div>'
+      + '<button type="button" onclick="replaceProof(\''+o.id+'\')" class="drvd-btn drvd-btn-ghost">'+di('camera',17)+' Replace photo</button>';
   } else {
-    footer = '<div style="display:flex;gap:11px">'
-      + '<button onclick="openOTWModal(\''+o.id+'\')" class="drvd-btn drvd-btn-lav">'+di('truck',17)+' '+(o.otwAt?'On the way ✓':'On the way')+'</button>'
-      + '<button onclick="markDelivered(\''+o.id+'\')" class="drvd-btn drvd-btn-dark">'+di('check',17)+' Delivered</button>'
+    footer = '<div class="drvd-two">'
+      + '<button type="button" onclick="openOTWModal(\''+o.id+'\')" class="drvd-btn drvd-btn-ghost">'+(o.otwAt?di('check',17):di('truck',17))+' On the way</button>'
+      + '<button type="button" onclick="markDelivered(\''+o.id+'\')" class="drvd-btn drvd-btn-dark">'+di('check',17)+' Delivered</button>'
     + '</div>';
   }
+  const _rtStops = _rt ? _drvStopsForRoute(_rt.id).length : 0;
+  const _when = o.dateObj ? fd(o.dateObj) : (o.dueDate||'');
   return '<div class="drvd-wrap">'
     // top bar
     + '<div class="drvd-top">'
-      + '<button onclick="closeStopDetail()" aria-label="Back" class="drvd-icobtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>'
-      + '<div class="drvd-toptitle">'+(o.routeSeq!=null?'Stop '+o.routeSeq:'Order')+'</div>'
-      + '<span class="drvd-icobtn" style="visibility:hidden" aria-hidden="true"></span>'
+      + '<button type="button" onclick="closeStopDetail()" class="drvd-back"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg><span>'+(_rt?esc2(_rt.name):'Delivery')+'</span></button>'
+      + '<div class="drvd-toptitle num">'+(o.routeSeq!=null?('Stop '+o.routeSeq+(_rtStops?(' of '+_rtStops):'')):'Order')+'</div>'
     + '</div>'
-    // headline
-    + '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:2px">'
-      + '<div class="drvd-no">'+esc2(o.name||'')+'</div>' + pill
+    // headline: the order number; date, window and state underneath
+    + '<div class="drvd-no">'+esc2(o.name||'')+'</div>'
+    + '<div class="drvd-sub">'
+      + (_when ? '<span class="num">'+esc2(_when)+'</span>' : '')
+      + (o.dueTime ? '<span class="num">'+esc2(o.dueTime)+'</span>' : '')
+      + (st==='done' ? '<span class="st">Delivered</span>' : st==='otw' ? '<span class="st">On the way</span>' : '')
+      + (o.priority==='urgent' && st!=='done' ? '<span class="st">Urgent</span>' : '')
     + '</div>'
-    + (o.product ? '<div class="drvd-sub">'+esc2(o.product)+'</div>' : '')
+    + (o.deliveryInstr ? '<div class="drvd-instr"><div class="drvd-lbl">Delivery instructions</div><div>'+esc2(o.deliveryInstr)+'</div></div>' : '')
+    + (o.internalNote ? '<div class="drvd-note">'+esc2(o.internalNote)+'</div>' : '')
     // info rows
     + '<div class="drvd-card">'
-      + _drvInfoRow('gift','Recipient', recipVal, contactBtns)
-      + _drvInfoRow('pin','Deliver to', addrVal, '')
-      + (o.deliveryInstr ? _drvInfoRow('note','Delivery instructions', '<b style="white-space:pre-wrap">'+esc2(o.deliveryInstr)+'</b>', '') : '')
-      + _drvInfoRow('clock','Delivery window'+(o.dueDate?' · '+esc2(o.dueDate):''), esc2(o.dueTime||'—'), '')
-      + _drvInfoRow('flower','Items', itemRows, '')
-      + (o.internalNote ? '<div style="background:#FFF8E1;border-left:3px solid #F9A825;border-radius:0 8px 8px 0;padding:9px 11px;margin-top:10px;font-size:13px;color:#795548">'+di('note',14)+' '+esc2(o.internalNote)+'</div>' : '')
+      + _drvInfoRow('','Deliver to', addrVal, '')
+      + _drvInfoRow('','Recipient', recipVal + contactBtns, '')
+      + _drvInfoRow('','Items', itemRows, '')
     + '</div>'
-    + (totVal ? '<div class="drvd-total"><span>Total</span><span class="drvd-total-n">'+totVal+'</span></div>' : '')
-    + '<div class="drvd-foot">'+footer+'</div>'
-    + (o._otwFlag ? '<div style="font-size:12px;color:#B4571E;margin-top:8px">'+di('warn',13)+' '+esc2(o._otwFlag)+' — contact buyer manually</div>' : '')
+    + (totVal ? '<div class="drvd-total"><span>Total</span><span class="num">'+totVal+'</span></div>' : '')
+    + '<div class="drvd-foot'+(st==='done'?' done':'')+'">'+footer+'</div>'
+    + (o._otwFlag ? '<div class="drvd-warn" style="margin-top:8px">'+di('warn',13)+' '+esc2(o._otwFlag)+', contact buyer manually</div>' : '')
   + '</div>';
-}
-// Replace the proof-of-delivery photo on an already-delivered order and re-send it
+}// Replace the proof-of-delivery photo on an already-delivered order and re-send it
 // to the customer (WhatsApp + email). Does NOT touch fulfillment.
 function replaceProof(id){
   const o = ORDERS.find(x=>x.id===id); if(!o) return;
@@ -10695,18 +10694,16 @@ function _drvRouteItems(rt){
 }
 function _drvItemsView(rt){
   const items = _drvRouteItems(rt);
-  if (!items.length) return '<div style="font-size:12px;color:var(--c-muted);padding:8px 2px">No items on this route yet.</div>';
+  if (!items.length) return '<div class="dgrp-empty">No items on this route yet.</div>';
   const total = items.reduce((s,i) => s + i.qty, 0);
-  return '<div style="border:1.5px solid var(--c-border);border-radius:var(--r-lg);overflow:hidden">'
-    + '<div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--c-muted);padding:8px 12px;background:var(--c-bg)"><span>Product</span><span>Qty · Orders</span></div>'
-    + items.map(it => '<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;border-top:1px solid var(--c-border);font-size:12.5px">'
-        + '<span style="min-width:0">'+esc2(it.title)+'</span>'
-        + '<span style="flex:none;text-align:right;color:var(--c-muted)"><b style="color:var(--c-ink)">×'+it.qty+'</b> · '+[...it.orders].map(esc2).join(', ')+'</span>'
+  return '<div class="dgrp-rule"></div>'
+    + items.map(it => '<div class="ditem">'
+        + '<span class="t">'+esc2(it.title)+'</span>'
+        + '<span class="n num">× '+it.qty+'</span>'
+        + '<span class="o num">'+[...it.orders].map(esc2).join(', ')+'</span>'
       + '</div>').join('')
-    + '<div style="padding:10px 12px;border-top:1.5px solid var(--c-border);font-size:12px;font-weight:700;display:flex;justify-content:space-between"><span>Total items to load</span><span>'+total+'</span></div>'
-  + '</div>';
+    + '<div class="ditem total"><span class="t">Total items to load</span><span class="n num">'+total+'</span></div>';
 }
-
 // Full route detail: back, totals (stops/km/time), route map, editable start, Start/Reorder/
 // Optimize, a Stops|Items toggle, and an "add orders" section. Two columns on desktop.
 // Route management sheet — one "Manage" button replaces the scattered
@@ -10731,10 +10728,10 @@ function openRouteManage(routeId){
   const ov = document.createElement('div');
   ov.id = 'rm-sheet';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
-  ov.innerHTML = '<div style="background:var(--c-surface);border-radius:16px 16px 0 0;max-width:460px;width:100%;overflow:hidden;box-shadow:0 -8px 40px rgba(0,0,0,.25)" onclick="event.stopPropagation()">'
+  ov.innerHTML = '<div style="background:var(--c-surface);border-top:2px solid var(--c-ink);max-width:460px;width:100%;overflow:hidden" onclick="event.stopPropagation()">'
     + '<div style="padding:15px 16px 11px;font-size:14px;font-weight:700;color:var(--c-ink)">Manage route</div>'
     + items
-    + '<button onclick="_rmClose()" style="display:block;width:calc(100% - 24px);margin:12px 12px;padding:12px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-bg);font-size:13px;font-weight:600;color:var(--c-muted);cursor:pointer">Cancel</button>'
+    + '<button onclick="_rmClose()" style="display:block;width:calc(100% - 24px);margin:12px 12px;padding:12px;border:1px solid var(--c-border);background:var(--c-bg);font-size:13px;font-weight:600;color:var(--c-muted);cursor:pointer">Cancel</button>'
     + '</div>';
   ov.onclick = () => _rmClose();
   document.body.appendChild(ov);
@@ -10755,77 +10752,66 @@ function _drvRouteDetail(rt){
   const done = stops.filter(o => o.fulfilled).sort(_byTime);   // delivered: earliest → latest time
   const reorder = _drvReorderRoute === rt.id;
   const seen = rt.lastLocAt ? Math.round((Date.now()-new Date(rt.lastLocAt).getTime())/60000) : null;
-  // Live-location status on a started route: green when a fresh fix arrived, amber when
+  // Live-location status on a started route: accent when a fresh fix arrived, warn when
   // stale or the driver hasn't shared yet (phone locked / app closed / location off).
   const _agoTxt = seen==null ? '' : (seen<1?'just now':(seen<60?(seen+'m ago'):(Math.round(seen/60)+'h ago')));
   const locBit = !rt.startedAt ? ''
     : (seen==null
-        ? ' · <span style="color:#B4571E">'+di('pin',10)+' location not shared yet</span>'
-        : ' · <span style="color:'+(seen<=8?'#0F6E56':'#B4571E')+'">'+di('pin',10)+' '+(seen<1?'location live now':('location shared '+_agoTxt))+'</span>');
+        ? ', <span class="drvd-warn">location not shared yet</span>'
+        : ', <span class="'+(seen<=8?'dlv-live':'drvd-warn')+'">'+(seen<1?'location live now':('location shared '+_agoTxt))+'</span>');
   const m = _routeMetrics[rt.id];
-  const metric = (val, lbl) => '<div style="flex:1;background:var(--c-bg);border-radius:10px;padding:10px 8px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--c-ink);line-height:1.1">'+val+'</div><div style="font-size:10px;color:var(--c-muted);margin-top:2px">'+lbl+'</div></div>';
   const kmVal  = m ? (m.km != null ? m.km : '—') : '…';
   const minVal = m ? (m.min != null ? _fmtDur(m.min) : '—') : '…';
   const canOpt = pending.filter(o=>o.lat!=null).length >= 2;
-  const optimized = pending.some(o => o.routeSeq != null);
   const origin = _routeOrigin(rt);
   const unassigned = _drvStops(iso).filter(o => !o.routeId && !o.fulfilled).sort((a,b)=>(a.routeSeq??1e9)-(b.routeSeq??1e9));
-  const tabBtn = (t, lbl, ic) => '<button onclick="driverRouteTab(\''+t+'\')" style="flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid '+(_drvRouteTab===t?'var(--c-burg);background:var(--c-burg);color:var(--c-bg)':'var(--c-border);background:var(--c-surface);color:var(--c-muted)')+'">'+ic+' '+lbl+'</button>';
+  const tabBtn = (t, lbl) => '<button type="button" class="f-btn'+(_drvRouteTab===t?' on':'')+'" onclick="driverRouteTab(\''+t+'\')">'+lbl+'</button>';
 
   return '<div class="drv-rd">'
-    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">'
-      + '<button onclick="closeRouteDetail()" aria-label="Back" style="width:34px;height:34px;border:1.5px solid var(--c-border);border-radius:50%;background:var(--c-surface);cursor:pointer;flex:none;display:inline-flex;align-items:center;justify-content:center">'+di('back',17)+'</button>'
-      + '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
-      + '<div style="font-size:11px;color:var(--c-muted)">'+(rt.driver?esc2(rt.driver):'any driver')+(rt.startedAt?' · <span style="color:#1565C0">'+dif('play',9)+' started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+'</span>':'')+locBit+'</div></div>'
+    + '<div class="drvd-top">'
+      + '<button type="button" onclick="closeRouteDetail()" class="drvd-back"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg><span>Delivery</span></button>'
       // Reorder mode shows a clear "Done" to exit; otherwise one "Manage" button
       // opens the action sheet with everything (reorder / auto-sort / add / edit / delete).
       + (reorder
-          ? '<button onclick="toggleReorder(\''+rt.id+'\')" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;cursor:pointer;flex:none;background:var(--c-burg);color:var(--c-bg);border:1.5px solid var(--c-burg);font-size:12px;font-weight:600">'+di('check',15)+' Done</button>'
+          ? '<button type="button" class="btn btn-primary" style="height:40px;padding:0 18px" onclick="toggleReorder(\''+rt.id+'\')">Done</button>'
           : ((isAdmin || pending.length>1 || canOpt)
-              ? '<button onclick="openRouteManage(\''+rt.id+'\')" aria-label="Manage route" style="display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;color:var(--c-burg);flex:none;font-size:12px;font-weight:600">'+di('gear',15)+' Manage</button>'
+              ? '<button type="button" class="btn btn-ghost" style="height:40px" aria-label="Manage route" onclick="openRouteManage(\''+rt.id+'\')">'+di('gear',15)+' Manage</button>'
               : ''))
     + '</div>'
+    + '<div class="dlv-rdhead">'
+      + '<div class="page-title"><span class="dgrp-sw lg" style="background:'+_routeColor(rt.id)+'"></span>'+esc2(rt.name)+'</div>'
+      + '<div class="ord-date">'+(rt.driver?esc2(rt.driver):'Any driver')+(rt.startedAt?', started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'')+locBit+'</div>'
+    + '</div>'
     // map (prominent, full width)
-    + '<div id="drv-map" style="height:360px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);margin-bottom:12px;z-index:0"></div>'
-    + (_geoOff ? '<div style="font-size:11px;color:#E65100;margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
-    // toolbar: inline stats · start point · actions (right)
-    + '<div style="display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin-bottom:16px">'
-      + '<div style="display:flex;gap:22px;align-items:baseline;flex:none">'
-        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+pending.length+'</b> '+(pending.length===1?'stop':'stops')+'</span>'
-        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+kmVal+'</b> km</span>'
-        + '<span style="font-size:12px;color:var(--c-muted)"><b style="font-size:18px;color:var(--c-ink)">'+minVal+'</b> est. time</span>'
-      + '</div>'
-      + '<div style="flex:1;min-width:170px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--c-muted)">'
-        + '<span style="display:inline-flex;color:#0F6E56;flex:none">'+di('pin',13)+'</span>'
-        + '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Start: '+esc2(origin.label||'shop')+'</span>'
-        + (isAdmin ? '<button onclick="editRouteStart(\''+rt.id+'\')" style="font-size:10.5px;padding:3px 9px;border:1.5px solid var(--c-border);border-radius:6px;background:var(--c-surface);cursor:pointer;flex:none">Edit</button>' : '')
-      + '</div>'
-      + '<div style="display:flex;gap:8px;flex:none;margin-left:auto">'
-        + (pending.length ? '<button onclick="startRoute(\''+rt.id+'\')" style="padding:11px 20px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
-      + '</div>'
+    + '<div id="drv-map" class="dlv-map rd"></div>'
+    + (_geoOff ? '<div class="drvd-warn" style="margin-bottom:8px">'+di('warn',12)+' Map + distance need the Google key (GOOGLE_MAPS_API_KEY).</div>' : '')
+    // stops, km, time · start point · start action
+    + '<div class="dlv-rdbar">'
+      + '<div class="ord-tally"><div><b>'+pending.length+'</b><span>'+(pending.length===1?'stop':'stops')+'</span></div><div><b>'+kmVal+'</b><span>km</span></div><div><b>'+minVal+'</b><span>est. time</span></div></div>'
+      + (pending.length ? '<button type="button" class="btn btn-primary dlv-rdgo" onclick="startRoute(\''+rt.id+'\')">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
+    + '</div>'
+    + '<div class="dlv-start"><span class="t">Start: '+esc2(origin.label||'shop')+'</span>'
+      + (isAdmin ? '<button type="button" class="btn btn-ghost btn-sm" onclick="editRouteStart(\''+rt.id+'\')">Edit</button>' : '')
     + '</div>'
     // tabs
-    + '<div style="display:flex;gap:6px;margin-bottom:12px">'+tabBtn('stops','Stops',di('list',13))+tabBtn('items','Items',di('box',13))+'</div>'
+    + '<div class="filters dlv-rdtabs">'+tabBtn('stops','Stops')+tabBtn('items','Items')+'</div>'
     // content
     + (_drvRouteTab === 'items'
         ? _drvItemsView(rt)
         : ('<div class="drv-list">'
-            + (reorder ? '<div style="font-size:11px;color:var(--c-muted);margin:0 2px 8px;display:flex;align-items:center;gap:5px">'+di('sort',12)+' Drag ≡ to reorder · ✕ to remove'+(isAdmin && unassigned.length?' · add more below':'')+'</div>' : '')
-            + (pending.length ? pending.map(o => _drvRow(o, { reorder })).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px">No stops yet'+(isAdmin?(reorder && unassigned.length?' — add below.':' — Manage → Edit stops to add.'):'.')+'</div>')
+            + (pending.length ? pending.map((o,i) => _drvRow(o, { reorder, next: !!rt.startedAt && !reorder && i===0 })).join('') : '<div class="dgrp-empty">No stops yet</div>')
           + '</div>'
-          + (done.length ? '<details style="margin-top:2px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer;padding:4px 2px">'+di('check',12)+' Delivered · '+done.length+'</summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')))
+          + (done.length ? '<details class="dgrp-done"><summary>Delivered <span class="num">'+done.length+'</span></summary>'+done.map(o => _drvRow(o)).join('')+'</details>' : '')))
     // add orders — shown inside Edit-stops mode only, so add/reorder/remove live together
-    + (isAdmin && reorder && unassigned.length ? '<div style="background:var(--c-blush-bg,#f7ede9);border-radius:10px;padding:10px 11px;margin-top:14px">'
-        + '<div style="font-weight:700;font-size:12.5px;color:var(--c-burg);margin-bottom:6px">'+di('plus',14)+' Add orders to this route</div>'
+    + (isAdmin && reorder && unassigned.length ? '<div class="dwell"><div class="dwell-h"><b>Add orders to this route</b></div>'
         + unassigned.map(o =>
-            '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid rgba(0,0,0,.06)">'
-            + '<div style="flex:1;min-width:0;font-size:12px"><span style="font-weight:600">'+esc2(o.name||'')+'</span> · '+esc2(o.recipName||o.customer||'')+'<div style="font-size:10.5px;color:var(--c-muted)">'+esc2(_drvArea(o)||'no address')+(o.dueTime?' · '+esc2(o.dueTime):'')+'</div></div>'
-            + '<button onclick="assignStopToRoute(\''+o.id+'\',\''+rt.id+'\')" style="font-size:11px;padding:6px 12px;border:1.5px solid var(--c-border);border-radius:8px;background:var(--c-surface);cursor:pointer;flex:none">Add</button>'
+            '<div class="dwell-add">'
+            + '<div class="t"><b>'+esc2(o.name||'')+'</b> '+esc2(o.recipName||o.customer||'')+'<small>'+esc2(_drvArea(o)||'no address')+'</small></div>'
+            + '<button type="button" class="fu-act" onclick="assignStopToRoute(\''+o.id+'\',\''+rt.id+'\')">Add</button>'
             + '</div>').join('')
       + '</div>' : '')
   + '</div>';
 }
-
 // ── Leaflet map (OpenStreetMap tiles — free, no key) ──
 function _ensureLeaflet(cb){
   if (window.L) { cb(); return; }
@@ -10845,7 +10831,7 @@ function _ensureLeaflet(cb){
 }
 // Each route gets its own stable colour (hash of its id → palette) so multiple drivers'
 // routes are distinguishable on the map. Unassigned = grey. Delivered pins are dimmed + a check.
-const _ROUTE_PALETTE = ['#2E7BD0','#D8622E','#7B4FB5','#0F9D58','#C2185B','#00897B','#E65100','#3949AB'];
+const _ROUTE_PALETTE = ['#A8532C','#3F6080','#6E4A73','#A5801F','#2F7168','#A1475F','#667A3A','#4A4F85'];
 function _routeColor(routeId){
   if (!routeId) return '#8d8578';
   let h = 0; const s = String(routeId); for (let k=0;k<s.length;k++) h = (h*31 + s.charCodeAt(k)) >>> 0;
@@ -10857,9 +10843,9 @@ function _drvPin(o){
   const bg = unassigned ? '#8d8578' : _routeColor(o.routeId);
   const seq = o.routeSeq != null ? o.routeSeq : (unassigned ? '?' : '·');
   const label = st==='done' ? di('check',15) : seq;
-  const op = st==='done' ? 'opacity:.55;' : '';
+  const op = st==='done' ? 'opacity:.5;' : '';
   return L.divIcon({ className:'', iconSize:[28,28], iconAnchor:[14,14],
-    html:'<div style="width:28px;height:28px;border-radius:50%;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);'+op+'">'+label+'</div>' });
+    html:'<div style="width:28px;height:28px;background:'+bg+';color:#fff;display:flex;align-items:center;justify-content:center;font:500 12px var(--font-num);border:2px solid var(--color-surface);'+op+'">'+label+'</div>' });
 }
 // Decode a Google encoded polyline → [[lat,lng],…] for the road-following route line.
 function _decodePolyline(str){
@@ -10887,7 +10873,7 @@ function _drvMapInit(stops, routes, origin){
     const pts = [];
     // start / shop marker
     L.marker(origin, { icon: L.divIcon({ className:'', iconSize:[40,18], iconAnchor:[20,9],
-      html:'<div style="background:#0F6E56;color:#fff;border-radius:9px;font-size:10px;font-weight:600;text-align:center;line-height:18px;border:1.5px solid #fff">shop</div>' }) }).addTo(_drvMap);
+      html:'<div style="background:var(--color-accent);color:var(--color-accent-ink);font-size:10px;font-weight:600;text-align:center;line-height:16px;border:1px solid var(--color-surface)">shop</div>' }) }).addTo(_drvMap);
     pts.push(origin);
     // stop pins (tap → detail)
     stops.forEach(o => {
@@ -11001,18 +10987,17 @@ async function drvDateSet(iso){
 function _drvDateBar(){
   const iso = _drvDateISO(), t0 = tdi(today0()), t1 = tdi(new Date(today0().getTime()+86400000));
   const d = new Date(iso+'T00:00:00');
-  const pre = iso===t0 ? 'Today, ' : iso===t1 ? 'Tomorrow, ' : '';
-  const lbl = pre + d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' });
-  const arrow = 'width:36px;height:36px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-muted);cursor:pointer;flex:none;font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center';
-  return '<div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:12px">'
-    + '<button aria-label="Previous day" onclick="drvDateStep(-1)" style="'+arrow+'">&#8249;</button>'
-    + '<button onclick="openDrvCal()" style="height:36px;min-width:190px;border:1.5px solid var(--c-border);border-radius:9px;background:var(--c-surface);color:var(--c-ink);display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 18px;font-size:13px;font-weight:600;cursor:pointer">'
-      + di('calendar',14) + ' ' + esc2(lbl)
-    + '</button>'
-    + '<button aria-label="Next day" onclick="drvDateStep(1)" style="'+arrow+'">&#8250;</button>'
+  const tab = (t, lbl) => '<button type="button" class="f-btn'+(iso===t?' on':'')+'" onclick="drvDateSet(\''+t+'\')">'+lbl+'</button>';
+  const chev = pts => '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="'+pts+'"/></svg>';
+  const picked = (iso!==t0 && iso!==t1) ? d.toLocaleDateString('en-GB',{ day:'numeric', month:'short' }) : '';
+  return '<div class="ord-bar">'
+    + '<div class="filters">'+tab(t0,'Today')+tab(t1,'Tomorrow')+'</div>'
+    + '<button type="button" class="dlv-step" aria-label="Previous day" onclick="drvDateStep(-1)">'+chev('15 18 9 12 15 6')+'</button>'
+    + '<button type="button" class="ord-pick'+(picked?' on':'')+'" onclick="openDrvCal()">'+di('calendar',15)+'<span>'+(picked?esc2(picked):'Pick a date')+'</span></button>'
+    + '<button type="button" class="dlv-step" aria-label="Next day" onclick="drvDateStep(1)">'+chev('9 18 15 12 9 6')+'</button>'
+    + (_isDesktop() ? '' : '<button type="button" class="ord-pick dlv-mapbtn" onclick="drvToggleMap()">'+di('map',15)+'<span>'+(_drvMapOpen?'Hide map':'Show map')+'</span></button>')
   + '</div>';
 }
-
 // Driver date picker → the SAME custom calendar as the main Daily Orders view
 // (lunar days + order-count dots), opened in a modal instead of the native OS
 // date picker.
@@ -11060,50 +11045,35 @@ function _drvCalRender(){
   for(let i=1;i<=rem;i++) html+='<div class="cal-day other-month"><span class="cal-num">'+i+'</span></div>';
   grid.innerHTML=html;
 }
-function _drvBar(done, total){
-  const pct = total ? Math.round(done/total*100) : 0;
-  return '<div style="height:7px;background:var(--c-bg);border-radius:99px;overflow:hidden;margin-top:8px"><div style="width:'+pct+'%;height:100%;background:'+DRV_C.done+'"></div></div>';
-}
 // Stop-first route block: a progress header (delivered/total, distance, Start/Resume) then the
 // route's stops inline. "Plan" opens the full route detail (map / optimize / reorder / add).
 function _drvRouteBlock(rt){
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
-  const stops = _drvStopsForRoute(rt.id);
+  const stops = _drvStopsForRoute(rt.id).slice().sort(bySeq);
   const done = stops.filter(o => o.fulfilled).length;
   const pending = stops.length - done;
   const m = _routeMetrics[rt.id]; _computeRouteMetrics(rt.id);
   const metric = (m && m.km != null) ? (m.km+' km, '+_fmtDur(m.min)) : '';
   const started = !!rt.startedAt;
+  const next = started ? stops.find(o => !o.fulfilled) : null;
+  const sub = [rt.driver ? esc2(rt.driver) : 'Any driver', metric, started ? ('started '+new Date(rt.startedAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})) : ''].filter(Boolean).join(', ');
+  const pct = stops.length ? Math.round(done/stops.length*100) : 0;
   const start = pending
-    ? '<button onclick="event.stopPropagation();startRoute(\''+rt.id+'\')" style="width:100%;margin-top:11px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">'+di('nav',15)+' '+(started ? ('Resume, '+pending+' left') : 'Start route')+'</button>'
-    : '<div style="margin-top:11px;padding:10px;text-align:center;background:var(--c-bg);border-radius:9px;font-size:12px;color:'+DRV_C.done+';font-weight:700">'+di('check',14)+' All delivered</div>';
-  // Tappable route header → opens the route detail (map / navigate / optimize). Replaces the
-  // old floating "Plan" button; a map icon + chevron signal it's tappable. Start/Resume is a
-  // button inside (stopPropagation), so it won't trigger the card tap.
-  const header = '<div onclick="openRouteDetail(\''+rt.id+'\')" style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px 12px 0 0;border-bottom:none;padding:13px;cursor:pointer">'
-    + '<div style="display:flex;align-items:center;gap:8px">'
-      + '<div style="flex:1;min-width:0">'
-        + '<div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+';margin-right:7px;vertical-align:1px"></span>'+esc2(rt.name)+'</div>'
-        + '<div style="font-size:11px;color:var(--c-muted);margin-top:1px;display:inline-flex;align-items:center;gap:4px">'+di('user',11)+' '+(rt.driver?esc2(rt.driver):'Any driver')+'</div>'
-      + '</div>'
-      + '<span style="font-size:10.5px;color:var(--c-muted);display:inline-flex;align-items:center;gap:3px;flex:none">'+di('map',13)+' map</span>'
-      + '<span style="color:var(--c-muted);font-size:15px;flex:none">›</span>'
+    ? '<button type="button" class="fu-act dgrp-go" onclick="event.stopPropagation();startRoute(\''+rt.id+'\')">'+di('nav',15)+'<span>'+(started ? ('Resume, '+pending+' left') : 'Start route')+'</span></button>'
+    : '<span class="orw-tag">All delivered</span>';
+  // Tapping the head opens the route detail (map / navigate / optimize). Start/Resume is a
+  // button inside (stopPropagation), so it won't trigger the head. The rule under the head
+  // IS the route's progress: it fills as stops are delivered.
+  return '<section class="dgrp">'
+    + '<div class="dgrp-head" onclick="openRouteDetail(\''+rt.id+'\')">'
+      + '<div class="dgrp-name"><b><span class="dgrp-sw" style="background:'+_routeColor(rt.id)+'"></span>'+esc2(rt.name)+'<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></b><small>'+sub+'</small></div>'
+      + '<div class="dgrp-count"><b class="num">'+done+'</b> of '+stops.length+' <span>delivered</span></div>'
+      + start
     + '</div>'
-    + '<div style="display:flex;align-items:baseline;gap:6px;margin-top:7px"><span style="font-size:22px;font-weight:800;line-height:1">'+done+'</span><span style="font-size:13px;color:var(--c-muted)">/ '+stops.length+' delivered</span>'+(metric?'<span style="margin-left:auto;font-size:11px;color:var(--c-muted)">'+metric+'</span>':'')+'</div>'
-    + _drvBar(done, stops.length)
-    + start
-  + '</div>';
-  // Stops belong to this route — render them INSIDE the route unit (shared bordered box +
-  // a "Stops" label), so they read as part of Route A, not a separate list.
-  const rows = stops.length
-    ? '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:10px 10px 4px">'
-        + '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted);margin:0 2px 8px">Stops · '+stops.length+'</div>'
-        + stops.slice().sort(bySeq).map(o => _drvRow(o)).join('')
-      + '</div>'
-    : '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:12px;font-size:12px;color:var(--c-muted)">No stops on this route yet.</div>';
-  return '<div style="margin-bottom:16px">' + header + rows + '</div>';
+    + '<div class="dgrp-prog"><i style="width:'+pct+'%"></i></div>'
+    + (stops.length ? stops.map(o => _drvRow(o, { next: !!(next && next.id===o.id) })).join('') : '<div class="dgrp-empty">No stops on this route yet.</div>')
+  + '</section>';
 }
-
 /* ─── Cake collection reminder ───────────────────────────────────────────────
    Some orders include a cake to collect from a supplier. Staff flag the order
    (order detail panel) + pick a supplier; the driver page shows a "今日需拿蛋糕"
@@ -11183,21 +11153,19 @@ function _drvCakeList(iso){
   const collapsed = (iso in _cakeCollapse) ? _cakeCollapse[iso] : allDone;   // auto-collapse when all collected
   const bySup={}; list.forEach(o=>{ const ec=_effCake(o); const k=(ec.supplier||(zh?'待定供应商':'Supplier TBD')); if(!bySup[k]) bySup[k]={addr:ec.address||'',orders:[]}; if(ec.address) bySup[k].addr=ec.address; bySup[k].orders.push(o); });
   const chev = collapsed ? '&#9656;' : '&#9662;';   // ▸ / ▾
-  let h='<div style="background:#FBF3D9;border:1.5px solid #E6C65A;border-radius:12px;padding:12px 13px;margin-bottom:14px;max-width:560px">'
-    +'<div onclick="toggleCakeCard(\''+iso+'\')" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:700;color:#6b4a1a'+(collapsed?'':';margin-bottom:6px')+'"><span style="color:#b09338;font-size:11px">'+chev+'</span><span>'+(zh?'今日需拿蛋糕':'Cakes to collect today')+' · <span style="color:'+(allDone?'#3B7D3B':'#6b4a1a')+'">'+doneN+'/'+list.length+(zh?' 已取':' collected')+'</span></span></div>';
+  let h='<div class="dwell">'
+    +'<button type="button" class="dwell-h" onclick="toggleCakeCard(\''+iso+'\')"><b>'+chev+' '+(zh?'今日需拿蛋糕':'Cakes to collect')+'</b><span class="num">'+doneN+' of '+list.length+'</span></button>';
   if(collapsed) return h+'</div>';
   Object.keys(bySup).forEach(sup=>{
     const g=bySup[sup];
-    const nav = g.addr ? '<a href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+' style="font-size:11px;color:#6b4a1a;font-weight:600;text-decoration:none;white-space:nowrap;flex:none">'+di('nav',12)+(zh?' 导航':' Navigate')+'</a>' : '';
-    h+='<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-top:1px solid #EAD9A8">'
-      +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600;color:#2A1510">'+esc2(sup)+' <span style="font-weight:400;color:#8a7a55">· '+g.orders.length+(zh?' 个':'')+'</span></div>'
-      +(g.addr?'<div style="font-size:11px;color:#8a7a55">'+esc2(g.addr)+'</div>':'')
-      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const done=!!ec.collected; const rk=ec.remark?' · <span style="color:#B86050;font-weight:600">'+esc2(ec.remark)+'</span>':(ec.auto&&!done?' · <span style="color:#B86050;font-weight:600">'+(zh?'选择供应商':'Pick supplier')+'</span>':'');
-          return '<div style="display:flex;align-items:center;gap:7px;margin-top:4px'+(done?';opacity:.6':'')+'">'
-            +'<button onclick="event.stopPropagation();toggleCakeCollected(\''+o.id+'\')" title="'+(done?(zh?'取消':'Undo'):(zh?'标记已取':'Mark collected'))+'" aria-label="mark cake collected" style="width:21px;height:21px;flex:none;border:1.5px solid '+(done?'#3B7D3B':'#C9B36B')+';background:'+(done?'#3B7D3B':'#fff')+';color:#fff;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0">'+(done?'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>':'')+'</button>'
-            +'<span style="font-size:11px;color:#8a7a55;min-width:0'+(done?';text-decoration:line-through':'')+'">'+esc2(o.name||'')+(o.customer?' · '+esc2(o.customer):'')+rk+'</span>'
-          +'</div>'; }).join('')
-      +'</div>'+nav+'</div>';
+    const nav = g.addr ? '<a class="dwell-nav" href="'+_cakeNav(g.addr)+'"'+((/^https?:/i.test(_cakeNav(g.addr)))?' target="_blank" rel="noopener"':'')+'>'+di('nav',13)+(zh?' 导航':' Navigate')+'</a>' : '';
+    h+='<div class="dwell-sup">'
+      +'<div class="t"><b>'+esc2(sup)+'</b><small>'+g.orders.length+(zh?' 个':(g.orders.length===1?' order':' orders'))+(g.addr?', '+esc2(g.addr):'')+'</small>'
+      +g.orders.map(o=>{ const ec=_effCake(o)||{}; const done=!!ec.collected; const rk=ec.remark?' <span class="drvd-warn">'+esc2(ec.remark)+'</span>':(ec.auto&&!done?' <span class="drvd-warn">'+(zh?'选择供应商':'Pick supplier')+'</span>':'');
+          return '<div class="dwell-ck'+(done?' done':'')+'">'
+            +'<button type="button" class="orw-tick'+(done?' r':'')+'" onclick="event.stopPropagation();toggleCakeCollected(\''+o.id+'\')" aria-label="'+(done?(zh?'取消':'Undo'):(zh?'标记已取':'Mark collected'))+'">'+di('check',14)+'</button>'
+            +'<span><span class="num">'+esc2(o.name||'')+'</span>'+(o.customer?' '+esc2(o.customer):'')+rk+'</span>'
+          +'</div>'; }).join('')      +'</div>'+nav+'</div>';
   });
   return h+'</div>';
 }
@@ -11250,19 +11218,26 @@ function renderDriver(){
   const myStops = isAdmin ? stops : stops.filter(o => o.routeId && visibleRouteIds.has(o.routeId));
   const done = myStops.filter(o => o.fulfilled).length;
 
+  const _dLong = new Date(iso+'T00:00:00').toLocaleDateString('en-MY',{ weekday:'long', day:'numeric', month:'long' });
   const head = '<div class="page-hdr"><div><div class="page-title">Delivery</div>'
-    + '<div style="font-size:11px;color:var(--c-muted);margin-top:2px">'+(currentUserName?esc2(currentUserName)+', ':'')+esc2(iso)+'</div></div>'
-    + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-        + (isAdmin ? '<button class="btn btn-ghost" onclick="bookLalamove()" style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> Book with Lalamove</button>' : '')
+    + '<div class="ord-date">'+((!isAdmin && currentUserName)?esc2(currentUserName)+', ':'')+esc2(_dLong)+'</div></div>'
+    + '<div class="dlv-acts">'
+        + (isAdmin ? '<button type="button" class="btn btn-ghost dlv-lala" aria-label="Book with Lalamove" onclick="bookLalamove()">'+di('truck',16)+'<span>Book with Lalamove</span></button>' : '')
         + (isAdmin
-            ? '<button class="btn btn-primary" onclick="newRoutePrompt()">+ New route</button>'
-            : '<button class="btn btn-ghost" onclick="signOut()" style="font-size:12px">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
+            ? '<button type="button" class="btn btn-primary" style="height:40px;padding:0 18px" onclick="newRoutePrompt()">New route</button>'
+            : '<button type="button" class="btn btn-ghost" style="height:40px" onclick="signOut()">Sign out</button>')   // drivers have no sidebar/settings gear → give them a logout here
       + '</div>'
     + '</div>' + _drvDateBar();
 
-  const overall = myStops.length
-    ? '<div style="background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;margin-bottom:12px;max-width:560px"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:13px;font-weight:700">Deliveries</span><span style="margin-left:auto;font-size:13px;font-weight:700">'+done+' <span style="color:var(--c-muted);font-weight:400">/ '+myStops.length+'</span></span></div>'+_drvBar(done, myStops.length)+'</div>'
-    : '';
+  // Today / the picked day at a glance. Delivered and on-the-way are of the stops this
+  // person can see; unassigned is the dispatcher's to-do, shown only when there are some.
+  const tally = () => {
+    if (!myStops.length) return '';
+    const otw = myStops.filter(o => !o.fulfilled && o.otwAt).length;
+    const cell = (n, lbl, cls) => '<div'+(cls?' class="'+cls+'"':'')+'><b>'+n+'</b><span>'+lbl+'</span></div>';
+    return '<div class="ord-tally dlv-tally">' + cell(myStops.length-done-otw,'to deliver') + cell(otw,'on the way') + cell(done,'delivered')
+      + (isAdmin && unassigned.length ? cell(unassigned.length,'unassigned','warn') : '') + '</div>';
+  };
 
   // Today's unassigned deliveries — the day's unclaimed pool. Admins can assign them to
   // a route; drivers see the same list read-only (as "Pending deliveries") so they can
@@ -11270,14 +11245,14 @@ function renderDriver(){
   // Self-heal: an order pointing at a route that no longer exists (e.g. the route save
   // failed or the route was deleted elsewhere) is unassigned again, not invisible.
   const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled).sort(bySeq);
+  const _grpHead = (lbl, n) => '<div class="dgrp-head plain"><div class="dgrp-name"><b>'+lbl+'</b></div><div class="dgrp-count"><b class="num">'+n+'</b></div></div><div class="dgrp-rule"></div>';
   const unassignedBlock = () => (unassigned.length || (isAdmin && !routes.length))
-    ? '<div style="border:1.5px dashed var(--c-border);border-radius:var(--r-lg);padding:10px;margin-bottom:14px">'
-      + '<div style="font-weight:700;font-size:13px;margin-bottom:8px">'+(isAdmin?'Unassigned, ':'Pending deliveries, ')+unassigned.length+'</div>'
+    ? '<section class="dgrp">' + _grpHead(isAdmin?'Unassigned':'Pending deliveries', unassigned.length)
       + (unassigned.length ? unassigned.map(o =>
-          _drvRow(o) + (isAdmin && routes.length ? '<select onchange="assignStopToRoute(\''+o.id+'\', this.value)" style="margin:-2px 0 8px;width:100%;padding:7px;border:1.5px solid var(--c-border);border-radius:8px;font-size:11.5px;background:var(--c-surface);color:var(--c-ink)"><option value="">add to route</option>'
-            + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?' - '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '')
-        ).join('') : '<div style="font-size:12px;color:var(--c-muted)">No unassigned deliveries for this day.</div>')
-      + '</div>'
+          _drvRow(o, { end: (isAdmin && routes.length) ? '<select class="dstop-assign" aria-label="Add to route" onclick="event.stopPropagation()" onchange="assignStopToRoute(\''+o.id+'\', this.value)"><option value="">Add to route</option>'
+            + _drvRoutesFor(iso).map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?', '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '' })
+        ).join('') : '<div class="dgrp-empty">No unassigned deliveries for this day.</div>')
+      + '</section>'
     : '';
 
   // Newest routes first; a fully-delivered route collapses into a "Completed routes"
@@ -11289,22 +11264,15 @@ function renderDriver(){
   const doneRoutes   = routes.filter(_rtDone).sort(_rtNew);
   const routeBlocks = routes.length
     ? activeRoutes.map(rt => _drvRouteBlock(rt)).join('')
-      + (doneRoutes.length
-          ? '<div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c-muted);margin:4px 2px 8px">'+(LANG==='zh'?'已完成路线':'Completed routes')+'</div>'
-            + doneRoutes.map(rt => { const s=_drvStopsForRoute(rt.id).slice().sort(bySeq);
-                return '<details style="margin-bottom:10px">'
-                  + '<summary style="cursor:pointer;list-style:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:8px">'
-                    + '<span style="width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+';flex:none"></span>'
-                    + '<span style="font-weight:700;font-size:13px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(rt.name)+(rt.driver?' <span style="font-weight:400;color:var(--c-muted)">· '+esc2(rt.driver)+'</span>':'')+'</span>'
-                    + '<span style="font-size:11px;color:'+DRV_C.done+';font-weight:700;flex:none">'+di('check',12)+' '+s.length+'/'+s.length+'</span>'
-                  + '</summary>'
-                  + '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:10px 10px 4px">'+(s.length?s.map(o=>_drvRow(o)).join(''):'')+'</div>'
-                + '</details>'; }).join('')
-          : '')
-    : '<div style="font-size:12px;color:var(--c-muted);padding:6px 2px 12px">'+(isAdmin?'No routes yet - tap "+ New route".':'No deliveries assigned to you yet.')+'</div>';
+      + doneRoutes.map(rt => { const s=_drvStopsForRoute(rt.id).slice().sort(bySeq);
+          return '<details class="dgrp-done">'
+            + '<summary><span class="dgrp-sw" style="background:'+_routeColor(rt.id)+'"></span>'+esc2(rt.name)+(rt.driver?', '+esc2(rt.driver):'')+'<span class="num">'+s.length+' of '+s.length+'</span></summary>'
+            + (s.length?s.map(o=>_drvRow(o)).join(''):'')
+          + '</details>'; }).join('')
+    : '<div class="dgrp-empty">'+(isAdmin?'No routes yet.':'No deliveries assigned to you yet.')+'</div>';
   const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled).sort(_byTime) : [];   // delivered: earliest → latest time
   const deliveredBlock = doneUnrouted.length
-    ? '<details style="margin-bottom:14px"><summary style="font-size:11.5px;color:var(--c-muted);cursor:pointer">'+di('check',12)+' Delivered (no route), '+doneUnrouted.length+'</summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
+    ? '<details class="dgrp-done"><summary>Delivered, no route<span class="num">'+doneUnrouted.length+'</span></summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
     : '';
   // Admin-only: today's orders booked with Lalamove, each with a Manage button (status,
   // driver, priority fee, cancel). Hidden from drivers. Only lists orders we hold a booking
@@ -11312,38 +11280,32 @@ function renderDriver(){
   const lalaBlock = isAdmin ? (()=>{
     const booked = stops.filter(o => _lalaHasBooking(o));
     if(!booked.length) return '';
-    return '<details open style="margin-bottom:14px"><summary style="cursor:pointer;list-style:none;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:8px">'
-      + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D8622E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>'
-      + '<span style="font-weight:700;font-size:13px;flex:1">Lalamove deliveries</span><span style="font-size:12px;color:var(--c-muted)">'+booked.length+'</span></summary>'
-      + '<div style="border:1.5px solid var(--c-border);border-top:none;border-radius:0 0 12px 12px;background:var(--c-bg);padding:2px 10px 6px">'
-      + booked.map(o => '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--c-border)"><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(o.name||'')+' · '+esc2(o.recipName||o.customer||'')+'</div><div style="font-size:11px;color:var(--c-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc2(_drvArea(o)||'')+'</div></div>'
-        + '<button onclick="manageLalamove(\''+o.id+'\')" style="flex:none;padding:7px 12px;border:1.5px solid var(--c-burg,#1a3d2b);border-radius:8px;background:var(--c-surface);color:var(--c-burg,#1a3d2b);font-size:12px;font-weight:700;cursor:pointer">Manage</button></div>').join('')
-      + '</div></details>';
+    return '<section class="dgrp">' + _grpHead('Lalamove', booked.length)
+      + booked.map(o => _drvRow(o, { end: '<button type="button" class="fu-act" onclick="event.stopPropagation();manageLalamove(\''+o.id+'\')">Manage</button>' })).join('')
+      + '</section>';
   })() : '';
-  const listBody = _drvCakeList(iso) + overall + lalaBlock + routeBlocks + unassignedBlock() + deliveredBlock;
+  const listBody = _drvCakeList(iso) + routeBlocks + unassignedBlock() + lalaBlock + deliveredBlock;
 
-  const mapWarn = _geoOff ? '<div style="font-size:11px;color:#E65100;margin:8px 0">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
-  const legend = '<div style="display:flex;gap:12px;font-size:10.5px;color:var(--c-muted);margin-top:8px;flex-wrap:wrap">'
-    + routes.map(rt => '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+_routeColor(rt.id)+'"></span> '+esc2(rt.name)+'</span>').join('')
-    + '<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8d8578"></span> unassigned</span>'
-    + '<span style="opacity:.75">'+di('check',10)+' delivered</span></div>';
+  const mapWarn = _geoOff ? '<div class="drvd-warn" style="margin-top:8px">'+di('warn',12)+' Map pins need the Google key (GOOGLE_MAPS_API_KEY) - routes still work from the list.</div>' : '';
+  const legend = '<div class="dlv-legend">'
+    + routes.map(rt => '<span><i style="background:'+_routeColor(rt.id)+'"></i>'+esc2(rt.name)+'</span>').join('')
+    + '<span><i style="background:#8d8578"></i>Unassigned</span>'
+    + '</div>';
 
   let html;
   if (desktop){
     // Console: wide list + slim map sidebar (always). The stop detail slides out as a
     // drawer OVER the console (with a dismiss backdrop) instead of replacing the map.
-    html = head + '<div class="drv-console">'
+    html = head + tally() + '<div class="drv-console">'
       + '<div class="drv-console-list">'+listBody+'</div>'
-      + '<div class="drv-console-side"><div style="display:flex;flex-direction:column;height:100%"><div id="drv-map" style="flex:1;min-height:380px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend+'</div></div>'
+      + '<div class="drv-console-side"><div class="dlv-mapwrap"><div id="drv-map" class="dlv-map"></div>'+mapWarn+legend+'</div></div>'
     + '</div>'
     + (detailStop ? '<div class="drv-drawer-backdrop" onclick="closeStopDetail()"></div><div class="drv-drawer">'+_drvDetailView(detailStop)+'</div>' : '');
   } else {
-    const mapBtn = '<button onclick="drvToggleMap()" style="width:100%;margin-bottom:12px;padding:9px;border-radius:9px;border:1.5px solid var(--c-border);background:var(--c-surface);font-size:12px;font-weight:600;color:var(--c-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">'+di('map',14)+' '+(_drvMapOpen?'Hide map':'Show map')+'</button>';
-    const mapBlock = _drvMapOpen ? '<div id="drv-map" style="height:40vh;min-height:220px;border-radius:var(--r-lg);border:1.5px solid var(--c-border);z-index:0"></div>'+mapWarn+legend+'<div style="height:12px"></div>' : '';
-    html = head + mapBtn + mapBlock + listBody;
+    const mapBlock = _drvMapOpen ? '<div id="drv-map" class="dlv-map m"></div>'+mapWarn+legend : '';
+    html = head + mapBlock + tally() + '<div class="drv-console-list">'+listBody+'</div>';
   }
-  pc.innerHTML = html;
-  if (document.getElementById('drv-map')){
+  pc.innerHTML = html;  if (document.getElementById('drv-map')){
     _drvMapInit(stops, routes, _globalOrigin ? [_globalOrigin.lat, _globalOrigin.lng] : SHOP_LATLNG);
     _geoBackfill(stops);
   }

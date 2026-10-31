@@ -160,8 +160,9 @@ async function handleTeam(res, T, jwt) {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 }
 
-async function callShopify(shop, token, query, variables) {
-  const resp = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
+async function callShopify(shop, token, query, variables, apiVersion) {
+  const ver = /^\d{4}-\d{2}$/.test(apiVersion || '') ? apiVersion : '2025-01';
+  const resp = await fetch(`https://${shop}/admin/api/${ver}/graphql.json`, {
     method: 'POST',
     headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json', 'Accept': 'application/json' },
     body: JSON.stringify({ query, variables: variables || {} }),
@@ -219,7 +220,7 @@ export default async function handler(req, res) {
 
   let out;
   try {
-    out = await callShopify(shop, token, query, variables);
+    out = await callShopify(shop, token, query, variables, body.apiVersion);
     // Refresh the server-minted token and retry once if it looks stale: either a
     // 401 (expired) OR a GraphQL "access denied / scope" error (HTTP 200) — the
     // latter happens right after the app's scopes change, while the cached token
@@ -228,7 +229,7 @@ export default async function handler(req, res) {
     if (serverMinted && (out.status === 401 || scopeErr)) {
       _tok = null; _tokExp = 0;
       token = await getServerToken(shop);
-      out = await callShopify(shop, token, query, variables);
+      out = await callShopify(shop, token, query, variables, body.apiVersion);
     }
   } catch (e) {
     return res.status(502).json({ error: 'Cannot reach Shopify: ' + e.message });
