@@ -22,8 +22,8 @@ export default function handler(req, res) {
   // NOTE: the server token used by /api/query is minted via client-credentials, so
   // its scopes come from the app's configuration in the Shopify dashboard — this
   // list only applies to the OAuth authorize flow. Keep them in sync: the dashboard
-  // Admin API access scopes MUST also include write_inventory & read_locations.
-  const scopes      = 'read_orders,read_products,read_customers,write_draft_orders,read_inventory,write_inventory,read_locations';
+  // Admin API access scopes MUST also include write_inventory, read_locations & write_orders.
+  const scopes      = 'read_orders,write_orders,read_products,read_customers,write_draft_orders,read_inventory,write_inventory,read_locations';
 
   res.setHeader('Set-Cookie',
     `flori_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=600`

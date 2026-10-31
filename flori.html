@@ -1673,7 +1673,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -8053,7 +8053,30 @@ function _orderPayConfirm(){
   if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; saveFollowups(); }
   closeModal('m-fu-pay'); renderOrders();
   if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
-  toast('✓ Payment recorded');
+  if (o.src==='shopify') orderPushPaid(o.id); else toast('✓ Payment recorded');
+}
+// Record the outstanding amount in Shopify too (needs write_orders). A failure never
+// undoes the BloomFlow record: the Payment section offers Update Shopify to try again.
+async function orderPushPaid(id){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  toast('Updating Shopify…');
+  const m='mutation($input: OrderMarkAsPaidInput!){ orderMarkAsPaid(input:$input){ order{ displayFinancialStatus } userErrors{ field message } } }';
+  const vars={ input:{ id:'gid://shopify/Order/'+shopId(o.id) } };
+  const isScopeErr=msg=>/access denied|access scope|write_orders|not approved/i.test(msg||'');
+  const run=async refresh=>{ const res=await shopifyGQL(m, vars, refresh?{refreshToken:true}:undefined); const r=res.orderMarkAsPaid||{}; const ue=r.userErrors||[]; if(ue.length) throw new Error(ue.map(e=>e.message).join('; ')); return r; };
+  try{
+    let r;
+    try{ r=await run(false); }
+    catch(e1){ if(!isScopeErr(e1&&e1.message)) throw e1; r=await run(true); }
+    o.finStatus=String((r.order&&r.order.displayFinancialStatus)||'paid').toLowerCase();
+    saveOrderPatch(o, { financial_status:o.finStatus });
+    toast('✓ Payment recorded, Shopify updated');
+  }catch(e){
+    console.warn('orderPushPaid', e&&e.message);
+    toast(isScopeErr(e&&e.message) ? '⚠ Recorded here. Shopify permission not approved yet' : '⚠ Recorded here. Shopify not updated');
+  }
+  renderOrders();
+  if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
 }
 function orderPayUndo(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
@@ -14394,7 +14417,8 @@ function _renderDPInner(order, localOrder) {
         + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : '<span class="dp-pay-st">'+esc(_pb ? 'Paid by '+_pb : 'Paid')+'</span>')
         + (_slip ? '<img class="dp-pay-slip" src="'+esc(_slip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">' : '')
         + (_unp ? '<button type="button" class="fu-act" onclick="openOrderPay(\''+localOrder.id+'\')">'+di('wallet',15)+'<span>Record payment</span></button>'
-           : (localOrder.paidAt ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))
+           : ((localOrder.src==='shopify' && /^(pending|partially_paid)$/.test(localOrder.finStatus||'')) ? '<button type="button" class="fu-act" onclick="orderPushPaid(\''+localOrder.id+'\')">Update Shopify</button>' : '')
+             + ((localOrder.paidAt && localOrder.finStatus!=='paid') ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))
         + '</div></div>';
     }
   }
