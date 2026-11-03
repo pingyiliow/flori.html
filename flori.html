@@ -134,14 +134,14 @@
           <button class="f-btn" data-f="week">This week</button>
           <button class="f-btn" data-f="all">All upcoming</button>
         </div>
-        <div style="position:relative">
+        <div class="ord-pop">
       <button id="cal-toggle-btn" class="ord-pick" type="button" onclick="toggleCalendar()">
         <span style="display:inline-flex"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
         <span id="cal-selected-lbl" style="color:var(--c-ink)"></span>
         <span id="cal-btn-label">Pick a date</span>
         <span id="cal-chevron" style="font-size:10px;opacity:.5">▾</span>
       </button>
-      <div id="cal-panel" style="display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:100;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:min(320px,90vw);overflow:hidden">
+      <div id="cal-panel" style="display:none;position:absolute;top:calc(100% + 6px);z-index:100;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--r-lg);box-shadow:var(--sh-lg);width:min(320px,90vw);overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--c-border)">
           <button class="hdr-btn" onclick="calPrev()" style="width:26px;height:26px;border:1px solid var(--c-border);border-radius:var(--r)">‹</button>
           <div id="cal-title" style="font-family:var(--f-head);font-size:14px;font-weight:400;color:var(--c-ink)"></div>
@@ -150,7 +150,7 @@
         <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:0"></div>
       </div>
     </div>
-        <div style="position:relative">
+        <div class="ord-pop">
           <button id="filter-toggle-btn" class="filter-ico-btn" onclick="toggleFilterPanel()" aria-label="Filters" title="Filters">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
             <span>Filter</span>

@@ -434,9 +434,9 @@ body.role-driver .shell{grid-template-columns:1fr}
 .f-btn.on{color:var(--c-ink);border-bottom-color:var(--c-ink)}
 /* orders filter bar (status + type) */
 .fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:9px 13px;box-shadow:var(--sh)}
-.fbar-l{font-size:11px;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.05em}
+.fbar-l{font-size:12px;font-weight:500;color:var(--c-muted)}
 .fbar-sep{width:1px;height:20px;background:var(--c-border);margin:0 3px}
-.chip{border:1.5px solid var(--c-border);border-radius:99px;padding:6px 13px;font-size:13px;font-weight:600;background:var(--c-surface);color:var(--c-muted);display:inline-flex;align-items:center;gap:6px;transition:all .12s}
+.chip{border:1px solid var(--c-border);border-radius:0;min-height:36px;padding:0 12px;font-size:13px;font-weight:500;background:var(--c-surface);color:var(--color-ink-2);display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:background-color .14s,color .14s,border-color .14s}
 .chip:hover{border-color:var(--c-border2);color:var(--c-ink)}
 .chip.on{background:var(--c-ink);color:var(--c-bg);border-color:var(--c-ink)}
 .chip-c{font-size:11px;opacity:.7}
@@ -447,7 +447,7 @@ body.role-driver .shell{grid-template-columns:1fr}
 .filter-ico-btn:hover{color:var(--c-ink)}
 .filter-ico-btn.on{background:var(--c-ink);color:var(--c-bg)}
 .filter-dot{position:absolute;top:5px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--c-blush)}
-.filter-panel{position:absolute;top:calc(100% + 8px);left:0;z-index:100;min-width:min(340px,92vw);background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;box-shadow:var(--sh-lg);padding:14px 15px;display:flex;flex-direction:column;gap:14px}
+.filter-panel{position:absolute;top:calc(100% + 8px);right:0;z-index:100;min-width:min(340px,92vw);background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;box-shadow:var(--sh-lg);padding:14px 15px;display:flex;flex-direction:column;gap:14px}
 .filter-panel[hidden]{display:none}
 .fp-row{display:flex;flex-direction:column;gap:8px}
 .fp-row .fbar-l{font-size:11px}
@@ -1396,4 +1396,17 @@ body.role-driver .drvd-foot,.drv-drawer .drvd-foot{bottom:0}
   .ditem{grid-template-columns:minmax(0,1fr) 44px}
   .ditem .o{grid-column:1/-1;margin-top:-12px}
   .ditem.total{grid-template-columns:minmax(0,1fr) 44px}
+}
+
+/* Orders bar popovers: open leftwards from their button on desktop; on phones they hang
+   off the bar's left edge so neither can run off the screen. */
+.ord-pop{position:relative}
+.ord-bar{position:relative}
+#cal-panel{right:0}
+.filter-panel{border-radius:0;padding:16px;gap:16px}
+.fp-chips{gap:8px}
+@media(max-width:860px){
+  .ord-bar .ord-pop{position:static}
+  #cal-panel{left:0;right:auto}
+  .ord-bar .filter-panel{left:0;right:0;min-width:0}
 }
