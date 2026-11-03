@@ -1199,6 +1199,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .orw-pname .q{color:var(--c-muted);font-size:13px}
 .orw-pname .v{display:block;font-size:12px;color:var(--c-sage)}
 .orw-price{font-size:13px;color:var(--c-muted);white-space:nowrap}
+s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
+.orw-price s.was{margin-right:8px}
 .orw-tick{width:26px;height:26px;flex:none;border:1.5px solid var(--color-ink-2);background:transparent;color:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0;transition:background-color .14s,color .14s}
 .orw-tick:hover{background:var(--color-paper-2);color:var(--c-muted)}
 .orw-tick:active{transform:translateY(1px)}

@@ -103,6 +103,9 @@ export default async function handler(req, res) {
       title:    i.title,
       quantity: i.quantity,
       price:    i.price,
+      // Unit price after discounts (price stays the list price, as in the app's sync).
+      sale:     (() => { const off = (i.discount_allocations || []).reduce((s, d) => s + (parseFloat(d && d.amount) || 0), 0); const p = parseFloat(i.price), q = i.quantity || 1;
+                         return (off > 0.005 && p > 0) ? Math.max(0, p - off / q).toFixed(2) : null; })(),
       currency: order.currency || 'MYR',
       image:    i.image?.src || null,
       variantTitle: i.variant_title || null,   // e.g. "10 Stalks / Red Roses"
@@ -184,6 +187,9 @@ export default async function handler(req, res) {
   if (keepStored) {
     const byTitle = {}; lineItems.forEach(i => { if (i.props) byTitle[i.title] = i.props; });
     mergedLineItems.forEach(li => { if (li && byTitle[li.title]) li.props = byTitle[li.title]; });
+    // Selling price is Shopify-owned too, except on items staff re-priced in the app (local).
+    const saleBy = {}; lineItems.forEach(i => { if (!(i.title in saleBy)) saleBy[i.title] = i.sale || null; });
+    mergedLineItems.forEach(li => { if (li && !li.local && (li.title in saleBy)) li.sale = saleBy[li.title]; });
   }
 
   // BloomFlow-added photos travel as the 'BloomFlow Photos' order attribute (durable R2

@@ -2043,7 +2043,7 @@ function _mergeShopItems(stored, shop, removed){
       // Webhook rows carry no product image (Shopify's REST line items have none) — fill the
       // product's own Shopify photo, unless staff deliberately cleared this item's photos.
       if(s.image && !i.image && !(i.images && i.images.length) && !i.imgCleared) patch.image=s.image;
-      if(s.props && s.props.length && JSON.stringify(s.props)!==JSON.stringify(i.props||[])) patch.props=s.props; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
+      if(s.props && s.props.length && JSON.stringify(s.props)!==JSON.stringify(i.props||[])) patch.props=s.props; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(!i.local && ('sale' in s) && (i.sale||null)!==(s.sale||null)) patch.sale=s.sale||null; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
   // Counted per title: an order edit that adds a 4th "wreath" to three stored wreaths is a
   // new line, not one we already have.
@@ -2163,7 +2163,7 @@ function _mapShopifyOrder(n){
     // leave it undefined → item kept, preserving prior behavior.)
     .filter(e => e.node.currentQuantity == null || e.node.currentQuantity > 0)
     .map(e => {
-      const li = { title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR', productType: e.node.product?.productType || '', varInvItemId: e.node.variant?.inventoryItem?.id || null, variantTitle: e.node.variantTitle || null, sku: e.node.sku || null };
+      const li = { title: e.node.title, quantity: (e.node.currentQuantity != null ? e.node.currentQuantity : e.node.quantity) || 1, image: e.node.image?.url || null, price: e.node.originalUnitPriceSet?.shopMoney?.amount || null, sale: _saleOf(e.node), currency: e.node.originalUnitPriceSet?.shopMoney?.currencyCode || 'MYR', productType: e.node.product?.productType || '', varInvItemId: e.node.variant?.inventoryItem?.id || null, variantTitle: e.node.variantTitle || null, sku: e.node.sku || null };
       const pa = (e.node.customAttributes || []).find(a => a && a.key === '_bf_photos');
       const ph = pa && pa.value ? String(pa.value).split(',').map(s => s.trim()).filter(u => /^https?:\/\//.test(u)) : [];
       if (ph.length) { li.images = ph; li.image = ph[0]; }
@@ -2198,7 +2198,7 @@ async function importOrderByName(rawName){
   try {
     const q = `{ orders(first:5, query:${JSON.stringify('name:#'+name)}) { edges { node {
       id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
+      customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount}} product{productType} variant{inventoryItem{id}}}}}
       customAttributes{key value} } } } }`;
     const data = await shopifyGQL(q);
     const node = (data.orders?.edges||[]).map(e=>e.node).find(n => shopId(n.name).replace(/^#/,'') === name || n.name === '#'+name) || data.orders?.edges?.[0]?.node;
@@ -2242,7 +2242,7 @@ async function importOrdersSince(fromISO){
       const q = `{ orders(first:100, query:${JSON.stringify('created_at:>='+sinceISO)}, sortKey:CREATED_AT, reverse:true${after}) {
         pageInfo { hasNextPage endCursor }
         edges { node { id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}}
-          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}}
+          customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount}} product{productType} variant{inventoryItem{id}}}}}
           customAttributes{key value} } } } }`;
       let data;
       for (let attempt=0; attempt<5; attempt++){
@@ -2290,14 +2290,14 @@ async function syncOrders() {
   setPill(LANG === 'zh' ? '同步中…' : 'Syncing…');
   try {
     // Query 1: 250 most recent open orders
-    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
+    const q1 = `{ orders(first:250,query:"status:open",sortKey:CREATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     // Query 2: orders UPDATED in the last 14 days (sortKey UPDATED_AT). Using
     // updated_at (not created_at) means each sync also re-pulls older/fulfilled
     // orders that were changed recently, so their Shopify updates flow in — while
     // the merge below keeps everything else persisted.
     const since = new Date(); since.setDate(since.getDate()-14);
     const sinceISO = since.toISOString().slice(0,10);
-    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
+    const q2 = `{ orders(first:250,query:"updated_at:>=${sinceISO}",sortKey:UPDATED_AT,reverse:true){ edges{node{ id name createdAt updatedAt cancelledAt displayFulfillmentStatus displayFinancialStatus currentTotalPriceSet{shopMoney{amount currencyCode}} customer{firstName lastName} shippingAddress{formatted(withName:false) name phone address1 address2 city province zip} lineItems(first:50){edges{node{title quantity currentQuantity variantTitle sku customAttributes{key value} image{url} originalUnitPriceSet{shopMoney{amount currencyCode}} discountedUnitPriceAfterAllDiscountsSet{shopMoney{amount}} product{productType} variant{inventoryItem{id}}}}} customAttributes{key value} }} } }`;
     const [data1, data2] = await Promise.all([shopifyGQL(q1), shopifyGQL(q2)]);
     // Merge, deduplicate by id
     const seen = new Set();
@@ -3547,6 +3547,16 @@ function _bizAmt(r){
   if (_adjOK(r.total, r.total_adj)) t += parseFloat(r.total_adj.delta);
   return t;
 }
+// Selling price vs list price. li.price stays the LIST price (the edit form and the
+// total_adj maths compare it with Shopify's original subtotal); li.sale is what Shopify
+// actually charges per unit after discounts, shown with the list price struck through.
+function _saleOf(node){
+  const s = parseFloat(node && node.discountedUnitPriceAfterAllDiscountsSet && node.discountedUnitPriceAfterAllDiscountsSet.shopMoney && node.discountedUnitPriceAfterAllDiscountsSet.shopMoney.amount);
+  const p = parseFloat(node && node.originalUnitPriceSet && node.originalUnitPriceSet.shopMoney && node.originalUnitPriceSet.shopMoney.amount);
+  return (!isNaN(s) && !isNaN(p) && s >= 0 && s < p - 0.005) ? s.toFixed(2) : null;
+}
+function _liUnit(li){ const s=parseFloat(li&&li.sale), p=parseFloat(li&&li.price); if(!isNaN(s) && !isNaN(p) && s < p - 0.005) return s; return isNaN(p) ? null : p; }
+function _liWas(li){ const s=parseFloat(li&&li.sale), p=parseFloat(li&&li.price); return (!isNaN(s) && !isNaN(p) && s < p - 0.005) ? p : null; }
 function _sumItems(arr){ return (arr||[]).reduce((s,i) => s + (parseFloat(i && i.price) || 0) * (parseInt(i && i.quantity) || 1), 0); }
 function rehydrateOrders() {
   try { _shopImgApply(); } catch(_){}
@@ -3956,7 +3966,7 @@ function orderCardConsolidated(o, opts){
     const img = itemPhotos(it)[0] || (idx === 0 ? o.image : null) || null;
     const thumb = img ? `<span class="orw-th"><img src="${String(img).replace(/"/g,'&quot;')}" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>` : '';
     const qty = (it.quantity > 1) ? ` <span class="q">× ${it.quantity}</span>` : '';
-    const p = parseFloat(it.price) || 0; const priceTxt = (p > 0 && multi) ? `<span class="orw-price num">RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
+    const p = _liUnit(it) || 0, _w = _liWas(it); const priceTxt = (p > 0 && multi) ? `<span class="orw-price num">${_w ? '<s class="was">RM '+(_w*(it.quantity||1)).toFixed(2)+'</s> ' : ''}RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
     const on = o.fulfilled ? `event.stopPropagation()` : (multi ? `event.stopPropagation();toggleItemReady('${o.id}',${idx})` : `event.stopPropagation();toggleReady('${o.id}')`);
     const _vt = String(it.variantTitle||'').trim();
     const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<span class="v">${esc(_vt)}</span>` : '';
@@ -10578,7 +10588,7 @@ function _drvDetailView(o){
     + (nav ? '<div class="drvd-btns">'+_navBtn(nav.gmaps,'Google Maps')+_navBtn(nav.waze,'Waze')+'</div>' : '');
   // Items with per-line price on the right; overall total below.
   const itemRows = (o.lineItems && o.lineItems.length)
-    ? o.lineItems.map((li,idx) => { const q=li.quantity||1; const lt=(li.price!=null&&li.price!=='')?(cur+' '+_invPriceStr(parseFloat(li.price)*q)):''; return '<div class="drvd-item"><span>'+esc2(li.title||'')+' <span class="q">×'+q+'</span></span>'+(lt?'<span class="p num">'+lt+'</span>':'')+'</div>'+_variantLine(li)+itemPhotoStrip(o.id, idx, li); }).join('')
+    ? o.lineItems.map((li,idx) => { const q=li.quantity||1; const _u=_liUnit(li), _w=_liWas(li); const lt=(_u!=null)?((_w?'<s class="was">'+cur+' '+_invPriceStr(_w*q)+'</s> ':'')+cur+' '+_invPriceStr(_u*q)):''; return '<div class="drvd-item"><span>'+esc2(li.title||'')+' <span class="q">×'+q+'</span></span>'+(lt?'<span class="p num">'+lt+'</span>':'')+'</div>'+_variantLine(li)+itemPhotoStrip(o.id, idx, li); }).join('')
     : '<div class="drvd-item"><span>'+esc2(o.product||'—')+'</span></div>';
   const totVal = (o.total!=null&&o.total!=='') ? (cur+' '+_invPriceStr(o.total)) : '';
   const _rt = o.routeId ? (typeof ROUTES!=='undefined'?ROUTES:[]).find(r=>r.id===o.routeId) : null;
@@ -13079,6 +13089,7 @@ function _productRowHTML(idx, item) {
 }
 // Per-row photo arrays, keyed by row index. _collectProductRows reads from here.
 let _productImages = {};
+let _productOrig = {};   // row idx → the stored item it was opened from (carries li.sale through a save)
 function renderProductPhotos(idx) {
   const el = document.getElementById('opphotos-'+idx); if (!el) return;
   const imgs = _productImages[idx] || [];
@@ -13093,6 +13104,7 @@ function addProductRow(item) {
   const container = document.getElementById('o-products-list');
   const idx = _productRowCount++;
   _productImages[idx] = itemPhotos(item || {});
+  _productOrig[idx] = item || null;
   const div = document.createElement('div');
   div.innerHTML = _productRowHTML(idx, item || {title:'',price:null,quantity:1});
   container.appendChild(div.firstChild);
@@ -13116,7 +13128,9 @@ function _collectProductRows() {
     const qty   = parseInt(document.getElementById('opqty-'+idx)?.value)   || 1;
     const imgs = (_productImages[idx] || []).filter(Boolean);
     const note = document.getElementById('opnote-'+idx)?.value.trim() || '';
-    if (title) items.push({ title, price: price > 0 ? String(price) : null, quantity: qty, note: note||null, image: imgs[0]||null, images: imgs, currency:'MYR', local:true });
+    const o0 = _productOrig[idx];
+    const sale = (o0 && o0.sale != null && Math.abs((parseFloat(o0.price)||0) - price) < 0.005) ? o0.sale : null;
+    if (title) items.push({ title, price: price > 0 ? String(price) : null, ...(sale != null ? { sale } : {}), quantity: qty, note: note||null, image: imgs[0]||null, images: imgs, currency:'MYR', local:true });
   });
   return items;
 }
@@ -14254,6 +14268,7 @@ async function _fetchOrderDetail(id, o) {
         variant { inventoryItem { id } }
         originalUnitPriceSet { shopMoney { amount currencyCode } }
         originalTotalSet     { shopMoney { amount currencyCode } }
+        discountedUnitPriceAfterAllDiscountsSet { shopMoney { amount } }
       }}}
       currentSubtotalPriceSet { shopMoney { amount currencyCode } }
       currentTotalPriceSet    { shopMoney { amount currencyCode } }
@@ -14491,8 +14506,10 @@ function _renderDPInner(order, localOrder) {
       // up, since edited titles won't equal Shopify's.
       const shopMatch = useLocal ? (sameCount ? items[k] : items.find(x => x.title === li.title)) : li;
       const shopTotal = shopMatch?.originalTotalSet?.shopMoney?.amount;
-      const unit = (useLocal && li.price != null && li.price !== '') ? parseFloat(li.price) : null;
-      const lineTotal = unit != null ? unit * qty : (shopTotal || null);
+      const _shopU = parseFloat(shopMatch?.discountedUnitPriceAfterAllDiscountsSet?.shopMoney?.amount), _shopO = parseFloat(shopMatch?.originalUnitPriceSet?.shopMoney?.amount);
+      const unit = (useLocal && li.price != null && li.price !== '') ? _liUnit(li) : null;
+      const lineTotal = unit != null ? unit * qty : (!isNaN(_shopU) ? _shopU * qty : (shopTotal || null));
+      const wasU = useLocal ? _liWas(li) : ((!isNaN(_shopU) && !isNaN(_shopO) && _shopU < _shopO - 0.005) ? _shopO : null);
       _lineTotals.push(lineTotal != null && lineTotal !== '' ? parseFloat(lineTotal) : null);
       // Per-product photo manager: tap to view, ✕ to delete, ＋ to add. Only for
       // stored line items (liIdx>=0) so edits hit the right item.
@@ -14504,7 +14521,7 @@ function _renderDPInner(order, localOrder) {
         : (li.note ? `<div class="dp-item-note">${di('warn',11)} ${esc(li.note)}</div>` : '');
       return `<div class="dp-row">
         <div class="dp-row-lbl">${esc(title)} ${qty>1?`<span style="color:var(--c-muted)">× ${qty}</span>`:''}</div>
-        <div class="dp-row-val">${_fmt(lineTotal,currency)}</div>
+        <div class="dp-row-val">${wasU ? '<s class="was">'+_fmt(wasU*qty,currency)+'</s> ' : ''}${_fmt(lineTotal,currency)}</div>
       </div>${_variantLine(li)}${_propsBlock((li.props && li.props.length) ? li.props : _liProps(shopMatch && shopMatch.customAttributes))}${noteHtml}${strip}`;
     }).join('');
 
