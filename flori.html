@@ -8042,11 +8042,30 @@ function _paySlipUI(){
     ? '<img src="'+esc(_paySlipUrl)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')"><button type="button" class="btn btn-ghost btn-sm" onclick="_paySlipUrl=\'\';_paySlipUI()">Remove</button>'
     : '<button type="button" class="fu-act" onclick="document.getElementById(\'fupay-file\').click()">'+di('upload',15)+'<span>Upload slip</span></button>';
 }
-function _paySlipPick(inp){
-  const file=inp.files&&inp.files[0]; inp.value=''; if(!file) return;
+function _paySlipFile(file){
+  if(!file) return;
+  if(!/^image\//.test(file.type||'')){ toast('Not an image file'); return; }
+  if(_paySlipBusy) return;
   _paySlipBusy=true; _paySlipUI();
   storePhoto(file, url => { _paySlipBusy=false; _paySlipUrl=url||''; _paySlipUI(); });
 }
+function _paySlipPick(inp){ const file=inp.files&&inp.files[0]; inp.value=''; _paySlipFile(file); }
+// While Record payment is open, a slip can also be dropped anywhere on the dialog or
+// pasted (screenshot / copied image from WhatsApp or the banking app).
+(function(){
+  const open = () => { const m=document.getElementById('m-fu-pay'); return !!(m && m.classList.contains('on')); };
+  const inDialog = e => open() && e.target && e.target.closest && e.target.closest('#m-fu-pay');
+  const zone = on => { const z=document.getElementById('fupay-slip'); if(z) z.classList.toggle('drag', on); };
+  const hasFiles = e => !!(e.dataTransfer && Array.from(e.dataTransfer.types||[]).includes('Files'));
+  document.addEventListener('dragover', e => { if(!inDialog(e) || !hasFiles(e)) return; e.preventDefault(); zone(true); });
+  document.addEventListener('dragleave', e => { if(inDialog(e) && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#m-fu-pay'))) zone(false); });
+  document.addEventListener('drop', e => { if(!inDialog(e) || !hasFiles(e)) return; e.preventDefault(); zone(false);
+    const f=Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type||'')); if(f) _paySlipFile(f); else toast('Not an image file'); });
+  document.addEventListener('paste', e => { if(!open()) return;
+    const it=Array.from((e.clipboardData&&e.clipboardData.items)||[]).find(x=>x.kind==='file' && /^image\//.test(x.type||''));
+    if(!it) return;   // plain text pastes (e.g. into the approval-code field) go through untouched
+    const f=it.getAsFile(); if(!f) return; e.preventDefault(); _paySlipFile(f); });
+})();
 function openOrderPay(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
   _payKind='order'; _fuPayId=id;
