@@ -2045,8 +2045,14 @@ function _mergeShopItems(stored, shop, removed){
       if(s.image && !i.image && !(i.images && i.images.length) && !i.imgCleared) patch.image=s.image;
       if(s.props && s.props.length && JSON.stringify(s.props)!==JSON.stringify(i.props||[])) patch.props=s.props; if(s.varInvItemId && !i.varInvItemId) patch.varInvItemId=s.varInvItemId; if(s.variantTitle && !i.variantTitle) patch.variantTitle=s.variantTitle; if(s.sku && !i.sku) patch.sku=s.sku; return Object.keys(patch).length ? {...i, ...patch} : i; });
   // Append any Shopify product we're not already showing and the user hasn't tombstoned.
-  const have = new Set(kept.map(i => i.title));
-  const added = shop.filter(i => i && !have.has(i.title) && !gone.has(i.title));
+  // Counted per title: an order edit that adds a 4th "wreath" to three stored wreaths is a
+  // new line, not one we already have.
+  const haveN = {}; kept.forEach(i => { haveN[i.title] = (haveN[i.title]||0) + 1; });
+  const added = shop.filter(i => {
+    if (!i || gone.has(i.title)) return false;
+    if (haveN[i.title] > 0) { haveN[i.title]--; return false; }
+    return true;
+  });
   return [...kept, ...added];
 }
 function _applyShopifyToExisting(prev, m){

@@ -99,6 +99,7 @@ export default async function handler(req, res) {
 
   const lineItems = (order.line_items || []).map(i => {
     const li = {
+      _cq:      (i.current_quantity != null ? i.current_quantity : i.quantity),   // 0 = removed by an order edit
       title:    i.title,
       quantity: i.quantity,
       price:    i.price,
@@ -160,12 +161,27 @@ export default async function handler(req, res) {
   // product names/prices/quantities, added photos, marked items ready, or deleted
   // some — Shopify knows none of it. So on UPDATE keep the stored line items
   // wholesale; only build from Shopify's payload on FIRST insert (new order).
-  const mergedLineItems = (existing && Array.isArray(existing.line_items) && existing.line_items.length)
+  const keepStored = !!(existing && Array.isArray(existing.line_items) && existing.line_items.length);
+  let mergedLineItems = keepStored
     ? existing.line_items
-    : lineItems.filter(i => !removed.has(i.title));
+    : lineItems.filter(i => !removed.has(i.title) && i._cq > 0);
+  // ...except lines ADDED in Shopify (order edit): append any the stored copy doesn't have
+  // yet, counted per title so a 4th "wreath" next to three stored wreaths is not mistaken
+  // for one of them. Lines removed by an edit (current_quantity 0) are never added.
+  if (keepStored) {
+    const haveN = {};
+    existing.line_items.forEach(i => { if (i) haveN[i.title] = (haveN[i.title] || 0) + 1; });
+    const extra = lineItems.filter(i => {
+      if (!(i._cq > 0) || removed.has(i.title)) return false;
+      if (haveN[i.title] > 0) { haveN[i.title]--; return false; }
+      return true;
+    });
+    if (extra.length) mergedLineItems = [...existing.line_items, ...extra];
+  }
+  mergedLineItems.forEach(i => { if (i) delete i._cq; });
   // Properties are Shopify-owned: refresh them on the stored items (matched by title)
   // so add-ons show for orders that were stored before properties were captured.
-  if (existing && mergedLineItems === existing.line_items) {
+  if (keepStored) {
     const byTitle = {}; lineItems.forEach(i => { if (i.props) byTitle[i.title] = i.props; });
     mergedLineItems.forEach(li => { if (li && byTitle[li.title]) li.props = byTitle[li.title]; });
   }
