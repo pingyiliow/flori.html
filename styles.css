@@ -1236,7 +1236,7 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .fuw>.fuw-amt{grid-area:amt}
 .fuw>.fuw-act{grid-area:act;justify-self:end;align-self:start}
 .fuw .orw-time .d{display:block;color:var(--c-ink);font-weight:500}
-.fuw .orw-time .t{display:block;white-space:nowrap}
+.fuw .orw-time .t{display:block;overflow-wrap:anywhere}
 .fuw .orw-time .flag{display:block;font-family:var(--f-body);font-size:12px;font-weight:600}
 .fuw .orw-time .flag.late{color:var(--c-red)}
 .fuw .orw-time .flag.today{color:var(--color-accent)}

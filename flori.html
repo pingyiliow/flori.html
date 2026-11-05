@@ -8393,7 +8393,7 @@ function renderFollowup() {
     const d = f.dueDate ? pd(f.dueDate) : null;
     const late = d && d < t0 && !done, isTd = d && tdi(d)===todayStr && !done;
     const when = '<span class="d">'+(d ? d.toLocaleDateString('en-MY',{weekday:'short',day:'numeric',month:'short'}) : 'No date')+'</span>'
-      + (f.dueTime ? '<span class="t">'+esc(f.dueTime)+'</span>' : '')
+      + (f.dueTime ? '<span class="t">'+(String(f.dueTime).length<=15 ? esc(f.dueTime).replace(/ /g,'&nbsp;') : esc(f.dueTime))+'</span>' : '')
       + (late ? '<span class="flag late">Overdue</span>' : isTd ? '<span class="flag today">Today</span>' : '');
     const dk = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(), dn = dk ? dupCounts[dk] : 0;
     const tags = [chLabel[f.channel]||f.channel||'', f.fulfil==='pickup'?'Pickup':'Delivery', f.needInvoice?'Invoice':'']
