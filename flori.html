@@ -2705,14 +2705,67 @@ function _invRow(i){
 function _lsSetLean(key, arr){
   try { _lsSet(key, JSON.stringify(arr, (k,v)=> (typeof v==='string' && v.slice(0,5)==='data:') ? '' : v)); } catch(_){}
 }
-function saveInventory() {
+// Writes ONLY the given items. It used to write every item from this device's memory, so a
+// phone or tablet left open with an old copy put old counts, names and history back over
+// everyone else's (an automatic order deduction was enough to trigger it).
+function saveInventory(items) {
+  const _list = Array.isArray(items) ? items.filter(Boolean) : (items ? [items] : []);
   _lsSetLean('flori-inventory', INVENTORY);
-  if (hasSB()) sbUpsert('inventory', INVENTORY.map(_invRow)).then(ok => { if (ok) _bcSend('inventory'); }).catch(console.error);
+  if (hasSB() && _list.length) sbUpsert('inventory', _list.map(_invRow)).then(ok => { if (ok) _bcSend('inventory'); }).catch(console.error);
 }
 // Upsert just one item — used by the quick +/- adjust so a tap doesn't rewrite every row.
 function _invSaveOne(i){
   _lsSetLean('flori-inventory', INVENTORY);
-  if (hasSB()) sbUpsert('inventory', [_invRow(i)]).catch(console.error);
+  if (hasSB()) sbUpsert('inventory', [_invRow(i)]).then(ok => { if (ok) _bcSend('inventory'); }).catch(console.error);
+}
+// Count changes (used, received, an order deducted) are applied as DIFFERENCES to the row as
+// it is in the database now, not by writing this device's copy back. Moves already in the
+// database (same time/amount/key) are not applied twice.
+const _mvKey = m => [m&&m.ts, m&&m.delta, (m&&m.rkey)||'', (m&&m.size)||''].join('|');
+function _invOp(map, item, op){ if(!map.has(item.id)) map.set(item.id, { item, ops:[] }); map.get(item.id).ops.push(op); }
+async function _invFlushOps(map){ for (const v of map.values()) { await _invSaveDelta(v.item, v.ops); } }
+async function _invRefreshOne(id){
+  if(!hasSB() || !id) return false;
+  try{
+    const { data, error } = await sb.from('inventory').select('*').eq('id', id);
+    if(error || !data || !data[0]) return false;
+    const local=INVENTORY.find(x=>x.id===id); if(local) Object.assign(local, data[0]);
+    return true;
+  }catch(_){ return false; }
+}
+async function _invSaveDelta(item, ops){
+  if(!item) return;
+  _lsSetLean('flori-inventory', INVENTORY);
+  if(!hasSB()) return;
+  try{
+    const { data, error } = await sb.from('inventory').select('*').eq('id', item.id);
+    if(error) throw error;
+    const fresh = data && data[0];
+    if(!fresh){ _invSaveOne(item); return; }          // not in the database yet
+    const moves = Array.isArray(fresh.moves) ? fresh.moves.slice() : [];
+    const have = new Set(moves.map(_mvKey));
+    const sizes = Array.isArray(fresh.sizes) ? fresh.sizes.map(x=>({ ...x })) : null;
+    let qty = fresh.qty || 0;
+    (ops||[]).forEach(op=>{
+      if(op.move && have.has(_mvKey(op.move))) return;
+      const d = Number(op.delta) || 0;
+      if(op.sizeId && sizes){ const sz=sizes.find(x=>x.id===op.sizeId); if(sz){ let v=(parseInt(sz.qty,10)||0)+d; if(op.clamp && v<0) v=0; sz.qty=v; } }
+      else { qty += d; if(op.clamp && qty<0) qty=0; }
+      if(op.move){ moves.unshift(op.move); have.add(_mvKey(op.move)); }
+    });
+    if(sizes && sizes.length) qty = sizes.reduce((t,x)=>t+(parseInt(x.qty,10)||0), 0);
+    moves.sort((a,b)=>String((b&&b.ts)||'').localeCompare(String((a&&a.ts)||'')));
+    const merged = { ...fresh, qty, sizes: (sizes && sizes.length) ? sizes : fresh.sizes, moves: moves.slice(0,80) };
+    const ok = await sbUpsert('inventory', [_invRow(merged)]);
+    if(!ok) return;
+    // Take the database's version (it may carry other devices' changes too).
+    const local = INVENTORY.find(x=>x.id===item.id) || item;
+    Object.assign(local, merged);
+    _lsSetLean('flori-inventory', INVENTORY);
+    _bcSend('inventory');
+    if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderInventory==='function') renderInventory();
+    if(typeof _stkRefresh==='function') _stkRefresh();
+  }catch(e){ console.warn('inventory delta save', e && e.message); _invSaveOne(item); }
 }
 function _invLow(i){ return (i.qty||0) <= (i.reorder!=null && i.reorder!=='' ? i.reorder : INV_LOW); }
 function _invMoveTime(ts){ try{ return new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }catch(e){ return ''; } }
@@ -2762,6 +2815,7 @@ async function loadShopDeductLog(){ if(!hasSB()) return; try{ const v=await sbGe
 function saveShopDeductLog(){ try{ _lsSet('flori-shop-deduct',JSON.stringify(SHOP_DEDUCT_LOG)); }catch(_){} if(hasSB()) sbSet('shop_deduct_log', JSON.stringify(SHOP_DEDUCT_LOG)); }
 function _applyRecipes(){
   if(typeof INVENTORY==='undefined' || typeof ORDERS==='undefined' || !RECIPES.length) return;
+  const _rcOps = new Map();
   const byName={}; RECIPES.forEach(r=>{ if(r && r.name) byName[String(r.name).trim()] = r; });
   const cutoff = Date.now() - 120*86400000;
   let changed=false; const shopQueue=[];
@@ -2796,13 +2850,14 @@ function _applyRecipes(){
         if(item.moves.some(m=> m.rkey===rkey || (m.type==='auto' && !m.rkey && m.orderId===o.id))) return;
         const need = (c.qty||1)*lq;
         item.qty = (item.qty||0) - need;
-        item.moves.unshift({ ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'', rkey });
+        const _mv = { ts:new Date().toISOString(), by:'auto', delta:-need, type:'auto', orderId:o.id, orderNo:o.name||'', rkey };
+        item.moves.unshift(_mv); _invOp(_rcOps, item, { delta:-need, move:_mv });
         if(item.moves.length > 80) item.moves = item.moves.slice(0,80);
         changed=true;
       });
     });
   });
-  if(changed){ saveInventory(); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
+  if(changed){ _invFlushOps(_rcOps); if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on')) renderInventory(); if(typeof renderHome==='function') renderHome(); }
   if(shopQueue.length && typeof _flushShopDeducts==='function') _flushShopDeducts(shopQueue);
 }
 function _applyBOM(){ _applyRecipes(); if(typeof _applyBoxDeductions==='function') _applyBoxDeductions(); }   // recipes + box→Shopify auto-decrement
@@ -2984,15 +3039,16 @@ function invAdjust(id, delta, type){
   const applied = next - before; if(applied === 0){ if(delta<0) toast(LANG==='zh'?'已经是 0':'Already at 0'); return; }
   i.qty = next;
   i.moves = Array.isArray(i.moves) ? i.moves : [];
-  i.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:type||(applied>0?'in':'out') });
+  const _mv = { ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:type||(applied>0?'in':'out') };
+  i.moves.unshift(_mv);
   if(i.moves.length > 40) i.moves = i.moves.slice(0,40);
-  _invSaveOne(i); renderInventory(); if(typeof renderHome==='function') renderHome();
+  const _saved = _invSaveDelta(i, [{ delta:applied, clamp:true, move:_mv }]); renderInventory(); if(typeof renderHome==='function') renderHome();
   if(document.getElementById('i-edit-id') && document.getElementById('i-edit-id').value === id){
     const q=document.getElementById('i-qty'); if(q) q.value = i.qty; _invRenderMoves(i);   // keep an open editor in sync
   }
   toast((applied>0?(LANG==='zh'?'＋收货 ':'+ in '):(LANG==='zh'?'－用掉 ':'− used '))+Math.abs(applied)+' · '+i.name);
   // If this box drives Shopify availability, mirror the new count to the linked variants.
-  if(typeof stockCtl==='function' && stockCtl(i.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(i);
+  if(typeof stockCtl==='function' && stockCtl(i.id).length && typeof _pushStockToShopify==='function') _saved.then(()=>_pushStockToShopify(i));
 }
 function invAdjustFromModal(sign){
   const id = document.getElementById('i-edit-id').value; if(!id) return;
@@ -5439,7 +5495,7 @@ function catDelete(key){
   affected.forEach(i=>{ i.cat='other'; });
   INV_CATS=INV_CATS.filter(x=>x.key!==key);
   if(!INV_CATS.some(x=>x.key==='other')) INV_CATS.push({key:'other',label:'Other'});
-  if(affected.length) saveInventory();
+  if(affected.length) saveInventory(affected);
   saveInvCats(); _renderCatsList(); renderInventory();
 }
 const INV_LOW = 5; // qty at or below this is flagged low-stock
@@ -5924,6 +5980,7 @@ function openStkView(kind, id){
   _stkViewKind=kind; _stkViewId=id;
   el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
   openModal('m-stkview');
+  if(kind==='inv') _invRefreshOne(id).then(ok=>{ if(ok && _stkViewKind==='inv' && _stkViewId===id) _stkRefresh(); });
 }
 // Orders that contain a Shopify product (exact title within the comma-joined product
 // column), newest due date first. Lean columns; quantity comes from loaded orders.
@@ -6132,7 +6189,7 @@ function removeStkShop(gid){
   removeShopStockId(gid); closeModal('m-stkview'); renderInventory(); toast(zh?'已移除':'Removed from stock');
 }
 function stkAdjInv(id, delta){ invAdjust(id, delta, delta>0?'in':'out'); _stkRefresh(); }
-function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm((LANG==='zh'?'删除 ':'Delete ')+(it.name||'this item')+'?')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory(); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
+function stkDelete(id){ const it=INVENTORY.find(x=>x.id===id); if(!it) return; if(!confirm((LANG==='zh'?'删除 ':'Delete ')+(it.name||'this item')+'?')) return; INVENTORY=INVENTORY.filter(x=>x.id!==id); saveInventory([]); if(hasSB()&&typeof sbDelete==='function') sbDelete('inventory',id); closeModal('m-stkview'); renderInventory(); toast('Deleted'); }
 // Category picker — shared by manual items (sets item.cat) and Shopify items (SHOP_ITEM_CAT).
 let _catPickKind=null, _catPickId=null;
 function openCatPick(kind, id){
@@ -6259,10 +6316,11 @@ function stkAdjSize(id, sid, delta){
   if(applied===0){ if(delta<0) toast(zh?'已经是 0':'Already at 0'); return; }
   sz.qty=next;
   it.moves=Array.isArray(it.moves)?it.moves:[];
-  it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:applied>0?'in':'out', size:sz.label||'' });
+  const _mv = { ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:applied>0?'in':'out', size:sz.label||'' };
+  it.moves.unshift(_mv);
   if(it.moves.length>40) it.moves=it.moves.slice(0,40);
-  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory(); if(typeof renderHome==='function') renderHome();
-  _pushStockToShopify(it, {sizeId:sid});
+  _rollupItemQty(it); _persistSizes(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory(); if(typeof renderHome==='function') renderHome();
+  _invSaveDelta(it, [{ delta:applied, sizeId:sid, clamp:true, move:_mv }]).then(()=>_pushStockToShopify(it, {sizeId:sid}));
 }
 function stkSetSize(id, sid, val){
   const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz){ _stkRefresh(); return; }
@@ -6358,6 +6416,7 @@ async function saveBoxDeductLog(){ try{ _lsSet('flori-box-deduct',JSON.stringify
 let _boxDeductBusy=false;
 async function _applyBoxDeductions(){
   if(typeof ORDERS==='undefined' || typeof INVENTORY==='undefined') return;
+  const _bxOps = new Map();
   if(_boxDeductBusy) return; _boxDeductBusy=true;
   // Pull the FRESH ledger (union) before deducting so another device's already-applied
   // keys are seen — otherwise a stale in-memory ledger re-deducts the same order.
@@ -6386,14 +6445,15 @@ async function _applyBoxDeductions(){
         if(b.sizeId){ const sz=_sizeById(it,b.sizeId); if(!sz) return; sz.qty=(parseInt(sz.qty,10)||0)-lq; szLabel=sz.label||''; _rollupItemQty(it); }
         else { it.qty=(it.qty||0)-lq; }
         it.moves=Array.isArray(it.moves)?it.moves:[];
-        it.moves.unshift({ts:new Date().toISOString(), by:'auto', delta:-lq, type:'auto', orderId:o.id, orderNo:o.name||'', rkey, size:szLabel});
+        const _mv = {ts:new Date().toISOString(), by:'auto', delta:-lq, type:'auto', orderId:o.id, orderNo:o.name||'', rkey, size:szLabel};
+        it.moves.unshift(_mv); _invOp(_bxOps, it, { delta:-lq, sizeId:b.sizeId||null, move:_mv });
         if(it.moves.length>80) it.moves=it.moves.slice(0,80);
         BOX_DEDUCT_LOG[rkey]={delta:-lq, ts:Date.now(), orderNo:o.name||''};
         touched.add(b.itemId); changed=true;
       });
     });
   });
-  if(changed){ saveBoxDeductLog(); if(typeof saveStockSizes==='function') saveStockSizes(); saveInventory(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
+  if(changed){ saveBoxDeductLog(); if(typeof saveStockSizes==='function') saveStockSizes(); await _invFlushOps(_bxOps); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); }
   touched.forEach(id=>{ const it=INVENTORY.find(x=>x.id===id); if(it) _pushStockToShopify(it); });   // reflect the new count to Shopify
   } finally { _boxDeductBusy=false; }
 }
@@ -12848,7 +12908,8 @@ function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
   }
   it.sizes=clean; _rollupItemQty(it); _persistSizes(it);
 }
-function editInv(id) {
+async function editInv(id) {
+  await _invRefreshOne(id);   // edit the latest version, not this device's copy
   const _src2=document.getElementById('i-src'); if(_src2) _src2.style.display='none';
   const _sp2=document.getElementById('i-shop-pane'); if(_sp2) _sp2.style.display='none';
   const _sv2=document.getElementById('i-save-btn'); if(_sv2) _sv2.style.display='';
@@ -12882,7 +12943,7 @@ function deleteInvItem() {
   const id = document.getElementById('i-edit-id').value;
   if (!id || !confirm('Remove this item?')) return;
   INVENTORY = INVENTORY.filter(x => x.id !== id);
-  saveInventory(); if (hasSB()) sbDelete('inventory', id);
+  saveInventory([]); if (hasSB()) sbDelete('inventory', id);
   closeModal('m-inv'); renderInventory(); toast('Removed');
 }
 function openAddPur(){
@@ -13274,7 +13335,7 @@ function saveInv(){
   if(editId){ item=INVENTORY.find(x=>x.id===editId); if(item){ const prevHadSizes=itemHasSizes(item); Object.assign(item,data); _applyInvSizesFromEditor(item, prevHadSizes, data.qty); } }
   else { item={id:'inv-'+Date.now(),...data}; INVENTORY.push(item); _applyInvSizesFromEditor(item, false, data.qty); }
   if(item){ if(_sell!=null) item.sell=_sell; else delete item.sell; _persistSell(item); }   // selling price → blob (cost price stays the item column)
-  saveInventory();closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
+  saveInventory(item ? [item] : []);closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
   if(item && typeof _pushStockToShopify==='function' && stockCtl(item.id).length) _pushStockToShopify(item);   // reflect seeded counts to Shopify
 }
 function savePur(){
@@ -13604,8 +13665,8 @@ function doRepeatOrder(){
   closeModal('m-repeat');
   toast(`✓ Created ${made.length} repeat order${made.length>1?'s':''}`);
 }
-function invAdj(id,delta){const i=INVENTORY.find(x=>x.id===id);if(i)i.qty=Math.max(0,(i.qty||0)+delta);saveInventory();renderInventory();}
-function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory();if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
+function invAdj(id,delta){ invAdjust(id, delta, delta>0?'in':'out'); }
+function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory([]);if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
 function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
 function delPur(id){PURCHASES=PURCHASES.filter(x=>x.id!==id);savePurchases();if(hasSB())sbDelete('purchases',id);renderPurchase();}
 function clearDone(){const gone=PURCHASES.filter(x=>x.done).map(x=>x.id);PURCHASES=PURCHASES.filter(x=>!x.done);savePurchases();if(hasSB())gone.forEach(id=>sbDelete('purchases',id));renderPurchase();toast('Cleared done items');}
@@ -14105,7 +14166,7 @@ function _recipeApplyStock(o, oldRows, newRows){
   const prod = _orderProdRecipeMids(o);
   const had = {}; (oldRows||[]).forEach(r=>{ if (r && r.mid && r.ded) had[r.mid] = (had[r.mid]||0) + (parseFloat(r.ded)||0); });
   const want = {}; newRows.forEach(r=>{ if (r.mid && !prod.has(r.mid)) want[r.mid] = (want[r.mid]||0) + r.qty; });
-  const touched = [];
+  const touched = [], _raOps = new Map();
   new Set([...Object.keys(had), ...Object.keys(want)]).forEach(mid=>{
     const it = (INVENTORY||[]).find(x=>x.id===mid);
     const tracked = it && !it.untracked;
@@ -14113,12 +14174,13 @@ function _recipeApplyStock(o, oldRows, newRows){
     if (!it || !take) return;
     it.qty = (it.qty||0) - take;
     it.moves = Array.isArray(it.moves) ? it.moves : [];
-    it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:-take, type:'auto', orderId:o.id, orderNo:o.name||'', src:'recipe' });
+    const _mv = { ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:-take, type:'auto', orderId:o.id, orderNo:o.name||'', src:'recipe' };
+    it.moves.unshift(_mv); _invOp(_raOps, it, { delta:-take, move:_mv });
     if (it.moves.length > 80) it.moves = it.moves.slice(0,80);
     touched.push(it);
   });
   newRows.forEach(r=>{ const it = r.mid ? (INVENTORY||[]).find(x=>x.id===r.mid) : null; if (it && !it.untracked && !prod.has(r.mid)) r.ded = r.qty; else delete r.ded; });
-  touched.forEach(it=>{ _invSaveOne(it); if (typeof stockCtl==='function' && stockCtl(it.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(it); });
+  _invFlushOps(_raOps).then(()=>touched.forEach(it=>{ if (typeof stockCtl==='function' && stockCtl(it.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(it); }));
   if (touched.length){ if (typeof _bcSend==='function') _bcSend('inventory'); if (typeof renderInventory==='function') renderInventory(); }
   return touched.length;
 }
