@@ -8354,7 +8354,7 @@ function renderFollowup() {
   const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?String(v):'';};
   _fs('fu-c-needs',_needsN); _fs('fu-c-shopify',_shopN);
   { const n=st=>FOLLOWUPS.filter(x=>_fuStage(x)===st).length, tl=document.getElementById('fu-tally');
-    if (tl) tl.innerHTML='<div><b>'+n('enquiry')+'</b><span>need payment</span></div><div><b>'+n('ready')+'</b><span>ready to send</span></div><div><b>'+_shopN+'</b><span>in Shopify</span></div>'; }
+    if (tl) tl.innerHTML='<div><b>'+n('ready')+'</b><span>ready to send</span></div><div><b>'+n('enquiry')+'</b><span>need payment</span></div><div><b>'+_shopN+'</b><span>in Shopify</span></div>'; }
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
   // An entry is "archived" once it's marked completed OR its delivery date has
@@ -8415,8 +8415,8 @@ function renderFollowup() {
   else if (fuFilter==='shopify') { list.sort(_bySoon); grp('In Shopify', list); }
   else {
     list.sort(_bySoon);
-    grp('Waiting for payment', list.filter(f => _fuStage(f)==='enquiry'));
     grp('Ready for Shopify',   list.filter(f => _fuStage(f)==='ready'));
+    grp('Waiting for payment', list.filter(f => _fuStage(f)==='enquiry'));
   }
   tb.innerHTML = html;
 }
