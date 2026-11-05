@@ -1257,6 +1257,7 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .dp-pay{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .dp-pay-st{font-size:14px;font-weight:600;color:var(--c-ink)}
 .dp-pay-st.warn{color:var(--color-warn)}
+.dp-pay-note{flex:1 1 100%;font-size:13.5px;line-height:1.4;color:var(--color-ink-2);white-space:pre-wrap}
 @media(max-width:860px){
   .orw.fuw{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"time amt" "body body" "act act";grid-template-rows:auto}
   .fuw>.fuw-act{justify-self:start;margin-top:8px}

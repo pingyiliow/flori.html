@@ -942,6 +942,7 @@
     <div class="mc-body">
       <div class="ff"><label class="ff-l">Paid by</label><select id="fupay-m" onchange="_fuPayModalUI()"></select>
         <input id="fupay-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
+      <div class="ff" style="margin-top:12px"><label class="ff-l" for="fupay-note">Note</label><textarea id="fupay-note" rows="2" autocomplete="off" style="resize:vertical"></textarea></div>
       <div class="ff" style="margin-top:12px"><label class="ff-l">Payment slip</label>
         <div id="fupay-slip" class="pay-slip"></div>
         <input id="fupay-file" type="file" accept="image/*" style="display:none" onchange="_paySlipPick(this)"></div>
@@ -1673,7 +1674,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -2095,6 +2096,7 @@ function _applyShopifyToExisting(prev, m){
     paidBy:       prev.paidBy || null,
     paidAt:       prev.paidAt || null,
     paySlip:      prev.paySlip || null,
+    payNote:      prev.payNote || null,
     recipName:    m.recipName  || prev.recipName  || null,
     recipPhone:   m.recipPhone || prev.recipPhone || null,
     address:      m.address    || prev.address    || null,
@@ -2325,7 +2327,7 @@ async function syncOrders() {
     const prevReady = new Set(ORDERS.filter(o=>o.ready).map(o=>shopId(o.id)));
     // Snapshot the full previous line items (with every local edit — names, prices,
     // quantities, photos, ready flags, deletions) plus order-level local fields.
-    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,totalAdj:o.totalAdj,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff,paidBy:o.paidBy,paidAt:o.paidAt,paySlip:o.paySlip}; });
+    const prevMeta = {}; ORDERS.forEach(o=>{ prevMeta[shopId(o.id)]={designer:o.designer,priority:o.priority,internalNote:o.internalNote,image:o.image,recipe:o.recipe,manualPrice:o.manualPrice,manualAddr:o.manualAddr,lalamoveUrl:o.lalamoveUrl,lineItems:o.lineItems||[],removedItems:o.removedItems||[],otwAt:o.otwAt,routeId:o.routeId,routeSeq:o.routeSeq,proofPhoto:o.proofPhoto,proofPhotos:o.proofPhotos,cake:o.cake,totalAdj:o.totalAdj,lat:o.lat,lng:o.lng,deliveredLat:o.deliveredLat,deliveredLng:o.deliveredLng,deliveredAt:o.deliveredAt,recipName:o.recipName,recipPhone:o.recipPhone,address:o.address,readyBy:o.readyBy,readyAt:o.readyAt,fulfilledBy:o.fulfilledBy,fulfilledAt:o.fulfilledAt,staff:o.staff,paidBy:o.paidBy,paidAt:o.paidAt,paySlip:o.paySlip,payNote:o.payNote}; });
     shopify.forEach(o => {
       if(prevReady.has(o.id)) o.ready = true;
       if(prevMeta[o.id]) { const pm=prevMeta[o.id];
@@ -2348,7 +2350,7 @@ async function syncOrders() {
         o.designer=pm.designer; o.priority=pm.priority||'normal'; o.internalNote=pm.internalNote; if(pm.recipe&&pm.recipe.length)o.recipe=pm.recipe; if(pm.manualPrice!=null)o.manualPrice=pm.manualPrice; if(pm.manualAddr)o.manualAddr=pm.manualAddr;
         // Driver-mode: app-managed fields carry over; recipient/address fall back to prev
         // if this fetch somehow lacked them (fresh Shopify values already on o win).
-        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.totalAdj=pm.totalAdj||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null; o.paidBy=pm.paidBy||null; o.paidAt=pm.paidAt||null; o.paySlip=pm.paySlip||null;
+        o.otwAt=pm.otwAt||null; o.routeId=pm.routeId||null; o.routeSeq=pm.routeSeq??null; o.proofPhoto=pm.proofPhoto||null; o.proofPhotos=pm.proofPhotos||null; o.cake=pm.cake||null; o.totalAdj=pm.totalAdj||null; o.lat=pm.lat??null; o.lng=pm.lng??null; o.deliveredLat=pm.deliveredLat??null; o.deliveredLng=pm.deliveredLng??null; o.deliveredAt=pm.deliveredAt||null; o.deliveredBy=pm.deliveredBy||null; o.lalamoveUrl=pm.lalamoveUrl||null; o.readyBy=pm.readyBy||null; o.readyAt=pm.readyAt||null; o.fulfilledBy=pm.fulfilledBy||null; o.fulfilledAt=pm.fulfilledAt||null; o.staff=pm.staff||null; o.paidBy=pm.paidBy||null; o.paidAt=pm.paidAt||null; o.paySlip=pm.paySlip||null; o.payNote=pm.payNote||null;
         if(!o.recipName&&pm.recipName)o.recipName=pm.recipName; if(!o.recipPhone&&pm.recipPhone)o.recipPhone=pm.recipPhone; if(!o.address&&pm.address)o.address=pm.address;
       }
     });
@@ -2390,7 +2392,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj,paid_by,paid_at,pay_slip';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj,paid_by,paid_at,pay_slip,pay_note';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2442,6 +2444,7 @@ async function syncOrders() {
           if ('paid_by' in r)  o.paidBy  = r.paid_by  || null;   // payment recorded in BloomFlow — DB wins
           if ('paid_at' in r)  o.paidAt  = r.paid_at  || null;
           if ('pay_slip' in r) o.paySlip = r.pay_slip || null;
+          if ('pay_note' in r) o.payNote = r.pay_note || null;
           o.designer     = r.designer || null;
           o.priority     = r.priority || 'normal';
           o.internalNote = r.internal_note || null;
@@ -2574,6 +2577,7 @@ function _orderRow(o){
   if (o.paidBy)  row.paid_by=o.paidBy;
   if (o.paidAt)  row.paid_at=o.paidAt;
   if (o.paySlip) row.pay_slip=o.paySlip;
+  if (o.payNote) row.pay_note=o.payNote;
   if (!o.readyBy) delete row.ready_by;
   if (!o.readyAt) delete row.ready_at;
   if (!o.fulfilledBy) delete row.fulfilled_by;
@@ -3037,7 +3041,7 @@ function _mapDbOrder(o){
     readyBy: o.ready_by||null, readyAt: o.ready_at||null,
     fulfilledBy: o.fulfilled_by||null, fulfilledAt: o.fulfilled_at||null,
     staff: o.staff||null, totalAdj: o.total_adj||null, deliveryInstr: o.delivery_instr||null,
-    finStatus: o.financial_status||null, paidBy: o.paid_by||null, paidAt: o.paid_at||null, paySlip: o.pay_slip||null,
+    finStatus: o.financial_status||null, paidBy: o.paid_by||null, paidAt: o.paid_at||null, paySlip: o.pay_slip||null, payNote: o.pay_note||null,
     manualAddr: o.manual_addr||null, lalamoveUrl: o.lalamove_url||null, lalamoveOrderId: o.lalamove_order_id||null, recipe: o.recipe||[],
     designer: o.designer||null, priority: o.priority||'normal',
     internalNote: o.internal_note||null,
@@ -3056,7 +3060,7 @@ function _mapDbOrder(o){
 // was a big chunk of Supabase egress AND bloated the localStorage cache (the exact
 // thing that filled storage and blocked login). They are lazy-loaded per order via
 // _ensureProofPhotos when a delivered stop is opened. Keep in sync with _mapDbOrder.
-const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj,delivery_instr,financial_status,paid_by,paid_at,pay_slip';
+const ORDER_COLS = 'id,name,src,customer,product,line_items,image,total,currency,due_date,due_on,due_time,type,fulfilled,ready,created_at,manual_addr,lalamove_url,recipe,designer,priority,internal_note,manual_price,recip_name,recip_phone,address,cust_phone,cust_email,channel,cust_ig,lat,lng,otw_at,route_id,route_seq,cake,delivered_lat,delivered_lng,delivered_at,delivered_by,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,lalamove_order_id,total_adj,delivery_instr,financial_status,paid_by,paid_at,pay_slip,pay_note';
 // Fetch the (base64) proof photos for one order on demand, then re-render the open
 // detail. Bulk loads skip these heavy columns; this pulls them only when a delivered
 // order is actually opened — so the photos leave Supabase once (on view), not on every
@@ -3322,7 +3326,7 @@ async function loadFromSupabase(opts = {}) {
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
         amount: f.amount||0, deliveryFee: f.delivery_fee||0,
-        addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'', paySlip: f.pay_slip||'',
+        addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'', paySlip: f.pay_slip||'', payNote: f.pay_note||'',
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice,
@@ -6795,7 +6799,7 @@ function saveFollowups() {
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
       amount: f.amount||null, delivery_fee: f.deliveryFee||null,
-      addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null, pay_slip: f.paySlip||null,
+      addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null, pay_slip: f.paySlip||null, pay_note: f.payNote||null,
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice,
@@ -6804,7 +6808,7 @@ function saveFollowups() {
     sbUpsert('followups', rows).then(ok => {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7872,7 +7876,8 @@ async function createShopifyDraft() {
     { key:'Order Fulfillment Type', value: f.fulfil==='pickup' ? 'Self Collect' : 'Local Delivery' },
     { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
     { key:'Order Due Time', value: f.dueTime || '' },
-    { key:'Paid By', value: f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment') },
+    // The payment note rides in the same Paid By line, e.g. "Bank transfer, pbb RM400, 5/11".
+    { key:'Paid By', value: [f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment'), f.payNote].filter(Boolean).join(', ') },
   ];
   if (f.paySlip && /^https?:\/\//.test(f.paySlip)) customAttributes.push({ key:'Payment Slip', value: f.paySlip });
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
@@ -8075,6 +8080,7 @@ function openOrderPay(id){
   document.getElementById('fupay-m').innerHTML=PAY_METHODS.filter(m=>m!=='Pending payment').map(m=>'<option value="'+m+'"'+((p.m||'Bank transfer')===m?' selected':'')+'>'+m+'</option>').join('');
   document.getElementById('fupay-ref').value=(p.m==='Other'&&p.ref==='Other')?'':(p.ref||'');
   _paySlipUrl=o.paySlip||(fl&&fl.paySlip)||''; _paySlipBusy=false; _paySlipUI();
+  document.getElementById('fupay-note').value=o.payNote||(fl&&fl.payNote)||'';
   document.getElementById('fupay-later').style.display='none';
   _fuPayModalUI(); openModal('m-fu-pay');
 }
@@ -8082,10 +8088,10 @@ function _orderPayConfirm(){
   const o=ORDERS.find(x=>x.id===_fuPayId); if(!o){ closeModal('m-fu-pay'); return; }
   const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref').value;
   if (PAY_REF[m] && m!=='Other' && !String(ref).trim()){ toast(PAY_REF[m]+' required'); document.getElementById('fupay-ref').focus(); return; }
-  o.paidBy=_payFmt(m, ref); o.paidAt=new Date().toISOString(); o.paySlip=_paySlipUrl||null;
-  saveOrderPatch(o, { paid_by:o.paidBy, paid_at:o.paidAt, pay_slip:o.paySlip });
+  o.paidBy=_payFmt(m, ref); o.paidAt=new Date().toISOString(); o.paySlip=_paySlipUrl||null; o.payNote=document.getElementById('fupay-note').value.trim()||null;
+  saveOrderPatch(o, { paid_by:o.paidBy, paid_at:o.paidAt, pay_slip:o.paySlip, pay_note:o.payNote });
   const fl=_oFuLink(o);
-  if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; saveFollowups(); }
+  if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; if(o.payNote) fl.payNote=o.payNote; saveFollowups(); }
   closeModal('m-fu-pay'); renderOrders();
   if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
   if (o.src==='shopify') orderPushPaid(o.id); else toast('✓ Payment recorded');
@@ -8115,8 +8121,8 @@ async function orderPushPaid(id){
 }
 function orderPayUndo(id){
   const o=ORDERS.find(x=>x.id===id); if(!o) return;
-  o.paidBy=null; o.paidAt=null; o.paySlip=null;
-  saveOrderPatch(o, { paid_by:null, paid_at:null, pay_slip:null });
+  o.paidBy=null; o.paidAt=null; o.paySlip=null; o.payNote=null;
+  saveOrderPatch(o, { paid_by:null, paid_at:null, pay_slip:null, pay_note:null });
   renderOrders();
   if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
   toast('Payment record removed');
@@ -8125,6 +8131,7 @@ function openFUPay(id){
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   _fuPayId=id; _payKind='fu';
   _paySlipUrl=f.paySlip||''; _paySlipBusy=false; _paySlipUI();
+  document.getElementById('fupay-note').value=f.payNote||'';
   document.getElementById('fupay-later').style.display='';
   const tot=(parseFloat(f.amount)||0)+(parseFloat(f.deliveryFee)||0);
   document.getElementById('fupay-who').textContent=(f.name||'Customer')+(tot?' · RM '+tot.toFixed(2):'');
@@ -8143,6 +8150,7 @@ function fuPayConfirm(paid){
   if (_payKind==='order') return _orderPayConfirm();
   const f=FOLLOWUPS.find(x=>x.id===_fuPayId); if(!f){ closeModal('m-fu-pay'); return; }
   f.paySlip=_paySlipUrl||'';
+  f.payNote=document.getElementById('fupay-note').value.trim();
   if (paid){
     const m=document.getElementById('fupay-m').value, ref=document.getElementById('fupay-ref').value;
     if (PAY_REF[m] && m!=='Other' && !String(ref).trim()){ toast(PAY_REF[m]+' required'); document.getElementById('fupay-ref').focus(); return; }
@@ -8287,6 +8295,7 @@ function openFUDP(id) {
   }
   rows.push(['Payment', payLbl]);
   if (f.paidBy) rows.push(['Paid By', f.paidBy]);
+  if (f.payNote) rows.push(['Payment note', f.payNote]);
   if (f.orderNo) rows.push(['Shopify Order', f.orderNo]);
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
@@ -14452,13 +14461,15 @@ function _renderDPInner(order, localOrder) {
   { const _unp=_oUnpaid(localOrder);
     const _pb = localOrder.paidBy || (_fuLink && _fuLink.payment==='paid' && _fuLink.paidBy) || '';
     const _slip = localOrder.paySlip || (_fuLink && _fuLink.paySlip) || '';
-    if (_unp || _pb || _slip) {
+    const _pnote = localOrder.payNote || (_fuLink && _fuLink.payNote) || '';
+    if (_unp || _pb || _slip || _pnote) {
       html += '<div><div class="dp-section-ttl">Payment</div><div class="dp-pay">'
         + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : '<span class="dp-pay-st">'+esc(_pb ? 'Paid by '+_pb : 'Paid')+'</span>')
         + (_slip ? '<img class="dp-pay-slip" src="'+esc(_slip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">' : '')
         + (_unp ? '<button type="button" class="fu-act" onclick="openOrderPay(\''+localOrder.id+'\')">'+di('wallet',15)+'<span>Record payment</span></button>'
            : ((localOrder.src==='shopify' && /^(pending|partially_paid)$/.test(localOrder.finStatus||'')) ? '<button type="button" class="fu-act" onclick="orderPushPaid(\''+localOrder.id+'\')">Update Shopify</button>' : '')
              + ((localOrder.paidAt && localOrder.finStatus!=='paid') ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))
+        + (_pnote ? '<div class="dp-pay-note">'+esc(_pnote)+'</div>' : '')
         + '</div></div>';
     }
   }
