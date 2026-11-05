@@ -199,50 +199,31 @@
   <!-- ── Stock (Inventory + Purchase) ────────────────────────── -->
   <div id="pg-stock" class="page">
     <div class="pc">
-      <!-- Tab switcher -->
-      <div class="stock-tabs">
-        <button class="stock-tab on" id="stock-tab-inv" onclick="switchStockTab('inv')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Materials</button>
-        <button class="stock-tab" id="stock-tab-rec" onclick="switchStockTab('rec')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Recipes</button>
-        <button class="stock-tab" id="stock-tab-pur" onclick="switchStockTab('pur')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> To buy</button>
+      <div class="page-hdr">
+        <div><div class="page-title">Stock</div></div>
+        <div class="stk-acts" id="stk-acts-inv"><button class="btn btn-ghost" type="button" onclick="openCatManager()">Manage categories</button><button class="btn btn-primary" type="button" onclick="openAddInv()">Add material</button></div>
+        <div class="stk-acts" id="stk-acts-rec" hidden><button class="btn btn-primary" type="button" onclick="openBom()">New design</button></div>
+        <div class="stk-acts" id="stk-acts-pur" hidden><button class="btn btn-ghost" type="button" onclick="clearDone()">Clear done</button><button class="btn btn-primary" type="button" onclick="openAddPur()">Add item</button></div>
+      </div>
+      <div class="filters stk-tabs">
+        <button class="f-btn on" type="button" id="stock-tab-inv" onclick="switchStockTab('inv')">Materials<span class="f-n warn num" id="stk-n-inv"></span></button>
+        <button class="f-btn" type="button" id="stock-tab-rec" onclick="switchStockTab('rec')">Recipes</button>
+        <button class="f-btn" type="button" id="stock-tab-pur" onclick="switchStockTab('pur')">Purchase<span class="f-n num" id="stk-n-pur"></span></button>
       </div>
 
       <!-- Materials pane -->
-      <div id="stock-pane-inv">
-        <div class="page-hdr" style="margin-bottom:0">
-          <div style="font-size:11px;color:var(--c-muted)">Track stems, materials & supplies</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="openCatManager()">Manage categories</button>
-            <button class="btn btn-primary" onclick="openAddInv()">+ Add material</button>
-          </div>
-        </div>
-        <div id="inv-body"></div>
-      </div>
+      <div id="stock-pane-inv"><div id="inv-body"></div></div>
 
       <!-- Recipes pane -->
       <div id="stock-pane-rec" style="display:none">
-        <div class="page-hdr" style="margin-bottom:0">
-          <div style="font-size:11px;color:var(--c-muted)">What each design is built from — deducts materials when the order comes in</div>
-          <button class="btn btn-primary" onclick="openBom()">+ New design</button>
-        </div>
-        <div style="position:relative;margin:12px 0">
-          <input id="rec-search" type="search" placeholder="Search a design…" oninput="renderRecipes()" style="width:100%;padding:9px 12px;border:1.5px solid var(--c-border);border-radius:var(--r);font-size:13px;outline:none;background:var(--c-surface);color:var(--c-ink)">
-          <div id="rec-prod-results" class="rcp-sug" style="display:none"></div>
-        </div>
+        <div class="stk-tools" style="position:relative"><input id="rec-search" class="stk-search" type="search" placeholder="Search a design" aria-label="Search a design" oninput="renderRecipes()"><div id="rec-prod-results" class="rcp-sug" style="display:none"></div></div>
         <div id="rec-body"></div>
       </div>
 
       <!-- Purchase pane -->
       <div id="stock-pane-pur" style="display:none">
-        <div class="page-hdr" style="margin-bottom:0">
-          <div style="font-size:11px;color:var(--c-muted)">What to order this week</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost btn-sm" onclick="clearDone()">Clear done</button>
-            <button class="btn btn-primary" onclick="openAddPur()">+ Add Item</button>
-          </div>
-        </div>
-        <div id="pur-body" style="margin-top:14px"></div>
-        <div class="stk-cat" style="margin-top:8px">Supplier Notes</div>
-        <textarea id="pur-notes" style="width:100%;padding:12px;border:1.5px solid var(--c-border);border-radius:10px;font-family:var(--f-body);font-size:13px;resize:vertical;min-height:90px;background:var(--c-surface);color:var(--c-ink);outline:none" placeholder="Supplier name, price per stem, delivery schedule…" oninput="savePurNotes()"></textarea>
+        <div id="pur-body"></div>
+        <div class="stk-notes"><label class="stk-h" for="pur-notes">Supplier notes</label><textarea id="pur-notes" placeholder="Supplier name, price per stem, delivery schedule" oninput="savePurNotes()"></textarea></div>
       </div>
     </div>
   </div>
@@ -890,6 +871,7 @@
           <select id="p-urg"><option value="today">Today</option><option value="week">This Week</option><option value="stock">Stock Up</option></select>
         </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><input id="p-notes" type="text" placeholder="Supplier / price / delivery day"></div>
+        <div class="ff" style="grid-column:1/-1"><label class="ff-l" for="p-link">Adds to stock</label><select id="p-link" onchange="_purLinkPick(this)"></select></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
           <input type="hidden" id="p-photo">
           <div class="photo-zone" id="p-photo-zone" style="min-height:90px" ondragover="event.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="photoZoneDrop(event,'p-photo-zone','p-photo')">
@@ -949,6 +931,19 @@
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" type="button" style="flex:1" onclick="fuPayConfirm(true)">Mark as paid</button>
         <button class="btn btn-ghost" type="button" id="fupay-later" onclick="fuPayConfirm(false)">Pay later</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="m-pur-recv" class="modal">
+  <div class="mc" style="max-width:380px">
+    <div class="mc-hdr"><div class="mc-ttl">Received</div><button class="mc-x" type="button" aria-label="Close" onclick="closeModal('m-pur-recv')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mc-body">
+      <div class="prv-item"><b id="prv-name"></b><span id="prv-now" class="num"></span></div>
+      <div class="ff" style="margin-top:16px"><label class="ff-l" for="prv-qty">How many arrived</label><input id="prv-qty" type="number" inputmode="numeric" min="1" step="1" onkeydown="if(event.key==='Enter')purRecvConfirm(true)"></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-primary" type="button" style="flex:1" onclick="purRecvConfirm(true)">Add to stock</button>
+        <button class="btn btn-ghost" type="button" onclick="purRecvConfirm(false)">Just tick</button>
       </div>
     </div>
   </div>
@@ -1674,7 +1669,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Running low':'库存不足','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -2893,10 +2888,10 @@ function renderRecipes(){
   let list=RECIPES.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
   if(q) list=list.filter(r=>String(r.name||'').toLowerCase().includes(q));
   el.innerHTML = list.length ? list.map(r=>{
-    const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)+(c.forVariant?' ('+esc(c.forVariant)+')':'')).join(' · '):'<span style="color:#b46a1e">No materials set</span>';
-    const pill = r.source==='omakase' ? '<span class="rec-pill rec-oma">Omakase</span>' : '<span class="rec-pill rec-web">Website</span>';
+    const uses=(r.components&&r.components.length)?r.components.map(c=>esc(c.name)+(c.forVariant?' ('+esc(c.forVariant)+')':'')).join(', '):'<span style="color:#b46a1e">No materials set</span>';
+    const pill = '<span class="rec-src">'+(r.source==='omakase'?'Omakase':'Website')+'</span>';
     const imgUrl = r.image || _prodImg(r.name);
-    const th = imgUrl ? '<span style="width:44px;height:44px;border-radius:9px;overflow:hidden;flex:none;background:var(--c-bg)"><img src="'+imgUrl+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '<span style="width:44px;height:44px;border-radius:9px;flex:none;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-muted)">'+di('flower',18)+'</span>';
+    const th = imgUrl ? '<span style="width:44px;height:44px;overflow:hidden;flex:none;background:var(--color-paper-2)"><img src="'+imgUrl+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'"></span>' : '<span style="width:44px;height:44px;border-radius:9px;flex:none;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-muted)">'+di('flower',18)+'</span>';
     return '<div class="rec-card" onclick="openRecipeView(\''+r.id+'\')">'+th+'<div style="flex:1;min-width:0"><div class="rec-nm">'+esc(r.name)+' '+pill+'</div><div class="rec-uses">'+uses+'</div></div><span class="rec-chev">›</span></div>';
   }).join('') : '<div style="font-size:12px;color:var(--c-muted);padding:16px 2px">No design matches.</div>';
   // Backfill any still-missing photos from Shopify (once each), then re-render.
@@ -3060,8 +3055,9 @@ function savePurchases() {
   if (hasSB()) {
     sbUpsert('purchases', PURCHASES.map(p => ({
       id: p.id, name: p.name, qty: p.qty||null,
-      urg: p.urg||'week', notes: p.notes||null, done: p.done||false, photo: p.photo||null
-    }))).catch(console.error);
+      urg: p.urg||'week', notes: p.notes||null, done: p.done||false, photo: p.photo||null,
+      mid: p.mid||null, sid: p.sid||null
+    }))).then(ok => { if (!ok) sbUpsert('purchases', PURCHASES.map(p => ({ id: p.id, name: p.name, qty: p.qty||null, urg: p.urg||'week', notes: p.notes||null, done: p.done||false, photo: p.photo||null }))); }).catch(console.error);
   }
 }
 
@@ -5432,9 +5428,19 @@ function renderOrders() {
 
 function switchStockTab(tab) {
   const panes = { inv:'stock-pane-inv', rec:'stock-pane-rec', pur:'stock-pane-pur' };
-  const tabs  = { inv:'stock-tab-inv',  rec:'stock-tab-rec',  pur:'stock-tab-pur'  };
-  Object.keys(panes).forEach(k => { const p=document.getElementById(panes[k]); if(p) p.style.display = k===tab?'':'none'; const t=document.getElementById(tabs[k]); if(t) t.classList.toggle('on', k===tab); });
+  Object.keys(panes).forEach(k => {
+    const p=document.getElementById(panes[k]); if(p) p.style.display = k===tab?'':'none';
+    const t=document.getElementById('stock-tab-'+k); if(t) t.classList.toggle('on', k===tab);
+    const a=document.getElementById('stk-acts-'+k); if(a) a.hidden = k!==tab;
+  });
   if(tab==='rec') renderRecipes();
+  if(tab==='pur') renderPurchase();
+}
+// Counts on the Stock tabs: items that need restocking, and what's still to buy.
+function _stkTabCounts(){
+  const a=document.getElementById('stk-n-inv'), b=document.getElementById('stk-n-pur');
+  if(a){ let n=INVENTORY.filter(i=>!i.untracked && _invLow(i)).length; (SHOPIFY_STOCK||[]).forEach(p=>{ if((p.variants||[]).some(v=>(v.qty||0)<=SHOP_STOCK_LOW)) n++; }); a.textContent=n?String(n):''; }
+  if(b){ const n=PURCHASES.filter(p=>!p.done).length; b.textContent=n?String(n):''; }
 }
 
 // Editable categories — fully user-managed (add / rename / delete, no locked
@@ -5577,63 +5583,75 @@ function _invCatLabel(cat){ return _catLabel(cat); }
 function _invPriceStr(p){ return Number(p).toFixed(2).replace(/\.00$/,''); }
 function _invIcon(cat){ return cat==='wrap'?'note':(cat==='pot'||cat==='vase')?'vase':(cat==='acc'||cat==='ribbon')?'gift':'flower'; }
 function _invThumb(photo, ic, size){
-  size = size || 40;
+  size = size || 44;
   return photo
-    ? '<img src="'+esc(photo)+'" alt="" onclick="event.stopPropagation();openZoom(\''+String(photo).replace(/'/g,"\\'")+'\',\'\')" style="width:'+size+'px;height:'+size+'px;border-radius:9px;object-fit:cover;flex:none;background:var(--c-bg);cursor:zoom-in">'
-    : '<div style="width:'+size+'px;height:'+size+'px;border-radius:9px;background:var(--c-bg);display:flex;align-items:center;justify-content:center;color:var(--c-dpink);flex:none">'+di(ic||'box',Math.round(size*0.5))+'</div>';
+    ? '<img class="sthumb" src="'+esc(photo)+'" alt="" onclick="event.stopPropagation();openZoom(\''+String(photo).replace(/'/g,"\\'")+'\',\'\')" style="width:'+size+'px;height:'+size+'px">'
+    : '<div class="sthumb ph" style="width:'+size+'px;height:'+size+'px">'+di(ic||'box',Math.round(size*0.45))+'</div>';
 }
 function _invPM(id){
   const zh=LANG==='zh';
-  return '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',-1,\'out\')" title="'+(zh?'用掉 1':'Use 1')+'" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-muted);font-size:13px;line-height:1;cursor:pointer;flex:none">−</button>'
-    + '<button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',1,\'in\')" title="'+(zh?'收货 1':'Receive 1')+'" style="width:27px;height:27px;border-radius:7px;border:1px solid var(--c-burg);background:var(--c-burg);color:var(--c-bg);font-size:13px;line-height:1;cursor:pointer;flex:none">＋</button>';
+  return '<span class="stk-pm"><button type="button" onclick="event.stopPropagation();invAdjust(\''+id+'\',-1,\'out\')" aria-label="'+(zh?'用掉 1':'Use 1')+'">−</button>'
+    + '<button type="button" class="in" onclick="event.stopPropagation();invAdjust(\''+id+'\',1,\'in\')" aria-label="'+(zh?'收货 1':'Receive 1')+'">+</button></span>';
 }
 function _invTotalStrip(){
-  let qty=0, val=0;
-  INVENTORY.forEach(i=>{ if(i.untracked) return; qty+=(i.qty||0); if(i.price!=null&&i.price!=='') val+=(i.qty||0)*Number(i.price); });
-  return '<div style="display:flex;justify-content:space-between;align-items:center;background:var(--c-burg);color:var(--c-bg);border-radius:12px;padding:11px 16px;margin-bottom:14px">'
-    +'<div><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'总数量':'Total qty')+'</div><div style="font-size:16px;font-weight:700">'+qty+'</div></div>'
-    +'<div style="text-align:right"><div style="font-size:10px;opacity:.7">'+(LANG==='zh'?'库存总值 (成本)':'Stock value (cost)')+'</div><div style="font-size:16px;font-weight:700">RM '+val.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div></div>'
-    +'</div>';
+  const zh=LANG==='zh';
+  let qty=0, val=0, low=0, out=0;
+  INVENTORY.forEach(i=>{ if(i.untracked) return; const q=i.qty||0; qty+=q; if(i.price!=null&&i.price!=='') val+=q*Number(i.price); if(q<=0) out++; else if(_invLow(i)) low++; });
+  (SHOPIFY_STOCK||[]).forEach(p=>{ const t=(p.variants||[]).length<=1?(((p.variants||[])[0]||{}).qty||0):(p.total||0); if(t<=0) out++; else if((p.variants||[]).some(v=>(v.qty||0)<=SHOP_STOCK_LOW)) low++; });
+  // Stock value is a cost figure: admin + CS only, like the order amounts.
+  const money=(typeof hasRole==='function') && (hasRole('admin')||hasRole('cs'));
+  const cell=(n,lbl,cls)=>'<div'+(cls?' class="'+cls+'"':'')+'><b>'+n+'</b><span>'+lbl+'</span></div>';
+  return '<div class="ord-tally stk-tally">'
+    + cell(low, zh?'库存低':'running low', low?'warn':'')
+    + cell(out, zh?'缺货':'out of stock')
+    + cell(qty, zh?'库存':'in stock')
+    + (money ? cell('RM '+Math.round(val).toLocaleString('en-MY'), zh?'库存总值 (成本)':'stock value') : '')
+  + '</div>';
 }
 function _invChips(){
+  const zh=LANG==='zh';
   const shopCats=(SHOPIFY_STOCK&&SHOPIFY_STOCK.length)?SHOPIFY_STOCK.map(p=>SHOP_ITEM_CAT[p.id]).filter(c=>c&&INV_CATS.some(x=>x.key===c)):[];
   const present=[...new Set(INVENTORY.map(i=>i.cat||'other').concat(shopCats))].sort((a,b)=>_catIndex(a)-_catIndex(b));
-  const chip=(c,label,low)=>{ const on=_invCat===c;
-    return '<button type="button" onclick="invCat(\''+c+'\')" style="cursor:pointer;font-size:12px;padding:5px 13px;border-radius:20px;white-space:nowrap;border:1.5px solid '+(on?'var(--c-burg)':'var(--c-border)')+';background:'+(on?'var(--c-burg)':'var(--c-surface)')+';color:'+(on?'var(--c-bg)':'var(--c-muted)')+'">'+esc(label)+(low?' <b style="color:'+(on?'#fff':'var(--c-red)')+'">'+low+'</b>':'')+'</button>'; };
-  let h='<div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:2px">'+chip('',(LANG==='zh'?'全部':'All'),0);
-  present.forEach(c=>{ const low=INVENTORY.filter(i=>(i.cat||'other')===c && _invLow(i)).length; h+=chip(c,_invCatLabel(c),low); });
+  const tab=(c,label,low)=>'<button type="button" class="f-btn'+(_invCat===c?' on':'')+'" onclick="invCat(\''+c+'\')">'+esc(label)+(low?'<span class="f-n warn num">'+low+'</span>':'')+'</button>';
+  let h='<div class="filters stk-cats">'+tab('',zh?'全部':'All',0);
+  present.forEach(c=>{ const low=INVENTORY.filter(i=>!i.untracked && (i.cat||'other')===c && _invLow(i)).length; h+=tab(c,_invCatLabel(c),low); });
   return h+'</div>';
 }
 function _invUnitInfo(u){
   if(u.type==='fam') return { name:u.name, qty:u.items.reduce((s,i)=>s+(i.qty||0),0), low:u.items.some(_invLow) };
   return { name:u.item.name||'', qty:u.item.qty||0, low:_invLow(u.item) };
 }
+function _stkSub(parts){ const p=parts.filter(Boolean); return p.length ? '<div class="stk-unit">'+p.join(', ')+'</div>' : ''; }
+function _stkLowTag(low, zero){ const zh=LANG==='zh'; return zero ? '<span class="stk-tag out">'+(zh?'缺货':'Out of stock')+'</span>' : (low ? '<span class="stk-tag">'+(zh?'低':'Low')+'</span>' : ''); }
 function _invCard(i){
-  const qty=i.qty||0, low=_invLow(i), zero=qty<=0;
-  const qCol = zero ? 'color:var(--c-muted)' : (low ? 'color:var(--c-red)' : '');
-  return '<div class="stk-card '+(low?'low':'')+(zero?' zero':'')+'" onclick="openStkView(\'inv\',\''+i.id+'\')">'
+  const qty=i.qty||0, low=_invLow(i), zero=qty<=0, zh=LANG==='zh';
+  const nSz = (typeof itemHasSizes==='function' && itemHasSizes(i)) ? itemSizes(i).length : 0;
+  return '<div class="stk-card'+(low?' low':'')+(zero?' zero':'')+'" onclick="openStkView(\'inv\',\''+i.id+'\')">'
     +_invThumb(i.photo,_invIcon(i.cat))
-    +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+'</div></div>'
-    +'<span class="stk-qty" style="flex:none;'+qCol+'">'+qty+'</span>'
+    +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+'</div>'+_stkSub([nSz?(nSz+(zh?' 个尺寸':' sizes')):(i.unit?esc(i.unit):''), _stkLowTag(low,zero)])+'</div>'
+    +'<span class="stk-qty'+(zero?' zero':(low?' low':''))+'">'+qty+'</span>'
   +'</div>';
 }
 function _invFamCard(u){
   const zh=LANG==='zh';
   const info=_invUnitInfo(u), expanded=_invExpanded.has(u.key);
   const cover=u.items.map(x=>x.photo).find(Boolean), ic=_invIcon(u.items[0]&&u.items[0].cat);
-  let h='<div class="stk-card" style="display:block;padding:0;overflow:hidden">'
-    +'<div onclick="invToggleFam(\''+u.key.replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--c-bg);cursor:pointer">'+_invThumb(cover,ic)
-      +'<div style="flex:1;min-width:0"><div class="stk-name">'+esc(info.name)+' <span style="font-size:10px;color:var(--c-muted);font-weight:400">'+(zh?'· 款式':'· family')+'</span></div><div class="stk-unit">'+u.items.length+(zh?(' 色 · 共 '):(' colours · total '))+info.qty+(info.low?' <span style="color:var(--c-red)">'+(zh?'· 有低':'· low')+'</span>':'')+'</div></div>'
-      +'<span style="color:var(--c-muted);font-size:13px">'+(expanded?'▴':'▾')+'</span>'
+  let h='<div class="stk-fam'+(expanded?' open':'')+'">'
+    +'<div class="stk-card'+(info.low?' low':'')+'" onclick="invToggleFam(\''+u.key.replace(/'/g,"\\'")+'\')">'+_invThumb(cover,ic)
+      +'<div class="stk-left"><div class="stk-name">'+esc(info.name)+'</div>'+_stkSub([u.items.length+(zh?' 色':' colours'), _stkLowTag(info.low,false)])+'</div>'
+      +'<span class="stk-qty'+(info.low?' low':'')+'">'+info.qty+'</span>'
+      +'<span class="stk-chev" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>'
     +'</div>';
   if(expanded){
+    h+='<div class="stk-fam-sub">';
     u.items.slice().sort((a,b)=> _invSort==='qty'?((b.qty||0)-(a.qty||0)):String(a.color||a.name).localeCompare(String(b.color||b.name))).forEach(i=>{
-      const low=_invLow(i);
-      h+='<div style="display:flex;align-items:center;gap:9px;padding:8px 13px;border-top:1px solid var(--c-border)'+(low?';background:#FFF5F5':'')+'">'+_invThumb(i.photo,ic,30)
-        +'<div style="flex:1;min-width:0;cursor:pointer" onclick="openStkView(\'inv\',\''+i.id+'\')"><span style="font-size:13px;font-weight:600">'+esc(i.color||i.name)+'</span>'+(low?' <span style="font-size:8px;font-weight:700;color:#C62828;border:1px solid #EF9A9A;border-radius:3px;padding:0 4px">'+(LANG==='zh'?'低':'Low')+'</span>':'')+'</div>'
-        +'<span class="stk-qty '+(low?'low':'')+'" style="font-size:17px;min-width:20px;text-align:right">'+(i.qty||0)+'</span>'+_invPM(i.id)
+      const low=_invLow(i), zero=(i.qty||0)<=0;
+      h+='<div class="stk-card sub'+(low?' low':'')+'" onclick="openStkView(\'inv\',\''+i.id+'\')">'+_invThumb(i.photo,ic,32)
+        +'<div class="stk-left"><div class="stk-name">'+esc(i.color||i.name)+'</div>'+_stkSub([_stkLowTag(low,zero)])+'</div>'
+        +'<span class="stk-qty'+(zero?' zero':(low?' low':''))+'">'+(i.qty||0)+'</span>'+_invPM(i.id)
       +'</div>';
     });
+    h+='</div>';
   }
   return h+'</div>';
 }
@@ -5645,8 +5663,8 @@ function _invUntrackedCard(i){
   const price=(i.price!=null&&i.price!=='')?'RM '+_invPriceStr(i.price):((i.sell!=null&&i.sell!=='')?'RM '+_invPriceStr(i.sell):'');
   return '<div class="stk-card" onclick="openStkView(\'inv\',\''+i.id+'\')">'
     +_invThumb(i.photo,_invIcon(i.cat))
-    +'<div class="stk-left"><div class="stk-name">'+esc(i.name||'')+'</div><div style="font-size:11px;color:var(--c-muted)">'+esc(_invCatLabel(i.cat))+(price?' · '+price:'')+'</div></div>'
-    +'<button type="button" onclick="event.stopPropagation();invTrackStart(\''+i.id+'\')" style="font-size:11.5px;font-weight:700;color:var(--c-burg);background:var(--c-surface);border:1.5px solid var(--c-burg);border-radius:20px;padding:5px 11px;cursor:pointer;white-space:nowrap">'+(LANG==='zh'?'加入库存':'Add to stock')+'</button>'
+    +'<div class="stk-left"><div class="stk-name">'+esc(i.name||'')+'</div>'+_stkSub([esc(_invCatLabel(i.cat)), price])+'</div>'
+    +'<button type="button" class="fu-act" onclick="event.stopPropagation();invTrackStart(\''+i.id+'\')">'+(LANG==='zh'?'加入库存':'Add to stock')+'</button>'
   +'</div>';
 }
 // Track-inventory toggle in the item form: moves the knob, recolours the track, updates the label.
@@ -5691,9 +5709,9 @@ function _invListHTML(){
   // ── sync status line (only on the All view) ──
   let sync='';
   if(!_invCat){
-    if(sReady) sync='<div class="stk-shop-sync">Shopify · '+esc(_shopStockAgo())+' · <a onclick="syncShopifyStock(true)">'+(zh?'刷新':'Refresh')+'</a></div>';
+    if(sReady) sync='<div class="stk-shop-sync">'+(zh?'Shopify 已同步 ':'Shopify synced ')+esc(_shopStockAgo())+'<a onclick="syncShopifyStock(true)">'+(zh?'刷新':'Refresh')+'</a></div>';
     else if(_shopStockLoading || !_shopStockAt) sync='<div class="stk-shop-sync">'+(zh?'正在同步 Shopify 库存…':'Syncing Shopify stock…')+'</div>';
-    else if(_shopStockErr) sync='<div class="stk-shop-sync">'+(zh?'Shopify 同步失败：':'Shopify sync failed: ')+esc(_shopStockErr)+' · <a onclick="syncShopifyStock(true)">'+(zh?'重试':'Retry')+'</a></div>';
+    else if(_shopStockErr) sync='<div class="stk-shop-sync">'+(zh?'Shopify 同步失败：':'Shopify sync failed: ')+esc(_shopStockErr)+'<a onclick="syncShopifyStock(true)">'+(zh?'重试':'Retry')+'</a></div>';
   }
   // ── merge categories ──
   const catKeys=Array.from(new Set(Object.keys(mByCat).concat(Object.keys(sByCat)))).sort((a,b)=>_catIndex(a)-_catIndex(b));
@@ -5714,12 +5732,13 @@ function _invListHTML(){
     units.forEach(u=>{ entries.push({ key: u.type==='fam'?u.key:u.item.id, name:_invUnitInfo(u).name, html: u.type==='fam'?_invFamCard(u):_invCard(u.item) }); });
     shopCards.forEach(p=>{ entries.push({ key:'shop:'+p.id, name:p.title||'', html:_shopStockCard(p) }); });
     const ordered = _custom ? _stkOrderSort(cat, entries) : entries;
-    body+='<div class="stk-cat">'+esc(_catLabel(cat))+'</div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
+    const lowN = units.filter(u=>_invUnitInfo(u).low).length + shopCards.filter(p=>p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW)).length;
+    body+='<div class="stk-cat">'+esc(_catLabel(cat))+'<span class="n num">'+ordered.length+'</span>'+(lowN?'<span class="n warn">'+lowN+(zh?' 低':' low')+'</span>':'')+'</div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
     ordered.forEach(e=>{ body += _reorder ? _stkDcell(cat, e) : e.html; });
     body+='</div>';
   });
   if(sUnassigned.length){
-    body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未分类':'Unassigned')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'点每个设置分类':'pick a category on each')+'</span></div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
+    body+='<div class="stk-cat">'+(zh?'未分类':'Unassigned')+'<span class="n num">'+sUnassigned.length+'</span></div><div class="stk-grid'+(_reorder?' reorder':'')+'">';
     const uEntries=sUnassigned.map(p=>({ key:'shop:'+p.id, name:p.title||'', html:_shopStockCard(p) }));
     (_custom?_stkOrderSort('__un__',uEntries):uEntries).forEach(e=>{ body += _reorder?_stkDcell('__un__',e):e.html; });
     body+='</div>';
@@ -5728,12 +5747,12 @@ function _invListHTML(){
   {
     const ut=INVENTORY.filter(i=>i.untracked && (!q || [i.name,i.family,i.color,i.sku,_invCatLabel(i.cat)].filter(Boolean).join(' ').toLowerCase().indexOf(q)>-1));
     if(ut.length){
-      body+='<div class="stk-cat" style="display:flex;align-items:center;gap:8px">'+(zh?'未入库':'Not tracked')+' <span style="font-size:10px;font-weight:400;color:var(--c-muted)">· '+(zh?'只显示资料,不计数量':'info only · not counted')+'</span></div>';
-      body+='<div style="display:flex;flex-direction:column;gap:8px">'+ut.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(_invUntrackedCard).join('')+'</div>';
+      body+='<div class="stk-cat">'+(zh?'未入库':'Not tracked')+'<span class="n num">'+ut.length+'</span></div>';
+      body+='<div class="stk-grid">'+ut.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).map(_invUntrackedCard).join('')+'</div>';
     }
   }
   if(!body && q) return sync+'<div style="text-align:center;color:var(--c-muted);padding:34px 0;font-size:13px">'+(zh?'没有符合的':'No match')+'</div>';
-  const hint = _custom ? '<div style="font-size:11.5px;color:var(--c-muted);margin:2px 0 10px;display:flex;align-items:center;gap:6px">'+di('reorder',14)+' '+(_reorder?(zh?'拖动手柄排序（每个分类内）':'Drag the handle to reorder within each category'):(zh?'清除搜索后可拖动排序':'Clear the search to drag-reorder'))+'</div>' : '';
+  const hint = '';
   return sync+hint+body;
 }
 // ── Shopify-synced stock (LIVE two-way mirror) ─────────────────────────────
@@ -5964,11 +5983,10 @@ function _shopStockCard(p){
   const total = single ? ((p.variants[0]||{}).qty||0) : p.total;
   const low = p.variants.some(v=>(v.qty||0)<=SHOP_STOCK_LOW);
   const zero = total<=0;
-  const qCol = zero ? 'color:var(--c-muted)' : (low ? 'color:var(--c-red)' : '');
-  return '<div class="stk-card '+(low?'low':'')+(zero?' zero':'')+'" onclick="openStkView(\'shop\',\''+p.id+'\')">'
+  return '<div class="stk-card'+(low?' low':'')+(zero?' zero':'')+'" onclick="openStkView(\'shop\',\''+p.id+'\')">'
     +_invThumb(p.image,ic)
-    +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+'</div></div>'
-    +'<span class="stk-qty" style="flex:none;'+qCol+'">'+total+'</span>'
+    +'<div class="stk-left"><div class="stk-name">'+esc(p.title)+'</div>'+_stkSub(['Shopify', _stkLowTag(low,zero)])+'</div>'
+    +'<span class="stk-qty'+(zero?' zero':(low?' low':''))+'">'+total+'</span>'
   +'</div>';
 }
 
@@ -6730,19 +6748,21 @@ function _shopStockHTML(){
 
 function renderInventory() {
   const cont = document.getElementById('inv-body'); if(!cont) return;
+  _stkTabCounts();
   const hasShop = !!(SHOPIFY_STOCK && SHOPIFY_STOCK.length) || _shopStockLoading || !!_shopStockErr;
-  if (!INVENTORY.length && !hasShop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No items — tap + Add Item</div></div>`; return; }
+  if (!INVENTORY.length && !hasShop) { cont.innerHTML=`<div class="empty"><div class="empty-ico">${di('box',34)}</div><div class="empty-txt">No materials yet</div></div>`; return; }
+  const zh=LANG==='zh';
   cont.innerHTML =
-    '<div style="display:flex;gap:8px;align-items:center;margin:12px 0">'
-      +'<div style="flex:1;display:flex;align-items:center;gap:8px;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;padding:8px 11px">'+di('search',15)+'<input id="inv-search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="'+(LANG==='zh'?'搜索 名字/款式/颜色/SKU…':'Search name / family / colour / SKU…')+'" style="flex:1;border:none;background:transparent;outline:none;font-size:13px;color:var(--c-ink)"></div>'
-      +'<select onchange="invSort(this.value)" style="border:1.5px solid var(--c-border);border-radius:10px;padding:8px;background:var(--c-surface);color:var(--c-ink);font-size:12px">'
-        +(LANG==='zh'?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少'],['custom','自定义排序']]:[['low','Low stock first'],['name','Name A→Z'],['qty','Qty high→low'],['custom','Custom order']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
-      +'</select>'
-    +'</div>'
+    _invTotalStrip()
     + _invRecoverBanner()
     + _boxDupBanner()
+    + '<div class="stk-tools">'
+      +'<input id="inv-search" class="stk-search" type="search" value="'+esc(_invSearch)+'" oninput="invOnSearch(this.value)" placeholder="'+(zh?'搜索材料':'Search materials')+'" aria-label="Search materials">'
+      +'<select class="stk-sort" aria-label="Sort" onchange="invSort(this.value)">'
+        +(zh?[['low','低库存优先'],['name','名字 A→Z'],['qty','数量多→少'],['custom','自定义排序']]:[['low','Low stock first'],['name','Name A to Z'],['qty','Qty high to low'],['custom','Custom order']]).map(o=>'<option value="'+o[0]+'"'+(_invSort===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')
+      +'</select>'
+    +'</div>'
     + _invChips()
-    + _invTotalStrip()
     + '<div id="inv-list">'+_invListHTML()+'</div>';
 }
 // One-time banner: offers to rebuild size counts that look lost (logged total > current).
@@ -6750,7 +6770,7 @@ function _invRecoverBanner(){
   const rec=(typeof _recoverableSizes==='function')?_recoverableSizes():[];
   if(!rec.length) return '';
   const zh=LANG==='zh';
-  return '<div onclick="openSizeRecover()" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1.5px solid #E8C77E;background:#FBF3DF;border-radius:10px;cursor:pointer;font-size:12.5px;color:#7A5B12">'
+  return '<div onclick="openSizeRecover()" class="stk-warn">'
     +'<span style="display:inline-flex;flex:none">'+di('warn',15)+'</span>'
     +'<span style="flex:1">'+(zh?(rec.length+' 个尺寸库存可能在同步问题中丢失 — 点此从记录重建'):(rec.length+' size count'+(rec.length>1?'s':'')+' may have been lost — tap to rebuild from history'))+'</span>'
     +'<span style="flex:none;color:#9a8f86">›</span>'
@@ -6784,7 +6804,7 @@ function _boxDupReconcile(){
 function _boxDupBanner(){
   const rows=(typeof _boxDupReconcile==='function')?_boxDupReconcile():[]; if(!rows.length) return '';
   const zh=LANG==='zh'; const n=rows.reduce((s,r)=>s+r.addBack,0);
-  return '<div onclick="openBoxReconcile()" style="display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:10px 12px;border:1.5px solid #E8C77E;background:#FBF3DF;border-radius:10px;cursor:pointer;font-size:12.5px;color:#7A5B12">'
+  return '<div onclick="openBoxReconcile()" class="stk-warn">'
     +'<span style="display:inline-flex;flex:none">'+di('warn',15)+'</span>'
     +'<span style="flex:1">'+(zh?('发现重复扣减 — 可退回 '+n+' 件库存（点此查看）'):('Duplicate deductions found — tap to add back '+n+' unit'+(n>1?'s':'')+' across '+rows.length+' item'+(rows.length>1?'s':'')))+'</span>'
     +'<span style="flex:none;color:#9a8f86">›</span>'
@@ -6826,24 +6846,126 @@ function _applyBoxDupReconcile(list){
   toast((zh?'已退回 ':'Added back to ')+touched.size+(zh?' 项':' item(s)'));
 }
 
+// Purchase: a "Running low" list straight from stock (same rules as the Materials page,
+// per size for sized items, Shopify variants too), and a list whose items can be linked
+// to a stock item so ticking one as bought adds what arrived to that item's count.
+let _purLowCache=[], _purRecvId=null;
+function _purLowList(){
+  const onList=new Set(PURCHASES.filter(p=>!p.done && p.mid).map(p=>p.mid+'|'+(p.sid||'')));
+  const out=[];
+  (INVENTORY||[]).forEach(i=>{
+    if(i.untracked) return;
+    if(typeof itemHasSizes==='function' && itemHasSizes(i)){
+      itemSizes(i).forEach(sz=>{
+        const explicit=(sz.reorder!=null&&sz.reorder!=='')?+sz.reorder:((i.reorder!=null&&i.reorder!=='')?+i.reorder:null);
+        const q=parseInt(sz.qty,10)||0;
+        if(q<=(explicit!=null?explicit:INV_LOW)) out.push({ mid:i.id, sid:sz.id, name:(i.name||'')+', '+(sz.label||''), qty:q, reorder:explicit, unit:i.unit||'', photo:(Array.isArray(sz.photos)&&sz.photos[0])||i.photo||null, ic:_invIcon(i.cat) });
+      });
+    } else if(_invLow(i)){
+      const explicit=(i.reorder!=null&&i.reorder!=='')?+i.reorder:null;
+      out.push({ mid:i.id, sid:'', name:i.name||'', qty:i.qty||0, reorder:explicit, unit:i.unit||'', photo:i.photo||null, ic:_invIcon(i.cat) });
+    }
+  });
+  (SHOPIFY_STOCK||[]).forEach(p=>{
+    const m=shopMeta(p.id), explicit=(m.reorder!=null&&m.reorder!=='')?+m.reorder:null, lowAt=explicit!=null?explicit:SHOP_STOCK_LOW;
+    (p.variants||[]).forEach((v,k)=>{ const q=v.qty||0; if(q<=lowAt) out.push({ mid:'shop:'+p.id, sid:String(v.invItemId||k), name:(p.title||'')+(((p.variants||[]).length>1&&v.title&&!/^default title$/i.test(v.title))?', '+v.title:''), qty:q, reorder:explicit, unit:'', photo:p.image||null, ic:'box', shop:true }); });
+  });
+  return out.filter(x=>!onList.has(x.mid+'|'+(x.sid||''))).sort((a,b)=>a.qty-b.qty || a.name.localeCompare(b.name));
+}
+function _purSuggest(x){ return x.reorder!=null ? Math.max(1, x.reorder - x.qty) : null; }
+function purAddLow(k, silent){
+  const x=_purLowCache[k]; if(!x) return;
+  const s=_purSuggest(x);
+  PURCHASES.push({ id:'pur-'+Date.now()+'-'+k, name:x.name, qty:(s!=null ? s+(x.unit?' '+x.unit:'') : ''), urg:'week', notes:'', done:false, photo:'', mid:x.mid, sid:x.sid||null });
+  if(!silent){ savePurchases(); renderPurchase(); toast('✓ Added to purchase list'); }
+}
+function purAddAllLow(){ const n=_purLowCache.length; _purLowCache.forEach((x,k)=>purAddLow(k,true)); savePurchases(); renderPurchase(); toast('✓ Added '+n); }
+// The stock item a purchase is linked to: its name, current count and how to add to it.
+function _purStock(p){
+  if(!p || !p.mid) return null;
+  if(String(p.mid).indexOf('shop:')===0){
+    const pid=String(p.mid).slice(5), prod=(SHOPIFY_STOCK||[]).find(x=>x.id===pid); if(!prod) return null;
+    let k=(prod.variants||[]).findIndex(v=>v.invItemId!=null && String(v.invItemId)===String(p.sid));
+    if(k<0 && /^\d+$/.test(String(p.sid||''))) k=+p.sid;
+    if(k<0) k=0;
+    const v=(prod.variants||[])[k]; if(!v) return null;
+    return { name:(prod.title||'')+(((prod.variants||[]).length>1&&v.title&&!/^default title$/i.test(v.title))?', '+v.title:''), qty:v.qty||0, add:n=>shopStockAdjust(pid,k,n) };
+  }
+  const it=INVENTORY.find(x=>x.id===p.mid); if(!it) return null;
+  if(p.sid){ const sz=_sizeById(it,p.sid); if(!sz) return null; return { name:(it.name||'')+', '+(sz.label||''), qty:parseInt(sz.qty,10)||0, add:n=>stkAdjSize(it.id,sz.id,n) }; }
+  return { name:it.name||'', qty:it.qty||0, add:n=>invAdjust(it.id,n,'in') };
+}
+// Stock items to link a purchase to (edit form): materials, their sizes, Shopify variants.
+function _purLinkOptions(cur){
+  const opt=(v,l)=>'<option value="'+esc(v)+'"'+(v===cur?' selected':'')+'>'+esc(l)+'</option>';
+  let h=opt('', LANG==='zh'?'不连接':'Not linked');
+  INVENTORY.filter(i=>!i.untracked).slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''))).forEach(i=>{
+    if(typeof itemHasSizes==='function' && itemHasSizes(i)) itemSizes(i).forEach(sz=>{ h+=opt(i.id+'|'+sz.id, (i.name||'')+', '+(sz.label||'')); });
+    else h+=opt(i.id+'|', i.name||'');
+  });
+  (SHOPIFY_STOCK||[]).forEach(p=>(p.variants||[]).forEach((v,k)=>{ h+=opt('shop:'+p.id+'|'+String(v.invItemId||k), (p.title||'')+(((p.variants||[]).length>1&&v.title&&!/^default title$/i.test(v.title))?', '+v.title:'')+' (Shopify)'); }));
+  return h;
+}
+function _purLinkPick(sel){ const n=document.getElementById('p-name'); if(n && !n.value.trim() && sel.value){ n.value=sel.options[sel.selectedIndex].text.replace(/ \(Shopify\)$/,''); } }
 function renderPurchase() {
+  _stkTabCounts();
+  const cont = document.getElementById('pur-body'); if(!cont) return;
   const URG = {today:{l:'Today',c:'today'},week:{l:'This week',c:'week'},stock:{l:'Stock up',c:'stock'}};
-  const cont = document.getElementById('pur-body');
-  if (!PURCHASES.length) { cont.innerHTML=`<div class="empty" style="padding:32px 0"><div class="empty-ico">${di('sparkle',34)}</div><div class="empty-txt">Nothing to buy — tap + Add Item</div></div>`; return; }
-  const ord={today:0,week:1,stock:2};
-  const sorted = [...PURCHASES].sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((ord[a.urg]??2)-(ord[b.urg]??2)));
-  cont.innerHTML = sorted.map(p => {
-    const u = URG[p.urg] || URG.stock;
-    const sub = [p.qty, p.notes].filter(Boolean).join(' · ');
-    const thumb = p.photo ? `<img class="buy-thumb" src="${esc(p.photo)}" alt="" onclick="openZoom('${String(p.photo).replace(/'/g,"\\'")}','')">` : '';
-    return `<div class="buy-item ${p.done?'done':''}">
-      <button type="button" class="buy-check ${p.done?'checked':''}" role="checkbox" aria-checked="${p.done?'true':'false'}" aria-label="Mark ${esc(p.name)} bought" onclick="togglePur('${p.id}')">${p.done?di('check',12):''}</button>
-      ${thumb}
-      <div class="buy-main" style="cursor:pointer" onclick="editPur('${p.id}')" title="Tap to edit"><div class="buy-name ${p.done?'done':''}">${esc(p.name)}</div>${sub?`<div class="buy-sub">${esc(sub)}</div>`:''}</div>
-      <span class="buy-urg ${u.c}">${u.l}</span>
-      <button class="buy-del" onclick="delPur('${p.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>`;
-  }).join('');
+  const X = '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  _purLowCache = _purLowList();
+  let h='';
+  if(_purLowCache.length){
+    h+='<section><div class="stk-cat">Running low<span class="n num">'+_purLowCache.length+'</span><button type="button" class="fu-act stk-cat-act" onclick="purAddAllLow()">Add all</button></div>'
+      + _purLowCache.map((x,k)=>{ const s=_purSuggest(x);
+          const sub='<span class="num">'+x.qty+'</span> left'+(x.reorder!=null?', reorder at <span class="num">'+x.reorder+'</span>':'')+(x.shop?', Shopify':'');
+          return '<div class="pur-row low">'+_invThumb(x.photo,x.ic)+'<div class="pur-main"><div class="pur-nm">'+esc(x.name)+'</div><div class="pur-sub">'+sub+'</div></div>'
+            +'<button type="button" class="fu-act" onclick="purAddLow('+k+')">'+(s!=null?'Add '+s:'Add')+'</button></div>'; }).join('')
+      + '</section>';
+  }
+  const open=PURCHASES.filter(p=>!p.done).length;
+  h+='<section><div class="stk-cat">Purchase list'+(open?'<span class="n num">'+open+'</span>':'')+'</div>';
+  if(!PURCHASES.length) h+='<div class="stk-empty">Nothing to buy</div>';
+  else {
+    const ord={today:0,week:1,stock:2};
+    const sorted = [...PURCHASES].sort((a,b)=>((a.done?1:0)-(b.done?1:0)) || ((ord[a.urg]??2)-(ord[b.urg]??2)));
+    h+=sorted.map(p=>{
+      const u = URG[p.urg] || URG.stock;
+      const sub = [p.qty, p.notes].filter(Boolean).join(', ');
+      const st = p.done ? null : _purStock(p);
+      const thumb = p.photo ? '<img class="sthumb" src="'+esc(p.photo)+'" alt="" style="width:44px;height:44px" onclick="openZoom(\''+String(p.photo).replace(/'/g,"\\'")+'\',\'\')">' : '';
+      return '<div class="pur-row'+(p.done?' done':'')+'">'
+        +'<button type="button" class="orw-tick'+(p.done?' r':'')+'" role="checkbox" aria-checked="'+(p.done?'true':'false')+'" aria-label="Mark '+esc(p.name)+' bought" onclick="togglePur(\''+p.id+'\')">'+di('check',14)+'</button>'
+        + thumb
+        +'<div class="pur-main" style="cursor:pointer" onclick="editPur(\''+p.id+'\')"><div class="pur-nm">'+esc(p.name)+'</div>'
+          +(sub?'<div class="pur-sub">'+esc(sub)+'</div>':'')
+          +(st?'<div class="pur-link">Adds to stock: '+esc(st.name)+'</div>':'')
+        +'</div>'
+        +'<span class="pur-urg '+u.c+'">'+u.l+'</span>'
+        +'<button type="button" class="dstop-x" aria-label="Remove '+esc(p.name)+'" onclick="delPur(\''+p.id+'\')">'+X+'</button>'
+      +'</div>';
+    }).join('');
+  }
+  cont.innerHTML = h + '</section>';
+}
+// Ticking a linked item asks how many arrived and adds them to its stock count.
+function openPurRecv(id){
+  const p=PURCHASES.find(x=>x.id===id), st=_purStock(p); if(!p||!st) return;
+  _purRecvId=id;
+  document.getElementById('prv-name').textContent=st.name;
+  document.getElementById('prv-now').textContent=st.qty+(LANG==='zh'?' 现有库存':' in stock now');
+  const n=parseInt((String(p.qty||'').match(/\d+/)||[])[0],10);
+  const q=document.getElementById('prv-qty'); q.value = n>0 ? n : '';
+  openModal('m-pur-recv'); setTimeout(()=>{ try{ q.focus(); q.select(); }catch(_){} }, 60);
+}
+function purRecvConfirm(addStock){
+  const p=PURCHASES.find(x=>x.id===_purRecvId); if(!p){ closeModal('m-pur-recv'); return; }
+  if(addStock){
+    const n=parseInt(document.getElementById('prv-qty').value,10);
+    if(!(n>0)){ toast('Enter how many arrived'); document.getElementById('prv-qty').focus(); return; }
+    const st=_purStock(p); if(st) st.add(n);
+  }
+  p.done=true; savePurchases(); closeModal('m-pur-recv'); renderPurchase();
+  toast(addStock?'✓ Added to stock':'✓ Ticked');
 }
 
 /* ─── Follow-up ──────────────────────────────────────────────── */
@@ -12951,6 +13073,7 @@ function openAddPur(){
   ['p-name','p-qty','p-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('p-urg').value='week';
   setPhotoZone('p-photo-zone','p-photo','');
+  document.getElementById('p-link').innerHTML=_purLinkOptions('');
   document.getElementById('p-modal-ttl').textContent='Add to Purchase List';
   document.getElementById('p-save-btn').textContent='Add Item';
   openModal('m-pur');
@@ -12963,6 +13086,7 @@ function editPur(id){
   document.getElementById('p-urg').value=p.urg||'week';
   document.getElementById('p-notes').value=p.notes||'';
   setPhotoZone('p-photo-zone','p-photo',p.photo||'');
+  document.getElementById('p-link').innerHTML=_purLinkOptions(p.mid ? p.mid+'|'+(p.sid||'') : '');
   document.getElementById('p-modal-ttl').textContent='Edit Item';
   document.getElementById('p-save-btn').textContent='Save';
   openModal('m-pur');
@@ -13342,7 +13466,8 @@ function savePur(){
   const name=document.getElementById('p-name').value.trim();
   if(!name){toast('Name required');return;}
   const editId=document.getElementById('p-edit-id').value;
-  const data={name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),photo:document.getElementById('p-photo').value||''};
+  const _lk=((document.getElementById('p-link')||{}).value||'').split('|');
+  const data={name,qty:document.getElementById('p-qty').value.trim(),urg:document.getElementById('p-urg').value,notes:document.getElementById('p-notes').value.trim(),photo:document.getElementById('p-photo').value||'',mid:_lk[0]||null,sid:_lk[1]||null};
   if(editId){ const p=PURCHASES.find(x=>x.id===editId); if(p) Object.assign(p,data); }
   else { PURCHASES.push({id:'pur-'+Date.now(),...data,done:false}); }
   savePurchases();closeModal('m-pur');
@@ -13667,7 +13792,7 @@ function doRepeatOrder(){
 }
 function invAdj(id,delta){ invAdjust(id, delta, delta>0?'in':'out'); }
 function invDel(id){if(!confirm('Remove item?'))return;INVENTORY=INVENTORY.filter(x=>x.id!==id);saveInventory([]);if(hasSB())sbDelete('inventory',id);renderInventory();toast('Removed');}
-function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(p)p.done=!p.done;savePurchases();renderPurchase();}
+function togglePur(id){const p=PURCHASES.find(x=>x.id===id);if(!p)return;if(!p.done&&_purStock(p)){openPurRecv(id);return;}p.done=!p.done;savePurchases();renderPurchase();}
 function delPur(id){PURCHASES=PURCHASES.filter(x=>x.id!==id);savePurchases();if(hasSB())sbDelete('purchases',id);renderPurchase();}
 function clearDone(){const gone=PURCHASES.filter(x=>x.done).map(x=>x.id);PURCHASES=PURCHASES.filter(x=>!x.done);savePurchases();if(hasSB())gone.forEach(id=>sbDelete('purchases',id));renderPurchase();toast('Cleared done items');}
 

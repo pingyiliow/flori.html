@@ -1,4 +1,4 @@
-/* Hallmark · redesign: full · scope: app · theme: loom (ecru, accent ink green by request) · built: the project · pages: shared chrome, orders, new orders, delivery (rest follow page by page) · v2.0.0 */
+/* Hallmark · redesign: full · scope: app · theme: loom (ecru, accent ink green by request) · built: the project · pages: shared chrome, orders, new orders, delivery, stock (rest follow page by page) · v2.0.0 */
 /* critique: one quiet paper, ruled rows instead of cards, Caslon for titles and figures, ink green only for the primary action, selection and urgency */
 /* ── tokens ──────────────────────────────────────────────────── */
 :root{
@@ -1264,6 +1264,86 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
   .fuw .orw-time .d,.fuw .orw-time .t{display:inline;margin-right:8px}
   .fuw .orw-time .flag{display:inline}
   .fuw .fu-act{min-height:44px}
+}
+
+/* ── Stock (hallmark redesign) ──────────────────────────────── */
+#pg-stock .page-hdr{flex-wrap:wrap;gap:12px}
+.stk-acts{display:flex;gap:8px;align-items:center}
+.stk-acts[hidden]{display:none}
+.stk-acts .btn{height:40px}
+.stk-acts .btn-primary{padding:0 20px}
+.f-btn .f-n.warn{color:var(--color-warn);font-weight:600}
+.stk-tally{margin-bottom:24px;flex-wrap:wrap;row-gap:12px}
+.stk-tools{display:flex;gap:12px;align-items:center}
+.stk-search{flex:1;min-width:0;height:40px;border:1px solid var(--c-border);background:var(--c-surface);padding:0 12px;font:inherit;font-size:13.5px;color:var(--c-ink);border-radius:0}
+.stk-sort{height:40px;border:1px solid var(--c-border);background:var(--c-surface);padding:0 8px;font:inherit;font-size:13px;color:var(--c-ink);border-radius:0}
+.stk-cats{margin-top:12px}
+.stk-warn{display:flex;align-items:center;gap:12px;padding:12px 16px;margin-bottom:16px;background:var(--color-paper-2);box-shadow:inset 3px 0 0 var(--color-warn);color:var(--color-warn);font-size:13.5px;font-weight:600;cursor:pointer}
+.stk-shop-sync{font-size:12px;color:var(--c-muted);margin:16px 0 0}
+.stk-shop-sync a{color:var(--color-accent);font-weight:600;margin-left:8px;cursor:pointer}
+.stk-cat{display:flex;align-items:center;gap:12px;margin-top:28px;padding:0 0 8px;border-bottom:2px solid var(--c-ink);font-size:15px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--c-ink)}
+.stk-cat::after{display:none}
+.stk-cat .n{font-size:13.5px;font-weight:500;color:var(--c-muted)}
+.stk-cat .n.warn{color:var(--color-warn)}
+.stk-cat .stk-cat-act{margin-left:auto}
+.stk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));column-gap:32px;row-gap:0}
+.stk-card{display:flex;align-items:center;gap:12px;padding:12px 0;background:none;border:0;border-bottom:1px solid var(--c-border);border-radius:0;box-shadow:none;cursor:pointer;min-width:0;transition:background-color .14s}
+.stk-card:hover{background:color-mix(in oklab,var(--color-paper-2) 60%,transparent);border-color:var(--c-border);box-shadow:none}
+.stk-card.low{border-color:var(--c-border);background:none}
+.stk-card.low:hover{background:color-mix(in oklab,var(--color-paper-2) 60%,transparent)}
+.stk-left{flex:1;min-width:0;gap:2px}
+.stk-name{font-size:15px;font-weight:600;color:var(--c-ink)}
+.stk-card.zero .stk-name{color:var(--color-ink-2);font-weight:500}
+.stk-unit{font-size:12px;color:var(--c-muted)}
+.stk-tag{color:var(--color-warn);font-weight:600}
+.stk-tag.out{color:var(--c-muted);font-weight:500}
+.stk-qty{font-family:var(--font-display);font-size:30px;font-weight:400;line-height:1;color:var(--c-ink);min-width:44px;text-align:right;flex:none}
+.stk-qty.low{color:var(--color-warn)}
+.stk-qty.zero{color:var(--c-muted)}
+.sthumb{flex:none;object-fit:cover;background:var(--color-paper-2);display:flex;align-items:center;justify-content:center;color:var(--c-muted);cursor:zoom-in;outline:1px solid color-mix(in oklab,var(--color-ink) 8%,transparent);outline-offset:-1px}
+.sthumb.ph{cursor:inherit}
+.stk-fam{min-width:0}
+.stk-chev{color:var(--c-muted);display:inline-flex;flex:none;transition:transform .14s}
+.stk-fam.open .stk-chev{transform:rotate(180deg)}
+.stk-card.sub{padding-left:56px}
+.stk-card.sub .stk-qty{font-size:24px}
+.stk-pm{display:flex;gap:4px;flex:none}
+.stk-pm button{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:0;box-shadow:inset 0 0 0 1px var(--c-border);background:var(--c-surface);color:var(--color-ink-2);font-size:18px;line-height:1;cursor:pointer;border-radius:0;transition:background-color .14s}
+.stk-pm button:hover{background:var(--color-paper-2)}
+.stk-pm button.in{background:var(--color-accent);color:var(--color-accent-ink);box-shadow:none}
+.stk-pm button:active{transform:translateY(1px)}
+.stk-dcell{padding-left:40px}
+.stk-dhandle{border:0;border-radius:0;background:none;width:36px;color:var(--c-muted)}
+.stk-dhandle:active{color:var(--color-accent)}
+.stk-dcell.drop-target .stk-card{outline:2px dashed var(--color-accent);outline-offset:-2px}
+.rec-card{background:none;border:0;border-bottom:1px solid var(--c-border);border-radius:0;padding:12px 0;margin:0;gap:12px;box-shadow:none;cursor:pointer;transition:background-color .14s}
+.rec-card:hover{background:color-mix(in oklab,var(--color-paper-2) 60%,transparent);border-color:var(--c-border)}
+.rec-nm{font-weight:600;font-size:15px}
+.rec-src{font-size:12px;font-weight:500;color:var(--c-muted);margin-left:8px}
+.rec-uses{font-size:13px}
+.rec-chev{color:var(--c-muted)}
+#rec-body{border-top:2px solid var(--c-ink);margin-top:16px}
+.pur-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--c-border)}
+.pur-main{flex:1;min-width:0}
+.pur-nm{font-size:15px;font-weight:600;color:var(--c-ink)}
+.pur-row.done .pur-nm{color:var(--c-muted);text-decoration:line-through;font-weight:500}
+.pur-sub{font-size:12.5px;color:var(--c-muted);margin-top:2px}
+.pur-link{font-size:12.5px;color:var(--color-accent);font-weight:500;margin-top:2px}
+.pur-urg{font-size:12px;font-weight:600;white-space:nowrap}
+.pur-urg.today{color:var(--color-warn)}
+.pur-urg.week{color:var(--color-ink-2)}
+.pur-urg.stock{color:var(--c-muted);font-weight:500}
+#pur-body section:first-child .stk-cat{margin-top:0}
+.stk-empty{padding:16px 0;font-size:13.5px;color:var(--c-muted)}
+.stk-notes{margin-top:28px}
+.stk-h{display:block;font-size:15px;font-weight:600;color:var(--c-ink);padding-bottom:8px;border-bottom:2px solid var(--c-ink)}
+.stk-notes textarea{width:100%;min-height:110px;margin-top:12px;padding:12px;border:1px solid var(--c-border);background:var(--c-surface);font:inherit;font-size:14px;color:var(--c-ink);resize:vertical;border-radius:0}
+.prv-item{display:flex;flex-direction:column;gap:2px}
+.prv-item b{font-size:15px;font-weight:600}
+.prv-item span{font-size:12.5px;color:var(--c-muted)}
+@media(max-width:860px){
+  .stk-acts .btn{height:36px;padding:0 12px;font-size:12.5px}
+  .stk-card.sub{padding-left:24px}
 }
 
 /* ── Delivery (hallmark redesign) ───────────────────────────── */
