@@ -1104,6 +1104,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           </div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> Remarks (whole order)</label><textarea id="fu-remarks" style="min-height:48px" placeholder="Allergies, other notes for the whole order…"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Delivery instructions</label><textarea id="fu-deliv-instr" style="min-height:44px" placeholder="Call before arriving, leave at the guardhouse…"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label style="display:flex;align-items:center;gap:8px;font-size:13.5px;cursor:pointer;min-height:36px"><input id="fu-need-invoice" type="checkbox" style="width:18px;height:18px;flex:none">Customer needs an invoice</label></div>
           <input type="hidden" id="fu-notes">
         </div>
       </div>
@@ -1669,7 +1670,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -3381,7 +3382,7 @@ async function loadFromSupabase(opts = {}) {
         addr: f.addr||'', payment: f.payment||'pending', paidBy: f.paid_by||'', paySlip: f.pay_slip||'', payNote: f.pay_note||'',
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
-        needInvoice: !!f.need_invoice,
+        needInvoice: !!f.need_invoice, invoiceNo: f.invoice_no||'', invoiceAt: f.invoice_at||null,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
@@ -6995,13 +6996,13 @@ function saveFollowups() {
       addr: f.addr||null, payment: f.payment||'pending', paid_by: f.paidBy||null, pay_slip: f.paySlip||null, pay_note: f.payNote||null,
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
-      need_invoice: !!f.needInvoice,
+      need_invoice: !!f.needInvoice, invoice_no: f.invoiceNo||null, invoice_at: f.invoiceAt||null,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
     }));
     sbUpsert('followups', rows).then(ok => {
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7023,6 +7024,7 @@ function _fuClearFields() {
     const el=document.getElementById(id);if(el)el.value='';
   });
   document.getElementById('fu-channel').value = 'whatsapp';
+  { const fni=document.getElementById('fu-need-invoice'); if(fni) fni.checked=false; }
   document.getElementById('fu-payment').value = 'pending';
   _fuPaySet('', 'pending');
   const st = document.getElementById('fu-status'); if(st) st.value='pending';
@@ -7412,6 +7414,7 @@ function editFollowup(id) {
     if(_sub>0 && Math.abs(_saved-_sub)<0.01){ _fuAmountManual=false; } _fuRecalcTotals(); }
   const frEl = document.getElementById('fu-remarks');  if(frEl) frEl.value = f.remarks||'';
   const fdiEl = document.getElementById('fu-deliv-instr'); if(fdiEl) fdiEl.value = f.deliveryInstr||'';
+  const fniEl = document.getElementById('fu-need-invoice'); if(fniEl) fniEl.checked = !!(f.needInvoice || f.invoiceNo);
   document.getElementById('fu-notes').value = f.notes || '';
   const pb = document.getElementById('fu-photo-b64'); if(pb) pb.value = f.photo||'';
   fuSwitchTab('manual');
@@ -7585,6 +7588,11 @@ function saveFollowup() {
     id: editId||('fu-'+Date.now()), name,
     shopifyDraftId: prevFu?.shopifyDraftId || null,
     orderNo: prevFu?.orderNo || null,
+    // The form doesn't edit these; replacing the entry used to drop them on every edit.
+    paySlip: prevFu?.paySlip || '', payNote: prevFu?.payNote || '',
+    invoiceNo: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceNo || '') : ''),
+    invoiceAt: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceAt || null) : null),
+    needInvoice: !!document.getElementById('fu-need-invoice')?.checked && !(prevFu?.invoiceNo),
     photo: _coverPhoto,
     itemList: _itemList,
     contact:    document.getElementById('fu-contact').value.trim(),
@@ -7715,14 +7723,79 @@ function setFUPayRef(id, v){
   f.paidBy=nv; saveFollowups(); toast('✓ Saved');
 }
 function togglePayment(id) { const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return; f.payment=f.payment==='paid'?'pending':'paid'; if(f.payment==='pending') f.paidBy=''; saveFollowups(); renderFollowup(); }
+// Invoice flow: none → Requested (when taking the order, or the badge) → Issued (invoice
+// number + date). The state rides at the end of the Shopify Paid By line, which the Sales
+// Order prints, and is pushed to the Shopify draft/order whenever it changes.
+function _fuInvoiceText(f){
+  if (!f) return '';
+  if (f.invoiceNo) return 'Invoice '+f.invoiceNo+(f.invoiceAt ? ' ('+new Date(f.invoiceAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+')' : '');
+  return f.needInvoice ? 'Invoice requested' : '';
+}
+function _fuPaidByLine(f){
+  return [f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment'), f.payNote, _fuInvoiceText(f)].filter(Boolean).join(', ');
+}
+// Rewrite the Paid By attribute on the Shopify order this entry became (or its draft), keeping
+// every other attribute. Returns 'order' | 'draft' | null (not in Shopify yet) | 'error'.
+async function _fuPushPaidBy(f){
+  if (!f || (!f.orderNo && !f.shopifyDraftId)) return null;
+  const value = _fuPaidByLine(f);
+  const merge = attrs => { const a=(attrs||[]).map(x=>({ key:x.key, value:x.value })); const i=a.findIndex(x=>x.key==='Paid By'); if(i>=0) a[i].value=value; else a.push({ key:'Paid By', value }); return a; };
+  const updOrder = async gid => {
+    const r = await shopifyGQL('query($id:ID!){ order(id:$id){ customAttributes{ key value } } }', { id:gid });
+    if (!r.order) throw new Error('order not found');
+    const u = await shopifyGQL('mutation($input:OrderInput!){ orderUpdate(input:$input){ userErrors{ field message } } }', { input:{ id:gid, customAttributes:merge(r.order.customAttributes) } });
+    const ue = (u.orderUpdate && u.orderUpdate.userErrors) || []; if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+    return 'order';
+  };
+  try{
+    const digits = String(f.orderNo||'').replace(/[^0-9]/g,'');
+    const o = digits ? ORDERS.find(x=>x.src==='shopify' && String(x.name||'').replace(/[^0-9]/g,'')===digits) : null;
+    if (o) return await updOrder('gid://shopify/Order/'+shopId(o.id));
+    if (f.shopifyDraftId){
+      const gid = /^gid:\/\//.test(String(f.shopifyDraftId)) ? f.shopifyDraftId : 'gid://shopify/DraftOrder/'+f.shopifyDraftId;
+      const r = await shopifyGQL('query($id:ID!){ draftOrder(id:$id){ customAttributes{ key value } order{ id } } }', { id:gid });
+      const d = r.draftOrder; if (!d) return null;
+      if (d.order && d.order.id) return await updOrder(d.order.id);   // the draft already became an order
+      const u = await shopifyGQL('mutation($id:ID!,$input:DraftOrderInput!){ draftOrderUpdate(id:$id,input:$input){ userErrors{ field message } } }', { id:gid, input:{ customAttributes:merge(d.customAttributes) } });
+      const ue = (u.draftOrderUpdate && u.draftOrderUpdate.userErrors) || []; if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+      return 'draft';
+    }
+  }catch(e){ console.warn('Paid By sync', e && e.message); return 'error'; }
+  return null;
+}
+function _fuAfterInvoice(f, msg){
+  saveFollowups(); renderFollowup();
+  toast(msg);
+  _fuPushPaidBy(f).then(res => { if (res==='order' || res==='draft') toast('✓ Shopify updated'); else if (res==='error') toast('⚠ Saved here. Shopify not updated'); });
+}
+// Badge: none → request; requested → remove the request; issued → edit the number.
 function toggleInvoice(id) {
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
-  f.needInvoice = !f.needInvoice;
+  if (f.invoiceNo) return recordInvoiceNo(id);
+  if (f.needInvoice) {
+    if (!confirm('Remove the invoice request?')) return;
+    f.needInvoice = false;
+    return _fuAfterInvoice(f, 'Invoice request removed');
+  }
+  f.needInvoice = true;
   // Requesting an invoice on an already-completed order pulls it back to pending —
-  // it isn't truly done until the invoice is issued (then clear the 🧾 to complete).
-  if (f.needInvoice && f.status==='completed') f.status='pending';
-  saveFollowups(); renderFollowup();
-  toast(f.needInvoice ? 'Invoice requested — stays pending until issued' : '✓ Invoice issued — order can be completed');
+  // it isn't truly done until the invoice is issued.
+  if (f.status==='completed') f.status='pending';
+  _fuAfterInvoice(f, 'Invoice requested');
+}
+function recordInvoiceNo(id) {
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  const v = prompt('Invoice number', f.invoiceNo || '');
+  if (v === null) return;
+  const no = v.trim();
+  if (!no) {
+    if (!f.invoiceNo) return;
+    f.invoiceNo=''; f.invoiceAt=null; f.needInvoice=true;   // back to requested
+    return _fuAfterInvoice(f, 'Invoice number removed');
+  }
+  if (no !== f.invoiceNo) f.invoiceAt = new Date().toISOString();
+  f.invoiceNo = no; f.needInvoice = false;
+  _fuAfterInvoice(f, '✓ Invoice '+no+' recorded');
 }
 function toggleComplete(id) { toggleFUStatus(id); }
 
@@ -8070,7 +8143,7 @@ async function createShopifyDraft() {
     { key:'Order Due Date', value: f.dueDate ? _fmtDDMM(f.dueDate) : '' },
     { key:'Order Due Time', value: f.dueTime || '' },
     // The payment note rides in the same Paid By line, e.g. "Bank transfer, pbb RM400, 5/11".
-    { key:'Paid By', value: [f.paidBy || (f.payment==='paid' ? 'Paid' : 'Pending payment'), f.payNote].filter(Boolean).join(', ') },
+    { key:'Paid By', value: _fuPaidByLine(f) },
   ];
   if (f.paySlip && /^https?:\/\//.test(f.paySlip)) customAttributes.push({ key:'Payment Slip', value: f.paySlip });
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
@@ -8284,7 +8357,7 @@ function _orderPayConfirm(){
   o.paidBy=_payFmt(m, ref); o.paidAt=new Date().toISOString(); o.paySlip=_paySlipUrl||null; o.payNote=document.getElementById('fupay-note').value.trim()||null;
   saveOrderPatch(o, { paid_by:o.paidBy, paid_at:o.paidAt, pay_slip:o.paySlip, pay_note:o.payNote });
   const fl=_oFuLink(o);
-  if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; if(o.payNote) fl.payNote=o.payNote; saveFollowups(); }
+  if (fl){ fl.payment='paid'; fl.paidBy=o.paidBy; if(o.paySlip) fl.paySlip=o.paySlip; if(o.payNote) fl.payNote=o.payNote; saveFollowups(); _fuPushPaidBy(fl); }
   closeModal('m-fu-pay'); renderOrders();
   if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
   if (o.src==='shopify') orderPushPaid(o.id); else toast('✓ Payment recorded');
@@ -8352,6 +8425,7 @@ function fuPayConfirm(paid){
   f.status='ready';
   saveFollowups(); closeModal('m-fu-pay'); renderFollowup();
   toast(paid ? '✓ Paid · ready for Shopify' : '✓ Ready for Shopify · unpaid');
+  _fuPushPaidBy(f);
 }
 function fuBackToEnquiry(id){
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
@@ -8396,7 +8470,7 @@ function renderFollowup() {
       + (f.dueTime ? '<span class="t">'+(String(f.dueTime).length<=15 ? esc(f.dueTime).replace(/ /g,'&nbsp;') : esc(f.dueTime))+'</span>' : '')
       + (late ? '<span class="flag late">Overdue</span>' : isTd ? '<span class="flag today">Today</span>' : '');
     const dk = _normPhone(f.contact) || String(f.name||'').trim().toLowerCase(), dn = dk ? dupCounts[dk] : 0;
-    const tags = [chLabel[f.channel]||f.channel||'', f.fulfil==='pickup'?'Pickup':'Delivery', f.needInvoice?'Invoice':'']
+    const tags = [chLabel[f.channel]||f.channel||'', f.fulfil==='pickup'?'Pickup':'Delivery', _fuInvoiceText(f)]
         .filter(Boolean).map(t => '<span class="orw-tag">'+esc(t)+'</span>').join('')
       + (f.orderNo ? '<span class="orw-no num">'+esc(f.orderNo)+'</span>' : '')
       + (dn > 1 ? '<span class="orw-tag warn">'+(dn===2?'On the list twice':'On the list '+dn+' times')+'</span>' : '')
@@ -8459,7 +8533,7 @@ function openFUDP(id) {
   let html = '';
   // Stage + invoice flag
   html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:4px">${_fuStageChip(f)}${(_fuStage(f)!=='enquiry'&&f.payment!=='paid')?_fuChip('Unpaid','#FAEEDA','#854F0B'):''}
-    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${f.needInvoice?'background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9':'background:var(--c-surface);color:var(--c-muted);border:1px dashed var(--c-border)'}">${f.needInvoice?'Invoice requested':'Invoice needed?'}</span></button>
+    <button onclick="toggleInvoice('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)" style="cursor:pointer;background:none;border:none;padding:0"><span class="pay-badge" style="${f.needInvoice?'background:#E8F0FE;color:#1565C0;border:1px solid #90CAF9':(f.invoiceNo?'background:var(--color-paper-2);color:var(--c-ink);border:1px solid var(--c-border)':'background:var(--c-surface);color:var(--c-muted);border:1px dashed var(--c-border)')}">${f.needInvoice||f.invoiceNo?esc(_fuInvoiceText(f)):'Invoice needed?'}</span></button>${f.needInvoice?`<button type="button" class="fu-act" onclick="recordInvoiceNo('${f.id}');closeFUDP();setTimeout(()=>openFUDP('${f.id}'),50)">Record invoice no.</button>`:''}
   </div>`;
   // Contact
   html += `<div><div class="fu-sec-ttl">Sender</div>`;
@@ -14660,14 +14734,16 @@ function _renderDPInner(order, localOrder) {
     const _pb = localOrder.paidBy || (_fuLink && _fuLink.payment==='paid' && _fuLink.paidBy) || '';
     const _slip = localOrder.paySlip || (_fuLink && _fuLink.paySlip) || '';
     const _pnote = localOrder.payNote || (_fuLink && _fuLink.payNote) || '';
-    if (_unp || _pb || _slip || _pnote) {
+    const _pinv = _fuInvoiceText(_fuLink);
+    if (_unp || _pb || _slip || _pnote || _pinv) {
       html += '<div><div class="dp-section-ttl">Payment</div><div class="dp-pay">'
-        + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : '<span class="dp-pay-st">'+esc(_pb ? 'Paid by '+_pb : 'Paid')+'</span>')
+        + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : (_pb ? '<span class="dp-pay-st">'+esc('Paid by '+_pb)+'</span>' : ((localOrder.paidAt || localOrder.finStatus==='paid' || (_fuLink && _fuLink.payment==='paid')) ? '<span class="dp-pay-st">Paid</span>' : '')))
         + (_slip ? '<img class="dp-pay-slip" src="'+esc(_slip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">' : '')
         + (_unp ? '<button type="button" class="fu-act" onclick="openOrderPay(\''+localOrder.id+'\')">'+di('wallet',15)+'<span>Record payment</span></button>'
            : ((localOrder.src==='shopify' && /^(pending|partially_paid)$/.test(localOrder.finStatus||'')) ? '<button type="button" class="fu-act" onclick="orderPushPaid(\''+localOrder.id+'\')">Update Shopify</button>' : '')
              + ((localOrder.paidAt && localOrder.finStatus!=='paid') ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))
         + (_pnote ? '<div class="dp-pay-note">'+esc(_pnote)+'</div>' : '')
+        + (_pinv ? '<div class="dp-pay-note">'+esc(_pinv)+'</div>' : '')
         + '</div></div>';
     }
   }
