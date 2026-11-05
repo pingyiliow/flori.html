@@ -1327,7 +1327,10 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .pur-main{flex:1;min-width:0}
 .pur-nm{font-size:15px;font-weight:600;color:var(--c-ink)}
 .pur-row.done .pur-nm{color:var(--c-muted);text-decoration:line-through;font-weight:500}
-.pur-sub{font-size:12.5px;color:var(--c-muted);margin-top:2px}
+.pur-sub{font-size:12.5px;color:var(--c-muted);margin-top:2px;font-style:normal;font-family:var(--f-body)}
+.stk-subtabs{margin-bottom:0}
+.pur-bar{display:flex;justify-content:flex-end;margin-top:16px}
+.pur-sec{margin-top:16px;border-top:2px solid var(--c-ink)}
 .pur-link{font-size:12.5px;color:var(--color-accent);font-weight:500;margin-top:2px}
 .pur-urg{font-size:12px;font-weight:600;white-space:nowrap}
 .pur-urg.today{color:var(--color-warn)}

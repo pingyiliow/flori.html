@@ -1669,7 +1669,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Running low':'库存不足','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -5992,13 +5992,15 @@ function _shopStockCard(p){
 
 /* ─── Unified stock detail popup (manual + Shopify) ─────────────────── */
 let _stkViewKind=null, _stkViewId=null;
-function openStkView(kind, id){
+function openStkView(kind, id, redrawOnly){
   if(_stkDragSuppress) return;   // a reorder drag just ended — don't open the card
   const el=document.getElementById('stkview-body'); if(!el) return;
   _stkViewKind=kind; _stkViewId=id;
   el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
   openModal('m-stkview');
-  if(kind==='inv') _invRefreshOne(id).then(ok=>{ if(ok && _stkViewKind==='inv' && _stkViewId===id) _stkRefresh(); });
+  // Fetch the latest row ONCE when the popup opens. A redraw must never fetch: the redraw
+  // after the fetch used to fetch again, looping forever (popup rebuilt nonstop, X unclickable).
+  if(kind==='inv' && !redrawOnly) _invRefreshOne(id).then(ok=>{ if(ok && _stkViewKind==='inv' && _stkViewId===id) _stkRefresh(); });
 }
 // Orders that contain a Shopify product (exact title within the comma-joined product
 // column), newest due date first. Lean columns; quantity comes from loaded orders.
@@ -6045,7 +6047,7 @@ async function _stkOpenOrder(id){
   closeModal('m-stkview'); _stkReturn=true;   // closing the order brings the product back
   openDP(o.id);
 }
-function _stkRefresh(){ if(document.getElementById('m-stkview') && document.getElementById('m-stkview').classList.contains('on') && _stkViewId!=null) openStkView(_stkViewKind, _stkViewId); }
+function _stkRefresh(){ if(document.getElementById('m-stkview') && document.getElementById('m-stkview').classList.contains('on') && _stkViewId!=null) openStkView(_stkViewKind, _stkViewId, true); }
 function _stkThumb(src, ic, zoom){
   if(src){ const ss=String(src).replace(/'/g,"\\'"); return '<span class="skv-th"'+(zoom?' onclick="openZoom(\''+ss+'\')" style="cursor:zoom-in"':'')+'><img src="'+src+'" onerror="this.style.display=\'none\'"></span>'; }
   return '<span class="skv-th">'+di(ic||'box',24)+'</span>';
@@ -6879,6 +6881,8 @@ function purAddLow(k, silent){
   PURCHASES.push({ id:'pur-'+Date.now()+'-'+k, name:x.name, qty:(s!=null ? s+(x.unit?' '+x.unit:'') : ''), urg:'week', notes:'', done:false, photo:'', mid:x.mid, sid:x.sid||null });
   if(!silent){ savePurchases(); renderPurchase(); toast('✓ Added to purchase list'); }
 }
+let _purView='list';
+function purView(v){ _purView = v==='low' ? 'low' : 'list'; renderPurchase(); }
 function purAddAllLow(){ const n=_purLowCache.length; _purLowCache.forEach((x,k)=>purAddLow(k,true)); savePurchases(); renderPurchase(); toast('✓ Added '+n); }
 // The stock item a purchase is linked to: its name, current count and how to add to it.
 function _purStock(p){
@@ -6913,17 +6917,24 @@ function renderPurchase() {
   const URG = {today:{l:'Today',c:'today'},week:{l:'This week',c:'week'},stock:{l:'Stock up',c:'stock'}};
   const X = '<svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
   _purLowCache = _purLowList();
-  let h='';
-  if(_purLowCache.length){
-    h+='<section><div class="stk-cat">Running low<span class="n num">'+_purLowCache.length+'</span><button type="button" class="fu-act stk-cat-act" onclick="purAddAllLow()">Add all</button></div>'
+  // Two views so the person buying only sees the list: Purchase list (default) and
+  // Running low (suggestions from stock).
+  const open=PURCHASES.filter(p=>!p.done).length;
+  let h='<div class="filters stk-subtabs">'
+    +'<button type="button" class="f-btn'+(_purView!=='low'?' on':'')+'" onclick="purView(\'list\')">Purchase list'+(open?'<span class="f-n num">'+open+'</span>':'')+'</button>'
+    +'<button type="button" class="f-btn'+(_purView==='low'?' on':'')+'" onclick="purView(\'low\')">Running low'+(_purLowCache.length?'<span class="f-n warn num">'+_purLowCache.length+'</span>':'')+'</button>'
+  +'</div>';
+  if(_purView==='low'){
+    if(!_purLowCache.length){ cont.innerHTML = h + '<div class="stk-empty">Nothing is running low</div>'; return; }
+    h+='<div class="pur-bar"><button type="button" class="fu-act" onclick="purAddAllLow()">Add all</button></div><section class="pur-sec">'
       + _purLowCache.map((x,k)=>{ const s=_purSuggest(x);
           const sub='<span class="num">'+x.qty+'</span> left'+(x.reorder!=null?', reorder at <span class="num">'+x.reorder+'</span>':'')+(x.shop?', Shopify':'');
           return '<div class="pur-row low">'+_invThumb(x.photo,x.ic)+'<div class="pur-main"><div class="pur-nm">'+esc(x.name)+'</div><div class="pur-sub">'+sub+'</div></div>'
             +'<button type="button" class="fu-act" onclick="purAddLow('+k+')">'+(s!=null?'Add '+s:'Add')+'</button></div>'; }).join('')
       + '</section>';
+    cont.innerHTML = h; return;
   }
-  const open=PURCHASES.filter(p=>!p.done).length;
-  h+='<section><div class="stk-cat">Purchase list'+(open?'<span class="n num">'+open+'</span>':'')+'</div>';
+  h+='<section class="pur-sec">';
   if(!PURCHASES.length) h+='<div class="stk-empty">Nothing to buy</div>';
   else {
     const ord={today:0,week:1,stock:2};
