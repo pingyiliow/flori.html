@@ -1184,7 +1184,10 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .orw{display:grid;grid-template-columns:110px minmax(0,1fr) 120px;gap:20px;padding:16px 0;border-bottom:1px solid var(--c-border);cursor:pointer;align-items:start;transition:background-color .14s}
 .orw:hover{background:color-mix(in oklab,var(--color-paper-2) 60%,transparent)}
 .orw.urg{box-shadow:inset 3px 0 0 var(--color-accent);padding-left:12px}
-.orw.done{color:var(--c-muted)}
+.orw.done{color:var(--c-muted);opacity:.5}
+.orw.done:hover{opacity:.8}
+.orw.done .orw-th img{filter:grayscale(1)}
+.orw-tag.fin{color:var(--color-ink-2);font-weight:600}
 .orw-time{font-size:13px;color:var(--color-ink-2);padding-top:4px;line-height:1.35}
 .orw-who{display:flex;align-items:baseline;gap:8px 12px;flex-wrap:wrap}
 .orw-cust{font-weight:600;font-size:16.5px;color:var(--c-ink)}

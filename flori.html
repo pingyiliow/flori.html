@@ -4078,7 +4078,7 @@ function orderCardConsolidated(o, opts){
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     <div class="orw-time num">${o.dueTime ? esc(o.dueTime) : '&ndash;'}</div>
     <div class="orw-body">
-      <div class="orw-who"><span class="orw-cust">${esc(o.customer||'Guest')}</span><span class="orw-no num">${esc(o.name||'')}</span>${urgent?`<span class="orw-tag urg">${zh?'紧急':'Urgent'}</span>`:''}<span class="orw-tag">${typeTxt}</span>${_oUnpaid(o)?'<span class="orw-tag warn">Unpaid</span>':''}${stateTxt?`<span class="orw-tag">${stateTxt}</span>`:''}${desTxt}</div>
+      <div class="orw-who"><span class="orw-cust">${esc(o.customer||'Guest')}</span><span class="orw-no num">${esc(o.name||'')}</span>${urgent?`<span class="orw-tag urg">${zh?'紧急':'Urgent'}</span>`:''}<span class="orw-tag">${typeTxt}</span>${o.fulfilled ? `<span class="orw-tag fin">${o.type==='pickup'?(zh?'已取':'Picked up'):(zh?'已送达':'Delivered')}</span>` : ''}${_oUnpaid(o)?'<span class="orw-tag warn">Unpaid</span>':''}${stateTxt?`<span class="orw-tag">${stateTxt}</span>`:''}${desTxt}</div>
       <div class="orw-items">${rows}</div>
       ${notes}
     </div>
