@@ -4053,14 +4053,15 @@ function orderCardConsolidated(o, opts){
     const thumb = img ? `<span class="orw-th"><img src="${String(img).replace(/"/g,'&quot;')}" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>` : '';
     const qty = (it.quantity > 1) ? ` <span class="q">× ${it.quantity}</span>` : '';
     const p = _liUnit(it) || 0, _w = _liWas(it); const priceTxt = (p > 0 && multi) ? `<span class="orw-price num">${_w ? '<s class="was">RM '+(_w*(it.quantity||1)).toFixed(2)+'</s> ' : ''}RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
-    const on = o.fulfilled ? `event.stopPropagation()` : (multi ? `event.stopPropagation();toggleItemReady('${o.id}',${idx})` : `event.stopPropagation();toggleReady('${o.id}')`);
+    const on = o.fulfilled ? `event.stopPropagation()` : `event.stopPropagation();cycleItemReady('${o.id}',${idx})`;
+    const half = !o.fulfilled && !ready && !!it.half;
     const _vt = String(it.variantTitle||'').trim();
     const vLine = (_vt && !/^default title$/i.test(_vt)) ? `<span class="v">${esc(_vt)}</span>` : '';
     const nameCell = `<div class="orw-pname">${esc(it.title||'–')}${qty}${vLine}</div>`;
     // Per-product instruction shown under its OWN product (not merged into one card line).
     const _nt = String(it.note||'').trim();
     const noteHtml = _nt ? `<div class="ocx-inote">${di('warn',11)}<span>${esc(_nt.length>120?_nt.slice(0,120)+'…':_nt)}</span></div>` : '';
-    return `<div class="orw-item">${thumb}${nameCell}${priceTxt}<button type="button" class="orw-tick${(o.fulfilled||ready)?' r':''}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'Ready':'Mark ready'}">${di('check',14)}</button></div>${noteHtml}`;
+    return `<div class="orw-item">${thumb}${nameCell}${priceTxt}<button type="button" class="orw-tick${(o.fulfilled||ready)?' r':(half?' h':'')}" role="checkbox" aria-checked="${(o.fulfilled||ready)?'true':(half?'mixed':'false')}" onclick="${on}" aria-label="${(o.fulfilled||ready)?'Ready':(half?'Partly done':'Not started')}">${di('check',14)}</button></div>${noteHtml}`;
   }).join('');
   const cn = _cardNotes(o);
   const _tr = (s,n) => (s && s.length > n) ? s.slice(0,n)+'…' : s;
@@ -4087,6 +4088,24 @@ function orderCardConsolidated(o, opts){
 
 // Toggle a single product's "ready" state; the order is "ready" only when
 // every product is ready (Shopify fulfilment stays a whole-order action).
+// Product tick, one step per tap: not started → partly done (half) → ready → not started.
+// "half" lives on the line item (kept through Shopify sync like "ready"); a single-product
+// order keeps using the order's ready flag for "ready".
+function cycleItemReady(id, idx) {
+  const o = ORDERS.find(x => x.id === id); if (!o || o.fulfilled) return;
+  const lis = Array.isArray(o.lineItems) ? o.lineItems : [], li = lis[idx];
+  if (!li) { toggleReady(id); return; }
+  const multi = lis.length > 1;
+  const cur = (multi ? li.ready : o.ready) ? 'r' : (li.half ? 'h' : '');
+  const next = cur === '' ? 'h' : (cur === 'h' ? 'r' : '');
+  li.half = next === 'h';
+  li.ready = next === 'r';
+  const was = !!o.ready;
+  o.ready = multi ? lis.every(i => i.ready) : next === 'r';
+  if (o.ready !== was) _stampReady(o);
+  saveOrderPatch(o,{ line_items:o.lineItems, ready:o.ready, ready_by:o.readyBy, ready_at:o.readyAt });
+  renderHome(); renderOrders();
+}
 function toggleItemReady(id, idx) {
   const o = ORDERS.find(x => x.id === id); if (!o || !o.lineItems || !o.lineItems[idx]) return;
   o.lineItems[idx].ready = !o.lineItems[idx].ready;
@@ -4131,10 +4150,12 @@ function homeMiniCard(o, item, idx) {
   if (state==='fulfilled')   badge='<span class="h-mc-badge f">'+di('check',11)+' Done</span>';
   else if (state==='ready')  badge='<span class="h-mc-badge r">● Ready</span>';
   else                       badge='<span class="h-mc-badge p">'+(o.priority==='urgent'?dot('#D84343',9)+' Urgent':'Pending')+'</span>';
-  const tickAction = isUnit ? `toggleItemReady('${o.id}',${idx})` : `toggleReady('${o.id}')`;
+  const _one = !isUnit && Array.isArray(o.lineItems) && o.lineItems.length === 1;
+  const tickAction = isUnit ? `cycleItemReady('${o.id}',${idx})` : (_one ? `cycleItemReady('${o.id}',0)` : `toggleReady('${o.id}')`);
+  const half = !ready && !o.fulfilled && !!(isUnit ? item.half : (_one && o.lineItems[0].half));
   const tick = o.fulfilled
     ? `<button type="button" class="h-mc-tick f" aria-label="Fulfilled" onclick="event.stopPropagation()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`
-    : `<button type="button" class="h-mc-tick ${ready?'r':''}" aria-label="${ready?'Mark as pending':'Mark as ready'}" onclick="event.stopPropagation();${tickAction}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
+    : `<button type="button" class="h-mc-tick ${ready?'r':(half?'h':'')}" role="checkbox" aria-checked="${ready?'true':(half?'mixed':'false')}" aria-label="${ready?'Ready':(half?'Partly done':'Not started')}" onclick="event.stopPropagation();${tickAction}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg></button>`;
   return `<div class="${cls.join(' ')}" onclick="openDP('${o.id}')">
     ${thumb}
     <div class="h-mc-body"><div class="h-mc-name">${name}${unitTag}</div><div class="h-mc-meta">${esc(o.name||'')}${o.customer?' · '+esc(o.customer):''}</div>${note}</div>

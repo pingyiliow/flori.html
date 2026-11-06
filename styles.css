@@ -1080,6 +1080,7 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .h-mc-badge.p{background:#fdecea;color:#c62828}.h-mc-badge.r{background:#EDF7ED;color:#2E7D32}.h-mc-badge.f{background:var(--c-sage-bg);color:var(--c-sage)}
 .h-mc-tick{width:24px;height:24px;border-radius:6px;border:1.5px solid var(--c-border);background:var(--c-surface);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--c-muted);flex-shrink:0}
 .h-mc-tick.r{border-color:#2E7D32;background:#EDF7ED;color:#2E7D32;font-weight:700}
+.h-mc-tick.h{border-color:var(--c-sage);background:linear-gradient(135deg,var(--c-sage) 0 50%,var(--c-surface) 50% 100%);color:transparent}
 .h-mc-tick.f{border-color:var(--c-sage);background:var(--c-sage-bg);color:var(--c-sage)}
 .h-fualert{background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:10px;padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer}
 .h-fualert-dot{width:8px;height:8px;border-radius:50%;background:#F57F17;flex-shrink:0}
@@ -1205,7 +1206,8 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .orw-tick{width:26px;height:26px;flex:none;border:1.5px solid var(--color-ink-2);background:transparent;color:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border-radius:0;transition:background-color .14s,color .14s}
 .orw-tick:hover{background:var(--color-paper-2);color:var(--c-muted)}
 .orw-tick:active{transform:translateY(1px)}
-.orw-tick.r{background:var(--color-ink);border-color:var(--color-ink);color:var(--color-paper)}
+.orw-tick.r{background:var(--c-sage);border-color:var(--c-sage);color:var(--color-surface)}
+.orw-tick.h,.orw-tick.h:hover{background:linear-gradient(135deg,var(--c-sage) 0 50%,transparent 50% 100%);border-color:var(--c-sage);color:transparent}
 .orw-amt{text-align:right;font-size:14.5px;padding-top:4px;color:var(--c-ink);white-space:nowrap}
 .orw .ocx-note,.orw .ocx-remark,.orw .ocx-inote{border-radius:0;background:var(--color-paper-2);border-left:2px solid var(--color-ink-2);color:var(--color-ink-2)}
 .orw .ocx-inote{margin-left:0}
