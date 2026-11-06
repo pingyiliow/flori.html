@@ -85,9 +85,12 @@ function formState(row) {
 }
 const _s = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
 function formPublic(row) {
-  const items = (Array.isArray(row.item_list) ? row.item_list : []).map(it => ({
+  const list = Array.isArray(row.item_list) ? row.item_list : [];
+  const items = list.map(it => ({
     name: _s(it && it.name, 200), images: (Array.isArray(it && it.images) ? it.images : []).filter(u => /^https:\/\//.test(String(u))).slice(0, 4),
     price: (it && it.price != null && it.price !== '') ? Number(it.price) : null, qty: parseInt(it && it.qty, 10) || 1,
+    // Flower instructions, so the customer can check them (one item: the order's own note).
+    note: _s((it && it.flowerNote) || (list.length === 1 ? row.flower_note : ''), 500),
   }));
   return {
     ref: 'NO-' + String(row.id || '').replace(/\D/g, '').slice(-5),
