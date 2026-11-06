@@ -1432,6 +1432,7 @@ body.role-driver .dgrp-go{background:var(--color-accent);color:var(--color-accen
 .dlv-live{color:var(--color-accent);font-weight:600}
 .dlv-rdbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .dlv-rdgo{height:44px;padding:0 20px;display:inline-flex;align-items:center;gap:8px}
+.dlv-rdacts{display:flex;gap:10px;flex-wrap:wrap}
 .dlv-start{display:flex;align-items:center;gap:12px;margin-top:12px;font-size:13.5px;color:var(--c-muted)}
 .dlv-start .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dlv-rdtabs{margin-top:16px}

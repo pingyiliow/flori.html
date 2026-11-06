@@ -11238,13 +11238,6 @@ function _drvRouteDetail(rt){
   return '<div class="drv-rd">'
     + '<div class="drvd-top">'
       + '<button type="button" onclick="closeRouteDetail()" class="drvd-back"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg><span>Delivery</span></button>'
-      // Reorder mode shows a clear "Done" to exit; otherwise one "Manage" button
-      // opens the action sheet with everything (reorder / auto-sort / add / edit / delete).
-      + (reorder
-          ? '<button type="button" class="btn btn-primary" style="height:40px;padding:0 18px" onclick="toggleReorder(\''+rt.id+'\')">Done</button>'
-          : ((isAdmin || pending.length>1 || canOpt)
-              ? '<button type="button" class="btn btn-ghost" style="height:40px" onclick="openRouteManage(\''+rt.id+'\')">'+di('edit',15)+' Edit route</button>'
-              : ''))
     + '</div>'
     + '<div class="dlv-rdhead">'
       + '<div class="page-title"><span class="dgrp-sw lg" style="background:'+_routeColor(rt.id)+'"></span>'+esc2(rt.name)+'</div>'
@@ -11256,7 +11249,14 @@ function _drvRouteDetail(rt){
     // stops, km, time · start point · start action
     + '<div class="dlv-rdbar">'
       + '<div class="ord-tally"><div><b>'+pending.length+'</b><span>'+(pending.length===1?'stop':'stops')+'</span></div><div><b>'+kmVal+'</b><span>km</span></div><div><b>'+minVal+'</b><span>est. time</span></div></div>'
-      + (pending.length ? '<button type="button" class="btn btn-primary dlv-rdgo" onclick="startRoute(\''+rt.id+'\')">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
+      // The route's actions together: Edit route (sheet: stops, auto-sort, start point,
+      // rename / driver, delete) beside Start route. While editing stops, Done takes its place.
+      + '<div class="dlv-rdacts">'
+        + (reorder
+            ? '<button type="button" class="btn btn-primary dlv-rdgo" onclick="toggleReorder(\''+rt.id+'\')">Done</button>'
+            : (((isAdmin || pending.length>1 || canOpt) ? '<button type="button" class="btn btn-ghost dlv-rdgo" onclick="openRouteManage(\''+rt.id+'\')">'+di('edit',15)+' Edit route</button>' : '')
+              + (pending.length ? '<button type="button" class="btn btn-primary dlv-rdgo" onclick="startRoute(\''+rt.id+'\')">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')))
+      + '</div>'
     + '</div>'
     + '<div class="dlv-start"><span class="t">Start: '+esc2(origin.label||'shop')+'</span></div>'
     // tabs
