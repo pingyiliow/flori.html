@@ -3609,6 +3609,16 @@ function _shopSubRemember(id, sum){
 // Money. An order's real amount = Shopify's total + any difference made in the app
 // (total_adj = {delta, base}); the difference is dropped once Shopify's own total moves
 // off its base (the order was edited in Shopify too), so nothing is counted twice.
+// Make Records count the order's app total: store the difference from the Shopify total.
+function orderCountTotal(id, amount){
+  const o=ORDERS.find(x=>x.id===id); if(!o) return;
+  const base=parseFloat(o.total)||0, d=Math.round(((parseFloat(amount)||0)-base)*100)/100;
+  o.totalAdj = Math.abs(d)>0.005 ? { delta:d, base:String(o.total) } : null;
+  saveOrderPatch(o, { total_adj:o.totalAdj });
+  if (typeof renderRecords==='function') renderRecords();
+  if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
+  toast('✓ Records now count RM '+(base+(o.totalAdj?d:0)).toFixed(2));
+}
 function _adjOK(total, adj){ return !!(adj && typeof adj === 'object' && isFinite(parseFloat(adj.delta)) && Math.abs((parseFloat(total)||0) - (parseFloat(adj.base)||0)) < 0.005); }
 function _bizAmt(r){
   let t = parseFloat(r.total) || 0;
@@ -14850,6 +14860,13 @@ function _renderDPInner(order, localOrder) {
     const totShow = _priced ? subShow + _ship : (total != null && total !== '' ? parseFloat(total) : null);
     const shopTot = order.currentTotalPriceSet?.shopMoney?.amount;
     const shopDiff = _priced && shopTot != null && Math.abs(parseFloat(shopTot) - totShow) > 0.005;
+    // What Records counts for this order (Shopify total + any recorded app difference). When an
+    // item was added in the app before differences were recorded, Records still counts the
+    // Shopify figure; admin/CS can make it count the total shown here.
+    const _recBase = parseFloat(localOrder.total || shopTot) || 0;
+    const _recAmt = _recBase + (_adjOK(localOrder.total, localOrder.totalAdj) ? parseFloat(localOrder.totalAdj.delta) : 0);
+    const _recFix = _priced && totShow != null && localOrder.src === 'shopify' && Math.abs(_recAmt - totShow) > 0.005
+      && (typeof hasRole === 'function') && (hasRole('admin') || hasRole('cs'));
     html += `<div>
       <div class="dp-section-ttl">Items & Price</div>
       ${itemRows}
@@ -14857,6 +14874,7 @@ function _renderDPInner(order, localOrder) {
       ${_ship?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">Delivery fee</div><div class="dp-row-val">${_fmt(_ship,currency)}</div></div>`:''}
       ${totShow!=null?`<div class="dp-row"><div class="dp-row-lbl dp-total">Total</div><div class="dp-row-val dp-total">${_fmt(totShow,currency)}</div></div>`:''}
       ${shopDiff?`<div class="dp-row"><div class="dp-row-lbl" style="color:var(--c-muted)">In Shopify</div><div class="dp-row-val" style="color:var(--c-muted)">${_fmt(shopTot,currency)}</div></div>`:''}
+      ${_recFix?`<div class="dp-row" style="align-items:center"><div class="dp-row-lbl" style="color:var(--color-warn);font-weight:600">Records count ${_fmt(_recAmt,currency)}</div><div class="dp-row-val"><button type="button" class="fu-act" onclick="orderCountTotal('${localOrder.id}',${totShow})">Count ${_fmt(totShow,currency)}</button></div></div>`:''}
     </div>`;
   }
 
