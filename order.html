@@ -49,6 +49,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .f label{display:block;font-size:13px;font-weight:500;color:var(--color-muted);margin-bottom:6px}
 .f input,.f textarea{width:100%;min-height:48px;padding:12px;border:1px solid var(--color-rule);background:var(--color-surface);border-radius:0;font-size:16px;transition:border-color var(--dur)}
 .f textarea{min-height:88px;resize:vertical;line-height:1.4}
+.f textarea.grow{min-height:48px;resize:none;overflow:hidden}
 .f input:focus,.f textarea:focus{border-color:var(--color-accent);outline:none;box-shadow:0 0 0 1px var(--color-accent)}
 .f.bad input,.f.bad textarea{border-color:var(--color-warn)}
 .f .err{display:none;margin-top:4px;font-size:13px;color:var(--color-warn);font-weight:600}
@@ -111,7 +112,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   const T = {
     en:{ h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
       getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
-      rname:'Recipient name', rphone:'Recipient phone', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions', cardh:'Card and remarks', card:'Card message', rem:'Remarks',
+      rname:'Recipient name', rphone:'Recipient phone', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions', noteh:'Delivery instructions and remarks', card:'Card message', rem:'Remarks',
       confirm:'Confirm order', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
       h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
       bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot or photo', uploading:'Uploading…', upok:'Receipt received, thank you', upbad:'Upload failed, please try again or send it on WhatsApp',
@@ -120,7 +121,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
     zh:{ h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
-      rname:'收花人姓名', rphone:'收花人电话', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明', cardh:'卡片与备注', card:'卡片内容', rem:'备注',
+      rname:'收花人姓名', rphone:'收花人电话', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明', noteh:'送货说明与备注', card:'卡片内容', rem:'备注',
       confirm:'确认订单', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
       h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
       bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图或照片', uploading:'上传中…', upok:'已收到收据，谢谢', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
@@ -186,16 +187,15 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     fulfil = D.fulfil === 'pickup' ? 'pickup' : 'delivery';
     const pk = fulfil==='pickup';
     app.innerHTML = '<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
-      + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
+      + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+field('cardMsg',t('card'),D.cardMsg,'',true)+'</div>'
       + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name'),D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone'),D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
       + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'">'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'">'+t('pick')+'</button></div></div>'
         + '<div class="two">'+field('dueDate',pk?t('pdate'):t('ddate'),D.dueDate,'type="date"')+field('dueTime',pk?t('ptime'):t('dtime'),D.dueTime,'')+'</div>'
         + (pk ? '' : field('recipName',t('rname'),D.recipName,'')+field('recipPhone',t('rphone'),D.recipPhone,'inputmode="tel" class="num" placeholder="+60"')
-          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><input id="f-addr" autocomplete="off" placeholder="'+t('addrPh')+'" value="'+esc(D.addr)+'"><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div></div>'
-          + field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))
+          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off" placeholder="'+t('addrPh')+'">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div></div>')
       + '</div>'
-      + '<div class="sec"><h2>'+t('cardh')+'</h2>'+field('cardMsg',t('card'),D.cardMsg,'',true)+field('custNote',t('rem'),D.custNote,'',true)+'</div>'
+      + '<div class="sec"><h2>'+(pk?t('rem'):t('noteh'))+'</h2>'+(pk ? '' : field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))+field('custNote',t('rem'),D.custNote,'',true)+'</div>'
       + '<button class="btn" type="button" id="go">'+t('confirm')+'</button><p class="fine">'+t('fine')+'</p>';
     document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
     document.getElementById('go').onclick = submit;
@@ -205,12 +205,15 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   // Google address suggestions (through the server, only while this link is open)
   function wireAddr(input){
     const hits = document.getElementById('hits'); let timer = null, seq = 0;
-    input.oninput = () => { clearTimeout(timer); const q = input.value.trim(); if (q.length < 3) { hits.innerHTML=''; return; }
+    const grow = () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight + 2) + 'px'; };
+    requestAnimationFrame(grow);
+    input.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
+    input.oninput = () => { grow(); clearTimeout(timer); const q = input.value.trim(); if (q.length < 3) { hits.innerHTML=''; return; }
       timer = setTimeout(async () => { const my = ++seq; const r = await api({ mode:'form-addr', sub:'autocomplete', input:q, sessionToken:sess });
         if (my !== seq) return; const ps = (r.j && r.j.predictions) || [];
         hits.innerHTML = ps.map((p,i) => '<button type="button" data-i="'+i+'">'+esc(p.description)+'</button>').join('');
-        hits.querySelectorAll('button').forEach(b => b.onclick = async () => { const p = ps[+b.dataset.i]; hits.innerHTML=''; input.value = p.description;
-          if (p.placeId) { const d = await api({ mode:'form-addr', sub:'place', placeId:p.placeId, sessionToken:sess }); if (d.j && d.j.address) input.value = d.j.address; sess = Math.random().toString(36).slice(2); } });
+        hits.querySelectorAll('button').forEach(b => b.onclick = async () => { const p = ps[+b.dataset.i]; hits.innerHTML=''; input.value = p.description; grow();
+          if (p.placeId) { const d = await api({ mode:'form-addr', sub:'place', placeId:p.placeId, sessionToken:sess }); if (d.j && d.j.address) input.value = d.j.address; sess = Math.random().toString(36).slice(2); } grow(); });
       }, 300); };
   }
 

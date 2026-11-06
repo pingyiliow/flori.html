@@ -1058,7 +1058,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
         <div class="fg fg-2">
           <div class="ff"><label class="ff-l">Recipient Name</label><input id="fu-recip-name" type="text" placeholder="e.g. Qian"></div>
           <div class="ff"><label class="ff-l">Recipient Phone</label><input id="fu-recip-phone" type="text" placeholder="+60 16-550 5686"></div>
-          <div class="ff" id="fu-addr-wrap" style="grid-column:1/-1"><label class="ff-l">Delivery Address</label><input id="fu-addr" type="text" placeholder="Street, Building, City, Postcode"></div>
+          <div class="ff" id="fu-addr-wrap" style="grid-column:1/-1;position:relative"><label class="ff-l">Delivery Address</label><textarea id="fu-addr" class="addr-ta" rows="2" data-af="1" autocomplete="bf-addr-search" placeholder="Search address" oninput="_gAddrSearch('fu-addr')" onfocus="_addrGrow(this)" onblur="setTimeout(()=>_gAddrHide('fu-addr'),200)"></textarea><div id="fu-addr-sug" class="rcp-sug" style="display:none"></div></div>
         </div>
 
         <div class="osec" style="margin-top:18px">Order</div>
@@ -7058,6 +7058,7 @@ function _fuClearFields() {
    'fu-notes','fu-remarks','fu-deliv-instr','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
+  { const ad=document.getElementById('fu-addr'); if(ad) ad.style.height=''; _gAddrHide('fu-addr'); }
   document.getElementById('fu-channel').value = 'whatsapp';
   { const fni=document.getElementById('fu-need-invoice'); if(fni) fni.checked=false; }
   document.getElementById('fu-payment').value = 'pending';
@@ -7379,7 +7380,7 @@ function parseAndFill() {
   set('fu-email',       parsed.senderEmail);
   set('fu-recip-name',  recipName);
   set('fu-recip-phone', parsed.recipPhone);
-  set('fu-addr',        parsed.addr);
+  set('fu-addr',        parsed.addr); _addrGrow(document.getElementById('fu-addr'));
   // Parsed product lines → item rows (one per line); card message → first item.
   if (parsed.items) { _fuItems = String(parsed.items).split('\n').map(n=>n.trim()).filter(Boolean).map(n=>({name:n,images:[],cardMsg:'',flowerNote:''})); }
   _fuItemsEnsure();
@@ -7439,7 +7440,7 @@ function editFollowup(id) {
   const dt = document.getElementById('fu-due-time');   if(dt) dt.value = f.dueTime||'';
   const am = document.getElementById('fu-amount');     if(am) am.value = f.amount||'';
   const fe = document.getElementById('fu-fee');        if(fe) fe.value = f.deliveryFee||'';
-  const ad = document.getElementById('fu-addr');       if(ad) ad.value = f.addr||'';
+  const ad = document.getElementById('fu-addr');       if(ad){ ad.value = f.addr||''; requestAnimationFrame(()=>_addrGrow(ad)); }
   _fuAmountManual = true;   // protect the saved Amount while items load
   _fuLoadItems(f);   // rebuild the multi-item product rows (names, photos, per-item card/flower, price/qty)
   // If the saved Amount is just the auto value (items + fee), keep it auto-live; if it's a
@@ -12890,6 +12891,39 @@ async function _oAddrChoose(i){
   _oAddrTok=null;
   ta.value=text;
   _oAddrPick=(typeof lat==='number') ? { text, lat, lng, parts } : null;
+}
+// Address type-ahead on any textarea (Google via /api/geo). The field <id> needs a sibling
+// <id>-sug list. Used by the New Order form; the order form keeps its own (_oAddr*).
+const _gAddr={};
+function _addrGrow(el){ if(!el || el.tagName!=='TEXTAREA') return; if(!el.offsetParent){ el.style.height=''; return; } el.style.height='auto'; el.style.height=(el.scrollHeight+2)+'px'; }
+function _gAddrHide(id){ const s=document.getElementById(id+'-sug'); if(s) s.style.display='none'; }
+function _gAddrSearch(id){
+  const el=document.getElementById(id), sug=document.getElementById(id+'-sug'); if(!el||!sug) return;
+  _addrGrow(el);
+  const st=_gAddr[id]||(_gAddr[id]={}); clearTimeout(st.timer);
+  const q=el.value.trim();
+  if(q.length<4 || q.indexOf('\n')>=0){ _gAddrHide(id); return; }
+  if(!st.tok) st.tok='g'+Date.now()+Math.random().toString(36).slice(2,8);
+  st.timer=setTimeout(async()=>{
+    const r=await _lalaGeoReq({ mode:'autocomplete', input:q, sessionToken:st.tok });
+    if(el.value.trim()!==q) return;   // typed on meanwhile
+    st.preds=(r&&r.predictions)||[];
+    if(!st.preds.length){ _gAddrHide(id); return; }
+    sug.innerHTML=st.preds.map((p,i)=>'<div class="rcp-sug-row" onmousedown="event.preventDefault();_gAddrChoose(\''+id+'\','+i+')" style="display:flex;gap:7px;align-items:flex-start">'+_LALA_PIN_SVG+'<span style="min-width:0">'+esc(p.description||'')+'</span></div>').join('');
+    sug.style.display='';
+  }, 350);
+}
+async function _gAddrChoose(id, i){
+  const st=_gAddr[id]||{}, p=(st.preds||[])[i]; if(!p) return;
+  _gAddrHide(id);
+  const el=document.getElementById(id); if(!el) return;
+  let text=p.description||'';
+  if(p.placeId){
+    const r=await _lalaGeoReq({ mode:'place', placeId:p.placeId, sessionToken:st.tok });
+    if(r && r.address) text=r.address;
+  }
+  st.tok=null;
+  el.value=text; _addrGrow(el);
 }
 // Free-text Malaysian address → customer-profile fields (used when no place was picked).
 function _addrPartsFromText(text){

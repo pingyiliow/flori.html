@@ -401,6 +401,7 @@ body.role-driver .shell{grid-template-columns:1fr}
 .ff input,.ff select,.ff textarea{padding:9px 11px;border:1px solid var(--c-border);border-radius:var(--r);background:var(--c-surface);color:var(--c-ink);outline:none;transition:border-color .12s;}
 .ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--c-burg);}
 .ff textarea{resize:vertical;min-height:80px;line-height:1.5}
+.ff textarea.addr-ta{min-height:44px;resize:none;overflow:hidden}
 .fg{display:grid;gap:14px}
 .fg-2{grid-template-columns:1fr 1fr}
 @media(max-width:480px){.fg-2{grid-template-columns:1fr}}
