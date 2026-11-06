@@ -1058,6 +1058,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
         <div class="fg fg-2">
           <div class="ff"><label class="ff-l">Recipient Name</label><input id="fu-recip-name" type="text" placeholder="e.g. Qian"></div>
           <div class="ff"><label class="ff-l">Recipient Phone</label><input id="fu-recip-phone" type="text" placeholder="+60 16-550 5686"></div>
+          <div class="ff" id="fu-company-wrap" style="grid-column:1/-1"><label class="ff-l" for="fu-recip-company">Company / Building</label><input id="fu-recip-company" type="text" placeholder="Company, restaurant, hotel, hospital (optional)"></div>
           <div class="ff" id="fu-addr-wrap" style="grid-column:1/-1;position:relative"><label class="ff-l">Delivery Address</label><textarea id="fu-addr" class="addr-ta" rows="2" data-af="1" autocomplete="bf-addr-search" placeholder="Search address" oninput="_gAddrSearch('fu-addr')" onfocus="_addrGrow(this)" onblur="setTimeout(()=>_gAddrHide('fu-addr'),200)"></textarea><div id="fu-addr-sug" class="rcp-sug" style="display:none"></div></div>
         </div>
 
@@ -1079,6 +1080,10 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           </div>
           <div class="ff"><label class="ff-l">Paid By</label><select id="fu-paid-m" onchange="_fuPayUI()"></select>
             <input id="fu-paid-ref" type="text" autocomplete="off" style="display:none;margin-top:6px"></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l" for="fu-pay-note">Note</label><textarea id="fu-pay-note" rows="2" autocomplete="off" style="min-height:56px"></textarea></div>
+          <div class="ff" style="grid-column:1/-1"><label class="ff-l">Payment slip</label>
+            <div id="fu-slip" class="pay-slip" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="_fuSlipDrop(event)"></div>
+            <input id="fu-slip-file" type="file" accept="image/*" style="display:none" onchange="_fuSlipPick(this)"></div>
           <div class="ff" style="display:none"><label class="ff-l">Follow-up Status</label>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
@@ -1670,7 +1675,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -3386,7 +3391,7 @@ async function loadFromSupabase(opts = {}) {
     if (fuRes && fuRes.rows.length) {
       const mappedFu = fuRes.rows.map(f => ({
         id: f.id, name: f.name, contact: f.contact||'',
-        email: f.email||'', staff: f.staff||'', recipName: f.recip_name||'',
+        email: f.email||'', staff: f.staff||'', recipName: f.recip_name||'', recipCompany: f.recip_company||'',
         recipPhone: f.recip_phone||'', channel: f.channel||'whatsapp',
         fulfil: f.fulfil||'delivery', orderDate: f.order_date||'',
         dueDate: f.due_date||'', dueTime: f.due_time||'', orderNo: f.order_no||'',
@@ -3395,7 +3400,7 @@ async function loadFromSupabase(opts = {}) {
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice, invoiceNo: f.invoice_no||'', invoiceAt: f.invoice_at||null,
-        formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'',
+        formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'', feeAuto: f.fee_auto==null ? null : !!f.fee_auto,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
@@ -7014,7 +7019,7 @@ const _fuHash = {};
 function _fuRow(f){
   return {
       id: f.id, name: f.name, contact: f.contact||null,
-      email: f.email||null, staff: f.staff||null, recip_name: f.recipName||null,
+      email: f.email||null, staff: f.staff||null, recip_name: f.recipName||null, recip_company: f.recipCompany||null,
       recip_phone: f.recipPhone||null, channel: f.channel||'whatsapp',
       fulfil: f.fulfil||'delivery', order_date: f.orderDate||null,
       due_date: f.dueDate||null, due_time: f.dueTime||null, order_no: f.orderNo||null,
@@ -7023,6 +7028,7 @@ function _fuRow(f){
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice, invoice_no: f.invoiceNo||null, invoice_at: f.invoiceAt||null,
+      fee_auto: f.feeAuto==null ? null : !!f.feeAuto,
       form_token: f.formToken||null, form_status: f.formStatus||null, form_sent_at: f.formSentAt||null, form_submitted_at: f.formSubmittedAt||null, cust_note: f.custNote||null,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
   };
@@ -7037,7 +7043,7 @@ function saveFollowups() {
       if (ok) Object.assign(_fuHash, hashes);
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, form_token, form_status, form_sent_at, form_submitted_at, cust_note, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, form_token, form_status, form_sent_at, form_submitted_at, cust_note, fee_auto, recip_company, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7054,11 +7060,12 @@ function fuSwitchTab(tab) {
 }
 
 function _fuClearFields() {
-  ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone',
+  ['fu-name','fu-contact','fu-email','fu-staff','fu-recip-name','fu-recip-phone','fu-recip-company',
    'fu-notes','fu-remarks','fu-deliv-instr','fu-addr','fu-order-date','fu-due-date','fu-due-time','fu-amount','fu-fee','fu-raw-paste','fu-photo-b64'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
   { const ad=document.getElementById('fu-addr'); if(ad) ad.style.height=''; _gAddrHide('fu-addr'); }
+  { const pn=document.getElementById('fu-pay-note'); if(pn) pn.value=''; _fuFormSlip=''; _fuFormSlipBusy=false; _fuSlipUI(); }
   document.getElementById('fu-channel').value = 'whatsapp';
   { const fni=document.getElementById('fu-need-invoice'); if(fni) fni.checked=false; }
   document.getElementById('fu-payment').value = 'pending';
@@ -7429,10 +7436,12 @@ function editFollowup(id) {
   const emailEl = document.getElementById('fu-email'); if(emailEl) emailEl.value = f.email||'';
   const stfEl = document.getElementById('fu-staff'); if(stfEl) stfEl.value = f.staff||'';
   const rn = document.getElementById('fu-recip-name');  if(rn) rn.value = f.recipName||'';
+  { const rc = document.getElementById('fu-recip-company'); if(rc) rc.value = f.recipCompany||''; }
   const rp = document.getElementById('fu-recip-phone'); if(rp) rp.value = f.recipPhone||'';
   document.getElementById('fu-channel').value = f.channel || 'whatsapp';
   document.getElementById('fu-payment').value = f.payment || 'pending';
   _fuPaySet(f.paidBy||'', f.payment||'pending');
+  { const pn=document.getElementById('fu-pay-note'); if(pn) pn.value=f.payNote||''; _fuFormSlip=f.paySlip||''; _fuFormSlipBusy=false; _fuSlipUI(); }
   const st = document.getElementById('fu-status'); if(st) st.value = f.status || 'pending';
   _fuFulfilSet(f.fulfil || 'delivery');
   const od = document.getElementById('fu-order-date'); if(od) od.value = f.orderDate||'';
@@ -7597,6 +7606,7 @@ function _fuCollectItems(){
 }
 
 function saveFollowup() {
+  if (_fuFormSlipBusy) { toast('Slip is still uploading'); return; }
   const name = document.getElementById('fu-name').value.trim();
   if (!name) { toast('Sender name required'); return; }
   const editId = document.getElementById('fu-edit-id').value;
@@ -7625,7 +7635,9 @@ function saveFollowup() {
     shopifyDraftId: prevFu?.shopifyDraftId || null,
     orderNo: prevFu?.orderNo || null,
     // The form doesn't edit these; replacing the entry used to drop them on every edit.
-    paySlip: prevFu?.paySlip || '', payNote: prevFu?.payNote || '',
+    paySlip: _fuFormSlip || '', payNote: (document.getElementById('fu-pay-note')?.value.trim()) || '',
+    // Worked out by the customer form from the address; a fee staff change here is theirs.
+    feeAuto: (prevFu && prevFu.feeAuto===true) ? ((parseFloat(document.getElementById('fu-fee')?.value)||0)===(Number(prevFu.deliveryFee)||0)) : (prevFu && prevFu.feeAuto!=null ? prevFu.feeAuto : null),
     formToken: prevFu?.formToken || '', formStatus: prevFu?.formStatus || '', formSentAt: prevFu?.formSentAt || null, formSubmittedAt: prevFu?.formSubmittedAt || null, custNote: prevFu?.custNote || '',
     invoiceNo: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceNo || '') : ''),
     invoiceAt: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceAt || null) : null),
@@ -7636,6 +7648,7 @@ function saveFollowup() {
     email:      document.getElementById('fu-email')?.value.trim()||'',
     staff:      document.getElementById('fu-staff')?.value.trim()||'',
     recipName:  document.getElementById('fu-recip-name')?.value.trim()||'',
+    recipCompany: document.getElementById('fu-recip-company')?.value.trim()||'',
     recipPhone: document.getElementById('fu-recip-phone')?.value.trim()||'',
     channel:    document.getElementById('fu-channel').value,
     fulfil:     document.getElementById('fu-fulfil')?.value||'delivery',
@@ -7719,6 +7732,29 @@ function _payOpts(sel, legacyPaid){
   return '<option value="">Pending payment</option>'
     +(legacyPaid?'<option value="__paid"'+(sel==='__paid'?' selected':'')+'>Paid</option>':'')
     +PAY_METHODS.map(m=>'<option value="'+m+'"'+(sel===m?' selected':'')+'>'+m+'</option>').join('');
+}
+// New Order form: payment note + slip, as in Record payment (button or drop onto the slip box).
+let _fuFormSlip='', _fuFormSlipBusy=false;
+function _fuSlipUI(){
+  const el=document.getElementById('fu-slip'); if(!el) return;
+  if (_fuFormSlipBusy){ el.innerHTML='<span class="pay-slip-busy">Uploading</span>'; return; }
+  el.innerHTML = _fuFormSlip
+    ? '<img src="'+esc(_fuFormSlip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')"><button type="button" class="btn btn-ghost btn-sm" onclick="_fuFormSlip=\'\';_fuSlipUI()">Remove</button>'
+    : '<button type="button" class="fu-act" onclick="document.getElementById(\'fu-slip-file\').click()">'+di('upload',15)+'<span>Upload slip</span></button>';
+}
+function _fuSlipFile(file){
+  if(!file) return;
+  if(!/^image\//.test(file.type||'')){ toast('Not an image file'); return; }
+  if(_fuFormSlipBusy) return;
+  _fuFormSlipBusy=true; _fuSlipUI();
+  storePhoto(file, url => { _fuFormSlipBusy=false; _fuFormSlip=url||''; _fuSlipUI(); });
+}
+function _fuSlipPick(inp){ const file=inp.files&&inp.files[0]; inp.value=''; _fuSlipFile(file); }
+function _fuSlipDrop(e){
+  e.preventDefault(); e.stopPropagation();
+  const z=document.getElementById('fu-slip'); if(z) z.classList.remove('drag');
+  const f=Array.from((e.dataTransfer&&e.dataTransfer.files)||[]).find(x=>/^image\//.test(x.type||''));
+  if(f) _fuSlipFile(f); else toast('Not an image file');
 }
 // Form
 function _fuPaySet(paidBy, payment){
@@ -8247,6 +8283,7 @@ async function createShopifyDraft() {
     if (f.fulfil !== 'pickup' && (f.addr || f.recipName || f.recipPhone)) {
       const rParts = String(f.recipName || f.name || '').trim().split(/\s+/).filter(Boolean);
       input.shippingAddress = { countryCode: 'MY' };
+      if (f.recipCompany && f.fulfil!=='pickup') input.shippingAddress.company = f.recipCompany;
       if (f.addr) { const a=_parseMyAddr(f.addr); input.shippingAddress.address1 = a.address1 || f.addr; if(a.city) input.shippingAddress.city = a.city; if(a.zip) input.shippingAddress.zip = a.zip; if(a.province) input.shippingAddress.province = a.province; }
       if (rParts[0]) input.shippingAddress.firstName = rParts.shift();
       if (rParts.length) input.shippingAddress.lastName = rParts.join(' ');
@@ -8545,7 +8582,7 @@ function renderFollowup() {
     const fee = parseFloat(f.deliveryFee) > 0 ? '<span class="fuw-fee num">+ RM '+parseFloat(f.deliveryFee).toFixed(2)+' delivery</span>' : '';
     const pm = _payParse(f.paidBy).m;
     const pay = (st==='enquiry' || st==='waiting') ? '' : st==='verify'
-      ? '<span class="fuw-pay warn">'+(f.paySlip ? 'Receipt uploaded' : 'Form submitted')+'</span>'
+      ? '<span class="fuw-pay warn">'+((f.feeAuto && f.fulfil!=='pickup' && !(Number(f.deliveryFee)>0)) ? 'Set delivery fee' : (f.paySlip ? 'Receipt uploaded' : 'Form submitted'))+'</span>'
       : f.payment==='paid'
       ? '<span class="fuw-pay">'+esc(f.paidBy ? 'Paid by '+(pm==='Other'||!pm ? f.paidBy : pm) : 'Paid')+'</span>'
       : '<span class="fuw-pay warn">Unpaid, pay later</span>';
@@ -8644,7 +8681,7 @@ function openFUDP(id) {
       + `<button type="button" class="fu-act" onclick="fuSendForm('${f.id}')">${di('copy',15)}<span>Copy form link</span></button>`
       + `</div></div>`; }
   // Address
-  if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
+  if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${f.recipCompany && f.fulfil!=='pickup' ? '<b style="font-weight:600">'+esc(f.recipCompany)+'</b><br>' : ''}${esc(f.addr)}</div></div>`;
   if(f.deliveryInstr) html += `<div><div class="fu-sec-ttl">Delivery instructions</div><div style="font-size:12.5px;line-height:1.6;color:var(--c-ink);font-weight:600;white-space:pre-wrap">${esc(f.deliveryInstr)}</div></div>`;
   // Items — each with its own photos, card message and flower instructions.
   if (Array.isArray(f.itemList) && f.itemList.length) {
@@ -13099,6 +13136,7 @@ function _fuFulfilSet(v){
   const d=document.getElementById('fu-fulfil-del'); if(d) d.classList.toggle('on', !pk);
   const p=document.getElementById('fu-fulfil-pick'); if(p) p.classList.toggle('on', pk);
   const aw=document.getElementById('fu-addr-wrap'); if(aw) aw.style.display = pk ? 'none' : '';
+  const cw=document.getElementById('fu-company-wrap'); if(cw) cw.style.display = pk ? 'none' : '';
 }
 function openAddOrder(){
   ['o-cust','o-num','o-date','o-time','o-addr','o-lala','o-cust-phone','o-cust-email','o-cust-ig','o-recip-name','o-recip-phone','o-deliv-instr'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});

@@ -89,7 +89,12 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .box{margin-top:16px;padding:12px 16px;background:var(--color-paper-2);font-size:15px;line-height:1.5}
 .ro .r{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-rule);font-size:15px}
 .ro .r span{color:var(--color-muted);font-size:13px;flex:none}
-.ro .r b{font-weight:500;text-align:right;overflow-wrap:anywhere}
+.ro .r b{font-weight:500;text-align:right;overflow-wrap:anywhere;white-space:pre-line}
+.item .p.muted{color:var(--color-muted);white-space:normal;text-align:right}
+.msg{margin-top:6px;font-size:13px;line-height:1.45;color:var(--color-warn);font-weight:600}
+.msg:empty{display:none}
+.msg a{color:inherit}
+.msg.info{color:var(--color-ink-2);font-weight:500}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--color-ink);color:var(--color-paper);padding:12px 16px;font-size:14px;opacity:0;pointer-events:none;transition:opacity var(--dur)}
 .toast.on{opacity:1}
 [hidden]{display:none!important}
@@ -110,18 +115,18 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 <script>
 (function(){
   const T = {
-    en:{ h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
+    en:{ h1chk:'Check your order', feeAddr:'Worked out from the address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
       getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
-      rname:'Recipient name', rphone:'Recipient phone', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
+      rname:'Recipient name', rphone:'Recipient phone', company:'Company, restaurant, hotel or hospital (optional)', companyRo:'Company / building', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
       confirm:'Confirm order', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
       h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
       bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot or photo', uploading:'Uploading…', upok:'Receipt received, thank you', upbad:'Upload failed, please try again or send it on WhatsApp',
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
       h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed and being prepared. To change anything, WhatsApp us.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
-    zh:{ h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
+    zh:{ h1chk:'核对您的订单', feeAddr:'按地址计算', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
-      rname:'收花人姓名', rphone:'收花人电话', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
+      rname:'收花人姓名', rphone:'收花人电话', company:'公司、餐厅、酒店或医院名称（选填）', companyRo:'公司 / 大楼', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
       confirm:'确认订单', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
       h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
       bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图或照片', uploading:'上传中…', upok:'已收到收据，谢谢', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
@@ -147,11 +152,50 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 
   // keep what was typed when the language switches
   function keep(){ if (view!=='form' || !D) return; const v = id => { const e=document.getElementById(id); return e ? e.value : undefined; };
-    ['name','contact','email','recipName','recipPhone','dueDate','dueTime','addr','deliveryInstr','cardMsg','custNote'].forEach(k => { const x=v('f-'+k); if (x!==undefined) D[k]=x; }); D.fulfil = fulfil; }
+    ['name','contact','email','recipName','recipPhone','recipCompany','dueDate','dueTime','addr','deliveryInstr','cardMsg','custNote'].forEach(k => { const x=v('f-'+k); if (x!==undefined) D[k]=x; }); D.fulfil = fulfil; }
 
+  // Delivery fee: worked out from the address when staff left it open (feeAuto); a pickup
+  // then has none. Otherwise it is the fee staff set.
+  const isPk = () => (view==='form' ? fulfil : D.fulfil) === 'pickup';
+  // Fee still open after the address is in (outstation): staff confirm it.
+  const feeTbc = () => D.feeAuto && !isPk() && !(D.deliveryFee > 0) && (D.feeOut || (view!=='form' && !!String(D.addr||'').trim()));
+  const feeNow = () => (D.feeAuto && isPk()) ? 0 : (Number(D.deliveryFee)||0);
+  const feeRow = () => {
+    if (D.feeAuto && isPk()) return '';
+    if (D.feeAuto && !(D.deliveryFee > 0)) return '<div class="item"><div class="t"><b>'+t('del')+'</b></div><span class="p muted">'+(feeTbc() ? t('feeTbc') : t('feeAddr'))+'</span></div>';
+    return D.deliveryFee ? '<div class="item"><div class="t"><b>'+t('del')+'</b></div><span class="p num">'+rm(D.deliveryFee)+'</span></div>' : '';
+  };
+  const fmtDate = d => { if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))) return d||''; try { return new Date(d+'T00:00:00').toLocaleDateString(lang==='zh'?'zh-CN':'en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' }); } catch(_) { return d; } };
+  const row = (k, v) => v ? '<div class="r"><span>'+k+'</span><b>'+esc(v)+'</b></div>' : '';
+  const detailsHtml = () => { const pk = D.fulfil==='pickup';
+    return row(pk?t('pdate'):t('ddate'), [fmtDate(D.dueDate), D.dueTime].filter(Boolean).join(', ')) + row(t('name'), D.name) + row(t('phone'), D.contact)
+      + (pk ? '' : row(t('rname'), [D.recipName, D.recipPhone].filter(Boolean).join(', ')) + row(t('companyRo'), D.recipCompany) + row(t('addr'), D.addr) + row(t('instr'), D.deliveryInstr))
+      + row(t('card'), D.cardMsg); };
+  const complete = () => !!(String(D.name||'').trim() && String(D.contact||'').trim() && D.dueDate
+    && (D.fulfil==='pickup' || (String(D.recipName||'').trim() && String(D.addr||'').trim())));
   const itemsHtml = () => (D.items||[]).map(it => '<div class="item">'+(it.images&&it.images[0]?'<img src="'+esc(it.images[0])+'" alt="">':'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>').join('')
-    + (D.deliveryFee ? '<div class="item"><div class="t"><b>'+t('del')+'</b></div><span class="p num">'+rm(D.deliveryFee)+'</span></div>' : '')
-    + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+(D.deliveryFee||0))+'</b></div>';
+    + feeRow()
+    + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+feeNow())+'</b></div>';
+  const refreshItems = () => { const el = document.getElementById('items'); if (el) el.innerHTML = itemsHtml(); };
+  const addrMsg = (html, info) => { const el = document.getElementById('addr-msg'); if (el) { el.innerHTML = html || ''; el.classList.toggle('info', !!info); } };
+  const outMsg = () => esc(t('feeOut'));
+  // Ask the server for the fee of the address typed or picked (only when it is worked out).
+  let feeSeq = 0, feeTimer = null;
+  function quoteFee(delay){
+    clearTimeout(feeTimer);
+    if (!D || !D.feeAuto || fulfil==='pickup') return;
+    feeTimer = setTimeout(async () => {
+      const a = (document.getElementById('f-addr')||{}).value || '';
+      const my = ++feeSeq;
+      if (!/\b\d{5}\b/.test(a)) { D.deliveryFee = 0; D.feeOut = false; refreshItems(); addrMsg(''); return; }
+      const r = await api({ mode:'form-fee', addr:a });
+      if (my !== feeSeq) return;
+      const j = r.j || {};
+      if (j.fee != null) { D.deliveryFee = Number(j.fee)||0; D.feeOut = false; }
+      else if (j.out) { D.deliveryFee = 0; D.feeOut = true; }
+      refreshItems(); addrMsg(D.feeOut ? outMsg() : '', true);
+    }, delay||0);
+  }
   const field = (id, label, val, attrs, area) => '<div class="f" id="w-'+id+'"><label for="f-'+id+'">'+label+'</label>'
     + (area ? '<textarea id="f-'+id+'" '+(attrs||'')+'>'+esc(val)+'</textarea>' : '<input id="f-'+id+'" value="'+esc(val)+'" '+(attrs||'')+'>')
     + '<div class="err">'+t('need')+'</div></div>';
@@ -170,36 +214,39 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       return;
     }
     if (view==='pay') {
-      app.innerHTML = '<h1>'+t('h1pay')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
-        + '<div class="total" style="margin-top:16px;border-top:2px solid var(--color-ink)"><span>'+t('topay')+'</span><b class="num">'+rm((D.amount||0)+(D.deliveryFee||0))+'</b></div>'
-        + (D.paid ? '<div class="box">'+t('paidok')+'</div>' : ((slipState==='ok'||D.slip) ? '<div class="box" id="pending">'+t('pending')+'</div>' : '<p class="note">'+t('paynote')+'</p>')
+      app.innerHTML = '<h1>'+(D.submitted||D.slip ? t('h1pay') : t('h1chk'))+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
+        + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
+        + '<div class="sec ro"><h2>'+t('details')+'</h2>'+detailsHtml()+'</div>'
+        + (D.paid ? '' : '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>')
+        + '<div class="sec"><h2>'+t('pay')+'</h2></div>'
+        + (D.paid ? '<div class="box">'+t('paidok')+'</div>' : feeTbc() ? '<div class="box">'+t('tbcPay')+'</div><a class="btn" href="'+waLink('Hi, about the delivery fee for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa2')+'</a>' : ((slipState==='ok'||D.slip) ? '<div class="box" id="pending">'+t('pending')+'</div>' : '<p class="note">'+t('paynote')+'</p>')
         + '<div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
         + '<div class="r"><span>'+t('acno')+'</span><b class="num">322 9170 500</b><button class="copy" type="button" id="copy">'+t('copy')+'</button></div></div>'
         + '<div class="qr"><img src="/duitnow-qr.jpg" width="220" height="314" alt="DuitNow QR, Bamboo Green Florist (M)"></div><p class="cap"><a href="/duitnow-qr.jpg" download="bamboo-duitnow-qr.jpg">'+t('saveqr')+'</a></p>'
         + '<label class="drop'+(slipState==='ok'||D.slip?' ok':'')+'" id="drop"><input type="file" accept="image/*" id="slip"><b>'+(slipState==='up'?t('uploading'):(slipState==='ok'||D.slip?t('upok'):t('up')))+'</b>'+(slipState==='ok'||D.slip||slipState==='up'?'':'<span>'+t('upsub')+'</span>')+'</label>'
-        + '<a class="btn" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a>')
-        + '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>';
+        + '<a class="btn" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a>');
       const c=document.getElementById('copy'); if (c) c.onclick = () => { try { navigator.clipboard.writeText('3229170500'); } catch(_) {} toast(t('copied')); };
       const s=document.getElementById('slip'); if (s) s.onchange = () => upload(s.files && s.files[0]);
-      document.getElementById('edit').onclick = () => { view='form'; render(); window.scrollTo(0,0); };
+      const ed=document.getElementById('edit'); if (ed) ed.onclick = () => { view='form'; render(); window.scrollTo(0,0); };
       return;
     }
     fulfil = D.fulfil === 'pickup' ? 'pickup' : 'delivery';
     const pk = fulfil==='pickup';
     app.innerHTML = '<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
-      + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+field('cardMsg',t('card'),D.cardMsg,'',true)+'</div>'
+      + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+itemsHtml()+'</div>'+field('cardMsg',t('card'),D.cardMsg,'',true)+'</div>'
       + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name'),D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone'),D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
       + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'">'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'">'+t('pick')+'</button></div></div>'
         + '<div class="two">'+field('dueDate',pk?t('pdate'):t('ddate'),D.dueDate,'type="date"')+field('dueTime',pk?t('ptime'):t('dtime'),D.dueTime,'')+'</div>'
         + (pk ? '' : field('recipName',t('rname'),D.recipName,'')+field('recipPhone',t('rphone'),D.recipPhone,'inputmode="tel" class="num" placeholder="+60"')
-          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off" placeholder="'+t('addrPh')+'">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div></div>'
+          + field('recipCompany',t('company'),D.recipCompany,'autocomplete="organization"')
+          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off" placeholder="'+t('addrPh')+'">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div><div class="msg'+(D.feeOut&&D.feeAuto?' info':'')+'" id="addr-msg">'+(D.feeOut&&D.feeAuto?outMsg():'')+'</div></div>'
           + field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))
       + '</div>'
       + '<button class="btn" type="button" id="go">'+t('confirm')+'</button><p class="fine">'+t('fine')+'</p>';
     document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
     document.getElementById('go').onclick = submit;
-    const a = document.getElementById('f-addr'); if (a) wireAddr(a);
+    const a = document.getElementById('f-addr'); if (a) { wireAddr(a); if (a.value.trim()) quoteFee(0); }
   }
 
   // Google address suggestions (through the server, only while this link is open)
@@ -208,12 +255,12 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const grow = () => { input.style.height = 'auto'; input.style.height = (input.scrollHeight + 2) + 'px'; };
     requestAnimationFrame(grow);
     input.onkeydown = e => { if (e.key === 'Enter') e.preventDefault(); };
-    input.oninput = () => { grow(); clearTimeout(timer); const q = input.value.trim(); if (q.length < 3) { hits.innerHTML=''; return; }
+    input.oninput = () => { grow(); quoteFee(800); clearTimeout(timer); const q = input.value.trim(); if (q.length < 3) { hits.innerHTML=''; return; }
       timer = setTimeout(async () => { const my = ++seq; const r = await api({ mode:'form-addr', sub:'autocomplete', input:q, sessionToken:sess });
         if (my !== seq) return; const ps = (r.j && r.j.predictions) || [];
         hits.innerHTML = ps.map((p,i) => '<button type="button" data-i="'+i+'">'+esc(p.description)+'</button>').join('');
         hits.querySelectorAll('button').forEach(b => b.onclick = async () => { const p = ps[+b.dataset.i]; hits.innerHTML=''; input.value = p.description; grow();
-          if (p.placeId) { const d = await api({ mode:'form-addr', sub:'place', placeId:p.placeId, sessionToken:sess }); if (d.j && d.j.address) input.value = d.j.address; sess = Math.random().toString(36).slice(2); } grow(); });
+          if (p.placeId) { const d = await api({ mode:'form-addr', sub:'place', placeId:p.placeId, sessionToken:sess }); if (d.j && d.j.address) input.value = d.j.address; sess = Math.random().toString(36).slice(2); } grow(); quoteFee(0); });
       }, 300); };
   }
 
@@ -222,11 +269,18 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const req = ['name','contact','dueDate'].concat(fulfil==='pickup' ? [] : ['recipName','addr']);
     let first = null; req.forEach(k => { const w = document.getElementById('w-'+k); const bad = !String(D[k]||'').trim(); if (w) w.classList.toggle('bad', bad); if (bad && !first) first = w; });
     if (first) { first.scrollIntoView({ block:'center' }); const i = first.querySelector('input,textarea'); if (i) i.focus(); return; }
+    const addrStop = msg => { const w = document.getElementById('w-addr'); addrMsg(msg); if (w) w.scrollIntoView({ block:'center' }); };
+    if (D.feeAuto && fulfil!=='pickup') {
+      if (!/\b\d{5}\b/.test(D.addr||'')) { addrStop(esc(t('feePc'))); return; }
+    }
     const go = document.getElementById('go'); go.disabled = true; go.textContent = t('saving');
-    const r = await api({ mode:'form-save', fields:{ name:D.name, contact:D.contact, email:D.email, recipName:D.recipName, recipPhone:D.recipPhone, fulfil, dueDate:D.dueDate, dueTime:D.dueTime, addr:D.addr, deliveryInstr:D.deliveryInstr, cardMsg:D.cardMsg, custNote:D.custNote } });
+    const r = await api({ mode:'form-save', fields:{ name:D.name, contact:D.contact, email:D.email, recipName:D.recipName, recipPhone:D.recipPhone, recipCompany:D.recipCompany, fulfil, dueDate:D.dueDate, dueTime:D.dueTime, addr:D.addr, deliveryInstr:D.deliveryInstr, cardMsg:D.cardMsg, custNote:D.custNote } });
     if (r.ok) { D = r.j; view = 'pay'; render(); window.scrollTo(0,0); return; }
     if (r.status===409) { await load(); return; }
-    go.disabled = false; go.textContent = t('confirm'); toast(t('err'));
+    go.disabled = false; go.textContent = t('confirm');
+    const e = r.j && r.j.error;
+    if (e==='need_postcode') { addrStop(esc(t('feePc'))); return; }
+    toast(t('err'));
   }
 
   // payment receipt: shrink on the phone, store it, link it to this order
@@ -250,7 +304,8 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     if (!tok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div>'; return; }
     const r = await api({ mode:'form-get' });
     if (!r.ok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div><a class="btn" href="'+waLink('Hi, about my order request')+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
-    D = r.j; view = D.state==='locked' ? 'done' : (D.submitted ? 'pay' : 'form'); render();
+    // Complete orders open on the check-and-pay page; the customer need not confirm first.
+    D = r.j; view = D.state==='locked' ? 'done' : ((D.submitted || D.slip || complete()) ? 'pay' : 'form'); render();
   }
   setLang(lang); load();
 })();

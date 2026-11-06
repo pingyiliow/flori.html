@@ -19,6 +19,51 @@ const SB_ANON = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6Ik
 // Shopify; gone once it is completed.
 const SB_SVC = process.env.SUPABASE_SERVICE_KEY;
 const FORM_DAYS = 7;
+// Delivery fee: Shopify's own Local Delivery zones (the fee checkout charges), asked through
+// draftOrderAvailableDeliveryOptions. Zones go by postcode; Shopify also needs the state,
+// which a Malaysian postcode gives.
+const SHOP = (s => { s = String(s || '').trim().toLowerCase().replace(/^https?:\/\//, ''); if (s && !s.includes('.')) s += '.myshopify.com'; return s; })(process.env.SHOPIFY_SHOP);
+let _stok = null, _stokExp = 0;
+async function shopToken() {
+  if (_stok && Date.now() < _stokExp) return _stok;
+  const id = process.env.SHOPIFY_CLIENT_ID, secret = process.env.SHOPIFY_CLIENT_SECRET;
+  if (!SHOP || !id || !secret) throw new Error('shopify_not_configured');
+  const r = await fetch('https://' + SHOP + '/admin/oauth/access_token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: new URLSearchParams({ grant_type: 'client_credentials', client_id: id, client_secret: secret }).toString() });
+  const j = await r.json().catch(() => ({}));
+  if (!j.access_token) throw new Error('no_token');
+  _stok = j.access_token; _stokExp = Date.now() + Math.max(60000, (j.expires_in ? j.expires_in * 1000 : 3600000) - 60000);
+  return _stok;
+}
+const MY_PC = [[1000,2999,'PLS'],[5000,9999,'KDH'],[10000,14999,'PNG'],[15000,18999,'KTN'],[20000,24999,'TRG'],[25000,28999,'PHG'],[30000,36999,'PRK'],[39000,39999,'PHG'],[40000,48999,'SGR'],[49000,49999,'PHG'],[50000,60999,'KUL'],[62000,62999,'PJY'],[63000,68999,'SGR'],[70000,73999,'NSN'],[75000,78999,'MLK'],[79000,86999,'JHR'],[87000,87999,'LBN'],[88000,91999,'SBH'],[93000,98999,'SWK']];
+const myState = pc => { const n = parseInt(pc, 10); const r = MY_PC.find(x => n >= x[0] && n <= x[1]); return r ? r[2] : null; };
+// The form works the fee out only when staff gave neither an address nor a fee (a fee or
+// address from staff, free delivery included, stays as it is). Once worked out, fee_auto
+// keeps it following the customer's address.
+function feeAuto(row) {
+  if (row.fee_auto === true) return true;
+  if (row.fee_auto === false) return false;
+  return !(Number(row.delivery_fee) > 0) && !String(row.addr || '').trim();
+}
+async function shopFee(row, addr) {
+  const pcs = String(addr || '').match(/\b\d{5}\b/g), pc = pcs && pcs[pcs.length - 1];
+  if (!pc) return { need: 'postcode' };
+  const st = myState(pc); if (!st) return { out: true };
+  const items = (Array.isArray(row.item_list) ? row.item_list : []).map(it => ({ title: _s(it && it.name, 200) || 'Item',
+    originalUnitPriceWithCurrency: { amount: (Number(it && it.price) || 0).toFixed(2), currencyCode: 'MYR' }, quantity: parseInt(it && it.qty, 10) || 1, requiresShipping: true }));
+  if (!items.length) items.push({ title: 'Flowers', originalUnitPriceWithCurrency: { amount: (Number(row.amount) || 100).toFixed(2), currencyCode: 'MYR' }, quantity: 1, requiresShipping: true });
+  try {
+    const tok = await shopToken();
+    const r = await fetch('https://' + SHOP + '/admin/api/2026-04/graphql.json', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': tok },
+      body: JSON.stringify({ query: 'query($i: DraftOrderAvailableDeliveryOptionsInput!){ draftOrderAvailableDeliveryOptions(input:$i){ availableLocalDeliveryRates { price { amount } } } }',
+        variables: { i: { lineItems: items, shippingAddress: { address1: _s(String(addr).split('\n')[0], 200) || 'Address', zip: pc, provinceCode: st, countryCode: 'MY' } } } }) });
+    const j = await r.json().catch(() => null);
+    const o = j && j.data && j.data.draftOrderAvailableDeliveryOptions, rates = o && o.availableLocalDeliveryRates;
+    if (!Array.isArray(rates)) return { error: true };
+    if (!rates.length) return { out: true };
+    return { fee: Math.min(...rates.map(x => Number(x.price && x.price.amount) || 0)) };
+  } catch (_) { return { error: true }; }
+}
 async function svc(path, opts) {
   opts = opts || {};
   const r = await fetch(SB_URL + '/rest/v1/' + path, { ...opts, headers: { apikey: SB_SVC, Authorization: 'Bearer ' + SB_SVC, 'Content-Type': 'application/json', Prefer: 'return=representation', ...(opts.headers || {}) } });
@@ -48,11 +93,11 @@ function formPublic(row) {
     ref: 'NO-' + String(row.id || '').replace(/\D/g, '').slice(-5),
     state: formState(row), submitted: row.form_status === 'submitted',
     name: row.name || '', contact: row.contact || '', email: row.email || '',
-    recipName: row.recip_name || '', recipPhone: row.recip_phone || '',
+    recipName: row.recip_name || '', recipPhone: row.recip_phone || '', recipCompany: row.recip_company || '',
     fulfil: row.fulfil || 'delivery', dueDate: row.due_date || '', dueTime: row.due_time || '',
     addr: row.addr || '', deliveryInstr: row.delivery_instr || '', cardMsg: row.card_msg || '', custNote: row.cust_note || '',
     items, amount: Number(row.amount) || 0, deliveryFee: Number(row.delivery_fee) || 0,
-    paid: row.payment === 'paid', slip: !!row.pay_slip, orderNo: row.order_no || '',
+    paid: row.payment === 'paid', slip: !!row.pay_slip, orderNo: row.order_no || '', feeAuto: feeAuto(row),
   };
 }
 // Tell the staff app something changed (same broadcast channel the app uses).
@@ -69,6 +114,10 @@ async function formHandler(body, res) {
   const st = formState(row);
   if (body.mode === 'form-get') return res.status(200).json(formPublic(row));
   if (st !== 'open') return res.status(409).json({ error: st });
+  if (body.mode === 'form-fee') {
+    if (!feeAuto(row)) return res.status(200).json({ fixed: true, fee: Number(row.delivery_fee) || 0 });
+    return res.status(200).json(await shopFee(row, _s(body.addr, 500)));
+  }
   if (body.mode === 'form-save') {
     const f = body.fields || {};
     const fulfil = f.fulfil === 'pickup' ? 'pickup' : 'delivery';
@@ -76,6 +125,7 @@ async function formHandler(body, res) {
     const patch = {
       name: _s(f.name, 120) || row.name, contact: _s(f.contact, 40), email: _s(f.email, 160),
       recip_name: _s(f.recipName, 160), recip_phone: _s(f.recipPhone, 40), fulfil,
+      recip_company: fulfil === 'pickup' ? (row.recip_company || null) : _s(f.recipCompany, 160),
       due_date: due, due_time: _s(f.dueTime, 80),
       addr: fulfil === 'pickup' ? (row.addr || null) : _s(f.addr, 500),
       delivery_instr: fulfil === 'pickup' ? (row.delivery_instr || null) : _s(f.deliveryInstr, 500),
@@ -84,6 +134,17 @@ async function formHandler(body, res) {
     };
     // One item: its own card message follows the order's, so the Shopify draft gets it.
     if (Array.isArray(row.item_list) && row.item_list.length === 1) patch.item_list = [{ ...row.item_list[0], cardMsg: patch.card_msg }];
+    if (feeAuto(row)) {
+      patch.fee_auto = true;
+      if (fulfil === 'pickup') patch.delivery_fee = 0;
+      else {
+        const q = await shopFee(row, patch.addr);
+        if (q.need) return res.status(422).json({ error: 'need_postcode' });
+        // Outside the Local Delivery zones (outstation, e.g. KL) or no answer: staff set the
+        // fee by hand; changing it in the app ends fee_auto.
+        patch.delivery_fee = q.fee != null ? q.fee : 0;
+      }
+    }
     const { ok } = await svc('followups?id=eq.' + encodeURIComponent(row.id), { method: 'PATCH', body: JSON.stringify(patch) });
     if (!ok) return res.status(500).json({ error: 'save_failed' });
     await pingStaff();
@@ -93,7 +154,8 @@ async function formHandler(body, res) {
     const url = String(body.url || '');
     const base = String(process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
     if (!base || url.indexOf(base + '/') !== 0) return res.status(400).json({ error: 'bad_url' });
-    const { ok } = await svc('followups?id=eq.' + encodeURIComponent(row.id), { method: 'PATCH', body: JSON.stringify({ pay_slip: url }) });
+    // A receipt also counts as the customer's go-ahead (complete orders skip Confirm order).
+    const { ok } = await svc('followups?id=eq.' + encodeURIComponent(row.id), { method: 'PATCH', body: JSON.stringify({ pay_slip: url, form_status: 'submitted', form_submitted_at: row.form_submitted_at || new Date().toISOString() }) });
     if (!ok) return res.status(500).json({ error: 'save_failed' });
     await pingStaff();
     return res.status(200).json({ ok: true });
@@ -116,7 +178,7 @@ export default async function handler(req, res) {
   let body = {};
   try { body = typeof req.body === 'object' && req.body ? req.body : JSON.parse(req.body || '{}'); } catch {}
   // Customer order form: its own data, no Google key needed.
-  if (body.mode === 'form-get' || body.mode === 'form-save' || body.mode === 'form-slip') return formHandler(body, res);
+  if (body.mode === 'form-get' || body.mode === 'form-save' || body.mode === 'form-slip' || body.mode === 'form-fee') return formHandler(body, res);
 
   const KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!KEY) return res.status(501).json({ error: 'geo_not_configured' });
