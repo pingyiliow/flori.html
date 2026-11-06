@@ -11710,7 +11710,8 @@ function renderDriver(){
   // pick one up and deliver it even before anyone builds a route.
   // Self-heal: an order pointing at a route that no longer exists (e.g. the route save
   // failed or the route was deleted elsewhere) is unassigned again, not invisible.
-  const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled).sort(bySeq);
+  // Booked with Lalamove = handled: it lists under Lalamove, not here.
+  const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled && !_lalaHasBooking(o)).sort(bySeq);
   const _grpHead = (lbl, n) => '<div class="dgrp-head plain"><div class="dgrp-name"><b>'+lbl+'</b></div><div class="dgrp-count"><b class="num">'+n+'</b></div></div><div class="dgrp-rule"></div>';
   const unassignedBlock = () => (unassigned.length || (isAdmin && !routes.length))
     ? '<section class="dgrp">' + _grpHead(isAdmin?'Unassigned':'Pending deliveries', unassigned.length)
