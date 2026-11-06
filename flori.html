@@ -2832,7 +2832,7 @@ function _applyRecipes(){
           const from = c.addedAt || r.since || 0;
           if(when < from) return;
           if(SHOP_DEDUCT_LOG[rkey] || _shopDeductInFlight.has(rkey)) return;
-          shopQueue.push({ rkey, pid:_compPid(c), need:(c.qty||1)*lq, orderNo:o.name||'' });
+          shopQueue.push({ rkey, pid:_compPid(c), vid:c.vid||null, need:(c.qty||1)*lq, orderNo:o.name||'' });
           return;
         }
         // If this material controls Shopify stock via a box-link, the box-deduction
@@ -2939,8 +2939,15 @@ function rbomMatSearch(q){
   const shopTag=' <span style="font-size:8px;font-weight:700;color:#1B4F9C;border:1px solid #B9D4F5;border-radius:3px;padding:0 4px;vertical-align:1px">Shopify</span>';
   const man=(typeof INVENTORY!=='undefined'?INVENTORY:[]).filter(i=>String(i.name||'').toLowerCase().includes(q)).slice(0,10)
     .map(i=>({shop:false,id:i.id,name:i.name,qty:i.qty||0,unit:i.unit||''}));
-  const shop=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).filter(p=>String(p.title||'').toLowerCase().includes(q)).slice(0,8)
-    .map(p=>({shop:true,pid:p.id,name:p.title,qty:p.total||0}));
+  // Shopify products with several versions (e.g. Graduation Plushie: Capybara, Bear…) are
+  // listed per version, so a design deducts the exact one it uses.
+  const shop=[];
+  (typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).forEach(p=>{
+    const vs=p.variants||[], pt=String(p.title||'').toLowerCase();
+    if(vs.length<=1){ if(pt.includes(q)) shop.push({shop:true,pid:p.id,vid:null,name:p.title,qty:p.total||0}); return; }
+    vs.forEach((v,k)=>{ const vt=String(v.title||''); if(pt.includes(q) || vt.toLowerCase().includes(q)) shop.push({shop:true,pid:p.id,vid:(v.invItemId!=null?String(v.invItemId):String(k)),name:(p.title||'')+', '+vt,qty:v.qty||0}); });
+  });
+  shop.splice(12);
   const rows=man.concat(shop);
   _rbomMatResults=rows;
   const addRow='<div class="rcp-sug-row" onmousedown="rbomAddUntracked()" style="color:var(--c-burg);font-weight:600">+ '+(LANG==='zh'?'新建未入库材料':'Add')+' "'+esc(raw)+'"'+(LANG==='zh'?'':' · not-tracked material')+'</div>';
@@ -2961,13 +2968,18 @@ function rbomAddUntracked(){
 }
 // Current stock for a recipe component — manual (INVENTORY) or Shopify (SHOPIFY_STOCK).
 function _compIsShop(c){ return !!(c && (c.kind==='shop' || String(c.mid||'').indexOf('shop:')===0)); }
-function _compPid(c){ return c.pid || String(c.mid||'').replace(/^shop:/,''); }
+function _compPid(c){ return c.pid || String(c.mid||'').replace(/^shop:/,'').split('|')[0]; }
+// The version a component points at: by inventory item id, or by position when the stock
+// list had no ids yet. Components without a version use the first one (as before).
+function _compVariant(p, vid){ const vs=(p&&p.variants)||[]; if(vid==null||vid==='') return vs[0]||null; return vs.find(x=>x.invItemId!=null && String(x.invItemId)===String(vid)) || (/^\d{1,3}$/.test(String(vid)) ? vs[+vid] : null) || null; }
 function _compStock(c){
-  if(_compIsShop(c)){ const p=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).find(x=>x.id===_compPid(c)); return { qty:p?(p.total||0):null, shop:true, low:p?((p.total||0)<=SHOP_STOCK_LOW):false }; }
+  if(_compIsShop(c)){ const p=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).find(x=>x.id===_compPid(c));
+    if(p && c.vid){ const v=_compVariant(p, c.vid); return { qty:v?(v.qty||0):null, shop:true, low:v?((v.qty||0)<=SHOP_STOCK_LOW):false }; }
+    return { qty:p?(p.total||0):null, shop:true, low:p?((p.total||0)<=SHOP_STOCK_LOW):false }; }
   const inv=(typeof INVENTORY!=='undefined'?INVENTORY:[]).find(x=>x.id===c.mid); return { qty:inv?(inv.qty||0):null, shop:false, low:inv?_invLow(inv):false };
 }
 function rbomMatPick(k){ const r=_rbomMatResults[k]; if(!r) return;
-  if(r.shop){ if(!_recEdit.components.some(c=>_compIsShop(c)&&_compPid(c)===r.pid)) _recEdit.components.push({mid:'shop:'+r.pid, pid:r.pid, name:r.name, qty:1, kind:'shop', addedAt:Date.now()}); }
+  if(r.shop){ if(!_recEdit.components.some(c=>_compIsShop(c)&&_compPid(c)===r.pid&&String(c.vid||'')===String(r.vid||''))) _recEdit.components.push({mid:'shop:'+r.pid+(r.vid?'|'+r.vid:''), pid:r.pid, vid:r.vid||null, name:r.name, qty:1, kind:'shop', addedAt:Date.now()}); }
   else { if(!_recEdit.components.some(c=>c.mid===r.id)) _recEdit.components.push({mid:r.id, name:r.name, qty:1}); }
   _rbomRenderComps(); const box=document.getElementById('rbom-mat-results'); if(box){box.style.display='none';box.innerHTML='';} const inp=document.getElementById('rbom-mat-search'); if(inp) inp.value=''; }
 function rbomNameSearch(q){
@@ -5944,7 +5956,7 @@ async function _flushShopDeducts(queue){
   for(const job of queue){
     if(SHOP_DEDUCT_LOG[job.rkey] || _shopDeductInFlight.has(job.rkey)) continue;
     const p=(SHOPIFY_STOCK||[]).find(x=>x.id===job.pid); if(!p) continue;
-    const v=(p.variants||[])[0]; if(!v || !v.invItemId) continue;
+    const v=_compVariant(p, job.vid); if(!v || !v.invItemId) continue;
     _shopDeductInFlight.add(job.rkey);
     try{
       const m=`mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input) @idempotent(key:"${_idemKey()}"){ userErrors{ field message } } }`;
