@@ -1675,7 +1675,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -11188,6 +11188,7 @@ function openRouteManage(routeId){
   let items = '';
   if (isAdmin || pending.length > 1) items += row('sort','Edit stops', isAdmin ? 'reorder, add & remove stops' : 'drag to reorder','editstops');
   if (canOpt)             items += row('route','Auto-sort by distance','shortest path from the shop','optimize');
+  if (isAdmin)            items += row('pin','Change start point', esc2((_routeOrigin(rt)||{}).label||'shop'),'start');
   if (isAdmin)            items += row('edit','Rename / change driver','','edit');
   if (isAdmin)            items += row('trash','Delete route','','delete', true);
   if (!items) items = '<div style="padding:16px;font-size:12px;color:var(--c-muted);border-top:1px solid var(--c-border)">No actions available for this route.</div>';
@@ -11195,7 +11196,7 @@ function openRouteManage(routeId){
   ov.id = 'rm-sheet';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99999;display:flex;align-items:flex-end;justify-content:center';
   ov.innerHTML = '<div style="background:var(--c-surface);border-top:2px solid var(--c-ink);max-width:460px;width:100%;overflow:hidden" onclick="event.stopPropagation()">'
-    + '<div style="padding:15px 16px 11px;font-size:14px;font-weight:700;color:var(--c-ink)">Manage route</div>'
+    + '<div style="padding:15px 16px 11px;font-size:14px;font-weight:700;color:var(--c-ink)">Edit route</div>'
     + items
     + '<button onclick="_rmClose()" style="display:block;width:calc(100% - 24px);margin:12px 12px;padding:12px;border:1px solid var(--c-border);background:var(--c-bg);font-size:13px;font-weight:600;color:var(--c-muted);cursor:pointer">Cancel</button>'
     + '</div>';
@@ -11207,6 +11208,7 @@ function _rmDo(action, routeId){
   _rmClose();
   if (action === 'editstops')     toggleReorder(routeId);   // enter edit mode: drag reorder + ✕ remove + add panel
   else if (action === 'optimize') optimizeRoute(routeId);
+  else if (action === 'start')    editRouteStart(routeId);
   else if (action === 'edit')     openRouteModal(routeId);
   else if (action === 'delete')   deleteRoutePrompt(routeId);
 }
@@ -11241,7 +11243,7 @@ function _drvRouteDetail(rt){
       + (reorder
           ? '<button type="button" class="btn btn-primary" style="height:40px;padding:0 18px" onclick="toggleReorder(\''+rt.id+'\')">Done</button>'
           : ((isAdmin || pending.length>1 || canOpt)
-              ? '<button type="button" class="btn btn-ghost" style="height:40px" aria-label="Manage route" onclick="openRouteManage(\''+rt.id+'\')">'+di('gear',15)+' Manage</button>'
+              ? '<button type="button" class="btn btn-ghost" style="height:40px" onclick="openRouteManage(\''+rt.id+'\')">'+di('edit',15)+' Edit route</button>'
               : ''))
     + '</div>'
     + '<div class="dlv-rdhead">'
@@ -11256,9 +11258,7 @@ function _drvRouteDetail(rt){
       + '<div class="ord-tally"><div><b>'+pending.length+'</b><span>'+(pending.length===1?'stop':'stops')+'</span></div><div><b>'+kmVal+'</b><span>km</span></div><div><b>'+minVal+'</b><span>est. time</span></div></div>'
       + (pending.length ? '<button type="button" class="btn btn-primary dlv-rdgo" onclick="startRoute(\''+rt.id+'\')">'+dif('play',13)+' '+(rt.startedAt?'Resend on-the-way':'Start route')+'</button>' : '')
     + '</div>'
-    + '<div class="dlv-start"><span class="t">Start: '+esc2(origin.label||'shop')+'</span>'
-      + (isAdmin ? '<button type="button" class="btn btn-ghost btn-sm" onclick="editRouteStart(\''+rt.id+'\')">Edit</button>' : '')
-    + '</div>'
+    + '<div class="dlv-start"><span class="t">Start: '+esc2(origin.label||'shop')+'</span></div>'
     // tabs
     + '<div class="filters dlv-rdtabs">'+tabBtn('stops','Stops')+tabBtn('items','Items')+'</div>'
     // content
