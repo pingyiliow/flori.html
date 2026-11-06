@@ -8343,8 +8343,8 @@ function fuSendForm(id){
   saveFollowups(); renderFollowup();
   { const dp=document.getElementById('fu-dp'); if (dp && dp.classList.contains('on') && (document.getElementById('fu-dp-name')||{}).textContent===f.name) openFUDP(f.id); }
   const link=_fuFormLink(f), nm=String(f.name||'').trim();
-  const msg='Hi'+(nm?' '+nm:'')+', here is the order form to confirm your order:\n'+link
-    +'\n\n您好，请点击以下链接填写并确认您的订单：\n'+link;
+  const msg='Hi'+(nm?' '+nm:'')+', here is the order form to confirm your order:\n'
+    +'您好，请点击以下链接填写并确认您的订单：\n'+link;
   const fail=()=>prompt('Form link', link);
   try{ navigator.clipboard.writeText(msg).then(()=>toast('✓ Form link and message copied'), fail); }catch(_){ fail(); }
 }
