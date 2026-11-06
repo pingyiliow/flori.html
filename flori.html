@@ -1670,7 +1670,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -3395,9 +3395,11 @@ async function loadFromSupabase(opts = {}) {
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice, invoiceNo: f.invoice_no||'', invoiceAt: f.invoice_at||null,
+        formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'',
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
+      mappedFu.forEach(f => { try{ _fuHash[f.id] = _rowHash(_fuRow(f)); }catch(_){} });   // as in the database: unchanged rows are not written back
       _lsSetLean('flori-followup', FOLLOWUPS);
       changed = true;
     }
@@ -7005,10 +7007,12 @@ function purRecvConfirm(addStock){
 /* ─── Follow-up ──────────────────────────────────────────────── */
 let FOLLOWUPS = [];
 function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
-function saveFollowups() {
-  _lsSetLean('flori-followup', FOLLOWUPS);
-  if (hasSB()) {
-    const rows = FOLLOWUPS.map(f => ({
+// Rows as they were last loaded/saved (hash). saveFollowups writes ONLY entries that changed:
+// writing every entry from this device used to put an old copy back over newer edits —
+// another device's, or what a customer just submitted through the order form.
+const _fuHash = {};
+function _fuRow(f){
+  return {
       id: f.id, name: f.name, contact: f.contact||null,
       email: f.email||null, staff: f.staff||null, recip_name: f.recipName||null,
       recip_phone: f.recipPhone||null, channel: f.channel||'whatsapp',
@@ -7019,12 +7023,21 @@ function saveFollowups() {
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice, invoice_no: f.invoiceNo||null, invoice_at: f.invoiceAt||null,
+      form_token: f.formToken||null, form_status: f.formStatus||null, form_sent_at: f.formSentAt||null, form_submitted_at: f.formSubmittedAt||null, cust_note: f.custNote||null,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
-    }));
+  };
+}
+function saveFollowups() {
+  _lsSetLean('flori-followup', FOLLOWUPS);
+  if (hasSB()) {
+    const rows = [], hashes = {};
+    FOLLOWUPS.forEach(f => { if (!f.ts) f.ts=Date.now(); const r=_fuRow(f), h=_rowHash(r); if (_fuHash[f.id]!==h){ rows.push(r); hashes[f.id]=h; } });
+    if (!rows.length) return;
     sbUpsert('followups', rows).then(ok => {
+      if (ok) Object.assign(_fuHash, hashes);
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, form_token, form_status, form_sent_at, form_submitted_at, cust_note, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7612,6 +7625,7 @@ function saveFollowup() {
     orderNo: prevFu?.orderNo || null,
     // The form doesn't edit these; replacing the entry used to drop them on every edit.
     paySlip: prevFu?.paySlip || '', payNote: prevFu?.payNote || '',
+    formToken: prevFu?.formToken || '', formStatus: prevFu?.formStatus || '', formSentAt: prevFu?.formSentAt || null, formSubmittedAt: prevFu?.formSubmittedAt || null, custNote: prevFu?.custNote || '',
     invoiceNo: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceNo || '') : ''),
     invoiceAt: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceAt || null) : null),
     needInvoice: !!document.getElementById('fu-need-invoice')?.checked && !(prevFu?.invoiceNo),
@@ -8297,6 +8311,8 @@ async function createShopifyDraft() {
 // In Shopify → (Shopify order created, via webhook) → Done. Derived from the stored
 // status + payment so existing entries map over without migration.
 const FU_STAGES = {
+  waiting: { label:'Waiting for customer', bg:'#F1EFE8', fg:'#444441' },
+  verify:  { label:'Verify payment',    bg:'#FAEEDA', fg:'#854F0B' },
   enquiry: { label:'Enquiry',           bg:'#F1EFE8', fg:'#444441' },
   ready:   { label:'Ready for Shopify', bg:'#EEEDFE', fg:'#3C3489' },
   shopify: { label:'In Shopify',        bg:'#E6F1FB', fg:'#0C447C' },
@@ -8306,9 +8322,35 @@ function _fuStage(f){
   if (f.status==='completed') return 'done';
   if (f.status==='draft') return 'shopify';
   if (f.status==='ready' || f.payment==='paid') return 'ready';
+  // Customer order form: submitted → staff verify the payment; sent → waiting on the customer.
+  if (f.formStatus==='submitted') return 'verify';
+  if (f.formStatus==='sent') return 'waiting';
   return 'enquiry';
 }
-const _fuNeeds = f => { const s=_fuStage(f); return s==='enquiry' || s==='ready'; };
+const _fuNeeds = f => { const s=_fuStage(f); return s==='enquiry' || s==='ready' || s==='verify' || s==='waiting'; };
+// ── Customer order form link ─────────────────────────────────────────────────────────
+function _fuNewToken(){ const a=new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+function _fuFormLink(f){ return location.origin + '/order.html?t=' + f.formToken; }
+function _fuFormDate(iso){ try{ return new Date(iso).toLocaleDateString('en-GB',{ day:'numeric', month:'short' }); }catch(_){ return ''; } }
+// Send (or resend) the form: make the link if needed, keep it open 7 more days, copy it and
+// open WhatsApp to the customer with it.
+function fuSendForm(id){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
+  if (!f.formToken) f.formToken=_fuNewToken();
+  if (f.formStatus!=='submitted') f.formStatus='sent';
+  f.formSentAt=new Date().toISOString();
+  saveFollowups(); renderFollowup();
+  const link=_fuFormLink(f);
+  try{ navigator.clipboard.writeText(link); }catch(_){}
+  const ph=(typeof _phoneDigits==='function') ? _phoneDigits(f.contact) : String(f.contact||'').replace(/\D/g,'');
+  const msg='Hi '+(f.name||'')+', please check and confirm your order here:\n'+link+'\n\n请点击链接确认您的订单：\n'+link;
+  if (ph) window.open('https://wa.me/'+ph+'?text='+encodeURIComponent(msg), '_blank', 'noopener');
+  toast(ph ? '✓ Form link copied, WhatsApp opened' : '✓ Form link copied');
+}
+function fuCopyForm(id){
+  const f=FOLLOWUPS.find(x=>x.id===id); if(!f || !f.formToken) return;
+  try{ navigator.clipboard.writeText(_fuFormLink(f)); toast('✓ Form link copied'); }catch(_){ prompt('Form link', _fuFormLink(f)); }
+}
 function _fuChip(label, bg, fg){ return '<span class="fu-stage" style="background:'+bg+';color:'+fg+'">'+label+'</span>'; }
 function _fuStageChip(f){ const s=FU_STAGES[_fuStage(f)]; return _fuChip(s.label, s.bg, s.fg); }
 function _fuFlags(f){
@@ -8320,7 +8362,9 @@ function _fuFlags(f){
 function _fuActionBtn(f){
   const st=_fuStage(f), stop='event.stopPropagation();';
   const btn=(label,icon,click)=>'<button type="button" class="fu-act" onclick="'+stop+click+'">'+di(icon,15)+'<span>'+label+'</span></button>';
-  if (st==='enquiry') return btn('Record payment','wallet',"openFUPay('"+f.id+"')");
+  if (st==='enquiry') return btn('Send form','nav',"fuSendForm('"+f.id+"')")+'<button type="button" class="fu-act2" onclick="'+stop+"openFUPay('"+f.id+"')"+'">Record payment</button>';
+  if (st==='waiting') return btn('Resend form','nav',"fuSendForm('"+f.id+"')")+'<button type="button" class="fu-act2" onclick="'+stop+"openFUPay('"+f.id+"')"+'">Record payment</button>';
+  if (st==='verify')  return btn('Record payment','wallet',"openFUPay('"+f.id+"')");
   if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')");
   if (st==='shopify' && f.shopifyDraftId) return '<a class="fu-act" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',15)+'<span>Open draft</span></a>';
   return '';
@@ -8461,7 +8505,7 @@ function renderFollowup() {
   const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?String(v):'';};
   _fs('fu-c-needs',_needsN); _fs('fu-c-shopify',_shopN);
   { const n=st=>FOLLOWUPS.filter(x=>_fuStage(x)===st).length, tl=document.getElementById('fu-tally');
-    if (tl) tl.innerHTML='<div><b>'+n('ready')+'</b><span>ready to send</span></div><div><b>'+n('enquiry')+'</b><span>need payment</span></div><div><b>'+_shopN+'</b><span>in Shopify</span></div>'; }
+    if (tl) tl.innerHTML='<div><b>'+n('ready')+'</b><span>ready to send</span></div>'+(n('verify')?'<div class="warn"><b>'+n('verify')+'</b><span>verify payment</span></div>':'')+'<div><b>'+(n('enquiry')+n('waiting'))+'</b><span>need payment</span></div><div><b>'+_shopN+'</b><span>in Shopify</span></div>'; }
   const nb=document.getElementById('nb-followup'); if(nb){if(fuPending>0){nb.textContent=fuPending;nb.style.display='';}else nb.style.display='none';}
   let list = FOLLOWUPS.slice().reverse();
   // An entry is "archived" once it's marked completed OR its delivery date has
@@ -8503,7 +8547,9 @@ function renderFollowup() {
     const amt = parseFloat(f.amount) > 0 ? 'RM '+parseFloat(f.amount).toFixed(2) : '';
     const fee = parseFloat(f.deliveryFee) > 0 ? '<span class="fuw-fee num">+ RM '+parseFloat(f.deliveryFee).toFixed(2)+' delivery</span>' : '';
     const pm = _payParse(f.paidBy).m;
-    const pay = st==='enquiry' ? '' : f.payment==='paid'
+    const pay = (st==='enquiry' || st==='waiting') ? '' : st==='verify'
+      ? '<span class="fuw-pay warn">'+(f.paySlip ? 'Receipt uploaded' : 'Form submitted')+'</span>'
+      : f.payment==='paid'
       ? '<span class="fuw-pay">'+esc(f.paidBy ? 'Paid by '+(pm==='Other'||!pm ? f.paidBy : pm) : 'Paid')+'</span>'
       : '<span class="fuw-pay warn">Unpaid, pay later</span>';
     return '<div class="orw fuw'+(done?' done':'')+'" onclick="openFUDP(\''+f.id+'\')">'
@@ -8523,7 +8569,9 @@ function renderFollowup() {
   else {
     list.sort(_bySoon);
     grp('Ready for Shopify',   list.filter(f => _fuStage(f)==='ready'));
+    grp('Verify payment',      list.filter(f => _fuStage(f)==='verify'));
     grp('Waiting for payment', list.filter(f => _fuStage(f)==='enquiry'));
+    grp('Waiting for customer',list.filter(f => _fuStage(f)==='waiting'));
   }
   tb.innerHTML = html;
 }
@@ -8585,12 +8633,20 @@ function openFUDP(id) {
   rows.push(['Payment', payLbl]);
   if (f.paidBy) rows.push(['Paid By', f.paidBy]);
   if (f.payNote) rows.push(['Payment note', f.payNote]);
+  if (f.custNote) rows.push(['Customer remark', f.custNote]);
   if (f.orderNo) rows.push(['Shopify Order', f.orderNo]);
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
   });
   if (f.paySlip) html += `<div class="fu-row"><div class="fu-row-lbl">Payment slip</div><div class="fu-row-val"><img class="dp-pay-slip" src="${esc(f.paySlip)}" alt="Payment slip" onclick="openZoom(this.src,'Payment slip')"></div></div>`;
   html += `</div>`;
+  // Customer order form
+  { const sent=f.formSentAt, open=sent ? new Date(Date.parse(sent)+7*864e5).toISOString() : null;
+    const st = !f.formToken ? 'Not sent' : (f.formStatus==='submitted' ? ('Submitted '+_fuFormDate(f.formSubmittedAt)) : ('Sent '+_fuFormDate(sent)+', open until '+_fuFormDate(open)));
+    html += `<div><div class="fu-sec-ttl">Customer form</div><div class="fu-form"><span>${esc(st)}</span>`
+      + `<button type="button" class="fu-act" onclick="fuSendForm('${f.id}')">${di('nav',15)}<span>${f.formToken?'Resend form':'Send form'}</span></button>`
+      + (f.formToken ? `<button type="button" class="fu-act2" onclick="fuCopyForm('${f.id}')">Copy link</button>` : '')
+      + `</div></div>`; }
   // Address
   if(f.addr) html += `<div><div class="fu-sec-ttl">${fulfil} Address</div><div style="font-size:12px;line-height:1.6;color:var(--c-ink)">${esc(f.addr)}</div></div>`;
   if(f.deliveryInstr) html += `<div><div class="fu-sec-ttl">Delivery instructions</div><div style="font-size:12.5px;line-height:1.6;color:var(--c-ink);font-weight:600;white-space:pre-wrap">${esc(f.deliveryInstr)}</div></div>`;

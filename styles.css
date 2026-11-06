@@ -1248,6 +1248,12 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .fuw-pay{font-size:12px;font-weight:500;color:var(--c-muted)}
 .fuw-pay.warn{color:var(--color-warn);font-weight:600}
 .fuw-act:empty{display:none}
+.fuw-act{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.fu-act2{min-height:36px;padding:0 4px;border:0;background:none;font:inherit;font-size:13px;font-weight:600;color:var(--color-accent);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.fu-act2:hover{color:var(--color-accent-2)}
+.fu-form{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;font-size:13.5px;color:var(--color-ink-2)}
+.fu-form>span{flex:1 1 100%}
+@media(max-width:860px){.fuw-act{align-items:flex-start;flex-direction:row;flex-wrap:wrap}}
 .fu-act{border-radius:0;border-color:var(--color-accent);color:var(--color-accent);transition:background-color .14s,color .14s}
 .fu-act:hover{background:var(--color-accent);color:var(--color-accent-ink)}
 .pay-slip{display:flex;align-items:center;gap:12px;min-height:56px;padding:4px;margin:-4px;transition:background-color .14s}

@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Confirm your order | Bamboo Florist</title>
+<link rel="icon" href="/logo-green.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · redesign: full · scope: app · theme: loom (ecru, accent ink green by request) · customer order form + payment page · signature: the order itself sits at the top, already filled in · v2.0.0 */
+/* critique: a customer checks, not types: what staff already know is filled in, one section per question, one green button at the end */
+:root{
+  --color-paper:#F3EFE6; --color-paper-2:#EBE5D8; --color-surface:#FAF8F3;
+  --color-ink:#2A2622; --color-ink-2:#3F3A35; --color-muted:#6E665D; --color-rule:#D6CFC0;
+  --color-accent:#2E4A3D; --color-accent-2:#3D5E4F; --color-accent-ink:#F3EFE6; --color-warn:#8A5A12; --color-focus:#2E4A3D;
+  --font-display:"Libre Caslon Display",Georgia,serif; --font-body:"Hanken Grotesk",system-ui,sans-serif; --font-num:"DM Mono",ui-monospace,monospace;
+  --dur:140ms;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:clip}
+body{font-family:var(--font-body);font-size:16px;color:var(--color-ink);background:var(--color-paper);-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.wrap{max-width:520px;margin:0 auto;padding:0 20px 48px}
+.top{display:flex;align-items:center;gap:12px;padding:16px 0;border-bottom:2px solid var(--color-ink)}
+.top img{height:40px;width:auto}
+.top .word{font-family:var(--font-display);font-size:20px;flex:1}
+.lang{display:flex;box-shadow:inset 0 0 0 1px var(--color-rule)}
+.lang button{padding:8px 12px;font-size:13px;font-weight:600;color:var(--color-muted);min-height:36px;transition:background-color var(--dur),color var(--dur)}
+.lang button.on{background:var(--color-ink);color:var(--color-paper)}
+h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.01em;margin-top:28px;overflow-wrap:break-word;min-width:0}
+.ref{margin-top:8px;font-size:14px;color:var(--color-muted)}
+.sec{margin-top:28px}
+.sec h2{font-size:15px;font-weight:600;padding-bottom:8px;border-bottom:2px solid var(--color-ink)}
+.item{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--color-rule)}
+.item img{width:64px;height:64px;object-fit:cover;flex:none;background:var(--color-paper-2)}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:600;overflow-wrap:break-word}
+.item .t small{display:block;margin-top:2px;font-size:13px;color:var(--color-muted)}
+.item .p{font-size:14px;white-space:nowrap}
+.total{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0}
+.total span:first-child{color:var(--color-muted);font-size:14px}
+.total b{font-family:var(--font-display);font-weight:400;font-size:28px}
+.f{margin-top:16px}
+.f label{display:block;font-size:13px;font-weight:500;color:var(--color-muted);margin-bottom:6px}
+.f input,.f textarea{width:100%;min-height:48px;padding:12px;border:1px solid var(--color-rule);background:var(--color-surface);border-radius:0;font-size:16px;transition:border-color var(--dur)}
+.f textarea{min-height:88px;resize:vertical;line-height:1.4}
+.f input:focus,.f textarea:focus{border-color:var(--color-accent);outline:none;box-shadow:0 0 0 1px var(--color-accent)}
+.f.bad input,.f.bad textarea{border-color:var(--color-warn)}
+.f .err{display:none;margin-top:4px;font-size:13px;color:var(--color-warn);font-weight:600}
+.f.bad .err{display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:480px){.two{grid-template-columns:minmax(0,1fr)}}
+.seg{display:grid;grid-template-columns:1fr 1fr;box-shadow:inset 0 0 0 1px var(--color-rule)}
+.seg button{min-height:48px;font-weight:600;color:var(--color-muted);transition:background-color var(--dur),color var(--dur)}
+.seg button.on{background:var(--color-ink);color:var(--color-paper)}
+.addr{position:relative}
+.hits{border:1px solid var(--color-rule);border-top:0;background:var(--color-surface)}
+.hits:empty{display:none}
+.hits button{display:block;width:100%;text-align:left;padding:12px;font-size:14px;border-top:1px solid var(--color-rule);min-height:44px}
+.hits button:first-child{border-top:0}
+.hits button:hover{background:var(--color-paper-2)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin-top:28px;background:var(--color-accent);color:var(--color-accent-ink);font-weight:600;font-size:16px;text-decoration:none;transition:background-color var(--dur)}
+.btn:hover{background:var(--color-accent-2)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.6;cursor:default}
+.btn.ghost{background:transparent;color:var(--color-accent);box-shadow:inset 0 0 0 1.5px var(--color-accent);margin-top:12px}
+.btn.ghost:hover{background:var(--color-paper-2)}
+.fine{margin-top:12px;font-size:13px;color:var(--color-muted);text-align:center}
+.note{margin-top:12px;font-size:15px;line-height:1.5;color:var(--color-ink-2)}
+.bank{margin-top:16px;border-top:2px solid var(--color-ink)}
+.bank .r{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-rule)}
+.bank .r span{font-size:13px;color:var(--color-muted)}
+.bank .r b{font-weight:600;text-align:right;flex:1}
+.copy{font-size:13px;font-weight:600;color:var(--color-accent);padding:8px 0 8px 12px;min-height:36px}
+.qr{margin-top:16px;display:flex;justify-content:center}
+.qr img{display:block;width:220px;height:auto;border-radius:12px}
+.cap a{color:var(--color-ink)}
+.cap{text-align:center;font-size:13px;color:var(--color-muted);margin-top:8px}
+.drop{display:block;margin-top:16px;border:1.5px dashed var(--color-rule);padding:20px;text-align:center;font-size:14px;color:var(--color-muted);background:var(--color-surface);cursor:pointer}
+.drop b{display:block;color:var(--color-ink);font-weight:600;margin-bottom:4px}
+.drop.ok{border-style:solid;border-color:var(--color-accent);color:var(--color-accent)}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.box{margin-top:16px;padding:12px 16px;background:var(--color-paper-2);font-size:15px;line-height:1.5}
+.ro .r{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--color-rule);font-size:15px}
+.ro .r span{color:var(--color-muted);font-size:13px;flex:none}
+.ro .r b{font-weight:500;text-align:right;overflow-wrap:anywhere}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--color-ink);color:var(--color-paper);padding:12px 16px;font-size:14px;opacity:0;pointer-events:none;transition:opacity var(--dur)}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="/logo-green.png" alt="" width="35" height="40">
+    <span class="word">Bamboo Florist</span>
+    <div class="lang" role="group" aria-label="Language"><button type="button" data-l="en">EN</button><button type="button" data-l="zh">中文</button></div>
+  </header>
+  <main id="app"><p class="ref" style="margin-top:28px">Loading…</p></main>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  const T = {
+    en:{ h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
+      getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
+      rname:'Recipient name', rphone:'Recipient phone', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions', cardh:'Card and remarks', card:'Card message', rem:'Remarks',
+      confirm:'Confirm order', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
+      h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
+      bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot or photo', uploading:'Uploading…', upok:'Receipt received, thank you', upbad:'Upload failed, please try again or send it on WhatsApp',
+      wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
+      h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed and being prepared. To change anything, WhatsApp us.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
+      h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
+    zh:{ h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
+      getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
+      rname:'收花人姓名', rphone:'收花人电话', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明', cardh:'卡片与备注', card:'卡片内容', rem:'备注',
+      confirm:'确认订单', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
+      h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
+      bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图或照片', uploading:'上传中…', upok:'已收到收据，谢谢', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
+      wa:'在 WhatsApp 发送收据', pending:'已收到您的付款收据。确认收款后，您的订单才会正式确认，确认后我们会把订单确认发给您。', edit:'修改订单资料', paidok:'已确认收款，谢谢。',
+      h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认，正在准备中。如需更改，请 WhatsApp 我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们',
+      h1gone:'链接已失效', gone:'这个订单链接已关闭。请 WhatsApp 我们，我们会协助您。', h1bad:'找不到链接', bad:'请检查我们发给您的链接，或 WhatsApp 我们。', err:'出了点问题，请再试一次。' }
+  };
+  const SHOP_WA = '60124778120';
+  const tok = new URLSearchParams(location.search).get('t') || '';
+  let lang = 'en'; try { lang = localStorage.getItem('bf-form-lang') || ((navigator.language||'').toLowerCase().startsWith('zh') ? 'zh' : 'en'); } catch(_) {}
+  let D = null, view = 'form', fulfil = 'delivery', slipState = '', sess = Math.random().toString(36).slice(2);
+  const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
+  const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const rm = n => 'RM ' + (Number(n)||0).toFixed(2);
+  const app = document.getElementById('app');
+  const toast = m => { const el=document.getElementById('toast'); el.textContent=m; el.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('on'), 2400); };
+  const api = body => fetch('/api/geo', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...body, t:tok }) }).then(async r => ({ ok:r.ok, status:r.status, j: await r.json().catch(()=>({})) }));
+  const waLink = (msg) => 'https://wa.me/' + SHOP_WA + '?text=' + encodeURIComponent(msg);
+
+  function setLang(l){ lang = l; try { localStorage.setItem('bf-form-lang', l); } catch(_) {} document.documentElement.lang = l==='zh' ? 'zh' : 'en';
+    document.querySelectorAll('.lang button').forEach(b => b.classList.toggle('on', b.dataset.l===l)); if (D) { keep(); render(); } }
+  document.querySelectorAll('.lang button').forEach(b => b.onclick = () => setLang(b.dataset.l));
+
+  // keep what was typed when the language switches
+  function keep(){ if (view!=='form' || !D) return; const v = id => { const e=document.getElementById(id); return e ? e.value : undefined; };
+    ['name','contact','email','recipName','recipPhone','dueDate','dueTime','addr','deliveryInstr','cardMsg','custNote'].forEach(k => { const x=v('f-'+k); if (x!==undefined) D[k]=x; }); D.fulfil = fulfil; }
+
+  const itemsHtml = () => (D.items||[]).map(it => '<div class="item">'+(it.images&&it.images[0]?'<img src="'+esc(it.images[0])+'" alt="">':'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>').join('')
+    + (D.deliveryFee ? '<div class="item"><div class="t"><b>'+t('del')+'</b></div><span class="p num">'+rm(D.deliveryFee)+'</span></div>' : '')
+    + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+(D.deliveryFee||0))+'</b></div>';
+  const field = (id, label, val, attrs, area) => '<div class="f" id="w-'+id+'"><label for="f-'+id+'">'+label+'</label>'
+    + (area ? '<textarea id="f-'+id+'" '+(attrs||'')+'>'+esc(val)+'</textarea>' : '<input id="f-'+id+'" value="'+esc(val)+'" '+(attrs||'')+'>')
+    + '<div class="err">'+t('need')+'</div></div>';
+
+  function render(){
+    if (!D) return;
+    if (D.state==='expired') { app.innerHTML = '<h1>'+t('h1gone')+'</h1><div class="box">'+t('gone')+'</div><a class="btn" href="'+waLink('Hi, about my order request '+(D.ref||''))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
+    if (D.state==='locked') view = 'done';
+    if (view==='done') {
+      const r = (k,v) => v ? '<div class="r"><span>'+k+'</span><b>'+esc(v)+'</b></div>' : '';
+      app.innerHTML = '<h1>'+t('h1done')+'</h1><p class="ref">'+(D.orderNo ? t('ordno')+' <span class="num">'+esc(D.orderNo)+'</span>' : t('ref')+' <span class="num">'+esc(D.ref)+'</span>')+'</p>'
+        + '<div class="box">'+t('locked')+'</div>'
+        + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
+        + '<div class="sec ro">'+r(D.fulfil==='pickup'?t('pdate'):t('ddate'), [D.dueDate, D.dueTime].filter(Boolean).join(', '))+r(t('rname'), D.recipName)+(D.fulfil==='pickup'?'':r(t('addr'), D.addr))+r(t('pay'), D.paid?t('paidv'):t('pend'))+'</div>'
+        + '<a class="btn ghost" href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>';
+      return;
+    }
+    if (view==='pay') {
+      app.innerHTML = '<h1>'+t('h1pay')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
+        + '<div class="total" style="margin-top:16px;border-top:2px solid var(--color-ink)"><span>'+t('topay')+'</span><b class="num">'+rm((D.amount||0)+(D.deliveryFee||0))+'</b></div>'
+        + (D.paid ? '<div class="box">'+t('paidok')+'</div>' : ((slipState==='ok'||D.slip) ? '<div class="box" id="pending">'+t('pending')+'</div>' : '<p class="note">'+t('paynote')+'</p>')
+        + '<div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
+        + '<div class="r"><span>'+t('acno')+'</span><b class="num">322 9170 500</b><button class="copy" type="button" id="copy">'+t('copy')+'</button></div></div>'
+        + '<div class="qr"><img src="/duitnow-qr.jpg" width="220" height="314" alt="DuitNow QR, Bamboo Green Florist (M)"></div><p class="cap"><a href="/duitnow-qr.jpg" download="bamboo-duitnow-qr.jpg">'+t('saveqr')+'</a></p>'
+        + '<label class="drop'+(slipState==='ok'||D.slip?' ok':'')+'" id="drop"><input type="file" accept="image/*" id="slip"><b>'+(slipState==='up'?t('uploading'):(slipState==='ok'||D.slip?t('upok'):t('up')))+'</b>'+(slipState==='ok'||D.slip||slipState==='up'?'':'<span>'+t('upsub')+'</span>')+'</label>'
+        + '<a class="btn" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a>')
+        + '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>';
+      const c=document.getElementById('copy'); if (c) c.onclick = () => { try { navigator.clipboard.writeText('3229170500'); } catch(_) {} toast(t('copied')); };
+      const s=document.getElementById('slip'); if (s) s.onchange = () => upload(s.files && s.files[0]);
+      document.getElementById('edit').onclick = () => { view='form'; render(); window.scrollTo(0,0); };
+      return;
+    }
+    fulfil = D.fulfil === 'pickup' ? 'pickup' : 'delivery';
+    const pk = fulfil==='pickup';
+    app.innerHTML = '<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
+      + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
+      + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name'),D.name,'autocomplete="name"')
+        + '<div class="two">'+field('contact',t('phone'),D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
+      + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'">'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'">'+t('pick')+'</button></div></div>'
+        + '<div class="two">'+field('dueDate',pk?t('pdate'):t('ddate'),D.dueDate,'type="date"')+field('dueTime',pk?t('ptime'):t('dtime'),D.dueTime,'')+'</div>'
+        + (pk ? '' : field('recipName',t('rname'),D.recipName,'')+field('recipPhone',t('rphone'),D.recipPhone,'inputmode="tel" class="num" placeholder="+60"')
+          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><input id="f-addr" autocomplete="off" placeholder="'+t('addrPh')+'" value="'+esc(D.addr)+'"><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div></div>'
+          + field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))
+      + '</div>'
+      + '<div class="sec"><h2>'+t('cardh')+'</h2>'+field('cardMsg',t('card'),D.cardMsg,'',true)+field('custNote',t('rem'),D.custNote,'',true)+'</div>'
+      + '<button class="btn" type="button" id="go">'+t('confirm')+'</button><p class="fine">'+t('fine')+'</p>';
+    document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
+    document.getElementById('go').onclick = submit;
+    const a = document.getElementById('f-addr'); if (a) wireAddr(a);
+  }
+
+  // Google address suggestions (through the server, only while this link is open)
+  function wireAddr(input){
+    const hits = document.getElementById('hits'); let timer = null, seq = 0;
+    input.oninput = () => { clearTimeout(timer); const q = input.value.trim(); if (q.length < 3) { hits.innerHTML=''; return; }
+      timer = setTimeout(async () => { const my = ++seq; const r = await api({ mode:'form-addr', sub:'autocomplete', input:q, sessionToken:sess });
+        if (my !== seq) return; const ps = (r.j && r.j.predictions) || [];
+        hits.innerHTML = ps.map((p,i) => '<button type="button" data-i="'+i+'">'+esc(p.description)+'</button>').join('');
+        hits.querySelectorAll('button').forEach(b => b.onclick = async () => { const p = ps[+b.dataset.i]; hits.innerHTML=''; input.value = p.description;
+          if (p.placeId) { const d = await api({ mode:'form-addr', sub:'place', placeId:p.placeId, sessionToken:sess }); if (d.j && d.j.address) input.value = d.j.address; sess = Math.random().toString(36).slice(2); } });
+      }, 300); };
+  }
+
+  async function submit(){
+    keep();
+    const req = ['name','contact','dueDate'].concat(fulfil==='pickup' ? [] : ['recipName','addr']);
+    let first = null; req.forEach(k => { const w = document.getElementById('w-'+k); const bad = !String(D[k]||'').trim(); if (w) w.classList.toggle('bad', bad); if (bad && !first) first = w; });
+    if (first) { first.scrollIntoView({ block:'center' }); const i = first.querySelector('input,textarea'); if (i) i.focus(); return; }
+    const go = document.getElementById('go'); go.disabled = true; go.textContent = t('saving');
+    const r = await api({ mode:'form-save', fields:{ name:D.name, contact:D.contact, email:D.email, recipName:D.recipName, recipPhone:D.recipPhone, fulfil, dueDate:D.dueDate, dueTime:D.dueTime, addr:D.addr, deliveryInstr:D.deliveryInstr, cardMsg:D.cardMsg, custNote:D.custNote } });
+    if (r.ok) { D = r.j; view = 'pay'; render(); window.scrollTo(0,0); return; }
+    if (r.status===409) { await load(); return; }
+    go.disabled = false; go.textContent = t('confirm'); toast(t('err'));
+  }
+
+  // payment receipt: shrink on the phone, store it, link it to this order
+  function shrink(file){ return new Promise((res, rej) => { const img = new Image(); const u = URL.createObjectURL(file);
+    img.onload = () => { const m = 1600, k = Math.min(1, m/Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg', .85)); };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('image')); }; img.src = u; }); }
+  async function upload(file){
+    if (!file) return; slipState = 'up'; render();
+    try {
+      const data = await shrink(file);
+      const r = await fetch('/api/upload', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ data }) });
+      const j = await r.json().catch(()=>({}));
+      if (!r.ok || !j.url) throw new Error('upload');
+      const s = await api({ mode:'form-slip', url:j.url }); if (!s.ok) throw new Error('slip');
+      slipState = 'ok'; D.slip = true; render();
+    } catch(_) { slipState = ''; render(); toast(t('upbad')); }
+  }
+
+  async function load(){
+    if (!tok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div>'; return; }
+    const r = await api({ mode:'form-get' });
+    if (!r.ok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div><a class="btn" href="'+waLink('Hi, about my order request')+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
+    D = r.j; view = D.state==='locked' ? 'done' : (D.submitted ? 'pay' : 'form'); render();
+  }
+  setLang(lang); load();
+})();
+</script>
+</body>
+</html>
