@@ -37,11 +37,19 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .sec{margin-top:28px}
 .sec h2{font-size:15px;font-weight:600;padding-bottom:8px;border-bottom:2px solid var(--color-ink)}
 .item{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--color-rule)}
-.item img{width:64px;height:64px;object-fit:cover;flex:none;background:var(--color-paper-2)}
+.item img{width:64px;height:64px;object-fit:cover;flex:none;background:var(--color-paper-2);display:block}
+.item .ph{flex:none;padding:0;border:0;background:none;cursor:zoom-in;align-self:flex-start}
+.item .ph:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
+.thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.thumbs img{width:48px;height:48px}
+.zoom{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:color-mix(in oklab,var(--color-ink) 90%,transparent);cursor:zoom-out}
+.zoom[hidden]{display:none}
+.zoom img{max-width:100%;max-height:100%;object-fit:contain}
 .item .t{flex:1;min-width:0}
 .item .t b{display:block;font-weight:600;overflow-wrap:break-word}
 .item .t small{display:block;margin-top:2px;font-size:13px;color:var(--color-muted)}
-.item .t small.fn{margin-top:4px;color:var(--color-ink-2);white-space:pre-line}
+.item .t small.fn{margin-top:6px;color:var(--color-ink-2);white-space:pre-line;line-height:1.5}
+.item .t small.fn .fl{display:block;color:var(--color-muted);font-size:12px}
 .item .p{font-size:14px;white-space:nowrap}
 .total{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0}
 .total span:first-child{color:var(--color-muted);font-size:14px}
@@ -111,11 +119,12 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   <main id="app"><p class="ref" style="margin-top:28px">Loading…</p></main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="zoom" id="zoom" hidden><img alt=""></div>
 
 <script>
 (function(){
   const T = {
-    en:{ fnote:'Flower instructions', h1chk:'Check your order', feeAddr:'Enter shipping address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
+    en:{ photo:'View photo', fnote:'Flower instructions', h1chk:'Check your order', feeAddr:'Enter shipping address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
       getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
       rname:'Recipient name', rphone:'Recipient phone', company:'Company, restaurant, hotel or hospital (optional)', companyRo:'Company / building', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
       confirm:'Confirm order', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
@@ -124,7 +133,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
       h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed and being prepared. To change anything, WhatsApp us.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
-    zh:{ fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
+    zh:{ photo:'查看图片', fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
       rname:'收花人姓名', rphone:'收花人电话', company:'公司、餐厅、酒店或医院名称（选填）', companyRo:'公司 / 大楼', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
       confirm:'确认订单', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
@@ -173,7 +182,10 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       + row(t('card'), D.cardMsg); };
   const complete = () => !!(String(D.name||'').trim() && String(D.contact||'').trim() && D.dueDate
     && (D.fulfil==='pickup' || (String(D.recipName||'').trim() && String(D.addr||'').trim())));
-  const itemsHtml = () => (D.items||[]).map(it => '<div class="item">'+(it.images&&it.images[0]?'<img src="'+esc(it.images[0])+'" alt="">':'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+(it.note?'<small class="fn">'+t('fnote')+': '+esc(it.note)+'</small>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>').join('')
+  // Every photo of an item: the first beside it, the rest in a row under the name; tap to enlarge.
+  const ph = (u, cls) => '<button type="button" class="ph'+(cls?' '+cls:'')+'" data-src="'+esc(u)+'" aria-label="'+t('photo')+'"><img src="'+esc(u)+'" alt="" loading="lazy"></button>';
+  const itemsHtml = () => (D.items||[]).map(it => { const im = it.images||[]; return '<div class="item">'+(im[0]?ph(im[0]):'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+(it.note?'<small class="fn"><span class="fl">'+t('fnote')+'</span>'+esc(it.note)+'</small>':'')
+    +(im.length>1?'<div class="thumbs">'+im.slice(1).map(u=>ph(u,'sm')).join('')+'</div>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>'; }).join('')
     + feeRow()
     + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+feeNow())+'</b></div>';
   const refreshItems = () => { const el = document.getElementById('items'); if (el) el.innerHTML = itemsHtml(); };
@@ -307,6 +319,13 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     // Complete orders open on the check-and-pay page; the customer need not confirm first.
     D = r.j; view = D.state==='locked' ? 'done' : ((D.submitted || D.slip || complete()) ? 'pay' : 'form'); render();
   }
+  // Photo viewer: tap a photo to see it whole; tap anywhere or press Escape to close.
+  const zoom = document.getElementById('zoom');
+  const zoomClose = () => { zoom.hidden = true; zoom.querySelector('img').removeAttribute('src'); };
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.ph');
+    if (b) { zoom.querySelector('img').src = b.dataset.src; zoom.hidden = false; return; }
+    if (!zoom.hidden && e.target.closest('#zoom')) zoomClose(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !zoom.hidden) zoomClose(); });
   setLang(lang); load();
 })();
 </script>
