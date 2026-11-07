@@ -2805,7 +2805,7 @@ function _flowerStdFor(name){ const e=FLOWER_STD[_fstdKey(name)]; return (e&&Arr
 function _orderProducts(o){ const its=(o&&o.lineItems&&o.lineItems.length)?o.lineItems.map(i=>i&&i.title):[o&&o.product]; return [...new Set(its.map(t=>String(t||'').trim()).filter(Boolean))]; }
 function _orderPrimaryProduct(o){ return ((o&&o.lineItems&&o.lineItems[0]&&o.lineItems[0].title) || (o&&o.product) || '').trim(); }
 // Standard flowers for an order = concat of each product's standard (pre-fill / fallback).
-function _orderStdFlowers(o){ const out=[]; _orderProducts(o).forEach(p=>{ const f=_flowerStdFor(p); if(f) f.forEach(x=>out.push({name:x.name,qty:x.qty,unit:x.unit,mid:x.mid||undefined})); }); return out; }
+function _orderStdFlowers(o){ const out=[]; _orderProducts(o).forEach(p=>{ const f=_flowerStdFor(p); if(f) f.forEach(x=>out.push({name:x.name,qty:x.qty,unit:x.unit,mid:x.mid||undefined,kind:x.kind,pid:x.pid,vid:x.vid})); }); return out; }
 // Effective flowers for display/aggregation: the order's own (possibly resized) recipe if set,
 // otherwise the product's standard. Used by the recipe view + tomorrow-prep totals.
 function _orderEffectiveFlowers(o){ return (o&&o.recipe&&o.recipe.length)?o.recipe:_orderStdFlowers(o); }
@@ -14468,7 +14468,7 @@ function openRecipe(id) {
   let recipe = o.recipe && o.recipe.length ? o.recipe.slice() : [];
   _recipeFromStd = false;
   // No per-order recipe yet → pre-fill from the product's standard recipe (editable here).
-  if (!recipe.length) { const std = _orderStdFlowers(o); if (std.length) { recipe = std.map(f=>({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid})); _recipeFromStd = true; } }
+  if (!recipe.length) { const std = _orderStdFlowers(o); if (std.length) { recipe = std.map(f=>({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid,kind:f.kind,pid:f.pid,vid:f.vid})); _recipeFromStd = true; } }
   if (!recipe.length) recipe.push({name:'',qty:1,unit:'stems'});
   _recipeOrig = JSON.parse(JSON.stringify(o.recipe||[]));
   _recipeMatOpts();
@@ -14498,7 +14498,7 @@ function _recipeResetToStd(){
   const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
   const std = _orderStdFlowers(o);
   const rows = document.getElementById('recipe-rows'); rows.innerHTML='';
-  (std.length?std:[{name:'',qty:1,unit:'stems'}]).forEach((f,i)=>_renderRecipeRow({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid},i));
+  (std.length?std:[{name:'',qty:1,unit:'stems'}]).forEach((f,i)=>_renderRecipeRow({name:f.name,qty:f.qty,unit:f.unit,mid:f.mid,kind:f.kind,pid:f.pid,vid:f.vid},i));
   _recipeIdx = Math.max(std.length,1);
   toast('Reset to standard');
 }
@@ -14507,7 +14507,7 @@ function _recipeSetAsStd(){
   const o = ORDERS.find(x=>x.id===_recipeId); if(!o) return;
   const prim = _orderPrimaryProduct(o); if(!prim){ toast('No product on this order'); return; }
   const flowers=[];
-  document.querySelectorAll('.recipe-row').forEach(r=>{ const name=r.querySelector('.recipe-flower-name')?.value.trim()||''; const qty=parseInt(r.querySelector('.recipe-qty')?.value)||1; const unit=r.querySelector('.recipe-unit')?.value||'stems'; const mid=r.dataset.mid||''; if(name) flowers.push(mid?{name,qty,unit,mid}:{name,qty,unit}); });
+  document.querySelectorAll('.recipe-row').forEach(r=>{ const name=r.querySelector('.recipe-flower-name')?.value.trim()||''; const qty=parseInt(r.querySelector('.recipe-qty')?.value)||1; const unit=r.querySelector('.recipe-unit')?.value||'stems'; if(name) flowers.push(_recipeRowLink(r,{name,qty,unit})); });
   if(!flowers.length){ toast('Add flowers first'); return; }
   FLOWER_STD[_fstdKey(prim)] = { name:prim, flowers, updatedAt:new Date().toISOString(), by:(currentUserName||'') };
   saveFlowerStd();
@@ -14520,13 +14520,17 @@ function _renderRecipeRow(f, idx) {
   const div = document.createElement('div');
   div.className = 'recipe-row';
   div.id = 'rrow-'+idx;
-  const _it = f.mid ? (INVENTORY||[]).find(x=>x.id===f.mid) : null;
+  const _it = (f.mid && f.kind!=='shop') ? (INVENTORY||[]).find(x=>x.id===f.mid) : null;
   if (_it) div.dataset.mid = _it.id;
+  const _sp = f.kind==='shop' && f.pid ? (SHOPIFY_STOCK||[]).find(x=>x.id===f.pid) : null;
+  if (f.kind==='shop' && f.pid){ div.dataset.mid = 'shop:'+f.pid; div.dataset.kind = 'shop'; div.dataset.pid = f.pid; if (f.vid) div.dataset.vid = f.vid; }
+  const _lbl = _it ? _recipeStkLbl(_it) : (f.kind==='shop' ? _recipeShopLbl(_sp, f.vid) : '');
   const _units = ['stems','pcs','bunches','sprays','rolls']; if (f.unit && !_units.includes(f.unit)) _units.push(f.unit);
   div.innerHTML = `
-    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
-      <input class="recipe-flower-name" list="recipe-mat-opts" autocomplete="off" style="width:100%" placeholder="e.g. Red Rose, Baby's Breath" value="${esc(f.name||'')}" oninput="updateRecipeRow(${idx},'name',this.value);_recipeMatPick(this)">
-      <span class="recipe-stk" style="font-size:10.5px;color:var(--c-sage);padding-left:2px;${_it?'':'display:none'}">${_it?_recipeStkLbl(_it):''}</span>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;position:relative">
+      <input class="recipe-flower-name" autocomplete="off" style="width:100%" placeholder="e.g. Red Rose, Baby's Breath" value="${esc(f.name||'')}" oninput="updateRecipeRow(${idx},'name',this.value);_recipeMatPick(this);_recipeMatSearch(this)" onfocus="_recipeMatSearch(this)" onblur="setTimeout(()=>_recipeMatHide(this),180)">
+      <div class="rcp-sug" style="display:none"></div>
+      <span class="recipe-stk" style="font-size:10.5px;color:var(--c-sage);padding-left:2px;${_lbl?'':'display:none'}">${_lbl}</span>
     </div>
     <input class="recipe-qty" type="number" min="1" value="${f.qty||1}" oninput="updateRecipeRow(${idx},'qty',this.value)">
     <select class="recipe-unit" onchange="updateRecipeRow(${idx},'unit',this.value)">
@@ -14561,9 +14565,76 @@ function _recipeMatOpts(){
   const dl = document.getElementById('recipe-mat-opts'); if (!dl) return;
   dl.innerHTML = (INVENTORY||[]).filter(i=>i && i.name).map(i=>String(i.name)).sort((a,b)=>a.localeCompare(b)).map(nm=>'<option value="'+esc(nm)+'">').join('');
 }
+// Search box under a recipe row: stock items and Shopify products (each version listed),
+// like the design recipes. Picking links the row so saving deducts it.
+let _rcpMatRes = [], _rcpMatInp = null, _recipeShopN = 0;
+function _recipeShopLbl(p, vid){ const v = p ? _compVariant(p, vid) : null; return 'Shopify · '+(v ? (v.qty||0) : (p ? (p.total||0) : '?'))+' left'; }
+function _recipeMatHide(inp){ const b = inp && inp.parentNode && inp.parentNode.querySelector('.rcp-sug'); if (b){ b.style.display='none'; b.innerHTML=''; } }
+function _recipeMatSearch(inp){
+  const box = inp.parentNode.querySelector('.rcp-sug'); if (!box) return;
+  const q = String(inp.value||'').trim().toLowerCase();
+  if (!q){ _recipeMatHide(inp); return; }
+  const man = (INVENTORY||[]).filter(i=>i && String(i.name||'').toLowerCase().includes(q)).slice(0,10)
+    .map(i=>({ shop:false, id:i.id, name:i.name, qty:i.untracked ? null : (i.qty||0), unit:i.unit||'' }));
+  const shop = [];
+  (typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).forEach(p=>{
+    const vs = p.variants||[], pt = String(p.title||'').toLowerCase();
+    if (vs.length<=1){ if (pt.includes(q)) shop.push({ shop:true, pid:p.id, vid:null, name:p.title, qty:p.total||0 }); return; }
+    vs.forEach((v,k)=>{ const vt = String(v.title||''); if (pt.includes(q) || vt.toLowerCase().includes(q)) shop.push({ shop:true, pid:p.id, vid:(v.invItemId!=null?String(v.invItemId):String(k)), name:(p.title||'')+', '+vt, qty:v.qty||0 }); });
+  });
+  _rcpMatRes = man.concat(shop.slice(0,12)); _rcpMatInp = inp;
+  if (!_rcpMatRes.length){ _recipeMatHide(inp); return; }
+  box.innerHTML = _rcpMatRes.map((r,k)=>'<div class="rcp-sug-row" onmousedown="event.preventDefault();_recipeMatChoose('+k+')">'+esc(r.name)
+    + (r.shop ? ' <span class="rcp-shop">Shopify</span>' : '')
+    + ' <span style="color:var(--c-muted);float:right">'+(r.qty==null ? 'not tracked' : r.qty+(r.shop?'':(r.unit?' '+esc(r.unit):'')))+'</span></div>').join('');
+  box.style.display = '';
+}
+function _recipeMatChoose(k){
+  const r = _rcpMatRes[k], inp = _rcpMatInp; if (!r || !inp) return;
+  const row = inp.closest('.recipe-row'); if (!row) return;
+  inp.value = r.name;
+  const idx = parseInt(String(row.id).replace('rrow-',''),10); if (!isNaN(idx)) updateRecipeRow(idx,'name',r.name);
+  const lbl = row.querySelector('.recipe-stk');
+  if (r.shop){
+    row.dataset.mid = 'shop:'+r.pid; row.dataset.kind = 'shop'; row.dataset.pid = r.pid; if (r.vid) row.dataset.vid = r.vid; else delete row.dataset.vid;
+    const p = (SHOPIFY_STOCK||[]).find(x=>x.id===r.pid);
+    if (lbl){ lbl.innerHTML = _recipeShopLbl(p, r.vid); lbl.style.display = ''; }
+    const sel = row.querySelector('.recipe-unit'); if (sel) sel.value = 'pcs';
+  } else {
+    _recipeMatPick(inp);
+  }
+  _recipeMatHide(inp);
+}
+// A recipe row's link to stock: { mid } for a stock item, plus { kind:'shop', pid, vid } for Shopify.
+function _recipeRowLink(row, base){
+  const d = row.dataset, out = Object.assign({}, base);
+  if (d.mid) out.mid = d.mid;
+  if (d.kind==='shop' && d.pid){ out.kind = 'shop'; out.pid = d.pid; if (d.vid) out.vid = d.vid; }
+  return out;
+}
+// Shopify materials of an order recipe: adjust LIVE Shopify stock by the difference.
+async function _recipeShopAdjust(jobs){
+  const locId = await _shopLocation();
+  if (!locId){ toast('⚠ Shopify stock not updated'); return; }
+  let ok = 0, bad = 0;
+  for (const j of jobs){
+    const p = (SHOPIFY_STOCK||[]).find(x=>x.id===j.pid), v = p ? _compVariant(p, j.vid) : null;
+    if (!v || !v.invItemId){ bad++; continue; }
+    try{
+      const m = `mutation($input: InventoryAdjustQuantitiesInput!){ inventoryAdjustQuantities(input:$input) @idempotent(key:"${_idemKey()}"){ userErrors{ field message } } }`;
+      const res = await shopifyGQL(m, { input:{ reason:'correction', name:'available', changes:[{ delta:-j.take, inventoryItemId:v.invItemId, locationId:locId, changeFromQuantity:null }] } }, { apiVersion:SHOP_INV_API });
+      const ue = (res.inventoryAdjustQuantities && res.inventoryAdjustQuantities.userErrors) || [];
+      if (ue.length) throw new Error(ue.map(e=>e.message).join('; '));
+      v.qty = (v.qty||0) - j.take; p.total = (p.variants||[]).reduce((s,x)=>s+(x.qty||0),0); ok++;
+    }catch(e){ console.warn('recipe shop adjust', e && e.message); bad++; }
+  }
+  if (ok && typeof _stkRefresh==='function') _stkRefresh();
+  toast(bad ? '⚠ Shopify stock not updated for '+bad+' item'+(bad>1?'s':'') : '✓ Shopify stock updated');
+}
 function _recipeStkLbl(it){ return it.untracked ? 'Stock · not tracked' : ('Stock · '+(it.qty||0)+(it.unit?' '+esc(it.unit):'')+' left'); }
 function _recipeMatPick(inp){
   const row = inp.closest('.recipe-row'); if (!row) return;
+  delete row.dataset.kind; delete row.dataset.pid; delete row.dataset.vid;
   const k = String(inp.value||'').trim().toLowerCase();
   const it = k ? (INVENTORY||[]).find(i=>String(i.name||'').trim().toLowerCase()===k) : null;
   if (it) row.dataset.mid = it.id; else delete row.dataset.mid;
@@ -14595,10 +14666,20 @@ function _recipeApplyStock(o, oldRows, newRows){
     if (it.moves.length > 80) it.moves = it.moves.slice(0,80);
     touched.push(it);
   });
-  newRows.forEach(r=>{ const it = r.mid ? (INVENTORY||[]).find(x=>x.id===r.mid) : null; if (it && !it.untracked && !prod.has(r.mid)) r.ded = r.qty; else delete r.ded; });
+  newRows.forEach(r=>{ if (r.kind==='shop') return; const it = r.mid ? (INVENTORY||[]).find(x=>x.id===r.mid) : null; if (it && !it.untracked && !prod.has(r.mid)) r.ded = r.qty; else delete r.ded; });
+  // Shopify materials (candles, toppers…): same difference rule, adjusted in Shopify. A product
+  // whose own design recipe already deducts that material is left to it.
+  { const key = r => r.pid+'|'+(r.vid||'');
+    const sHad = {}, sWant = {}, sRef = {};
+    (oldRows||[]).forEach(r=>{ if (r && r.kind==='shop' && r.pid && r.ded){ const k=key(r); sHad[k]=(sHad[k]||0)+(parseFloat(r.ded)||0); sRef[k]=r; } });
+    newRows.forEach(r=>{ if (r.kind==='shop' && r.pid && !prod.has('shop:'+r.pid)){ const k=key(r); sWant[k]=(sWant[k]||0)+r.qty; sRef[k]=r; } });
+    const jobs = [];
+    new Set([...Object.keys(sHad), ...Object.keys(sWant)]).forEach(k=>{ const take=(sWant[k]||0)-(sHad[k]||0); if (take) jobs.push({ pid:sRef[k].pid, vid:sRef[k].vid, take }); });
+    newRows.forEach(r=>{ if (r.kind==='shop'){ if (r.pid && !prod.has('shop:'+r.pid)) r.ded = r.qty; else delete r.ded; } });
+    _recipeShopN = jobs.length; if (jobs.length) _recipeShopAdjust(jobs); }
   _invFlushOps(_raOps).then(()=>touched.forEach(it=>{ if (typeof stockCtl==='function' && stockCtl(it.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(it); }));
   if (touched.length){ if (typeof _bcSend==='function') _bcSend('inventory'); if (typeof renderInventory==='function') renderInventory(); }
-  return touched.length;
+  return touched.length + _recipeShopN;
 }
 
 function saveRecipe() {
@@ -14610,8 +14691,7 @@ function saveRecipe() {
     const name = row.querySelector('.recipe-flower-name')?.value.trim() || '';
     const qty  = parseInt(row.querySelector('.recipe-qty')?.value) || 1;
     const unit = row.querySelector('.recipe-unit')?.value || 'stems';
-    const mid  = row.dataset.mid || '';
-    if (name) recipe.push(mid ? {name, qty, unit, mid} : {name, qty, unit});
+    if (name) recipe.push(_recipeRowLink(row, {name, qty, unit}));
   });
   const _moved = _recipeApplyStock(o, _recipeOrig, recipe);
   o.recipe = recipe;

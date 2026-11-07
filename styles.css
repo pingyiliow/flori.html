@@ -749,6 +749,7 @@ body.role-driver .shell{grid-template-columns:1fr}
 
 /* ── flower recipe ───────────────────────────────────────────── */
 .recipe-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--c-border)}
+.rcp-shop{font-size:10px;font-weight:600;color:var(--c-sage);margin-left:4px}
 .recipe-row:last-child{border-bottom:none}
 .recipe-flower-name{flex:1;padding:6px 8px;border:1px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;}
 .recipe-flower-name:focus{border-color:var(--c-burg)}
