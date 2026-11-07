@@ -8555,8 +8555,31 @@ function fuBackToEnquiry(id){
   f.status='pending'; f.payment='pending'; f.paidBy='';
   saveFollowups(); closeFUDP(); renderFollowup(); toast('Moved back to Enquiry');
 }
+// The order webhook links an order back to its New Orders entry through a hidden marker on
+// the draft's line items. Staff often swap the custom item for the store product in Shopify,
+// which drops the marker, so the entry stayed "In Shopify". Ask Shopify directly which of our
+// drafts have become orders (at most every 5 minutes, on showing New Orders).
+let _fuDraftCheckAt = 0;
+async function _fuReconcileDrafts(){
+  if (typeof hasSB!=='function' || !hasSB()) return;
+  const list = FOLLOWUPS.filter(f => f.status==='draft' && f.shopifyDraftId).slice(0, 100);
+  if (!list.length || Date.now() - _fuDraftCheckAt < 5*60e3) return;
+  _fuDraftCheckAt = Date.now();
+  const gid = id => /^gid:\/\//.test(String(id)) ? String(id) : 'gid://shopify/DraftOrder/'+id;
+  try {
+    const r = await shopifyGQL('query($ids:[ID!]!){ nodes(ids:$ids){ ... on DraftOrder { id order { name } } } }', { ids: list.map(f => gid(f.shopifyDraftId)) });
+    let changed = false;
+    ((r && r.nodes) || []).forEach(n => {
+      if (!n || !n.order) return;
+      const f = list.find(x => gid(x.shopifyDraftId) === n.id); if (!f || f.status==='completed') return;
+      f.status = 'completed'; f.orderNo = n.order.name || f.orderNo || null; changed = true;
+    });
+    if (changed) { saveFollowups(); renderFollowup(); }
+  } catch (e) { console.warn('draft check', e && e.message); }
+}
 function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
+  _fuReconcileDrafts();
   const _needsN=FOLLOWUPS.filter(x=>_fuNeeds(x)).length, _shopN=FOLLOWUPS.filter(x=>_fuStage(x)==='shopify').length;
   const fuPending=_needsN;
   const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?String(v):'';};
