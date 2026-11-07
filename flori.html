@@ -1675,7 +1675,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -2393,7 +2393,7 @@ async function syncOrders() {
         //      id missing here is a genuinely NEW order (safe to insert fresh).
         //  (b) FULL-column DELTA read of rows a teammate updated since the last sync — carries
         //      line-item edits/photos; usually a handful of rows.
-        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj,paid_by,paid_at,pay_slip,pay_note';
+        const LEAN_COLS='id,ready,designer,priority,internal_note,route_id,route_seq,otw_at,manual_price,manual_addr,lalamove_url,lalamove_order_id,delivered_at,delivered_by,fulfilled,cake,recipe,ready_by,ready_at,fulfilled_by,fulfilled_at,staff,total_adj,paid_by,paid_at,pay_slip,pay_note';
         let lean = [], remote = [];
         for (let i = 0; i < freshIdList.length; i += 200) {
           const chunk = freshIdList.slice(i, i + 200);
@@ -2453,6 +2453,7 @@ async function syncOrders() {
           o.manualPrice  = r.manual_price ?? o.manualPrice ?? null;
           o.manualAddr   = r.manual_addr  || o.manualAddr  || null;
           o.lalamoveUrl  = r.lalamove_url || o.lalamoveUrl || null;
+          if (r.lalamove_order_id !== undefined) o.lalamoveOrderId = r.lalamove_order_id || null;   // booked / canceled on another device
           o.fulfilled    = o.fulfilled || !!r.fulfilled;      // keep a fulfilled state set on any device
           // Driver-mode fields. Route assignment/sequence: DB wins (another device may
           // have just re-planned, same as designer). otwAt/proofPhoto: forward-only merge
@@ -10481,7 +10482,7 @@ async function _lalaBook(){
   const single=sel.length===1;
   const url = single ? rawUrl : null;
   const orders=sel.filter(s=>s.order).map(s=>s.order);         // stamp real orders only (manual stops have none)
-  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; _lalaLSset(o.id, od.orderId); saveOrderPatch(o,{ lalamove_url:o.lalamoveUrl||null }); _lalaPersistId(o.id, od.orderId); });
+  orders.forEach(o=>{ o.lalamoveOrderId=od.orderId; if(url) o.lalamoveUrl=url; _lalaLSset(o.id, od.orderId); saveOrderPatch(o,{ lalamove_url:o.lalamoveUrl||null, lalamove_order_id:od.orderId }); _lalaPersistId(o.id, od.orderId); });
   const otwId=(document.getElementById('otw-order-id')||{}).value;
   if(otwId && url && orders.some(o=>o.id===otwId)){ const el=document.getElementById('otw-lala'); if(el) el.value=url; }
   _lala.quote=null; _lala.run=[]; _lala.addons=new Set(); _lala.quoteErr=null; _lalaClose();
@@ -10497,6 +10498,8 @@ function _lalaLSset(orderId, lalaId){ try{ const m=JSON.parse(localStorage.getIt
 function _lalaLSget(orderId){ try{ return JSON.parse(localStorage.getItem('lalaOrderIds')||'{}')[orderId]||null; }catch(_){ return null; } }
 function _lalaLSclear(orderId){ try{ const m=JSON.parse(localStorage.getItem('lalaOrderIds')||'{}'); delete m[orderId]; localStorage.setItem('lalaOrderIds', JSON.stringify(m)); }catch(_){} }
 function _lalaHasBooking(o){ return !!(o && (o.lalamoveOrderId || _lalaLSget(o.id))); }
+// Going by Lalamove: booked here (booking id) or a Lalamove link pasted (booked in their app).
+function _isLala(o){ return !!(o && (_lalaHasBooking(o) || o.lalamoveUrl)); }
 // Durable cross-device booking id via the optional orders.lalamove_order_id column. Reads and
 // writes are ISOLATED and try/catch'd, so the app works whether or not that column exists yet
 // (before the SQL migration it just no-ops; after it, Manage works on every device).
@@ -10653,7 +10656,7 @@ async function _lalaMngCancel(){
   _lalaMng.busy=false;
   if(r && (r.ok || r.status===200)){
     const o=ORDERS.find(x=>x.id===_lalaMng.orderId);
-    if(o){ o.lalamoveOrderId=null; o.lalamoveUrl=null; saveOrderPatch(o,{ lalamove_url:null }); }
+    if(o){ o.lalamoveOrderId=null; o.lalamoveUrl=null; saveOrderPatch(o,{ lalamove_url:null, lalamove_order_id:null }); }
     _lalaLSclear(_lalaMng.orderId); _lalaPersistId(_lalaMng.orderId, null);
     toast('✓ Lalamove order canceled'); _lalaMngClose();
     if(typeof renderOrders==='function') renderOrders(); if(typeof renderDriver==='function') renderDriver();
@@ -11029,6 +11032,15 @@ function _drvDetailView(o){
       + (o.deliveredLat!=null ? '<a class="drvd-meta" href="https://www.google.com/maps/search/?api=1&query='+o.deliveredLat+','+o.deliveredLng+'" target="_blank" rel="noopener">'+di('nav',13)+' <span style="text-decoration:underline">Delivered location</span>'+(o.deliveredAt?', '+esc2(_waTime(o.deliveredAt)):'')+'</a>' : '')
       + '<div class="drvd-meta">'+di('user',13)+' '+(deliverer?('Delivered by '+esc2(deliverer)):'Delivered')+(o.deliveredLat==null && o.deliveredAt?', '+esc2(_waTime(o.deliveredAt)):'')+'</div>'
       + '<button type="button" onclick="replaceProof(\''+o.id+'\')" class="drvd-btn drvd-btn-ghost">'+di('camera',17)+' Replace photo</button>';
+  } else if (_isLala(o)) {
+    // Lalamove carries it: manage the booking (status, driver, cancel) instead of driving it.
+    // A pasted link only (booked in the Lalamove app) can be tracked and marked delivered.
+    const track = o.lalamoveUrl ? '<a href="'+esc2(o.lalamoveUrl)+'" target="_blank" rel="noopener" class="drvd-btn drvd-btn-ghost">'+di('nav',17)+' Track</a>' : '';
+    footer = _lalaHasBooking(o)
+      ? '<div class="drvd-two'+(track?'':' one')+'">' + track
+          + '<button type="button" onclick="manageLalamove(\''+o.id+'\')" class="drvd-btn drvd-btn-dark">'+di('truck',17)+' Manage Lalamove</button></div>'
+      : '<div class="drvd-two">' + track
+          + '<button type="button" onclick="markDelivered(\''+o.id+'\')" class="drvd-btn drvd-btn-dark">'+di('check',17)+' Delivered</button></div>';
   } else {
     footer = '<div class="drvd-two">'
       + '<button type="button" onclick="openOTWModal(\''+o.id+'\')" class="drvd-btn drvd-btn-ghost">'+(o.otwAt?di('check',17):di('truck',17))+' On the way</button>'
@@ -11710,8 +11722,8 @@ function renderDriver(){
   // pick one up and deliver it even before anyone builds a route.
   // Self-heal: an order pointing at a route that no longer exists (e.g. the route save
   // failed or the route was deleted elsewhere) is unassigned again, not invisible.
-  // Booked with Lalamove = handled: it lists under Lalamove, not here.
-  const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled && !_lalaHasBooking(o)).sort(bySeq);
+  // Going by Lalamove = handled: it lists under Lalamove, not here.
+  const unassigned = stops.filter(o => (!o.routeId || !ROUTES.some(r => r.id === o.routeId)) && !o.fulfilled && !_isLala(o)).sort(bySeq);
   const _grpHead = (lbl, n) => '<div class="dgrp-head plain"><div class="dgrp-name"><b>'+lbl+'</b></div><div class="dgrp-count"><b class="num">'+n+'</b></div></div><div class="dgrp-rule"></div>';
   const unassignedBlock = () => (unassigned.length || (isAdmin && !routes.length))
     ? '<section class="dgrp">' + _grpHead(isAdmin?'Unassigned':'Pending deliveries', unassigned.length)
@@ -11745,10 +11757,12 @@ function renderDriver(){
   // driver, priority fee, cancel). Hidden from drivers. Only lists orders we hold a booking
   // id for (this session / device) — those are the ones we can actually manage via the API.
   const lalaBlock = isAdmin ? (()=>{
-    const booked = stops.filter(o => _lalaHasBooking(o));
+    const booked = stops.filter(o => _isLala(o) && !o.fulfilled && !o.routeId);
     if(!booked.length) return '';
     return '<section class="dgrp">' + _grpHead('Lalamove', booked.length)
-      + booked.map(o => _drvRow(o, { end: '<button type="button" class="fu-act" onclick="event.stopPropagation();manageLalamove(\''+o.id+'\')">Manage</button>' })).join('')
+      + booked.map(o => _drvRow(o, { end: _lalaHasBooking(o)
+          ? '<button type="button" class="fu-act" onclick="event.stopPropagation();manageLalamove(\''+o.id+'\')">Manage</button>'
+          : '<a class="fu-act" href="'+esc2(o.lalamoveUrl)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">Track</a>' })).join('')
       + '</section>';
   })() : '';
   const listBody = _drvCakeList(iso) + routeBlocks + unassignedBlock() + lalaBlock + deliveredBlock;
