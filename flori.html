@@ -8503,7 +8503,8 @@ async function orderPushPaid(id){
     toast('✓ Payment recorded, Shopify updated');
   }catch(e){
     console.warn('orderPushPaid', e&&e.message);
-    toast(isScopeErr(e&&e.message) ? '⚠ Recorded here. Shopify permission not approved yet' : '⚠ Recorded here. Shopify not updated');
+    const _why=String((e&&e.message)||'').replace(/\s+/g,' ').slice(0,90);
+    toast((isScopeErr(e&&e.message) ? '⚠ Recorded here. Shopify permission not approved yet' : '⚠ Recorded here. Shopify not updated')+(_why?' ('+_why+')':''));
   }
   renderOrders();
   if (_dpId===o.id && typeof _renderDP==='function') _renderDP(_dpLastOrder||localToDPOrder(o), o);
