@@ -986,13 +986,13 @@
 <div id="m-fu-complete" class="modal">
   <div class="mc" style="max-width:400px">
     <div class="mc-hdr">
-      <div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg> Mark as Completed</div>
+      <div class="mc-ttl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg> Mark as done</div>
       <button class="mc-x" aria-label="Close" onclick="closeModal('m-fu-complete')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="mc-body">
       <input type="hidden" id="fu-complete-id">
       <div id="fu-complete-name" style="font-size:14px;font-weight:600;color:var(--c-ink);margin-bottom:4px"></div>
-      <div style="font-size:12px;color:var(--c-muted);line-height:1.5;margin-bottom:14px">Confirm this follow-up is done and the order is created in Shopify. Enter the order number for your records.</div>
+      <div style="margin-bottom:10px"></div>
       <div class="ff">
         <label class="ff-l">Shopify Order Number</label>
         <input id="fu-complete-orderno" type="text" placeholder="e.g. #1234" autocomplete="off"
@@ -1676,7 +1676,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -7720,7 +7720,8 @@ function openFUCompleteModal(id) {
   const f = FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   document.getElementById('fu-complete-id').value = id;
   document.getElementById('fu-complete-name').textContent = f.name || '';
-  document.getElementById('fu-complete-orderno').value = f.orderNo || '';   // pre-fill if known
+  const _m = _fuOrderMatch(f);
+  document.getElementById('fu-complete-orderno').value = f.orderNo || (_m ? _m.o.name : '');   // pre-fill if known / found
   closeFUDP();
   openModal('m-fu-complete');
 }
@@ -8419,10 +8420,13 @@ function _fuFlags(f){
 function _fuActionBtn(f){
   const st=_fuStage(f), stop='event.stopPropagation();';
   const btn=(label,icon,click)=>'<button type="button" class="fu-act" onclick="'+stop+click+'">'+di(icon,15)+'<span>'+label+'</span></button>';
+  const done='<button type="button" class="fu-act2" onclick="'+stop+"openFUCompleteModal('"+f.id+"')"+'">Mark as done</button>';
+  // Its order was already made in Shopify: one tap to close it off.
+  if (st!=='shopify' && st!=='done'){ const m=_fuOrderMatch(f); if (m) return btn('Done as '+esc(m.o.name),'check',"fuLinkOrder('"+f.id+"','"+esc(m.o.name)+"')")+done; }
   if (st==='enquiry') return btn('Copy form link','copy',"fuSendForm('"+f.id+"')")+'<button type="button" class="fu-act2" onclick="'+stop+"openFUPay('"+f.id+"')"+'">Record payment</button>';
   if (st==='waiting') return btn('Copy form link','copy',"fuSendForm('"+f.id+"')")+'<button type="button" class="fu-act2" onclick="'+stop+"openFUPay('"+f.id+"')"+'">Record payment</button>';
-  if (st==='verify')  return btn('Record payment','wallet',"openFUPay('"+f.id+"')");
-  if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')");
+  if (st==='verify')  return btn('Record payment','wallet',"openFUPay('"+f.id+"')")+done;
+  if (st==='ready')   return btn('Send to Shopify','bag',"openFUDraftModal('"+f.id+"')")+done;
   if (st==='shopify' && f.shopifyDraftId) return '<a class="fu-act" href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('nav',15)+'<span>Open draft</span></a>';
   return '';
 }
@@ -8578,9 +8582,35 @@ async function _fuReconcileDrafts(){
     if (changed) { saveFollowups(); renderFollowup(); }
   } catch (e) { console.warn('draft check', e && e.message); }
 }
+// An entry whose order was made straight in Shopify (not sent from here) has no draft link.
+// Find its order: same customer (phone, else name), same date, made after the entry, and not
+// already taken by another entry. sure = the total matches too.
+const _fuNorm = s => String(s||'').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g,' ').trim();
+const _fuPh8 = s => String(s||'').replace(/\D/g,'').slice(-8);
+function _fuOrderMatch(f){
+  if (!f || f.status==='completed' || f.status==='draft' || !f.dueDate || typeof ORDERS==='undefined') return null;
+  const used = new Set(FOLLOWUPS.filter(x => x.orderNo).map(x => String(x.orderNo)));
+  const ph = _fuPh8(f.contact), nm = _fuNorm(f.name), since = (Number(f.ts)||0) - 864e5;
+  const c = ORDERS.filter(o => o && o.dateObj && tdi(o.dateObj)===f.dueDate && o.name && !used.has(String(o.name))
+    && (!o.createdAt || !since || Date.parse(o.createdAt) >= since)
+    && ((ph.length===8 && [o.custPhone, o.phone, o.recipPhone].some(p => _fuPh8(p)===ph)) || (nm && _fuNorm(o.customer)===nm)));
+  if (c.length !== 1) return null;
+  const o = c[0], want = (Number(f.amount)||0) + (Number(f.deliveryFee)||0), tot = parseFloat(o.total);
+  return { o, sure: want > 0 && !isNaN(tot) && Math.abs(tot - want) < 1 };
+}
+function _fuAutoLink(){
+  const done = [];
+  FOLLOWUPS.forEach(f => { const m = _fuOrderMatch(f); if (m && m.sure){ f.status = 'completed'; f.orderNo = m.o.name; done.push(m.o.name); } });
+  if (done.length){ saveFollowups(); toast('✓ Moved to Done: ' + done.join(', ')); }
+}
+function fuLinkOrder(id, no){
+  const f = FOLLOWUPS.find(x => x.id===id); if (!f) return;
+  f.status = 'completed'; f.orderNo = no;
+  saveFollowups(); renderFollowup(); toast('✓ Marked done · ' + no);
+}
 function renderFollowup() {
   const zh = LANG==='zh', tb = document.getElementById('followup-tbody'); if(!tb) return;
-  _fuReconcileDrafts();
+  _fuReconcileDrafts(); _fuAutoLink();
   const _needsN=FOLLOWUPS.filter(x=>_fuNeeds(x)).length, _shopN=FOLLOWUPS.filter(x=>_fuStage(x)==='shopify').length;
   const fuPending=_needsN;
   const _fs=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v?String(v):'';};
@@ -8748,9 +8778,10 @@ function openFUDP(id) {
   const shopifyOrderUrl = shopUrl ? `https://admin.shopify.com/store/${shopUrl}/orders/new` : 'https://admin.shopify.com';
   html += `<div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1.5px solid var(--c-border)">
     ${(()=>{ const st=_fuStage(f); const big='display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;background:var(--c-burg);color:var(--c-bg);border:none;border-radius:var(--r);font-size:12px;font-weight:600;cursor:pointer;text-decoration:none';
-      if(st==='enquiry') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('wallet',15)+' Record payment</button>';
+      const _md = '<button onclick="openFUCompleteModal(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Mark as done</button>';
+      if(st==='enquiry' || st==='waiting' || st==='verify') return '<button onclick="closeFUDP();openFUPay(\''+f.id+'\')" style="'+big+'">'+di('wallet',15)+' Record payment</button>' + _md;
       if(st==='ready') return '<button onclick="openFUDraftModal(\''+f.id+'\')" style="'+big+'">'+di('bag',15)+' Send to Shopify</button>'
-        + '<button onclick="fuBackToEnquiry(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Move back to Enquiry</button>';
+        + '<button onclick="fuBackToEnquiry(\''+f.id+'\')" style="background:none;border:none;color:var(--c-muted);font-size:11.5px;cursor:pointer;text-decoration:underline;padding:2px">Move back to Enquiry</button>' + _md;
       if(st==='shopify') return (f.shopifyDraftId?'<a href="'+esc(_draftAdminUrl(f.shopifyDraftId))+'" target="_blank" rel="noopener" style="'+big+'">'+di('nav',15)+' Open draft in Shopify</a>':'')
         + '<button onclick="openFUDraftModal(\''+f.id+'\')" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;background:var(--c-surface);color:var(--c-muted);border:1.5px solid var(--c-border);border-radius:var(--r);font-size:11px;cursor:pointer">Re-send to Shopify Draft</button>';
       return '';
