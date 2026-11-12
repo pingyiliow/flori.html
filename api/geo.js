@@ -97,7 +97,7 @@ function formPublic(row) {
     ref: 'NO-' + String(row.id || '').replace(/\D/g, '').slice(-5),
     state: formState(row), submitted: row.form_status === 'submitted',
     name: row.name || '', contact: row.contact || '', email: row.email || '',
-    recipName: row.recip_name || '', recipPhone: row.recip_phone || '', recipCompany: row.recip_company || '',
+    recipName: row.recip_name || '', recipPhone: row.recip_phone || '', recipCompany: row.recip_company || '', noCard: !!row.no_card,
     fulfil: row.fulfil || 'delivery', dueDate: row.due_date || '', dueTime: row.due_time || '',
     addr: row.addr || '', deliveryInstr: row.delivery_instr || '', cardMsg: row.card_msg || '', custNote: row.cust_note || '',
     items, amount: Number(row.amount) || 0, deliveryFee: Number(row.delivery_fee) || 0,
@@ -135,9 +135,12 @@ async function formHandler(body, res) {
       due_date: due, due_time: _s(f.dueTime, 80),
       addr: fulfil === 'pickup' ? (row.addr || null) : _s(f.addr, 500),
       delivery_instr: fulfil === 'pickup' ? (row.delivery_instr || null) : _s(f.deliveryInstr, 500),
-      card_msg: _s(f.cardMsg, 1000), cust_note: _s(f.custNote, 1000),
+      card_msg: f.noCard ? '' : _s(f.cardMsg, 1000), no_card: !!f.noCard, cust_note: _s(f.custNote, 1000),
       form_status: 'submitted', form_submitted_at: new Date().toISOString(),
     };
+    // The form's required details (the page checks them too).
+    if (!patch.name || !patch.contact || !patch.due_date || !patch.due_time || (!patch.no_card && !patch.card_msg)
+        || (fulfil === 'delivery' && (!patch.recip_name || !patch.addr))) return res.status(422).json({ error: 'missing' });
     // One item: its own card message follows the order's, so the Shopify draft gets it.
     if (Array.isArray(row.item_list) && row.item_list.length === 1) patch.item_list = [{ ...row.item_list[0], cardMsg: patch.card_msg }];
     if (!paid && feeAuto(row)) {

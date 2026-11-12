@@ -1,0 +1,192 @@
+{%- comment -%}
+========================================================================
+  BAMBOO GREEN FLORIST — SALES ORDER  (Order Printer)
+  Black & white. Single A4 page. AUTO-SHRINK: the base font steps down
+  for content-heavy orders so everything fits on one page (no clipping).
+  Prominent fulfilment banner. Per-item card messages + add-ons.
+  Only ACTIVE line items print (cancelled / removed hidden).
+========================================================================
+{%- endcomment -%}
+
+{%- assign del_date = order.attributes["Pickup Date"] | default: order.attributes["Delivery Date"] | default: order.attributes["Shipping Delivery Date"] | default: order.attributes["Order Due Date"] -%}
+{%- assign del_time = order.attributes["Pickup Time"] | default: order.attributes["Delivery Time"] | default: order.attributes["Shipping Delivery Time"] | default: order.attributes["Order Due Time"] -%}
+{%- assign ship_type = order.attributes["Order Fulfillment Type"] | default: order.attributes["Delivery Method"] | default: order.attributes["Type Of Order"] | default: order.shipping_method.title | strip -%}
+{%- assign paid_by = order.attributes["Paid By"] -%}
+{%- assign channel = order.attributes["Order Channel"] -%}
+{%- if channel == blank and order.source_name == "web" -%}{%- assign channel = "Website" -%}{%- endif -%}
+{%- assign del_instr = order.attributes["Delivery Instructions"] | default: order.attributes["Delivery instructions"] | default: order.attributes["Delivery Note"] | default: order.attributes["Notes to driver"] | default: order.attributes["Remarks"] -%}
+{%- assign ref = order.attributes["Slot First Loaded TimeStamp"] | default: order.attributes["LocationId"] -%}
+
+{%- comment -%} count active items + total detail characters (for auto-shrink) {%- endcomment -%}
+{%- assign active_count = 0 -%}
+{%- assign total_chars = 0 -%}
+{%- for line_item in order.line_items -%}{%- if line_item.quantity > 0 -%}
+  {%- assign active_count = active_count | plus: 1 -%}
+  {%- for p in line_item.properties -%}{%- assign fc = p.first | slice: 0 -%}{%- unless fc == '_' or p.last == blank -%}{%- assign total_chars = total_chars | plus: p.last.size -%}{%- endunless -%}{%- endfor -%}
+{%- endif -%}{%- endfor -%}
+{%- if order.note != blank -%}{%- assign total_chars = total_chars | plus: order.note.size -%}{%- endif -%}
+{%- if del_instr != blank -%}{%- assign total_chars = total_chars | plus: del_instr.size -%}{%- endif -%}
+
+{%- comment -%} base font-size: shrink as the order gets heavier {%- endcomment -%}
+{%- assign fs = 16 -%}
+{%- if active_count >= 3 or total_chars > 280 -%}{%- assign fs = 14 -%}{%- endif -%}
+{%- if active_count >= 4 or total_chars > 560 -%}{%- assign fs = 12.5 -%}{%- endif -%}
+{%- if active_count >= 6 or total_chars > 950 -%}{%- assign fs = 11 -%}{%- endif -%}
+
+<style>
+  @page { size: A4; margin: 11mm; }
+  .so * { box-sizing: border-box; }
+  .so { font-family: Helvetica, Arial, sans-serif; color: #000;
+    width: 100%; height: 273mm; overflow: hidden; display: flex; flex-direction: column;
+    line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .so-head { display: flex; justify-content: space-between; align-items: flex-start;
+    border-bottom: 2px solid #000; padding-bottom: .7em; }
+  .so-brand { font-family: Georgia, 'Times New Roman', serif; font-size: 1.95em; }
+  .so-shop { font-size: .8em; margin-top: .25em; line-height: 1.45; }
+  .so-type { font-size: 1.05em; font-weight: bold; letter-spacing: 1px; text-align: right; }
+  .so-no { font-size: 1.55em; font-weight: bold; text-align: right; }
+  .so-date { font-size: .8em; text-align: right; }
+  .so-ban { display: flex; align-items: center; justify-content: space-between;
+    background: #F0F0F0; border: 2px solid #000; border-radius: 6px; padding: .9em 1.3em; margin-top: 1.3em; }
+  .so-ban .bl, .so-ban .brl { font-size: .72em; letter-spacing: 1px; text-transform: uppercase; }
+  .so-ban .bt { font-size: 1.65em; font-weight: bold; line-height: 1.1; }
+  .so-ban .br { text-align: right; }
+  .so-ban .brv { font-size: 1.3em; font-weight: bold; }
+  .so-instr { margin-top: .8em; border: 2px solid #000; border-radius: 6px; padding: .7em 1.1em; }
+  .so-instr .cap { font-size: .72em; text-transform: uppercase; letter-spacing: 1px; }
+  .so-instr .msg { font-size: 1em; font-weight: bold; line-height: 1.45; margin-top: .2em; }
+  .so-payline { margin-top: 1.3em; }
+  .so-payline .l { font-size: .72em; text-transform: uppercase; letter-spacing: .4px; }
+  .so-payline .v { font-size: 1em; font-weight: bold; }
+  .so-addr { display: flex; gap: .8em; margin-top: 1.3em; }
+  .so-addr .b { flex: 1; border: 1px solid #999; border-radius: 6px; padding: .8em 1em; }
+  .so-addr .so-ship { background: #F5F5F5; }
+  .so-addr .cap { font-size: .72em; text-transform: uppercase; letter-spacing: .5px; }
+  .so-addr .nm { font-size: 1em; font-weight: bold; margin-top: .2em; }
+  .so-addr .ad { font-size: .88em; line-height: 1.45; margin-top: .2em; }
+  .so-ihead { display: flex; justify-content: space-between; margin-top: 1.5em; padding-bottom: .4em;
+    border-bottom: 1px solid #000; font-size: .72em; text-transform: uppercase; letter-spacing: .5px; }
+  .it { border-bottom: .5px solid #888; padding: .75em 0; }
+  .it-top { display: flex; justify-content: space-between; font-size: 1.05em; font-weight: bold; }
+  .it-top .p { white-space: nowrap; padding-left: 10px; }
+  .it-var { font-size: .82em; margin-top: .1em; }
+  .it-det { margin-top: .45em; margin-left: 1em; border-left: 2px solid #000; padding-left: .9em; }
+  .it-prop { font-size: .92em; line-height: 1.5; margin-top: .2em; }
+  .it-lbl { font-weight: bold; }
+  .so-note { margin-top: 1em; border: 1px solid #999; border-radius: 6px; padding: .8em 1em; }
+  .so-note .cap { font-size: .72em; text-transform: uppercase; letter-spacing: .5px; }
+  .so-note .msg { font-size: .92em; line-height: 1.5; margin-top: .3em; }
+  .so-pay { width: 56%; margin-left: auto; margin-top: 1.3em; font-size: 1em; }
+  .so-pay .row { display: flex; justify-content: space-between; padding: .25em 0; }
+  .so-pay .tot { border-top: 1px solid #000; margin-top: .25em; padding: .5em 0; font-weight: bold; font-size: 1.3em; }
+  .so-pay .out { font-weight: bold; }
+  .so-foot { margin-top: auto; padding-top: 1em; border-top: .5px solid #888;
+    font-size: .72em; display: flex; justify-content: space-between; }
+</style>
+
+<div class="so" style="font-size: {{ fs }}px;">
+
+  <div class="so-head">
+    <div>
+      <div class="so-brand">{{ shop.name }}</div>
+      <div class="so-shop">{{ shop.address.address1 }}, {{ shop.address.city }} {{ shop.address.province_code }} {{ shop.address.zip | upcase }}, {{ shop.address.country }}<br/>Tel: {{ shop.phone }} &middot; {{ shop.email }}</div>
+    </div>
+    <div>
+      <div class="so-type">SALES ORDER</div>
+      <div class="so-no">{{ order.name }}</div>
+      <div class="so-date">{{ order.created_at | date: "%d %b %Y" }}</div>
+      {%- if channel != blank -%}<div class="so-date">Channel: {{ channel }}</div>{%- endif -%}
+    </div>
+  </div>
+
+  <div class="so-ban">
+    <div>
+      <div class="bl">Fulfilment</div>
+      <div class="bt">{% if ship_type != blank %}{{ ship_type | upcase }}{% else %}&mdash;{% endif %}</div>
+    </div>
+    <div class="br">
+      <div class="brl">Delivery date &amp; time</div>
+      <div class="brv">{% if del_date != blank %}{{ del_date }}{% else %}&mdash;{% endif %}{% if del_time != blank %} &middot; {{ del_time }}{% endif %}</div>
+    </div>
+  </div>
+
+  {%- if del_instr != blank -%}
+  <div class="so-instr">
+    <div class="cap">Delivery instructions</div>
+    <div class="msg">{{ del_instr | newline_to_br }}</div>
+  </div>
+  {%- endif -%}
+
+  <div class="so-payline">
+    <span class="l">Payment</span>
+    <div class="v">{% for transaction in order.transactions %}{% if transaction.status != "failure" and transaction.status != "error" %}{% if transaction.kind == "authorization" or transaction.kind == "sale" %}{% if transaction.payment_details.credit_card_number %}{{ transaction.payment_details.credit_card_company }} {{ transaction.payment_details.credit_card_number }}{% break %}{% else %}{{ transaction.gateway }}{% break %}{% endif %}{% endif %}{% endif %}{% endfor %}{% if paid_by != blank %} &middot; {{ paid_by }}{% endif %}</div>
+  </div>
+
+  <div class="so-addr">
+    <div class="b so-bill">
+      <div class="cap">Billing address</div>
+      <div class="nm">{{ order.billing_address.name }}</div>
+      <div class="ad">{% if order.billing_address.company != blank %}{{ order.billing_address.company }}, {% endif %}{{ order.billing_address.street }}, {{ order.billing_address.city }} {{ order.billing_address.province_code }} {{ order.billing_address.zip | upcase }}{% if order.billing_address.phone != blank %} &middot; {{ order.billing_address.phone }}{% endif %}</div>
+    </div>
+    <div class="b so-ship">
+      <div class="cap">Ship to</div>
+      {%- if order.shipping_address -%}
+      <div class="nm">{{ order.shipping_address.name }}</div>
+      <div class="ad">{% if order.shipping_address.company != blank %}{{ order.shipping_address.company }}, {% endif %}{{ order.shipping_address.street }}, {{ order.shipping_address.city }} {{ order.shipping_address.province_code }} {{ order.shipping_address.zip | upcase }}{% if order.shipping_address.phone != blank %} &middot; {{ order.shipping_address.phone }}{% endif %}</div>
+      {%- else -%}
+      <div class="nm">Self pickup</div>
+      <div class="ad">{{ order.billing_address.name }}{% if order.billing_address.phone != blank %} &middot; {{ order.billing_address.phone }}{% elsif order.phone != blank %} &middot; {{ order.phone }}{% endif %}</div>
+      {%- endif -%}
+    </div>
+  </div>
+
+  <div class="so-ihead"><span>Item details</span><span>{{ active_count }} item{% if active_count != 1 %}s{% endif %}</span></div>
+
+  {%- for line_item in order.line_items -%}{%- if line_item.quantity > 0 -%}
+  <div class="it">
+    <div class="it-top">
+      <span>{{ line_item.quantity }} &times; {{ line_item.title }}</span>
+      <span class="p">{% if line_item.original_line_price != line_item.final_line_price %}<s>{{ line_item.original_line_price | money }}</s> {% endif %}{{ line_item.final_line_price | money }}</span>
+    </div>
+    {%- if line_item.variant_title != blank -%}<div class="it-var">{{ line_item.variant_title }}</div>{%- endif -%}
+    {%- assign has_detail = false -%}
+    {%- for p in line_item.properties -%}{%- assign fc = p.first | slice: 0 -%}{%- unless p.last == blank or fc == '_' -%}{%- assign has_detail = true -%}{%- endunless -%}{%- endfor -%}
+    {%- if has_detail -%}
+    <div class="it-det">
+      {%- for p in line_item.properties -%}{%- assign fc = p.first | slice: 0 -%}{%- unless p.last == blank or fc == '_' -%}
+        {%- assign lbl = p.first -%}
+        {%- if p.first == "Your Card Message" or p.first == "Floral Stand Message" -%}{%- assign lbl = "Card" -%}{%- elsif p.first == "Personalised Your Bouquet With Add Ons" -%}{%- assign lbl = "Add-ons" -%}{%- endif -%}
+        <div class="it-prop"><span class="it-lbl">{{ lbl }}:</span> {{ p.last | newline_to_br }}</div>
+      {%- endunless -%}{%- endfor -%}
+    </div>
+    {%- endif -%}
+  </div>
+  {%- endif -%}{%- endfor -%}
+
+  {%- if order.note != blank -%}
+  <div class="so-note">
+    <div class="cap">Card message / order note</div>
+    <div class="msg">{{ order.note | newline_to_br }}</div>
+  </div>
+  {%- endif -%}
+
+  <div class="so-pay">
+    <div class="row"><span>Subtotal</span><span>{{ order.subtotal_price | money }}</span></div>
+    {%- for discount in order.discounts -%}
+    <div class="row"><span>Discount "{{ discount.title }}"</span><span>-{{ discount.savings | money }}</span></div>
+    {%- endfor -%}
+    <div class="row"><span>Tax</span><span>{{ order.tax_price | money }}</span></div>
+    {%- if order.shipping_address -%}<div class="row"><span>Shipping</span><span>{{ order.shipping_price | money }}</span></div>{%- endif -%}
+    <div class="row tot"><span>Total</span><span>{{ order.total_price | money }}</span></div>
+    {%- if order.net_payment != order.total_price -%}
+    <div class="row"><span>Total paid</span><span>{{ order.net_payment | money }}</span></div>
+    <div class="row out"><span>Outstanding</span><span>{{ order.total_price | minus: order.net_payment | money }}</span></div>
+    {%- endif -%}
+  </div>
+
+  <div class="so-foot">
+    <span>{% if ref != blank %}Ref: {{ ref }}{% endif %}</span>
+    <span>Questions? {{ shop.email }}</span>
+  </div>
+
+</div>

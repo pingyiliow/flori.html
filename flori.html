@@ -1676,7 +1676,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','No card':'不需要卡片','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -3402,7 +3402,7 @@ async function loadFromSupabase(opts = {}) {
         status: f.status||'pending', items: f.items||'', itemList: f.item_list||null,
         cardMsg: f.card_msg||'', flowerNote: f.flower_note||'', remarks: f.remarks||'', deliveryInstr: f.delivery_instr||'',
         needInvoice: !!f.need_invoice, invoiceNo: f.invoice_no||'', invoiceAt: f.invoice_at||null,
-        formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'', feeAuto: f.fee_auto==null ? null : !!f.fee_auto,
+        formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'', noCard: !!f.no_card, feeAuto: f.fee_auto==null ? null : !!f.fee_auto,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
       FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
@@ -7051,7 +7051,7 @@ function _fuRow(f){
       status: f.status||'pending', items: f.items||null, item_list: f.itemList||null,
       card_msg: f.cardMsg||null, flower_note: f.flowerNote||null, remarks: f.remarks||null, delivery_instr: f.deliveryInstr||null,
       need_invoice: !!f.needInvoice, invoice_no: f.invoiceNo||null, invoice_at: f.invoiceAt||null,
-      fee_auto: f.feeAuto==null ? null : !!f.feeAuto,
+      fee_auto: f.feeAuto==null ? null : !!f.feeAuto, no_card: f.noCard ? true : null,
       form_token: f.formToken||null, form_status: f.formStatus||null, form_sent_at: f.formSentAt||null, form_submitted_at: f.formSubmittedAt||null, cust_note: f.custNote||null,
       photo: f.photo||null, shopify_draft_id: f.shopifyDraftId||null, ts: f.ts||Date.now()
   };
@@ -7066,7 +7066,7 @@ function saveFollowups() {
       if (ok) Object.assign(_fuHash, hashes);
       // If a newer column (staff / delivery_fee / flower_note / item_list) hasn't been
       // added yet, still sync everything else so multi-device follow-up sync never breaks.
-      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, form_token, form_status, form_sent_at, form_submitted_at, cust_note, fee_auto, recip_company, ...r }) => r));
+      if (!ok) sbUpsert('followups', rows.map(({ staff, delivery_fee, flower_note, item_list, paid_by, delivery_instr, pay_slip, pay_note, invoice_no, invoice_at, form_token, form_status, form_sent_at, form_submitted_at, cust_note, fee_auto, recip_company, no_card, ...r }) => r));
       _bcSend('followups');
     }).catch(console.error);
   }
@@ -7631,7 +7631,7 @@ function _fuCollectItems(){
 function saveFollowup() {
   if (_fuFormSlipBusy) { toast('Slip is still uploading'); return; }
   const name = document.getElementById('fu-name').value.trim();
-  if (!name) { toast('Sender name required'); return; }
+  // A name is not needed to save: the customer can fill it in through the order form.
   const editId = document.getElementById('fu-edit-id').value;
   // Warn if this customer is already on the list (new entries only)
   if (!editId) {
@@ -7661,7 +7661,7 @@ function saveFollowup() {
     paySlip: _fuFormSlip || '', payNote: (document.getElementById('fu-pay-note')?.value.trim()) || '',
     // Worked out by the customer form from the address; a fee staff change here is theirs.
     feeAuto: (prevFu && prevFu.feeAuto===true) ? ((parseFloat(document.getElementById('fu-fee')?.value)||0)===(Number(prevFu.deliveryFee)||0)) : (prevFu && prevFu.feeAuto!=null ? prevFu.feeAuto : null),
-    formToken: prevFu?.formToken || '', formStatus: prevFu?.formStatus || '', formSentAt: prevFu?.formSentAt || null, formSubmittedAt: prevFu?.formSubmittedAt || null, custNote: prevFu?.custNote || '',
+    formToken: prevFu?.formToken || '', formStatus: prevFu?.formStatus || '', formSentAt: prevFu?.formSentAt || null, formSubmittedAt: prevFu?.formSubmittedAt || null, custNote: prevFu?.custNote || '', noCard: !!(prevFu && prevFu.noCard),
     invoiceNo: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceNo || '') : ''),
     invoiceAt: (document.getElementById('fu-need-invoice')?.checked ? (prevFu?.invoiceAt || null) : null),
     needInvoice: !!document.getElementById('fu-need-invoice')?.checked && !(prevFu?.invoiceNo),
@@ -8242,6 +8242,8 @@ async function createShopifyDraft() {
     // The payment note rides in the same Paid By line, e.g. "Bank transfer, pbb RM400, 5/11".
     { key:'Paid By', value: _fuPaidByLine(f) },
   ];
+  { const _ch = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
+    if (_ch) customAttributes.push({ key:'Order Channel', value: _ch }); }
   if (f.paySlip && /^https?:\/\//.test(f.paySlip)) customAttributes.push({ key:'Payment Slip', value: f.paySlip });
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
   // they show clearly on the Shopify order and sync back into the daily-order detail.
@@ -8770,6 +8772,7 @@ function openFUDP(id) {
         ${it.flowerNote?`<div style="font-size:11px;color:var(--c-ink);background:#F1F8F2;border-left:3px solid #6FBF73;border-radius:0 var(--r) var(--r) 0;padding:6px 9px;margin-top:6px;white-space:pre-wrap">${di('flower',12)} ${esc(it.flowerNote)}</div>`:''}
       </div>`).join('')}</div>`;
   } else if(f.items) html += `<div><div class="fu-sec-ttl">Products / Items</div><div style="font-size:12px;line-height:1.7;color:var(--c-ink);white-space:pre-wrap">${esc(f.items)}</div></div>`;
+  if (f.noCard) html += `<div><div class="fu-sec-ttl">Card message</div><div style="font-size:12px;color:var(--c-muted)">No card</div></div>`;
   // Remarks
   if(f.photo) html += `<div><div class="fu-sec-ttl">Photo</div><img src="${f.photo}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
   if(f.remarks) html += `<div><div class="fu-sec-ttl">Remarks</div><div style="font-size:12px;line-height:1.6;color:var(--c-muted);white-space:pre-wrap">${esc(f.remarks)}</div></div>`;
@@ -14979,7 +14982,12 @@ function _renderDPInner(order, localOrder) {
   // Staff tag — who this order came in through (from the linked follow-up). Small, and it
   // feeds the Records → Staff orders list.
   const _staff = (localOrder.staff && String(localOrder.staff).trim()) || (_fuLink && _fuLink.staff && String(_fuLink.staff).trim()) || '';
-  if (_staff) html += '<div style="margin-bottom:2px"><span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 11px;border-radius:99px;background:var(--p-butter,#F1E7C9);color:#8a6d24">'+di('user',12)+' Staff: '+esc(_staff)+'</span></div>';
+  const _chMap = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'};
+  const _chan = getAttr('Order Channel') || (_fuLink && (_chMap[_fuLink.channel] || _fuLink.channel)) || (localOrder.src==='manual' && (_chMap[localOrder.channel] || localOrder.channel)) || '';
+  if (_staff || _chan) html += '<div style="margin-bottom:2px;display:flex;flex-wrap:wrap;gap:6px">'
+    + (_staff ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 11px;border-radius:99px;background:var(--p-butter,#F1E7C9);color:#8a6d24">'+di('user',12)+' Staff: '+esc(_staff)+'</span>' : '')
+    + (_chan ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 11px;border-radius:99px;background:var(--color-paper-2);color:var(--color-ink-2)">'+di('chat',12)+' Channel: '+esc(_chan)+'</span>' : '')
+    + '</div>';
   const _flowerIns = getAttr('Flower Instructions');
   const _cardMsg   = getAttr('Card Message');
   const _remark    = getAttr('Remark');
