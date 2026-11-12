@@ -137,7 +137,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 <script>
 (function(){
   const T = {
-    en:{ slotAm:'Morning', slotPm:'Afternoon', slotNeed:'Please choose a delivery time', slotNeedP:'Please choose a pickup time', slotPick:'Choose a time', noCard:'No card message needed', cardNeed:'Please write the card message, or tick that you do not need one', photo:'View photo', fnote:'Flower instructions', h1chk:'Check your order', feeAddr:'Enter shipping address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
+    en:{ paidFill:'Thank you for your payment. Please fill in the details below so we can prepare your order.', slipFill:'We have received your payment receipt. Please fill in the details below so we can prepare your order.', slotAm:'Morning', slotPm:'Afternoon', slotNeed:'Please choose a delivery time', slotNeedP:'Please choose a pickup time', slotPick:'Choose a time', noCard:'No card message needed', cardNeed:'Please write the card message, or tick that you do not need one', photo:'View photo', fnote:'Flower instructions', h1chk:'Check your order', feeAddr:'Enter shipping address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
       getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
       rname:'Recipient name', rphone:'Recipient phone', company:'Company, restaurant, hotel or hospital (optional)', companyRo:'Company / building', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
       confirm:'Confirm order', savech:'Save changes', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
@@ -146,7 +146,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
       h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed. If you need to change anything, feel free to contact us on WhatsApp.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
-    zh:{ slotAm:'上午', slotPm:'下午', slotNeed:'请选择送货时段', slotNeedP:'请选择自取时段', slotPick:'请选择时段', noCard:'不需要卡片', cardNeed:'请填写卡片内容，或勾选不需要卡片', photo:'查看图片', fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
+    zh:{ paidFill:'感谢您的付款。请填写以下资料，以便我们为您准备订单。', slipFill:'已收到您的付款收据。请填写以下资料，以便我们为您准备订单。', slotAm:'上午', slotPm:'下午', slotNeed:'请选择送货时段', slotNeedP:'请选择自取时段', slotPick:'请选择时段', noCard:'不需要卡片', cardNeed:'请填写卡片内容，或勾选不需要卡片', photo:'查看图片', fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
       rname:'收花人姓名', rphone:'收花人电话', company:'公司、餐厅、酒店或医院名称（选填）', companyRo:'公司 / 大楼', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
       confirm:'确认订单', savech:'保存修改', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
@@ -275,6 +275,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     fulfil = D.fulfil === 'pickup' ? 'pickup' : 'delivery';
     const pk = fulfil==='pickup';
     app.innerHTML = '<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
+      + (complete() ? '' : D.paid ? '<div class="box">'+t('paidFill')+'</div>' : (D.slip ? '<div class="box">'+t('slipFill')+'</div>' : ''))
       + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+itemsHtml()+'</div>'+cardHtml()+'</div>'
       + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name')+REQ,D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone')+REQ,D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
@@ -353,7 +354,8 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const r = await api({ mode:'form-get' });
     if (!r.ok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div><a class="btn" href="'+waLink('Hi, about my order request')+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
     // Complete orders open on the check-and-pay page; the customer need not confirm first.
-    D = r.j; view = D.state==='locked' ? 'done' : ((D.submitted || D.slip || complete()) ? 'pay' : 'form'); render();
+    // Details missing (even when already paid): the form first; complete: check-and-pay.
+    D = r.j; view = D.state==='locked' ? 'done' : (complete() ? 'pay' : 'form'); render();
   }
   // Photo viewer: tap a photo to see it whole; tap anywhere or press Escape to close.
   const zoom = document.getElementById('zoom');
