@@ -68,6 +68,8 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .seg{display:grid;grid-template-columns:1fr 1fr;box-shadow:inset 0 0 0 1px var(--color-rule)}
 .seg button{min-height:48px;font-weight:600;color:var(--color-muted);transition:background-color var(--dur),color var(--dur)}
 .seg button.on{background:var(--color-ink);color:var(--color-paper)}
+.seg button[disabled]{cursor:not-allowed}
+.seg button[disabled]:not(.on){opacity:.45}
 .addr{position:relative}
 .hits{border:1px solid var(--color-rule);border-top:0;background:var(--color-surface)}
 .hits:empty{display:none}
@@ -127,20 +129,20 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     en:{ photo:'View photo', fnote:'Flower instructions', h1chk:'Check your order', feeAddr:'Enter shipping address', feeOut:'This address is outside our usual delivery area. We will confirm the delivery fee with you.', feeTbc:'To be confirmed', tbcPay:'We will confirm the delivery fee for this address and send you the total on WhatsApp. Please pay after that.', feePc:'Please include the postcode in the address', details:'Details', h1:'Confirm your order', ref:'Order request', your:'Your order', del:'Delivery fee', total:'Total', you:'Your details', name:'Name', phone:'Phone', email:'Email',
       getting:'Delivery or pickup', deliv:'Delivery', pick:'Self pickup', ddate:'Delivery date', dtime:'Delivery time', pdate:'Pickup date', ptime:'Pickup time',
       rname:'Recipient name', rphone:'Recipient phone', company:'Company, restaurant, hotel or hospital (optional)', companyRo:'Company / building', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
-      confirm:'Confirm order', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
+      confirm:'Confirm order', savech:'Save changes', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
       h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
       bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot or photo', uploading:'Uploading…', upok:'Receipt received, thank you', upbad:'Upload failed, please try again or send it on WhatsApp',
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
-      h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed and being prepared. To change anything, WhatsApp us.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
+      h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed. If you need to change anything, feel free to contact us on WhatsApp.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
     zh:{ photo:'查看图片', fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'自取', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
       rname:'收花人姓名', rphone:'收花人电话', company:'公司、餐厅、酒店或医院名称（选填）', companyRo:'公司 / 大楼', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
-      confirm:'确认订单', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
+      confirm:'确认订单', savech:'保存修改', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
       h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
       bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图或照片', uploading:'上传中…', upok:'已收到收据，谢谢', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
       wa:'在 WhatsApp 发送收据', pending:'已收到您的付款收据。确认收款后，您的订单才会正式确认，确认后我们会把订单确认发给您。', edit:'修改订单资料', paidok:'已确认收款，谢谢。',
-      h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认，正在准备中。如需更改，请 WhatsApp 我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们',
+      h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认。如需更改，欢迎通过 WhatsApp 联系我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们',
       h1gone:'链接已失效', gone:'这个订单链接已关闭。请 WhatsApp 我们，我们会协助您。', h1bad:'找不到链接', bad:'请检查我们发给您的链接，或 WhatsApp 我们。', err:'出了点问题，请再试一次。' }
   };
   const SHOP_WA = '60124778120';
@@ -217,19 +219,18 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     if (D.state==='expired') { app.innerHTML = '<h1>'+t('h1gone')+'</h1><div class="box">'+t('gone')+'</div><a class="btn" href="'+waLink('Hi, about my order request '+(D.ref||''))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
     if (D.state==='locked') view = 'done';
     if (view==='done') {
-      const r = (k,v) => v ? '<div class="r"><span>'+k+'</span><b>'+esc(v)+'</b></div>' : '';
       app.innerHTML = '<h1>'+t('h1done')+'</h1><p class="ref">'+(D.orderNo ? t('ordno')+' <span class="num">'+esc(D.orderNo)+'</span>' : t('ref')+' <span class="num">'+esc(D.ref)+'</span>')+'</p>'
         + '<div class="box">'+t('locked')+'</div>'
         + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
-        + '<div class="sec ro">'+r(D.fulfil==='pickup'?t('pdate'):t('ddate'), [D.dueDate, D.dueTime].filter(Boolean).join(', '))+r(t('rname'), D.recipName)+(D.fulfil==='pickup'?'':r(t('addr'), D.addr))+r(t('pay'), D.paid?t('paidv'):t('pend'))+'</div>'
-        + '<a class="btn ghost" href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>';
+        + '<div class="sec ro"><h2>'+t('details')+'</h2>'+detailsHtml()+row(t('pay'), D.paid?t('paidv'):t('pend'))+'</div>'
+        + '<a class="btn" href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>';
       return;
     }
     if (view==='pay') {
       app.innerHTML = '<h1>'+(D.submitted||D.slip ? t('h1pay') : t('h1chk'))+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
         + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
         + '<div class="sec ro"><h2>'+t('details')+'</h2>'+detailsHtml()+'</div>'
-        + (D.paid ? '' : '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>')
+        + '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>'
         + '<div class="sec"><h2>'+t('pay')+'</h2></div>'
         + (D.paid ? '<div class="box">'+t('paidok')+'</div>' : feeTbc() ? '<div class="box">'+t('tbcPay')+'</div><a class="btn" href="'+waLink('Hi, about the delivery fee for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa2')+'</a>' : ((slipState==='ok'||D.slip) ? '<div class="box" id="pending">'+t('pending')+'</div>' : '<p class="note">'+t('paynote')+'</p>')
         + '<div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
@@ -248,15 +249,16 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+itemsHtml()+'</div>'+field('cardMsg',t('card'),D.cardMsg,'',true)+'</div>'
       + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name'),D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone'),D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
-      + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'">'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'">'+t('pick')+'</button></div></div>'
+      + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'"'+(D.paid?' disabled':'')+'>'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'"'+(D.paid?' disabled':'')+'>'+t('pick')+'</button></div></div>'
         + '<div class="two">'+field('dueDate',pk?t('pdate'):t('ddate'),D.dueDate,'type="date"')+field('dueTime',pk?t('ptime'):t('dtime'),D.dueTime,'')+'</div>'
         + (pk ? '' : field('recipName',t('rname'),D.recipName,'')+field('recipPhone',t('rphone'),D.recipPhone,'inputmode="tel" class="num" placeholder="+60"')
           + field('recipCompany',t('company'),D.recipCompany,'autocomplete="organization"')
           + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off" placeholder="'+t('addrPh')+'">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div><div class="msg'+(D.feeOut&&D.feeAuto?' info':'')+'" id="addr-msg">'+(D.feeOut&&D.feeAuto?outMsg():'')+'</div></div>'
           + field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))
       + '</div>'
-      + '<button class="btn" type="button" id="go">'+t('confirm')+'</button><p class="fine">'+t('fine')+'</p>';
-    document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
+      + '<button class="btn" type="button" id="go">'+(D.paid?t('savech'):t('confirm'))+'</button><p class="fine">'+t('fine')+'</p>';
+    // Paid: delivery or pickup stays as paid for (the price would change).
+    if (!D.paid) document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
     document.getElementById('go').onclick = submit;
     const a = document.getElementById('f-addr'); if (a) { wireAddr(a); if (a.value.trim()) quoteFee(0); }
   }
@@ -289,7 +291,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const r = await api({ mode:'form-save', fields:{ name:D.name, contact:D.contact, email:D.email, recipName:D.recipName, recipPhone:D.recipPhone, recipCompany:D.recipCompany, fulfil, dueDate:D.dueDate, dueTime:D.dueTime, addr:D.addr, deliveryInstr:D.deliveryInstr, cardMsg:D.cardMsg, custNote:D.custNote } });
     if (r.ok) { D = r.j; view = 'pay'; render(); window.scrollTo(0,0); return; }
     if (r.status===409) { await load(); return; }
-    go.disabled = false; go.textContent = t('confirm');
+    go.disabled = false; go.textContent = D.paid ? t('savech') : t('confirm');
     const e = r.j && r.j.error;
     if (e==='need_postcode') { addrStop(esc(t('feePc'))); return; }
     toast(t('err'));

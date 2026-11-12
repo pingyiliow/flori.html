@@ -77,10 +77,11 @@ async function formRow(t) {
   return (ok && Array.isArray(j) && j[0]) || null;
 }
 function formState(row) {
-  if (!row || row.status === 'completed') return 'expired';
+  if (!row) return 'expired';
+  // In Shopify (draft or order) or completed: the customer can still look it up, read-only.
+  if (row.status === 'completed' || row.status === 'draft' || row.shopify_draft_id || row.order_no) return 'locked';
   const sent = row.form_sent_at ? Date.parse(row.form_sent_at) : 0;
   if (sent && Date.now() - sent > FORM_DAYS * 864e5) return 'expired';
-  if (row.status === 'draft' || row.shopify_draft_id || row.order_no) return 'locked';
   return 'open';
 }
 const _s = (v, max) => String(v == null ? '' : v).trim().slice(0, max);
@@ -123,7 +124,9 @@ async function formHandler(body, res) {
   }
   if (body.mode === 'form-save') {
     const f = body.fields || {};
-    const fulfil = f.fulfil === 'pickup' ? 'pickup' : 'delivery';
+    // Paid: delivery or pickup and the fee stay as paid; the rest can still change.
+    const paid = row.payment === 'paid';
+    const fulfil = paid ? (row.fulfil === 'pickup' ? 'pickup' : 'delivery') : (f.fulfil === 'pickup' ? 'pickup' : 'delivery');
     const due = /^\d{4}-\d{2}-\d{2}$/.test(String(f.dueDate || '')) ? f.dueDate : null;
     const patch = {
       name: _s(f.name, 120) || row.name, contact: _s(f.contact, 40), email: _s(f.email, 160),
@@ -137,7 +140,7 @@ async function formHandler(body, res) {
     };
     // One item: its own card message follows the order's, so the Shopify draft gets it.
     if (Array.isArray(row.item_list) && row.item_list.length === 1) patch.item_list = [{ ...row.item_list[0], cardMsg: patch.card_msg }];
-    if (feeAuto(row)) {
+    if (!paid && feeAuto(row)) {
       patch.fee_auto = true;
       if (fulfil === 'pickup') patch.delivery_fee = 0;
       else {
