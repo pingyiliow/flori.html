@@ -11814,7 +11814,8 @@ function renderDriver(){
     : '<div class="dgrp-empty">'+(isAdmin?'No routes yet.':'No deliveries assigned to you yet.')+'</div>';
   const doneUnrouted = isAdmin ? stops.filter(o => !o.routeId && o.fulfilled).sort(_byTime) : [];   // delivered: earliest → latest time
   const deliveredBlock = doneUnrouted.length
-    ? '<details class="dgrp-done"><summary>Delivered, no route<span class="num">'+doneUnrouted.length+'</span></summary>'+doneUnrouted.map(o => _drvRow(o)).join('')+'</details>'
+    ? '<details class="dgrp-done"><summary>Delivered, no route<span class="num">'+doneUnrouted.length+'</span></summary>'+doneUnrouted.map(o => _drvRow(o, { end: (isAdmin && routes.length) ? '<select class="dstop-assign" aria-label="Add to route" onclick="event.stopPropagation()" onchange="assignStopToRoute(\''+o.id+'\', this.value)"><option value="">Add to route</option>'
+        + routes.map(r => '<option value="'+r.id+'">'+esc2(r.name)+(r.driver?', '+esc2(r.driver):'')+'</option>').join('') + '</select>' : '' })).join('')+'</details>'
     : '';
   // Admin-only: today's orders booked with Lalamove, each with a Manage button (status,
   // driver, priority fee, cancel). Hidden from drivers. Only lists orders we hold a booking
