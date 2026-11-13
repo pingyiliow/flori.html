@@ -9505,8 +9505,7 @@ function deleteRoute(id){
   ROUTES = ROUTES.filter(r => r.id !== id);
   // Unassign this route's orders so they return to the unassigned pool everywhere.
   const affected = ORDERS.filter(o => o.routeId === id);
-  affected.forEach(o => { o.routeId = null; o.routeSeq = null; });
-  if (affected.length) saveOrders(affected);
+  affected.forEach(o => { o.routeId = null; o.routeSeq = null; saveOrderPatch(o, { route_id:null, route_seq:null }); });
   if (hasSB()) sbDelete('routes', id);
 }
 function subscribeRoutes(){
@@ -9946,7 +9945,7 @@ function _drvDragStart(ev, orderId, routeId){
       const o = ORDERS.find(x => x.id === c.dataset.oid);
       if (o && o.routeSeq !== i+1){ o.routeSeq = i+1; changed.push(o); }
     });
-    if (changed.length) saveOrders(changed);
+    changed.forEach(o => saveOrderPatch(o, { route_seq:o.routeSeq }));
     _dragEl = null;
   };
   document.addEventListener('pointermove', move, { passive:false });
@@ -10957,7 +10956,7 @@ async function optimizeRoute(id){
   const finalOrder = [...urgent, ...orderedRest];
   const changed = [];
   finalOrder.forEach((o,i)=>{ if(o.routeSeq !== i+1){ o.routeSeq = i+1; changed.push(o); } });
-  if (changed.length) saveOrders(changed);
+  changed.forEach(o => saveOrderPatch(o, { route_seq:o.routeSeq }));
   delete _routeMetrics[id];
   renderDriver();
   toast('✓ Route optimized');
@@ -11476,7 +11475,9 @@ async function _geoBackfill(stops){
     const unresolved = todo.filter(o => !got.has(String(o.id)));
     if (unresolved.length) console.warn('[geo] Google could not resolve:', unresolved.map(o => _drvAddr(o)));
     console.log('[geo] resolved', changed.length, 'of', todo.length, 'stop(s)');
-    if (changed.length){ saveOrders(changed); renderDriver(); }
+    // Only the map position: a full-row save from this device's copy used to put an older
+    // route / ready state back over a teammate's newer one.
+    if (changed.length){ changed.forEach(o => saveOrderPatch(o, { lat:o.lat, lng:o.lng })); renderDriver(); }
   } catch(e){ console.warn('[geo] backfill error', e && e.message); }
   finally { _geoBusy = false; }
 }
