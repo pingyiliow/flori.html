@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flower prep v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Hanken+Grotesk:wght@400;500;600&family=DM+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3EFE6; --paper-2:#EBE5D8; --surface:#FAF8F3; --ink:#2A2622; --ink-2:#3F3A35; --muted:#6E665D; --rule:#D6CFC0;
+  --accent:#2E4A3D; --accent-ink:#F3EFE6; --sage:#476644; --warn:#8A5A12;
+  --f-disp:'Libre Caslon Display',Georgia,serif; --f-body:'Hanken Grotesk',system-ui,sans-serif; --f-num:'DM Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html,body{overflow-x:clip}
+body{background:var(--paper-2);color:var(--ink);font-family:var(--f-body);font-size:14px;padding:28px 16px 64px}
+.wrap{max-width:1320px;margin:0 auto}
+.intro h1{font-family:var(--f-disp);font-weight:400;font-size:30px}
+.intro p{color:var(--muted);margin-top:6px;max-width:720px;line-height:1.5}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 375px;gap:24px;margin-top:22px;align-items:start}
+@media(max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+.cap{font-size:13px;font-weight:600;color:var(--ink-2);margin:0 0 8px}
+.cap span{font-weight:400;color:var(--muted)}
+.scr{background:var(--paper);border:1px solid var(--rule);padding:28px 32px 32px}
+.scr.ph{padding:18px 16px 24px}
+.stack>*+*{margin-top:24px}
+.num{font-family:var(--f-num)}
+/* page header (as Orders) */
+.hdr{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.pt{font-family:var(--f-disp);font-weight:400;font-size:40px;line-height:1}
+.ph .pt{font-size:32px}
+.sub{color:var(--muted);font-size:14px;margin-top:6px}
+.act{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:1.5px solid var(--accent);color:var(--accent);font-weight:600;font-size:13.5px;background:transparent}
+.ico{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* the one bar: views left, dates right (as Orders' filter bar) */
+.bar{display:flex;align-items:center;gap:20px;margin-top:20px;border-bottom:1px solid var(--rule)}
+.views{display:flex;gap:22px}
+.views span{padding:11px 0;font-size:14px;color:var(--muted)}
+.views .on{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--ink)}
+.views .cnt{color:var(--warn);font-weight:600;margin-left:4px}
+.dates{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:13.5px;color:var(--ink-2);padding:11px 0}
+.dates b{font-weight:600}
+.pop{border:1px solid var(--rule);background:var(--surface);padding:12px;margin-top:8px;width:260px;margin-left:auto;box-shadow:0 10px 30px rgba(42,38,34,.08)}
+.pop .o{padding:8px 6px;font-size:13.5px}
+.pop .o.on{background:var(--paper-2);font-weight:600}
+.pop .two{display:flex;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--rule)}
+.pop .two div{flex:1;font-size:11.5px;color:var(--muted)}
+.pop .two i{display:block;font-style:normal;border:1px solid var(--rule);padding:6px 8px;margin-top:3px;color:var(--ink);font-size:13px}
+/* tally (as Orders) */
+.tally{display:flex;margin-top:22px}
+.tally div{padding-right:24px;margin-right:24px;border-right:1px solid var(--rule)}
+.tally div:last-child{border:0}
+.tally b{display:block;font-family:var(--f-disp);font-weight:400;font-size:40px;line-height:1}
+.tally span{font-size:12px;color:var(--muted)}
+.tally .w b,.tally .w span{color:var(--warn)}
+.ph .tally b{font-size:32px}.ph .tally div{padding-right:16px;margin-right:16px}
+/* group head (as Orders) */
+.gh{display:flex;align-items:baseline;gap:10px;margin-top:22px;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.gh b{font-weight:600;font-size:15px}
+.gh span{color:var(--muted);font-size:13px}
+.gh .r{margin-left:auto}
+/* flower rows */
+.fr{display:grid;grid-template-columns:44px minmax(0,1fr) 60px 60px 84px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule)}
+.ph .fr{grid-template-columns:38px minmax(0,1fr) 40px 40px 56px;gap:10px}
+.fr .pic{width:44px;height:44px;object-fit:cover;display:block}
+.ph .fr .pic{width:38px;height:38px}
+.fr .nm{font-size:15px;font-weight:500;overflow-wrap:anywhere}
+.fr .nm small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:2px}
+.fr .c{text-align:right;font-size:14px;color:var(--ink-2)}
+.fr .c small{display:block;font-family:var(--f-body);font-size:11px;color:var(--muted)}
+.fr .buy{text-align:right;font-family:var(--f-disp);font-size:26px;line-height:1}
+.fr .buy.ok{font-family:var(--f-body);font-size:13px;color:var(--sage);font-weight:600}
+.fh{display:grid;grid-template-columns:44px minmax(0,1fr) 60px 60px 84px;gap:14px;font-size:12px;color:var(--muted);padding:10px 0 6px;border-bottom:1px solid var(--rule)}
+.ph .fh{grid-template-columns:38px minmax(0,1fr) 40px 40px 56px;gap:10px}
+.fh span:nth-child(n+3){text-align:right}
+.uses{grid-column:2/-1;font-size:12.5px;color:var(--ink-2);line-height:1.8}
+.uses b{font-weight:600}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+.note u{color:var(--warn)}
+/* order rows (as Orders) */
+.or{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:20px;padding:14px 0;border-bottom:1px solid var(--rule);align-items:start}
+.ph .or{grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}
+.ph .or .tm{grid-column:1/-1}
+.or .tm{font-family:var(--f-num);font-size:13px;color:var(--ink-2);padding-top:3px}
+.or .who{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.or .who b{font-size:16px;font-weight:600}
+.or .who .no{font-family:var(--f-num);font-size:13px;color:var(--muted)}
+.or .its{display:flex;gap:12px;margin-top:8px;align-items:flex-start}
+.or .th{width:44px;height:44px;object-fit:cover;flex:none}
+.or ul{list-style:none;padding:0;font-size:14px;line-height:1.75;min-width:0}
+.or li{display:flex;gap:10px}
+.or li .q{font-family:var(--f-num);min-width:26px;text-align:right;color:var(--ink)}
+.or .prod{font-size:14px;color:var(--ink-2)}
+.or .add{border:1.5px solid var(--accent);color:var(--accent);font-weight:600;font-size:13px;padding:8px 14px;white-space:nowrap}
+.mobnav{display:flex;justify-content:space-around;border-top:1px solid var(--rule);margin:18px -16px -24px;padding:10px 0 12px;font-size:11px;color:var(--muted)}
+.why{margin-top:36px;background:var(--surface);border:1px solid var(--rule);padding:18px 20px;max-width:900px}
+.why h2{font-size:15px;font-weight:600}
+.why ul{margin:8px 0 0 18px;line-height:1.75;color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="intro">
+    <h1>Flower prep, redesigned</h1>
+    <p>Built like the Orders page: one bar (views on the left, dates on the right), a tally, then ruled rows. The dates apply to all three views, so there is one date control, not three.</p>
+  </div>
+
+  <div class="grid">
+    <div class="stack">
+      <!-- A. Flower list, desktop -->
+      <div>
+        <div class="cap">Flower list <span>for the purchaser · desktop</span></div>
+        <div class="scr">
+          <div class="hdr">
+            <div><div class="pt">Flower prep</div><div class="sub">Saturday 14 to Friday 20 November</div></div>
+            <span class="act"><svg class="ico" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy to-buy list</span>
+          </div>
+          <div class="bar">
+            <div class="views"><span class="on">Flower list</span><span>By day</span><span>Needs recipe<span class="cnt">3</span></span></div>
+            <span class="dates"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><b>Next 7 days</b> ▾</span>
+          </div>
+          <div class="tally">
+            <div><b>4</b><span>flowers to buy</span></div>
+            <div><b>5</b><span>orders counted</span></div>
+            <div class="w"><b>3</b><span>need a recipe</span></div>
+          </div>
+          <div class="gh"><b>To buy</b><span>4</span></div>
+          <div class="fh"><span></span><span>Flower</span><span>Need</span><span>Stock</span><span>To buy</span></div>
+          <div class="fr">
+            <span></span>
+            <div class="nm">Red Rose<small>4 orders</small></div>
+            <div class="c num">64</div><div class="c num">20</div><div class="buy">44</div>
+            <div class="uses"><b>Sat 14</b> #124160 Amy ×12, #124165 Grace ×10 &nbsp; <b>Mon 16</b> #124162 Cat ×20 &nbsp; <b>Thu 19</b> #124171 Kenny ×22</div>
+          </div>
+          <div class="fr"><span></span><div class="nm">Tulip, Morandi<small>2 orders</small></div><div class="c num">25</div><div class="c num">5</div><div class="buy">20</div></div>
+          <div class="fr"><span></span><div class="nm">Sunflower<small>1 order</small></div><div class="c num">9</div><div class="c num">–</div><div class="buy">9</div></div>
+          <div class="fr"><span></span><div class="nm">Baby's breath<small>2 orders</small></div><div class="c num">6<small>bunches</small></div><div class="c num">2</div><div class="buy">4</div></div>
+          <div class="gh"><b>In stock</b><span>2</span></div>
+          <div class="fr"><span></span><div class="nm">Eucalyptus<small>1 order</small></div><div class="c num">3</div><div class="c num">30</div><div class="buy ok">Enough</div></div>
+          <div class="fr"><img class="pic" src="https://cdn.shopify.com/s/files/1/0548/7883/0651/files/file-1776395804.jpg?v=1788925898" alt=""><div class="nm">Graduation Plushie, Brown Bear (20cm)<small>1 order</small></div><div class="c num">1<small>pcs</small></div><div class="c num">2</div><div class="buy ok">Enough</div></div>
+          <div class="note">3 orders have no flower recipe yet and are not counted. <u>See them</u></div>
+        </div>
+      </div>
+
+      <!-- B. By day, desktop -->
+      <div>
+        <div class="cap">By day <span>for the florist · same dates, grouped by day</span></div>
+        <div class="scr">
+          <div class="hdr"><div><div class="pt">Flower prep</div><div class="sub">Saturday 14 to Friday 20 November</div></div></div>
+          <div class="bar">
+            <div class="views"><span>Flower list</span><span class="on">By day</span><span>Needs recipe<span class="cnt">3</span></span></div>
+            <span class="dates"><svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><b>Next 7 days</b> ▾</span>
+          </div>
+          <div class="gh"><b>Saturday, 14 November</b><span>3 orders</span></div>
+          <div class="or"><div class="tm">10am – 2pm</div><div><div class="who"><b>Amy Tan</b><span class="no">#124160</span></div><div class="its"><ul><li><span class="q">12</span>Red Rose</li><li><span class="q">3</span>Eucalyptus</li></ul></div></div><span></span></div>
+          <div class="or"><div class="tm">10am – 2pm</div><div><div class="who"><b>Grace</b><span class="no">#124165</span></div><div class="its"><ul><li><span class="q">10</span>Red Rose</li><li><span class="q">1</span>Baby's breath, bunch</li></ul></div></div><span></span></div>
+          <div class="or"><div class="tm">2pm – 6pm</div><div><div class="who"><b>Wei Ling</b><span class="no">#124167</span></div><div class="its"><ul><li><span class="q">10</span>Tulip, Morandi</li><li><span class="q">1</span>Graduation Plushie, Brown Bear (20cm)</li></ul></div></div><span></span></div>
+          <div class="gh"><b>Monday, 16 November</b><span>1 order</span></div>
+          <div class="or"><div class="tm">–</div><div><div class="who"><b>Cat</b><span class="no">#124162</span></div><div class="its"><ul><li><span class="q">20</span>Red Rose</li><li><span class="q">9</span>Sunflower</li></ul></div></div><span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <!-- C. Flower list, phone -->
+      <div>
+        <div class="cap">Flower list <span>phone</span></div>
+        <div class="scr ph">
+          <div class="pt">Flower prep</div><div class="sub">Sat 14 to Fri 20 November</div>
+          <div class="bar" style="gap:12px">
+            <div class="views" style="gap:16px"><span class="on">Flower list</span><span>By day</span><span>Recipe<span class="cnt">3</span></span></div>
+            <span class="dates"><b>7 days</b> ▾</span>
+          </div>
+          <div class="tally"><div><b>4</b><span>to buy</span></div><div><b>5</b><span>orders</span></div><div class="w"><b>3</b><span>no recipe</span></div></div>
+          <div class="gh"><b>To buy</b><span>4</span><span class="r" style="color:var(--accent);text-decoration:underline">Copy list</span></div>
+          <div class="fh"><span></span><span>Flower</span><span>Need</span><span>Stock</span><span>Buy</span></div>
+          <div class="fr"><span></span><div class="nm">Red Rose<small>4 orders</small></div><div class="c num">64</div><div class="c num">20</div><div class="buy">44</div></div>
+          <div class="fr"><span></span><div class="nm">Tulip, Morandi<small>2 orders</small></div><div class="c num">25</div><div class="c num">5</div><div class="buy">20</div></div>
+          <div class="fr"><span></span><div class="nm">Sunflower<small>1 order</small></div><div class="c num">9</div><div class="c num">–</div><div class="buy">9</div></div>
+          <div class="fr"><span></span><div class="nm">Baby's breath<small>2 orders</small></div><div class="c num">6<small>bn</small></div><div class="c num">2</div><div class="buy">4</div></div>
+          <div class="mobnav"><span>Home</span><span>Orders</span><span>Delivery</span><span>Stock</span><span>More</span></div>
+        </div>
+      </div>
+
+      <!-- D. Dates popover -->
+      <div>
+        <div class="cap">Dates <span>one control for all three views</span></div>
+        <div class="scr ph" style="padding-bottom:18px">
+          <div class="pop" style="margin-left:0;width:auto">
+            <div class="o">Tomorrow</div><div class="o">Next 3 days</div><div class="o on">Next 7 days</div>
+            <div class="two"><div>From<i>14/11/2026</i></div><div>To<i>20/11/2026</i></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- E. Needs recipe, phone -->
+      <div>
+        <div class="cap">Needs recipe <span>for CS · phone</span></div>
+        <div class="scr ph">
+          <div class="gh" style="margin-top:0"><b>Saturday, 14 November</b><span>1</span></div>
+          <div class="or"><div class="tm">–</div><div><div class="who"><b>Ben</b><span class="no">#124161</span></div><div class="prod" style="margin-top:4px">Omakase Blue Theme Bouquet</div></div><span class="add">Add recipe</span></div>
+          <div class="gh"><b>Monday, 16 November</b><span>2</span></div>
+          <div class="or"><div class="tm">–</div><div><div class="who"><b>Dan</b><span class="no">#124163</span></div><div class="prod" style="margin-top:4px">Hey Smiley, Single / Colourful</div></div><span class="add">Add recipe</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="why">
+    <h2>What changes</h2>
+    <ul>
+      <li>One bar like Orders: the three views on the left, the dates on the right. The dates (Tomorrow / Next 3 days / Next 7 days / From–To) apply to all three views, so the day buttons and the boxed date buttons go.</li>
+      <li>A tally like Orders: flowers to buy, orders counted, orders that need a recipe.</li>
+      <li>Flower list splits into <b>To buy</b> and <b>In stock</b>. To buy is the big number; covered flowers say "Enough". Units sit under the number, so nothing wraps.</li>
+      <li>No grey squares: a photo shows only when the flower has one in Stock or Shopify.</li>
+      <li>Each flower says how many orders use it; tap to see them. "Copy to-buy list" moves to the top, as an outlined button.</li>
+      <li>By day uses the Orders row: time on the left, customer and order number, then the flowers one per line with the quantity first, easy to count off while making.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>
