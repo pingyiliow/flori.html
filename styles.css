@@ -1217,7 +1217,9 @@ s.was{color:var(--c-muted);font-weight:400;margin-right:4px}
 .orw .ocx-inote{margin-left:0}
 @media (pointer:coarse){.orw-tick{width:30px;height:30px}}
 @media(max-width:860px){
-  .ord-search{display:none}
+  /* search stays on phones: its own full-width row with New order */
+  #pg-orders .page-hdr>.btn-row{flex:1 1 100%;flex-wrap:nowrap}
+  .ord-search{flex:1 1 auto;width:auto;min-width:0;height:44px;font-size:16px}
   .hdr-word{font-size:18px}
   .hdr-logo-mark{height:34px}
   .ord-bar{flex-wrap:wrap;gap:0 20px}
