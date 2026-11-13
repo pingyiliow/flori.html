@@ -58,6 +58,7 @@
     <button class="nav-btn" data-pg="customers"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Customers</span></button>
     <button class="nav-btn" data-pg="records"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span>Records</span></button>
     <div class="nav-div"></div>
+    <button class="nav-btn" data-pg="prep"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 6a3 3 0 1 1 3 3M12 6a3 3 0 1 0-3 3M9 8a3 3 0 1 0 3 3M15 8a3 3 0 1 1-3 3"/><path d="M12 22c4.2 0 7-1.7 7-5-4.2 0-7 1.7-7 5z"/><path d="M12 22c-4.2 0-7-1.7-7-5 4.2 0 7 1.7 7 5z"/></svg></span><span>Flower prep</span></button>
     <button class="nav-btn" data-pg="todo"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m9 12 2 2 4-4"/></svg></span><span>To-do</span></button>
     <button class="nav-btn" data-pg="team"><span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span>Team</span></button>
   </div>
@@ -313,6 +314,11 @@
     <div class="pc" id="records-pc"><!-- rendered by renderRecords() --></div>
   </div>
 
+  <!-- ── Flower prep ─────────────────────────────────────────── -->
+  <div id="pg-prep" class="page">
+    <div class="pc" id="prep-page"><!-- rendered by renderPrepPage() --></div>
+  </div>
+
   <!-- ── To-do (full list) ───────────────────────────────────── -->
   <div id="pg-todo" class="page">
     <div class="pc" style="padding-top:16px" id="todo-page"><!-- rendered by renderTodoPage() --></div>
@@ -339,6 +345,7 @@
 <div class="more-sheet" id="more-sheet">
   <div class="more-grab"></div>
   <div class="more-ttl">More</div>
+  <button class="more-row" data-role-gate="prep" onclick="closeMore();goPage('prep')"><span class="more-ico" style="background:var(--c-sage-bg);color:var(--c-sage)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="2"/><path d="M12 10v12"/><path d="M12 6a3 3 0 1 1 3 3M12 6a3 3 0 1 0-3 3M9 8a3 3 0 1 0 3 3M15 8a3 3 0 1 1-3 3"/><path d="M12 22c4.2 0 7-1.7 7-5-4.2 0-7 1.7-7 5z"/><path d="M12 22c-4.2 0-7-1.7-7-5 4.2 0 7 1.7 7 5z"/></svg></span><span class="more-lbl">Flower prep</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="todo" onclick="closeMore();goPage('todo')"><span class="more-ico" style="background:#EEEDFE;color:#534AB7"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m9 12 2 2 4-4"/></svg></span><span class="more-lbl">To-do</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="followup" onclick="closeMore();goPage('followup')"><span class="more-ico" style="background:var(--c-amber-bg);color:var(--c-amber)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></span><span class="more-lbl">New Orders</span><span class="more-badge" id="more-nb-fu" style="display:none">0</span><span class="more-chev">›</span></button>
   <button class="more-row" data-role-gate="customers" onclick="closeMore();goPage('customers')"><span class="more-ico" style="background:var(--c-blue-bg);color:var(--c-blue)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="more-lbl">Customers</span><span class="more-chev">›</span></button>
@@ -1289,6 +1296,7 @@ const TAB_ACCESS = {
   records:   ['admin','cs'],       // payables, refunds, document requests
   driver:    ['admin','cs','driver'], // pure-driver users see ONLY this page
   todo:      ['admin','cs','florist'],
+  prep:      ['admin','cs','florist'],
   team:      ['admin','cs','florist','driver'],
 };
 function canAccess(pg){ const r = TAB_ACCESS[pg]; return !r || currentUserRoles.some(x => r.includes(x)); }
@@ -1676,7 +1684,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','No orders to prep this day.':'这天没有要准备的订单。','Flowers to prep':'待准备花材','No flower recipe yet':'还没有花材配方','No orders in the next 7 days.':'未来 7 天没有订单。','Timeline':'时间线','Route started':'路线已出发','On the way message sent':'已发送在路上通知','No card':'不需要卡片','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','Flower prep':'花材准备','Flower list':'花材清单','By day':'按日期','Needs recipe':'需要配方','Tomorrow':'明天','Next 3 days':'未来 3 天','Next 7 days':'未来 7 天','Pick dates':'选日期','From':'从','To':'到','Flower':'花材','Need':'需要','To buy':'要买','Copy to-buy list':'复制要买清单','Add recipe':'添加配方','View all':'查看全部','orders tomorrow':'明天订单','next 7 days':'未来 7 天','need a recipe':'需要配方','No orders with a flower recipe this day.':'这天没有带花材配方的订单。','Every order in the next 7 days has a flower recipe.':'未来 7 天的订单都有花材配方。','No flowers needed for these dates.':'这段日期不需要花。','No orders to prep this day.':'这天没有要准备的订单。','Flowers to prep':'待准备花材','No flower recipe yet':'还没有花材配方','No orders in the next 7 days.':'未来 7 天没有订单。','Timeline':'时间线','Route started':'路线已出发','On the way message sent':'已发送在路上通知','No card':'不需要卡片','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -4710,42 +4718,133 @@ function _renderStaffDash(el){
   _renderStaffTomorrow();
 }
 let _staffTmrLoaded=false;
-let _prepDay=null;   // the day Flowers to prep is showing (ISO); null = tomorrow
-async function _renderStaffTomorrow(){
-  const el=document.getElementById('home-tmr'); if(!el) return;
-  // The next 7 days (tomorrow on), one read per session (egress); other dates load on pick.
-  const from=_dayISO(1), to=_dayISO(7);
-  if(!_staffTmrLoaded){ _staffTmrLoaded=true; try{ if(typeof loadOrdersForRange==='function') await loadOrdersForRange(from, to); }catch(_){} }
-  const days=[]; for(let k=1;k<=7;k++) days.push(_dayISO(k));
-  const day=_prepDay||days[0];
-  const due=iso=>ORDERS.filter(o=>o.dateObj && !o.fulfilled && !o.cancelled && tdi(o.dateObj)===iso)
-    .sort((a,b)=>String(a.dueTime||'').localeCompare(String(b.dueTime||'')));
-  const flw=o=>(typeof _orderEffectiveFlowers==='function'?_orderEffectiveFlowers(o):(o.recipe||[])).filter(f=>f && String(f.name||'').trim());
-  const row=o=>{ const fl=flw(o);
-    return '<button type="button" class="prep-row" onclick="openDP(\''+o.id+'\')">'
+// ── Flower prep page ────────────────────────────────────────────────────────────────
+// Three jobs: the purchaser's Flower list (what to buy for chosen dates, against Stock),
+// the florist's By day list, and CS's Needs recipe list. Home shows a summary card.
+let _prepDay=null;                 // By day: the day shown (ISO); null = tomorrow
+let _prepTab='list';               // 'list' | 'day' | 'none'
+let _prepPreset=7;                 // Flower list: 1 / 3 / 7 days from tomorrow, 0 = picked dates
+let _prepFrom=null, _prepTo=null;  // picked dates
+const _prepLoaded=new Set();       // date ranges already read (egress)
+const _prepFlw=o=>(typeof _orderEffectiveFlowers==='function'?_orderEffectiveFlowers(o):(o.recipe||[])).filter(f=>f && String(f.name||'').trim());
+const _prepDue=(fromIso,toIso)=>ORDERS.filter(o=>{ if(!o.dateObj || o.fulfilled || o.cancelled) return false; const d=tdi(o.dateObj); return d>=fromIso && d<=toIso; })
+  .sort((a,b)=>a.dateObj-b.dateObj || String(a.dueTime||'').localeCompare(String(b.dueTime||'')));
+const _prepDL=(iso,opt)=>new Date(iso+'T00:00:00').toLocaleDateString('en-MY',opt);
+const _prepWeek=()=>({ from:_dayISO(1), to:_dayISO(7) });
+async function _prepLoad(f,t){
+  const k=f+'|'+t; if(_prepLoaded.has(k)) return; _prepLoaded.add(k);
+  try{ if(typeof loadOrdersForRange==='function') await loadOrdersForRange(f,t); }catch(_){}
+}
+// The material a recipe row is: a Stock item (by link, else same name) or a Shopify product.
+function _prepMat(f){
+  if (f.kind==='shop' && f.pid){
+    const p=(typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).find(x=>x.id===f.pid); if(!p) return null;
+    const v=(typeof _compVariant==='function')?_compVariant(p,f.vid):null;
+    return { key:'shop:'+f.pid+'|'+(f.vid||''), qty:v?(v.qty||0):(p.total||0), img:(v&&v.image)||p.image||'' };
+  }
+  const inv=(typeof INVENTORY!=='undefined'?INVENTORY:[]);
+  const it=(f.mid && inv.find(x=>x.id===f.mid)) || inv.find(x=>String(x.name||'').trim().toLowerCase()===String(f.name||'').trim().toLowerCase());
+  if(!it) return null;
+  return { key:it.id, qty:it.untracked?null:(parseFloat(it.qty)||0), img:it.photo||'' };
+}
+function _prepRange(){
+  if(_prepPreset){ return { from:_dayISO(1), to:_dayISO(_prepPreset) }; }
+  const f=_prepFrom||_dayISO(1), t=(_prepTo&&_prepTo>=f)?_prepTo:f; return { from:f, to:t };
+}
+// Totals for a range: one row per material (or name + unit), with the orders that use it.
+function _prepTotals(from,to){
+  const orders=_prepDue(from,to), counted=orders.filter(o=>_prepFlw(o).length), tot={};
+  counted.forEach(o=>_prepFlw(o).forEach(f=>{
+    const m=_prepMat(f), unit=f.unit||'stems', key=(m?m.key:String(f.name).trim().toLowerCase())+'|'+unit;
+    if(!tot[key]) tot[key]={ name:String(f.name).trim(), unit, need:0, stock:m?m.qty:null, img:m?m.img:'', uses:[] };
+    const q=parseFloat(f.qty)||1; tot[key].need+=q; tot[key].uses.push({ o, q });
+  }));
+  const rows=Object.values(tot).map(r=>({ ...r, buy: r.stock==null ? r.need : Math.max(0, r.need-r.stock) }))
+    .sort((a,b)=>(b.buy>0)-(a.buy>0) || a.name.localeCompare(b.name));
+  return { rows, counted:counted.length, missing:orders.length-counted.length };
+}
+const _prepQ=n=>String(Math.round(n*100)/100);
+const _prepU=u=>(u && u!=='stems')?' '+esc(u):'';
+function _prepOrderImg(o){ const li=(o.lineItems||[]).find(x=>itemPhotos(x).length); return (li&&itemPhotos(li)[0]) || o.image || ''; }
+function _prepThumb(src){ return src ? '<img class="prep-img" src="'+esc(src)+'" alt="" loading="lazy">' : '<span class="prep-img"></span>'; }
+function _prepOrderRow(o, withAdd){
+  const fl=_prepFlw(o);
+  return '<div class="prep-row">'+_prepThumb(_prepOrderImg(o))
+    +'<button type="button" class="prep-rbody" onclick="openDP(\''+o.id+'\')">'
       +'<span class="prep-who"><b class="num">'+esc(o.name||'')+'</b> '+esc(o.customer||'')+(o.dueTime?' <span class="prep-t">'+esc(o.dueTime)+'</span>':'')+'</span>'
-      +'<span class="prep-fl">'+(fl.length ? fl.map(f=>esc(f.name)+' ×'+(parseFloat(f.qty)||1)+(f.unit&&f.unit!=='stems'?' '+esc(f.unit):'')).join(', ') : '<i>No flower recipe yet</i>')+'</span>'
-    +'</button>'; };
-  const dLbl=(iso,opt)=>new Date(iso+'T00:00:00').toLocaleDateString('en-MY',opt);
-  const chips=days.map(iso=>{ const n=due(iso).length;
-    return '<button type="button" class="prep-chip'+(iso===day?' on':'')+(n?'':' none')+'" onclick="prepShowDay(\''+iso+'\')" aria-pressed="'+(iso===day)+'">'
-      +'<span>'+esc(dLbl(iso,{weekday:'short'}))+'</span><b class="num">'+esc(dLbl(iso,{day:'numeric'}))+'</b><small>'+n+'</small></button>'; }).join('');
-  const list=due(day);
-  el.innerHTML='<div class="prep-card">'
-    +'<div class="prep-hd"><b>Flowers to prep</b><label class="prep-pick">'+di('calendar',14)+'<input type="date" value="'+day+'" onchange="prepPickDate(this.value)" aria-label="Pick a date"></label></div>'
-    +'<div class="prep-days">'+chips+'</div>'
-    +'<div class="prep-dh">'+esc(dLbl(day,{weekday:'long',day:'numeric',month:'long'}))+'<span>'+list.length+' order'+(list.length===1?'':'s')+'</span></div>'
-    +(list.length ? list.map(row).join('') : '<div class="prep-empty">No orders to prep this day.</div>')
+      +(fl.length ? '<span class="prep-fl">'+fl.map(f=>esc(f.name)+' ×'+_prepQ(parseFloat(f.qty)||1)+_prepU(f.unit)).join(', ')+'</span>'
+                  : '<span class="prep-prod">'+esc((o.lineItems||[]).map(li=>li.title).filter(Boolean).join(', ')||o.product||'')+'</span>')
+    +'</button>'
+    +(withAdd?'<button type="button" class="fu-act prep-add" onclick="openRecipe(\''+o.id+'\')">Add recipe</button>':'')
   +'</div>';
 }
-function prepShowDay(iso){ _prepDay=iso; _renderStaffTomorrow(); }
-// Any date: orders of a day outside the loaded week are read first (one day).
-async function prepPickDate(iso){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))) return;
-  _prepDay=iso;
-  const inWeek=[1,2,3,4,5,6,7].some(k=>_dayISO(k)===iso);
-  if(!inWeek && typeof loadOrdersForDate==='function'){ try{ await loadOrdersForDate(iso); }catch(_){} }
-  _renderStaffTomorrow();
+async function renderPrepPage(){
+  const el=document.getElementById('prep-page'); if(!el) return;
+  const wk=_prepWeek(); await _prepLoad(wk.from, wk.to);
+  const noRecipe=_prepDue(wk.from,wk.to).filter(o=>!_prepFlw(o).length);
+  const tab=(k,lbl,cnt)=>'<button type="button" class="f-btn'+(_prepTab===k?' on':'')+'" onclick="prepTab(\''+k+'\')">'+lbl+(cnt?' <span class="num">'+cnt+'</span>':'')+'</button>';
+  let body='';
+  if(_prepTab==='list'){
+    const r=_prepRange(); await _prepLoad(r.from, r.to);
+    const t=_prepTotals(r.from, r.to);
+    const pre=(d,lbl)=>'<button type="button" class="prep-pre'+(_prepPreset===d?' on':'')+'" onclick="prepPreset('+d+')">'+lbl+'</button>';
+    body='<div class="prep-pres">'+pre(1,'Tomorrow')+pre(3,'Next 3 days')+pre(7,'Next 7 days')+pre(0,'Pick dates')+'</div>'
+      +(_prepPreset===0?'<div class="prep-range"><label>From<input type="date" value="'+r.from+'" onchange="prepRange(this.value,null)"></label><label>To<input type="date" value="'+r.to+'" min="'+r.from+'" onchange="prepRange(null,this.value)"></label></div>':'')
+      +'<div class="prep-sum"><b>'+esc(_prepDL(r.from,{weekday:'short',day:'numeric',month:'short'}))+(r.to!==r.from?' – '+esc(_prepDL(r.to,{weekday:'short',day:'numeric',month:'short'})):'')+'</b>, '
+        +t.counted+' order'+(t.counted===1?'':'s')+' counted'+(t.missing?', <button type="button" class="prep-lnk" onclick="prepTab(\'none\')">'+t.missing+' without a recipe not counted</button>':'')+'</div>'
+      +(t.rows.length
+        ? '<div class="prep-tb"><div class="prep-th"><span></span><span>Flower</span><span>Need</span><span>Stock</span><span>To buy</span></div>'
+          + t.rows.map(x=>'<details class="prep-tr"><summary>'+_prepThumb(x.img)+'<span class="prep-nm">'+esc(x.name)+'</span>'
+              +'<span class="num">'+_prepQ(x.need)+_prepU(x.unit)+'</span><span class="num prep-st">'+(x.stock==null?'–':_prepQ(x.stock))+'</span>'
+              +'<span class="num prep-buy'+(x.buy>0?'':' ok')+'">'+_prepQ(x.buy)+'</span></summary>'
+              +'<div class="prep-uses">'+x.uses.map(u=>'<button type="button" onclick="openDP(\''+u.o.id+'\')"><b>'+esc(_prepDL(tdi(u.o.dateObj),{weekday:'short',day:'numeric'}))+'</b> '+esc(u.o.name||'')+' '+esc(u.o.customer||'')+' ×'+_prepQ(u.q)+'</button>').join('')+'</div></details>').join('')
+          + '</div><button type="button" class="btn btn-primary prep-copy" onclick="prepCopyList()">'+di('copy',15)+' Copy to-buy list</button>'
+        : '<div class="prep-empty">No flowers needed for these dates.</div>');
+  } else if(_prepTab==='day'){
+    const days=[]; for(let k=1;k<=7;k++) days.push(_dayISO(k));
+    const day=_prepDay||days[0];
+    if(!days.includes(day)) await _prepLoad(day, day);
+    const withR=iso=>_prepDue(iso,iso).filter(o=>_prepFlw(o).length);
+    const chips=days.map(iso=>{ const c=withR(iso).length;
+      return '<button type="button" class="prep-chip'+(iso===day?' on':'')+(c?'':' none')+'" onclick="prepShowDay(\''+iso+'\')" aria-pressed="'+(iso===day)+'">'
+        +'<span>'+esc(_prepDL(iso,{weekday:'short'}))+'</span><b class="num">'+esc(_prepDL(iso,{day:'numeric'}))+'</b><small>'+c+'</small></button>'; }).join('');
+    const list=withR(day);
+    body='<div class="prep-days">'+chips+'<label class="prep-pick">'+di('calendar',15)+'<input type="date" value="'+day+'" onchange="prepPickDate(this.value)" aria-label="Pick a date"></label></div>'
+      +'<div class="prep-dh">'+esc(_prepDL(day,{weekday:'long',day:'numeric',month:'long'}))+'<span>'+list.length+' order'+(list.length===1?'':'s')+'</span></div>'
+      +(list.length ? list.map(o=>_prepOrderRow(o,false)).join('') : '<div class="prep-empty">No orders with a flower recipe this day.</div>');
+  } else {
+    const days=[]; for(let k=1;k<=7;k++) days.push(_dayISO(k));
+    body=noRecipe.length ? days.map(iso=>{ const d=noRecipe.filter(o=>tdi(o.dateObj)===iso); if(!d.length) return '';
+        return '<div class="prep-dh">'+esc(_prepDL(iso,{weekday:'short',day:'numeric',month:'short'}))+'<span>'+d.length+'</span></div>'+d.map(o=>_prepOrderRow(o,true)).join(''); }).join('')
+      : '<div class="prep-empty">Every order in the next 7 days has a flower recipe.</div>';
+  }
+  el.innerHTML='<div class="page-hdr"><div><div class="page-title">Flower prep</div><div class="ord-date">'+esc(new Date().toLocaleDateString('en-MY',{weekday:'long',day:'numeric',month:'long'}))+'</div></div></div>'
+    +'<div class="filters prep-tabs">'+tab('list','Flower list')+tab('day','By day')+tab('none','Needs recipe',noRecipe.length)+'</div>'
+    +body;
+}
+function prepTab(k){ _prepTab=k; renderPrepPage(); }
+function prepShowDay(iso){ _prepDay=iso; renderPrepPage(); }
+function prepPickDate(iso){ if(/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))){ _prepDay=iso; renderPrepPage(); } }
+function prepPreset(d){ _prepPreset=d; if(d===0 && !_prepFrom){ _prepFrom=_dayISO(1); _prepTo=_dayISO(7); } renderPrepPage(); }
+function prepRange(f,t){ const ok=v=>/^\d{4}-\d{2}-\d{2}$/.test(String(v||'')); if(ok(f)) _prepFrom=f; if(ok(t)) _prepTo=t; renderPrepPage(); }
+// The to-buy list as text, for WhatsApp to the supplier.
+function prepCopyList(){
+  const r=_prepRange(), t=_prepTotals(r.from, r.to);
+  const lines=t.rows.filter(x=>x.buy>0).map(x=>x.name+' x '+_prepQ(x.buy)+(x.unit!=='stems'?' '+x.unit:''));
+  if(!lines.length){ toast('Nothing to buy for these dates'); return; }
+  const txt='Flowers for '+_prepDL(r.from,{day:'numeric',month:'short'})+(r.to!==r.from?' - '+_prepDL(r.to,{day:'numeric',month:'short'}):'')+'\n'+lines.join('\n');
+  try{ navigator.clipboard.writeText(txt).then(()=>toast('✓ To-buy list copied'), ()=>prompt('To-buy list', txt)); }catch(_){ prompt('To-buy list', txt); }
+}
+// Home: a small summary; the lists live on the Flower prep page.
+async function _renderStaffTomorrow(){
+  const el=document.getElementById('home-tmr'); if(!el) return;
+  const wk=_prepWeek(); await _prepLoad(wk.from, wk.to);
+  const week=_prepDue(wk.from,wk.to), tmr=_prepDue(wk.from,wk.from), need=week.filter(o=>!_prepFlw(o).length).length;
+  el.innerHTML='<div class="prep-card">'
+    +'<div class="prep-hd"><b>Flowers to prep</b><button type="button" class="prep-lnk" onclick="goPage(\'prep\')">View all</button></div>'
+    +'<div class="prep-stats"><div><b>'+tmr.length+'</b><span>orders tomorrow</span></div><div><b>'+week.length+'</b><span>next 7 days</span></div>'
+      +'<div'+(need?' class="warn"':'')+'><b>'+need+'</b><span>need a recipe</span></div></div>'
+  +'</div>';
 }
 // ── Business dashboard (admin) — month money/volume view. One LEAN fetch per session
 // (no line_items/photos: product titles ride the `product` text column), cached 10 min. ──
@@ -8999,7 +9098,7 @@ async function selectCalDay(key) {
 // syncs (the path stale pages used to clobber teammates' data through) — bump BOTH this
 // and MIN_BUILD in api/query.js when a breaking data-safety fix ships.
 const APP_BUILD = 20261025;
-const PAGES = ['home','orders','stock','followup','customers','wanotify','driver','records','todo','team'];
+const PAGES = ['home','orders','stock','prep','followup','customers','wanotify','driver','records','todo','team'];
 function goPage(pg) {
   // Role guard — bounce to the dashboard if allowed, else to the driver page
   // (driver-role users can't access 'home', so bouncing there would blank them).
@@ -9011,11 +9110,12 @@ function goPage(pg) {
   if(pg==='driver') renderDriver();
   if(pg==='records') renderRecords();
   if(pg==='todo') renderTodoPage();
+  if(pg==='prep') renderPrepPage();
   if(pg==='team') renderTeam();
   PAGES.forEach(p => document.getElementById('pg-'+p)?.classList.toggle('on', p===pg));
   document.querySelectorAll('[data-pg]').forEach(el => el.classList.toggle('on', el.dataset.pg===pg));
   // The mobile "More" tab has no data-pg — light it up for the pages it holds.
-  document.getElementById('mob-more')?.classList.toggle('on', ['followup','customers','records','wanotify','todo','team'].includes(pg));
+  document.getElementById('mob-more')?.classList.toggle('on', ['followup','customers','records','wanotify','todo','team','prep'].includes(pg));
   if(pg==='stock'){ renderInventory(); renderPurchase(); syncShopifyStock(); }
 }
 document.querySelectorAll('[data-pg]').forEach(btn => btn.addEventListener('click', () => goPage(btn.dataset.pg)));
@@ -14797,6 +14897,7 @@ function saveRecipe() {
   closeModal('m-recipe');
   toast('✓ Recipe saved · ' + recipe.length + ' flower' + (recipe.length!==1?'s':'') + (_moved ? ' · stock updated' : ''));
   renderOrders(); renderHome();
+  if (document.getElementById('pg-prep')?.classList.contains('on')) renderPrepPage();
 }
 
 /* ─── Order detail panel ─────────────────────────────────────── */

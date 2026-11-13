@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flower prep mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Hanken+Grotesk:wght@400;500;600&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3EFE6; --paper-2:#EBE5D8; --surface:#FAF8F3; --ink:#2A2622; --ink-2:#3F3A35; --muted:#6E665D; --rule:#D6CFC0;
+  --accent:#2E4A3D; --accent-ink:#F3EFE6; --sage:#476644; --warn:#8A5A12; --red:#B3261E;
+  --f-disp:'Libre Caslon Display',Georgia,serif; --f-body:'Hanken Grotesk',system-ui,sans-serif; --f-num:'DM Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html,body{overflow-x:clip}
+body{background:var(--paper-2);color:var(--ink);font-family:var(--f-body);font-size:14px;padding:28px 16px 60px}
+.wrap{max-width:1500px;margin:0 auto}
+h1{font-family:var(--f-disp);font-weight:400;font-size:34px}
+.lede{color:var(--muted);margin-top:6px;max-width:760px;line-height:1.5}
+.screens{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;margin-top:26px;align-items:start}
+.cap{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--ink-2)}
+.cap span{font-weight:400;color:var(--muted)}
+.phone{background:var(--paper);border:1px solid var(--rule);min-height:640px;padding:18px 16px}
+.num{font-family:var(--f-num)}
+.pt{font-family:var(--f-disp);font-size:28px;font-weight:400}
+.sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+/* home card */
+.hc{background:var(--surface);border:1px solid var(--rule);padding:14px 16px;margin-top:16px}
+.hc-h{display:flex;align-items:baseline;justify-content:space-between;padding-bottom:8px;border-bottom:2px solid var(--ink)}
+.hc-h b{font-weight:600;font-size:15px}
+.hc-h a{font-size:12.5px;color:var(--accent);text-decoration:underline}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px}
+.stats div{padding-right:10px}
+.stats b{display:block;font-family:var(--f-disp);font-weight:400;font-size:30px;line-height:1}
+.stats span{font-size:11.5px;color:var(--muted)}
+.stats .w b,.stats .w span{color:var(--warn)}
+.ghost{color:var(--muted);font-size:12px;margin-top:22px;border-top:1px dashed var(--rule);padding-top:10px}
+/* page */
+.back{font-size:13px;color:var(--ink-2);margin-bottom:8px}
+.tabs{display:flex;gap:18px;border-bottom:1px solid var(--rule);margin-top:12px}
+.tabs span{padding:9px 0;font-size:13.5px;color:var(--muted)}
+.tabs .on{color:var(--ink);font-weight:600;box-shadow:inset 0 -2px 0 var(--ink)}
+.tabs .w{color:var(--warn)}
+.pres{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.pres span{border:1px solid var(--rule);background:var(--surface);padding:6px 10px;font-size:12.5px}
+.pres .on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.range{font-size:12.5px;color:var(--muted);margin-top:8px}
+.range b{color:var(--ink);font-weight:600}
+.thead{display:grid;grid-template-columns:1fr 46px 46px 52px;gap:6px;font-size:11.5px;color:var(--muted);margin-top:14px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.thead span:not(:first-child),.tr span:not(:first-child){text-align:right}
+.tr{display:grid;grid-template-columns:1fr 46px 46px 52px;gap:6px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px;align-items:baseline}
+.tr .buy{font-weight:600}
+.tr .ok{color:var(--sage);font-weight:600}
+.tr .n{color:var(--muted)}
+.uses{grid-column:1/-1;font-size:12px;color:var(--muted);line-height:1.6;padding:2px 0 2px 10px;border-left:2px solid var(--rule)}
+.uses b{color:var(--ink-2);font-weight:600}
+.note{font-size:12px;color:var(--warn);margin-top:10px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;margin-top:14px;background:var(--accent);color:var(--accent-ink);font-weight:600;font-size:14px}
+.btn.gh{background:transparent;color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.chips{display:flex;gap:6px;margin-top:12px}
+.chip{flex:1;display:flex;flex-direction:column;align-items:center;padding:6px 2px;border:1px solid var(--rule);background:var(--surface)}
+.chip span{font-size:10.5px;color:var(--muted)} .chip b{font-family:var(--f-disp);font-weight:400;font-size:18px} .chip small{font-size:10.5px;color:var(--sage);font-weight:600}
+.chip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)} .chip.on span,.chip.on small{color:var(--paper)}
+.chip.z small{color:var(--muted);font-weight:400}
+.dh{display:flex;gap:8px;font-size:13px;font-weight:600;color:var(--ink-2);padding:12px 0 4px}
+.dh span{font-weight:400;color:var(--muted)}
+.ord{border-top:1px solid var(--rule);padding:10px 0}
+.ord .w1{font-size:13.5px} .ord .w1 b{font-weight:600}
+.ord .t{font-size:12px;color:var(--muted)}
+.ord .fl{font-size:13px;color:var(--sage);margin-top:3px;line-height:1.5}
+.ord .row{display:flex;align-items:center;gap:10px}
+.ord .row .x{flex:1;min-width:0}
+.add{flex:none;font-size:12.5px;font-weight:600;color:var(--accent);border:1.5px solid var(--accent);padding:6px 10px}
+.ord .prod{font-size:12.5px;color:var(--muted);margin-top:2px}
+.why{margin-top:40px;background:var(--surface);border:1px solid var(--rule);padding:18px 20px;max-width:980px}
+.why h2{font-size:15px;font-weight:600}
+.why ol{margin:10px 0 0 18px;line-height:1.7;color:var(--ink-2)}
+.why li b{font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Flower prep</h1>
+  <p class="lede">Home keeps one small card. Tapping it opens a Flower prep page with three tabs, one for each job: the purchaser orders flowers, the florist makes each day's orders, CS fills in missing recipes.</p>
+
+  <div class="screens">
+    <!-- 1 Home card -->
+    <div>
+      <div class="cap">1 · Home <span>small card, tap to open</span></div>
+      <div class="phone">
+        <div class="pt">Dashboard</div>
+        <div class="sub">Friday, 13 November</div>
+        <div class="ghost">Today's run …</div>
+        <div class="hc">
+          <div class="hc-h"><b>Flowers to prep</b><a>Open</a></div>
+          <div class="stats">
+            <div><b>6</b><span>orders tomorrow</span></div>
+            <div><b>18</b><span>next 7 days</span></div>
+            <div class="w"><b>4</b><span>need a recipe</span></div>
+          </div>
+        </div>
+        <div class="ghost">To-do, deliveries …</div>
+      </div>
+    </div>
+
+    <!-- 2 Flower list -->
+    <div>
+      <div class="cap">2 · Flower list <span>for the purchaser</span></div>
+      <div class="phone">
+        <div class="back">‹ Home</div>
+        <div class="pt">Flower prep</div>
+        <div class="tabs"><span class="on">Flower list</span><span>By day</span><span class="w">Needs recipe 4</span></div>
+        <div class="pres"><span>Tomorrow</span><span>Next 3 days</span><span class="on">Next 7 days</span><span>Pick dates</span></div>
+        <div class="range"><b>Sat 14 – Fri 20 Nov</b>, 14 orders counted, 4 without a recipe not counted</div>
+        <div class="thead"><span>Flower</span><span>Need</span><span>Stock</span><span>To buy</span></div>
+        <div class="tr"><span>Red Rose</span><span class="num">64</span><span class="num n">20</span><span class="num buy">44</span>
+          <div class="uses"><b>Sat 14</b> #124160 ×12, #124165 ×10 · <b>Mon 16</b> #124162 ×20 · <b>Thu 19</b> #124171 ×22</div></div>
+        <div class="tr"><span>Baby's breath</span><span class="num">6 bn</span><span class="num n">2</span><span class="num buy">4</span></div>
+        <div class="tr"><span>Eucalyptus</span><span class="num">15</span><span class="num n">30</span><span class="num ok">0</span></div>
+        <div class="tr"><span>Sunflower</span><span class="num">9</span><span class="num n">–</span><span class="num buy">9</span></div>
+        <div class="tr"><span>Tulip, Morandi</span><span class="num">25</span><span class="num n">5</span><span class="num buy">20</span></div>
+        <div class="btn">Copy "to buy" list</div>
+        <div class="note">Tap a flower to see which orders use it.</div>
+      </div>
+    </div>
+
+    <!-- 3 By day -->
+    <div>
+      <div class="cap">3 · By day <span>for the florist</span></div>
+      <div class="phone">
+        <div class="back">‹ Home</div>
+        <div class="pt">Flower prep</div>
+        <div class="tabs"><span>Flower list</span><span class="on">By day</span><span class="w">Needs recipe 4</span></div>
+        <div class="chips">
+          <div class="chip on"><span>Sat</span><b>14</b><small>4</small></div>
+          <div class="chip z"><span>Sun</span><b>15</b><small>0</small></div>
+          <div class="chip"><span>Mon</span><b>16</b><small>3</small></div>
+          <div class="chip"><span>Tue</span><b>17</b><small>2</small></div>
+          <div class="chip"><span>Wed</span><b>18</b><small>3</small></div>
+          <div class="chip"><span>Thu</span><b>19</b><small>2</small></div>
+          <div class="chip"><span>Fri</span><b>20</b><small>0</small></div>
+        </div>
+        <div class="dh">Saturday, 14 November<span>4 orders</span></div>
+        <div class="ord"><div class="w1"><b class="num">#124160</b> Amy <span class="t">10am – 2pm</span></div><div class="fl">Red Rose ×12, Eucalyptus ×3</div></div>
+        <div class="ord"><div class="w1"><b class="num">#124165</b> Grace <span class="t">10am – 2pm</span></div><div class="fl">Red Rose ×10, Baby's breath ×1 bunch</div></div>
+        <div class="ord"><div class="w1"><b class="num">#124167</b> Wei Ling <span class="t">2pm – 6pm</span></div><div class="fl">Tulip, Morandi ×10</div></div>
+        <div class="ord"><div class="w1"><b class="num">#124168</b> Hafiz <span class="t">2pm – 6pm</span></div><div class="fl">Sunflower ×3, Eucalyptus ×2</div></div>
+        <div class="note">Tap an order to open it. Orders without a recipe are only in "Needs recipe".</div>
+      </div>
+    </div>
+
+    <!-- 4 Needs recipe -->
+    <div>
+      <div class="cap">4 · Needs recipe <span>for CS</span></div>
+      <div class="phone">
+        <div class="back">‹ Home</div>
+        <div class="pt">Flower prep</div>
+        <div class="tabs"><span>Flower list</span><span>By day</span><span class="on w">Needs recipe 4</span></div>
+        <div class="dh">Sat, 14 Nov<span>1</span></div>
+        <div class="ord"><div class="row"><div class="x"><div class="w1"><b class="num">#124161</b> Ben <span class="t">pickup</span></div><div class="prod">Omakase Blue Theme Bouquet</div></div><span class="add">Add recipe</span></div></div>
+        <div class="dh">Mon, 16 Nov<span>2</span></div>
+        <div class="ord"><div class="row"><div class="x"><div class="w1"><b class="num">#124163</b> Dan</div><div class="prod">Hey Smiley, Single / Colourful</div></div><span class="add">Add recipe</span></div></div>
+        <div class="ord"><div class="row"><div class="x"><div class="w1"><b class="num">#124169</b> Mei</div><div class="prod">Sweet Surprise</div></div><span class="add">Add recipe</span></div></div>
+        <div class="dh">Wed, 18 Nov<span>1</span></div>
+        <div class="ord"><div class="row"><div class="x"><div class="w1"><b class="num">#124170</b> Kenny</div><div class="prod">Omakase Bouquet, light yellow</div></div><span class="add">Add recipe</span></div></div>
+        <div class="note">"Add recipe" opens the Flower Recipe. Once a product has a standard recipe, its next orders fill in by themselves.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="why">
+    <h2>Why this layout</h2>
+    <ol>
+      <li><b>Home stays short.</b> Three numbers and one tap, not a long list on the dashboard.</li>
+      <li><b>Flower list</b> adds the flowers up for the dates chosen (presets, or pick dates), and compares with what is in Stock: <b>Need, Stock, To buy</b>. Copy sends the "to buy" list to the supplier on WhatsApp. Each flower opens to show which orders and days use it.</li>
+      <li><b>By day</b> is the florist's list: one day at a time, only orders that have a recipe, each opens the order.</li>
+      <li><b>Needs recipe</b> keeps the incomplete orders apart, with a direct Add recipe button, so they never clutter the other two.</li>
+      <li>"Stock" uses the flowers already in Stock (when a recipe row is linked to a stock item). Flowers not in Stock show "–" and count fully as to buy.</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>
