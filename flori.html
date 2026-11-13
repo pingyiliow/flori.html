@@ -9809,7 +9809,7 @@ function renderRecords(){
    recipient WhatsApp (from the driver's own phone), Mark Delivered (existing
    modal). Reorder = toggle + drag. */
 let _drvDate = null;   // ISO 'YYYY-MM-DD' shown on the driver page; null = today. Supports any future/past date (on-demand loaded).
-const RECIP_WA_DEFAULT = 'Hello! Bamboo Green Florist — we have a delivery for you today ({time}). Please keep your phone reachable, our driver will contact you on arrival. 您好！我们今天有花礼送达给您（{time}），请保持电话畅通，司机抵达前会与您联系。';
+const RECIP_WA_DEFAULT = 'We have a gift delivery for you today{time}. Please keep your phone reachable, our driver will contact you on arrival. 我们今天有花礼送达给您{time}，请保持电话畅通，司机抵达前会与您联系。';
 let _recipWaDraft = null;   // settings override, loaded lazily
 // E.164 digits (no +). Respects an existing international prefix (+ or 00) so a
 // non-Malaysian number like +44 7923 243013 is kept as 447923243013 instead of being
@@ -9894,7 +9894,10 @@ async function _loadRecipDraft(){
 function recipWaLink(o){
   const ph = _drvE164(o.recipPhone);
   if (!ph) return null;
-  const draft = (_recipWaDraft || RECIP_WA_DEFAULT).replace(/\{time\}/g, o.dueTime || 'today');
+  // {time} → " (2pm-5pm)" only when the order has a delivery time window; empty otherwise
+  // (no more redundant "today (today)").
+  const tw = (o.dueTime && String(o.dueTime).trim()) ? ' ('+String(o.dueTime).trim()+')' : '';
+  const draft = (_recipWaDraft || RECIP_WA_DEFAULT).replace(/\{time\}/g, tw);
   return 'https://wa.me/'+ph+'?text='+encodeURIComponent(draft);
 }
 
