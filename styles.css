@@ -750,6 +750,10 @@ body.role-driver .shell{grid-template-columns:1fr}
 /* ── flower recipe ───────────────────────────────────────────── */
 .recipe-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--c-border)}
 .rcp-shop{font-size:10px;font-weight:600;color:var(--c-sage);margin-left:4px}
+.rcp-sug-pic{display:flex;align-items:center;gap:10px}
+.rcp-sug-pic img,.rcp-sug-pic .rcp-noimg{width:36px;height:36px;object-fit:cover;flex:none;background:var(--color-paper-2)}
+.rcp-sug-nm{flex:1;min-width:0}
+.rcp-sug-q{flex:none;color:var(--c-muted)}
 .recipe-row:last-child{border-bottom:none}
 .recipe-flower-name{flex:1;padding:6px 8px;border:1px solid var(--c-border);border-radius:var(--r);font-size:12px;outline:none;}
 .recipe-flower-name:focus{border-color:var(--c-burg)}
@@ -1465,6 +1469,9 @@ body.role-driver .dgrp-go{background:var(--color-accent);color:var(--color-accen
 .drvd-item .p{font-size:13px;color:var(--c-muted);white-space:nowrap}
 .drvd-total{display:flex;align-items:baseline;justify-content:space-between;padding:12px 0;font-size:14.5px}
 .drvd-tl-wrap{padding:12px 0;border-top:1px solid var(--c-border)}
+.skv-vimg{width:36px;height:36px;object-fit:cover;flex:none;background:var(--color-paper-2);cursor:zoom-in}
+.skv-vrow .skv-vn{flex:1}
+.skv-ovar{font-size:12px;color:var(--c-sage);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prep-card{background:var(--c-surface);border:1px solid var(--c-border);padding:14px 16px}
 .prep-hd{display:flex;align-items:baseline;gap:10px;padding-bottom:8px;border-bottom:2px solid var(--c-ink)}
 .prep-hd b{font-weight:600;font-size:15px;color:var(--c-ink)}

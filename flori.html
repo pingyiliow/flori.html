@@ -5872,11 +5872,11 @@ async function syncShopifyStock(force){
   _shopStockLoading = true;
   try {
     const ids = SHOP_STOCK_IDS.map(id=>'"'+id+'"').join(',');
-    const q = `{ nodes(ids:[${ids}]){ ... on Product { id title handle featuredImage{url} variants(first:100){edges{node{title inventoryQuantity price inventoryItem{id}}}} } } }`;
+    const q = `{ nodes(ids:[${ids}]){ ... on Product { id title handle featuredImage{url} variants(first:100){edges{node{title inventoryQuantity price media(first:1){edges{node{preview{image{url}}}}} inventoryItem{id}}}} } } }`;
     const data = await shopifyGQL(q);
     const nodes = (data && data.nodes) || [];
     SHOPIFY_STOCK = nodes.filter(Boolean).map(p=>{
-      const variants=((p.variants&&p.variants.edges)||[]).map(e=>({ title:e.node.title, qty:(e.node.inventoryQuantity==null?0:e.node.inventoryQuantity), price:e.node.price, invItemId:(e.node.inventoryItem&&e.node.inventoryItem.id)||null }));
+      const variants=((p.variants&&p.variants.edges)||[]).map(e=>({ title:e.node.title, qty:(e.node.inventoryQuantity==null?0:e.node.inventoryQuantity), price:e.node.price, image:(((((e.node.media||{}).edges||[])[0]||{}).node||{}).preview||{}).image?.url||'', invItemId:(e.node.inventoryItem&&e.node.inventoryItem.id)||null }));
       return { id:p.id, title:p.title, handle:p.handle, image:(p.featuredImage&&p.featuredImage.url)||'', variants, total:variants.reduce((s,v)=>s+(v.qty||0),0) };
     });
     _shopStockAt = Date.now(); _shopStockErr = '';
@@ -6085,7 +6085,7 @@ async function _stkLoadOrders(title){
   try{
     if(hasSB()){
       const pat='%'+t.replace(/[\\%_]/g,m=>'\\'+m)+'%';
-      const { data, error } = await sb.from('orders').select('id,name,customer,due_on,product,fulfilled').ilike('product', pat).order('due_on',{ascending:false}).limit(60);
+      const { data, error } = await sb.from('orders').select('id,name,customer,due_on,product,fulfilled,line_items').ilike('product', pat).order('due_on',{ascending:false}).limit(60);
       if(error) throw error; rows=data||[];
     }
   }catch(e){ console.warn('stk orders', e&&e.message); }
@@ -6097,11 +6097,14 @@ async function _stkLoadOrders(title){
   b.style.color='';
   b.innerHTML=rows.map((r,i)=>{
     const o=ORDERS.find(x=>shopId(x.id)===shopId(r.id));
-    const li=o&&Array.isArray(o.lineItems)?o.lineItems.find(x=>String(x.title||'').trim().toLowerCase()===tl):null;
-    const qty=li?(parseInt(li.quantity)||1):null;
+    const lis=(o&&Array.isArray(o.lineItems)?o.lineItems:(Array.isArray(r.line_items)?r.line_items:[])).filter(x=>String(x.title||'').trim().toLowerCase()===tl);
+    const qty=lis.length?lis.reduce((s,x)=>s+(parseInt(x.quantity)||1),0):null;
+    // Which version(s) of the product this order took, e.g. "Graduation Bear (23cm)".
+    const vts=[...new Set(lis.map(x=>String(x.variantTitle||'').trim()).filter(v=>v && !/^default title$/i.test(v)))];
     const d=r.due_on?new Date(r.due_on+'T00:00:00').toLocaleDateString('en-MY',{day:'numeric',month:'short'}):'';
     return '<div onclick="_stkOpenOrder(\''+String(r.id).replace(/[\\\']/g,'')+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 2px;cursor:pointer;'+(i?'border-top:1px solid var(--c-border);':'')+'">'
-      +'<div style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="font-weight:600;color:var(--c-ink)">'+esc(r.name||'')+'</b> <span style="color:var(--c-muted)">· '+esc(r.customer||'')+'</span></div>'
+      +'<div style="flex:1;min-width:0"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="font-weight:600;color:var(--c-ink)">'+esc(r.name||'')+'</b> <span style="color:var(--c-muted)">· '+esc(r.customer||'')+'</span></div>'
+      +(vts.length?'<div class="skv-ovar">'+esc(vts.join(', '))+'</div>':'')+'</div>'
       +(qty!=null?'<span style="flex:none;color:var(--c-ink);font-weight:600">× '+qty+'</span>':'')
       +'<span style="flex:none;color:var(--c-muted);min-width:44px;text-align:right">'+esc(d)+'</span>'
       +(r.fulfilled?'<span style="flex:none;font-size:10px;color:var(--c-sage);font-weight:700">'+(zh?'完成':'Done')+'</span>':'')
@@ -6263,7 +6266,7 @@ function _stkViewShop(p){
     h+='<div class="skv-sec">'+(zh?'款式库存':'Stock by variant')+' <span style="font-weight:400;text-transform:none;letter-spacing:0">· '+(zh?'点 +/− 同步 Shopify':'tap +/− to sync Shopify')+'</span></div>';
     p.variants.forEach((v,vi)=>{ const l=(v.qty||0)<=lowAt, out=(v.qty||0)<=0;
       const pr=(v.price!=null&&v.price!=='')?' <span style="font-weight:400;color:var(--c-muted);font-size:11px">RM '+_invPriceStr(parseFloat(v.price))+'</span>':'';
-      h+='<div class="skv-vrow"><span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+pr+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
+      h+='<div class="skv-vrow">'+(v.image?'<img class="skv-vimg" src="'+esc(v.image)+'" alt="" loading="lazy" onclick="openZoom(this.src)">':'')+'<span class="skv-vn">'+esc(v.title||('Variant '+(vi+1)))+pr+(out?' <span style="color:var(--c-red);font-size:10px">'+(zh?'缺':'Out')+'</span>':'')+'</span>'
         +'<div class="skv-mstep"><button onclick="shopStockAdjust(\''+p.id+'\','+vi+',-1)">−</button><input class="skv-qin sm'+(l?' low':'')+'" type="number" inputmode="numeric" value="'+(v.qty||0)+'" onclick="this.select()" onchange="shopStockSet(\''+p.id+'\','+vi+',this.value)" onkeydown="if(event.key===\'Enter\')this.blur()"><button class="plus" onclick="shopStockAdjust(\''+p.id+'\','+vi+',1)">+</button></div>'
       +'</div>';
     });
@@ -14652,18 +14655,20 @@ function _recipeMatSearch(inp){
   const q = String(inp.value||'').trim().toLowerCase();
   if (!q){ _recipeMatHide(inp); return; }
   const man = (INVENTORY||[]).filter(i=>i && String(i.name||'').toLowerCase().includes(q)).slice(0,10)
-    .map(i=>({ shop:false, id:i.id, name:i.name, qty:i.untracked ? null : (i.qty||0), unit:i.unit||'' }));
+    .map(i=>({ shop:false, id:i.id, name:i.name, qty:i.untracked ? null : (i.qty||0), unit:i.unit||'', img:i.photo||'' }));
   const shop = [];
   (typeof SHOPIFY_STOCK!=='undefined'?SHOPIFY_STOCK:[]).forEach(p=>{
     const vs = p.variants||[], pt = String(p.title||'').toLowerCase();
-    if (vs.length<=1){ if (pt.includes(q)) shop.push({ shop:true, pid:p.id, vid:null, name:p.title, qty:p.total||0 }); return; }
-    vs.forEach((v,k)=>{ const vt = String(v.title||''); if (pt.includes(q) || vt.toLowerCase().includes(q)) shop.push({ shop:true, pid:p.id, vid:(v.invItemId!=null?String(v.invItemId):String(k)), name:(p.title||'')+', '+vt, qty:v.qty||0 }); });
+    if (vs.length<=1){ if (pt.includes(q)) shop.push({ shop:true, pid:p.id, vid:null, name:p.title, qty:p.total||0, img:(vs[0]&&vs[0].image)||p.image||'' }); return; }
+    vs.forEach((v,k)=>{ const vt = String(v.title||''); if (pt.includes(q) || vt.toLowerCase().includes(q)) shop.push({ shop:true, pid:p.id, vid:(v.invItemId!=null?String(v.invItemId):String(k)), name:(p.title||'')+', '+vt, qty:v.qty||0, img:v.image||p.image||'' }); });
   });
   _rcpMatRes = man.concat(shop.slice(0,12)); _rcpMatInp = inp;
   if (!_rcpMatRes.length){ _recipeMatHide(inp); return; }
-  box.innerHTML = _rcpMatRes.map((r,k)=>'<div class="rcp-sug-row" onmousedown="event.preventDefault();_recipeMatChoose('+k+')">'+esc(r.name)
+  box.innerHTML = _rcpMatRes.map((r,k)=>'<div class="rcp-sug-row rcp-sug-pic" onmousedown="event.preventDefault();_recipeMatChoose('+k+')">'
+    + (r.img ? '<img src="'+esc(r.img)+'" alt="" loading="lazy">' : '<span class="rcp-noimg"></span>')
+    + '<span class="rcp-sug-nm">'+esc(r.name)
     + (r.shop ? ' <span class="rcp-shop">Shopify</span>' : '')
-    + ' <span style="color:var(--c-muted);float:right">'+(r.qty==null ? 'not tracked' : r.qty+(r.shop?'':(r.unit?' '+esc(r.unit):'')))+'</span></div>').join('');
+    + '</span><span class="rcp-sug-q">'+(r.qty==null ? 'not tracked' : r.qty+(r.shop?'':(r.unit?' '+esc(r.unit):'')))+'</span></div>').join('');
   box.style.display = '';
 }
 function _recipeMatChoose(k){
