@@ -11057,6 +11057,20 @@ function _drvContactRow(label, name, phone, waHref){
 function _drvInfoRow(icon, label, valueHtml, extra){
   return '<div class="drvd-row"><div class="drvd-lbl">'+label+'</div><div class="drvd-val">'+valueHtml+'</div>'+(extra||'')+'</div>';
 }
+// What happened to an order and when: ready, route started, on the way sent, delivered or
+// picked up. Steps still to come stay muted. Stop panel and order panel.
+function _orderTimeline(o){
+  const rt = o.routeId ? (typeof ROUTES!=='undefined'?ROUTES:[]).find(r=>r.id===o.routeId) : null;
+  const pick = o.type==='pickup';
+  const tl = (label, done, at, by) => '<li class="'+(done?'on':'')+'"><span class="dot"></span><div><b>'+label+'</b>'
+    + (done && (at || by) ? '<span class="num">'+[at ? esc2(_waTime(at)) : '', by ? esc2(by) : ''].filter(Boolean).join(', ')+'</span>' : '') + '</div></li>';
+  return '<ol class="drvd-tl">'
+    + tl('Ready', !!(o.ready || o.fulfilled), o.readyAt, o.readyBy)
+    + (rt && !pick ? tl('Route started', !!rt.startedAt, rt.startedAt, rt.startedBy || rt.driver) : '')
+    + (pick || (typeof _isLala==='function' && _isLala(o)) ? '' : tl('On the way message sent', !!o.otwAt, o.otwAt, rt && rt.driver))
+    + tl(pick ? 'Picked up' : 'Delivered', !!o.fulfilled, o.deliveredAt || o.fulfilledAt, o.deliveredBy || o.fulfilledBy || (rt && rt.driver))
+    + '</ol>';
+}
 function _drvDetailView(o){
   const st = _drvStatus(o);
   const nav = _navLinks(o);
@@ -11110,15 +11124,8 @@ function _drvDetailView(o){
   }
   const _rtStops = _rt ? _drvStopsForRoute(_rt.id).length : 0;
   const _when = o.dateObj ? fd(o.dateObj) : (o.dueDate||'');
-  // Timeline: what happened to this stop and when. Steps still to come stay muted.
-  const _tl = (label, done, at, by) => '<li class="'+(done?'on':'')+'"><span class="dot"></span><div><b>'+label+'</b>'
-    + (done && (at || by) ? '<span class="num">'+[at ? esc2(_waTime(at)) : '', by ? esc2(by) : ''].filter(Boolean).join(', ')+'</span>' : '') + '</div></li>';
-  const timeline = '<div class="drvd-tl-wrap"><div class="drvd-lbl">Timeline</div><ol class="drvd-tl">'
-    + _tl('Ready', !!(o.ready || o.fulfilled), o.readyAt, o.readyBy)
-    + (_rt ? _tl('Route started', !!_rt.startedAt, _rt.startedAt, _rt.startedBy || _rt.driver) : '')
-    + (_isLala(o) ? '' : _tl('On the way message sent', !!o.otwAt, o.otwAt, _rt && _rt.driver))
-    + _tl(o.type==='pickup' ? 'Picked up' : 'Delivered', st==='done', o.deliveredAt || o.fulfilledAt, o.deliveredBy || o.fulfilledBy || (_rt && _rt.driver))
-    + '</ol></div>';
+  const timeline = '<div class="drvd-tl-wrap"><div class="drvd-lbl">Timeline</div>'+_orderTimeline(o)+'</div>';
+  const _canOpenOrder = (typeof hasRole==='function') && (hasRole('admin') || hasRole('cs'));
   return '<div class="drvd-wrap">'
     // top bar
     + '<div class="drvd-top">'
@@ -11126,7 +11133,9 @@ function _drvDetailView(o){
       + '<div class="drvd-toptitle num">'+(o.routeSeq!=null?('Stop '+o.routeSeq+(_rtStops?(' of '+_rtStops):'')):'Order')+'</div>'
     + '</div>'
     // headline: the order number; date, window and state underneath
-    + '<div class="drvd-no">'+esc2(o.name||'')+'</div>'
+    + (_canOpenOrder
+        ? '<button type="button" class="drvd-no drvd-nolink" onclick="openDP(\''+o.id+'\')" aria-label="Open order '+esc2(o.name||'')+'">'+esc2(o.name||'')+di('nav',16)+'</button>'
+        : '<div class="drvd-no">'+esc2(o.name||'')+'</div>')
     + '<div class="drvd-sub">'
       + (_when ? '<span class="num">'+esc2(_when)+'</span>' : '')
       + (o.dueTime ? '<span class="num">'+esc2(o.dueTime)+'</span>' : '')
@@ -15238,6 +15247,7 @@ function _renderDPInner(order, localOrder) {
       <div style="font-size:12px;color:var(--c-muted);line-height:1.6;white-space:pre-wrap;">${esc(note)}</div>
     </div>`;
   }
+  if (localOrder) html += '<div><div class="dp-section-ttl">Timeline</div>'+_orderTimeline(localOrder)+'</div>';
 
   document.getElementById('dp-body').innerHTML = html;
 
@@ -15329,6 +15339,7 @@ function _renderDPManual(o) {
   if (o.image) {
     html += `<div><div class="dp-section-ttl">Photo</div><img src="${o.image}" style="width:100%;border-radius:var(--r);border:1px solid var(--c-border)"></div>`;
   }
+  html += '<div><div class="dp-section-ttl">Timeline</div>'+_orderTimeline(o)+'</div>';
 
   document.getElementById('dp-body').innerHTML = html;
   const _ft = document.getElementById('dp-foot'); if (_ft) _ft.innerHTML = '';

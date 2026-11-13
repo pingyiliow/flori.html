@@ -1465,6 +1465,10 @@ body.role-driver .dgrp-go{background:var(--color-accent);color:var(--color-accen
 .drvd-item .p{font-size:13px;color:var(--c-muted);white-space:nowrap}
 .drvd-total{display:flex;align-items:baseline;justify-content:space-between;padding:12px 0;font-size:14.5px}
 .drvd-tl-wrap{padding:12px 0;border-top:1px solid var(--c-border)}
+.drvd-nolink{display:inline-flex;align-items:center;gap:8px;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+.drvd-nolink svg{color:var(--c-muted)}
+.drvd-nolink:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:6px}
+.drvd-nolink:focus-visible{outline:2px solid var(--color-accent);outline-offset:3px}
 .drvd-tl{list-style:none;margin:8px 0 0;padding:0}
 .drvd-tl li{position:relative;display:flex;gap:12px;padding:0 0 14px;color:var(--c-muted)}
 .drvd-tl li:last-child{padding-bottom:0}
