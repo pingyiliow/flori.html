@@ -935,7 +935,7 @@
       <div class="ff" style="margin-top:12px"><label class="ff-l" for="fupay-note">Note</label><textarea id="fupay-note" rows="2" autocomplete="off" style="resize:vertical"></textarea></div>
       <div class="ff" style="margin-top:12px"><label class="ff-l">Payment slip</label>
         <div id="fupay-slip" class="pay-slip"></div>
-        <input id="fupay-file" type="file" accept="image/*" style="display:none" onchange="_paySlipPick(this)"></div>
+        <input id="fupay-file" type="file" accept="image/*,application/pdf" style="display:none" onchange="_paySlipPick(this)"></div>
       <div class="btn-row" style="margin-top:16px">
         <button class="btn btn-primary" type="button" style="flex:1" onclick="fuPayConfirm(true)">Mark as paid</button>
         <button class="btn btn-ghost" type="button" id="fupay-later" onclick="fuPayConfirm(false)">Pay later</button>
@@ -1091,7 +1091,7 @@ Address: 12 Jalan Bunga, Penang"></textarea>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l" for="fu-pay-note">Note</label><textarea id="fu-pay-note" rows="2" autocomplete="off" style="min-height:56px"></textarea></div>
           <div class="ff" style="grid-column:1/-1"><label class="ff-l">Payment slip</label>
             <div id="fu-slip" class="pay-slip" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="_fuSlipDrop(event)"></div>
-            <input id="fu-slip-file" type="file" accept="image/*" style="display:none" onchange="_fuSlipPick(this)"></div>
+            <input id="fu-slip-file" type="file" accept="image/*,application/pdf" style="display:none" onchange="_fuSlipPick(this)"></div>
           <div class="ff" style="display:none"><label class="ff-l">Follow-up Status</label>
             <select id="fu-status"><option value="pending">Follow-up</option><option value="ready">Ready — Add to Shopify</option><option value="completed">Completed — Added in Shopify</option></select>
           </div>
@@ -1684,7 +1684,7 @@ const I18N_ZH = {
   'Quick Actions':'快捷操作',"Today's Schedule":'今日安排','View all →':'查看全部 →',
   'Add Order':'新增订单','Walk-in / WA':'到店 / WhatsApp','Follow-up':'跟进','Stock':'库存','In stock':'库存',
   // Daily Orders
-  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','flowers to buy':'要买的花','orders counted':'计入订单','In stock':'有库存','Enough':'够用','See them':'查看','No orders with a flower recipe on these dates.':'这段日期没有带花材配方的订单。','Every order on these dates has a flower recipe.':'这段日期的订单都有花材配方。','All sizes':'所有尺寸','Flower prep':'花材准备','Flower list':'花材清单','By day':'按日期','Needs recipe':'需要配方','Tomorrow':'明天','Next 3 days':'未来 3 天','Next 7 days':'未来 7 天','Pick dates':'选日期','From':'从','To':'到','Flower':'花材','Need':'需要','To buy':'要买','Copy to-buy list':'复制要买清单','Add recipe':'添加配方','View all':'查看全部','orders tomorrow':'明天订单','next 7 days':'未来 7 天','need a recipe':'需要配方','No orders with a flower recipe this day.':'这天没有带花材配方的订单。','Every order in the next 7 days has a flower recipe.':'未来 7 天的订单都有花材配方。','No flowers needed for these dates.':'这段日期不需要花。','No orders to prep this day.':'这天没有要准备的订单。','Flowers to prep':'待准备花材','No flower recipe yet':'还没有花材配方','No orders in the next 7 days.':'未来 7 天没有订单。','Timeline':'时间线','Route started':'路线已出发','On the way message sent':'已发送在路上通知','No card':'不需要卡片','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
+  'By Product':'按产品','By Date':'按日期','+ Add Order':'+ 新增订单','Select date':'选择日期','Pick a date':'选择日期','Update Shopify':'更新 Shopify','Invoice number':'发票号码','Invoice requested':'需要发票','Record invoice no.':'记录发票号码','Receipt uploaded':'已上传收据','Form submitted':'已提交表格','Copy form link':'复制表格链接','PDF slip':'PDF 收据','Use a photo or a PDF':'请用照片或 PDF','PDF is too large (max 3 MB)':'PDF 太大（最多 3 MB）','flowers to buy':'要买的花','orders counted':'计入订单','In stock':'有库存','Enough':'够用','See them':'查看','No orders with a flower recipe on these dates.':'这段日期没有带花材配方的订单。','Every order on these dates has a flower recipe.':'这段日期的订单都有花材配方。','All sizes':'所有尺寸','Flower prep':'花材准备','Flower list':'花材清单','By day':'按日期','Needs recipe':'需要配方','Tomorrow':'明天','Next 3 days':'未来 3 天','Next 7 days':'未来 7 天','Pick dates':'选日期','From':'从','To':'到','Flower':'花材','Need':'需要','To buy':'要买','Copy to-buy list':'复制要买清单','Add recipe':'添加配方','View all':'查看全部','orders tomorrow':'明天订单','next 7 days':'未来 7 天','need a recipe':'需要配方','No orders with a flower recipe this day.':'这天没有带花材配方的订单。','Every order in the next 7 days has a flower recipe.':'未来 7 天的订单都有花材配方。','No flowers needed for these dates.':'这段日期不需要花。','No orders to prep this day.':'这天没有要准备的订单。','Flowers to prep':'待准备花材','No flower recipe yet':'还没有花材配方','No orders in the next 7 days.':'未来 7 天没有订单。','Timeline':'时间线','Route started':'路线已出发','On the way message sent':'已发送在路上通知','No card':'不需要卡片','Mark as done':'标记完成','Manage Lalamove':'管理 Lalamove','Track':'追踪','Edit route':'编辑路线','Change start point':'更改出发点','Company / Building':'公司 / 大楼','Company, restaurant, hotel, hospital (optional)':'公司、餐厅、酒店、医院（选填）','Set delivery fee':'设定运费','Payment slip':'付款收据','Upload slip':'上传收据','Send form':'发送表格','Resend form':'重发表格','Copy link':'复制链接','Customer form':'顾客表格','Waiting for customer':'等待顾客','Verify payment':'确认付款','verify payment':'确认付款','Customer remark':'顾客备注','Not sent':'未发送','Customer needs an invoice':'顾客需要发票','Remove the invoice request?':'取消发票要求？','Running low':'库存不足','Nothing is running low':'没有库存不足的','Purchase list':'采购清单','Add all':'全部加入','Received':'已收货','How many arrived':'到货数量','Just tick':'只打勾','Purchase':'采购','Materials':'材料','Recipes':'配方','Stock':'库存','Manage categories':'管理分类','Add material':'添加材料','New design':'新设计','Clear done':'清除已完成','Add item':'添加','Supplier notes':'供应商备注','Not linked':'不连接','Adds to stock':'加入库存','Nothing to buy':'没有要买的','Website':'网站','Omakase':'Omakase','Payment note':'付款备注','Note':'备注','to deliver':'待送','on the way':'在路上','delivered':'已送达','unassigned':'未分配','Unassigned':'未分配','Pending deliveries':'待送订单','Next':'下一站','On the way':'在路上','Delivered':'已送达','Show map':'显示地图','Hide map':'隐藏地图','Add to route':'加入路线','New route':'新路线','Book with Lalamove':'用 Lalamove 下单','Manage':'管理','Deliver to':'送货地址','Recipient':'收花人','Items':'商品','Stops':'站点','Delivery instructions':'送货说明','Replace photo':'更换照片','Start route':'开始路线','All delivered':'全部已送达','Any driver':'任意司机','Add orders to this route':'把订单加入这条路线','Total items to load':'需装货总数','Delivery':'配送','Waiting for payment':'待付款','Ready for Shopify':'待送 Shopify','need payment':'待付款','ready to send':'待送出','in Shopify':'在 Shopify','Unpaid, pay later':'未付款，稍后付','Upload slip':'上传付款单','Payment slip':'付款单','Uploading':'上传中','Payment':'付款','Undo':'撤销','Overdue':'已过期','Needs action':'待处理','In Shopify':'在 Shopify','To make':'待制作','All upcoming':'所有待办','This week':'本周','New order':'新订单',
   'Today':'今天','Fulfilled':'已完成','Overdue':'逾期','All':'全部',
   'Pickup':'自取','Delivery':'送货','× Clear date filter':'× 清除日期筛选',
   // Stock
@@ -7954,22 +7954,22 @@ function _fuSlipUI(){
   const el=document.getElementById('fu-slip'); if(!el) return;
   if (_fuFormSlipBusy){ el.innerHTML='<span class="pay-slip-busy">Uploading</span>'; return; }
   el.innerHTML = _fuFormSlip
-    ? '<img src="'+esc(_fuFormSlip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')"><button type="button" class="btn btn-ghost btn-sm" onclick="_fuFormSlip=\'\';_fuSlipUI()">Remove</button>'
+    ? _slipView(_fuFormSlip)+'<button type="button" class="btn btn-ghost btn-sm" onclick="_fuFormSlip=\'\';_fuSlipUI()">Remove</button>'
     : '<button type="button" class="fu-act" onclick="document.getElementById(\'fu-slip-file\').click()">'+di('upload',15)+'<span>Upload slip</span></button>';
 }
 function _fuSlipFile(file){
   if(!file) return;
-  if(!/^image\//.test(file.type||'')){ toast('Not an image file'); return; }
+  if(!_isSlipFile(file)){ toast('Use a photo or a PDF'); return; }
   if(_fuFormSlipBusy) return;
   _fuFormSlipBusy=true; _fuSlipUI();
-  storePhoto(file, url => { _fuFormSlipBusy=false; _fuFormSlip=url||''; _fuSlipUI(); });
+  storeSlip(file, url => { _fuFormSlipBusy=false; _fuFormSlip=url||''; _fuSlipUI(); });
 }
 function _fuSlipPick(inp){ const file=inp.files&&inp.files[0]; inp.value=''; _fuSlipFile(file); }
 function _fuSlipDrop(e){
   e.preventDefault(); e.stopPropagation();
   const z=document.getElementById('fu-slip'); if(z) z.classList.remove('drag');
-  const f=Array.from((e.dataTransfer&&e.dataTransfer.files)||[]).find(x=>/^image\//.test(x.type||''));
-  if(f) _fuSlipFile(f); else toast('Not an image file');
+  const f=Array.from((e.dataTransfer&&e.dataTransfer.files)||[]).find(_isSlipFile);
+  if(f) _fuSlipFile(f); else toast('Use a photo or a PDF');
 }
 // Form
 function _fuPaySet(paidBy, payment){
@@ -8630,15 +8630,15 @@ function _paySlipUI(){
   const el=document.getElementById('fupay-slip'); if(!el) return;
   if (_paySlipBusy){ el.innerHTML='<span class="pay-slip-busy">Uploading</span>'; return; }
   el.innerHTML = _paySlipUrl
-    ? '<img src="'+esc(_paySlipUrl)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')"><button type="button" class="btn btn-ghost btn-sm" onclick="_paySlipUrl=\'\';_paySlipUI()">Remove</button>'
+    ? _slipView(_paySlipUrl)+'<button type="button" class="btn btn-ghost btn-sm" onclick="_paySlipUrl=\'\';_paySlipUI()">Remove</button>'
     : '<button type="button" class="fu-act" onclick="document.getElementById(\'fupay-file\').click()">'+di('upload',15)+'<span>Upload slip</span></button>';
 }
 function _paySlipFile(file){
   if(!file) return;
-  if(!/^image\//.test(file.type||'')){ toast('Not an image file'); return; }
+  if(!_isSlipFile(file)){ toast('Use a photo or a PDF'); return; }
   if(_paySlipBusy) return;
   _paySlipBusy=true; _paySlipUI();
-  storePhoto(file, url => { _paySlipBusy=false; _paySlipUrl=url||''; _paySlipUI(); });
+  storeSlip(file, url => { _paySlipBusy=false; _paySlipUrl=url||''; _paySlipUI(); });
 }
 function _paySlipPick(inp){ const file=inp.files&&inp.files[0]; inp.value=''; _paySlipFile(file); }
 // While Record payment is open, a slip can also be dropped anywhere on the dialog or
@@ -8651,9 +8651,9 @@ function _paySlipPick(inp){ const file=inp.files&&inp.files[0]; inp.value=''; _p
   document.addEventListener('dragover', e => { if(!inDialog(e) || !hasFiles(e)) return; e.preventDefault(); zone(true); });
   document.addEventListener('dragleave', e => { if(inDialog(e) && !(e.relatedTarget && e.relatedTarget.closest && e.relatedTarget.closest('#m-fu-pay'))) zone(false); });
   document.addEventListener('drop', e => { if(!inDialog(e) || !hasFiles(e)) return; e.preventDefault(); zone(false);
-    const f=Array.from(e.dataTransfer.files||[]).find(x=>/^image\//.test(x.type||'')); if(f) _paySlipFile(f); else toast('Not an image file'); });
+    const f=Array.from(e.dataTransfer.files||[]).find(_isSlipFile); if(f) _paySlipFile(f); else toast('Use a photo or a PDF'); });
   document.addEventListener('paste', e => { if(!open()) return;
-    const it=Array.from((e.clipboardData&&e.clipboardData.items)||[]).find(x=>x.kind==='file' && /^image\//.test(x.type||''));
+    const it=Array.from((e.clipboardData&&e.clipboardData.items)||[]).find(x=>x.kind==='file' && (/^image\//.test(x.type||'') || x.type==='application/pdf'));
     if(!it) return;   // plain text pastes (e.g. into the approval-code field) go through untouched
     const f=it.getAsFile(); if(!f) return; e.preventDefault(); _paySlipFile(f); });
 })();
@@ -8942,7 +8942,7 @@ function openFUDP(id) {
   rows.forEach(([lbl,val]) => {
     html += `<div class="fu-row"><div class="fu-row-lbl">${lbl}</div><div class="fu-row-val">${esc(String(val))}</div></div>`;
   });
-  if (f.paySlip) html += `<div class="fu-row"><div class="fu-row-lbl">Payment slip</div><div class="fu-row-val"><img class="dp-pay-slip" src="${esc(f.paySlip)}" alt="Payment slip" onclick="openZoom(this.src,'Payment slip')"></div></div>`;
+  if (f.paySlip) html += `<div class="fu-row"><div class="fu-row-lbl">Payment slip</div><div class="fu-row-val">${_slipView(f.paySlip,'dp-pay-slip')}</div></div>`;
   html += `</div>`;
   // Customer order form
   { const sent=f.formSentAt, open=sent ? new Date(Date.parse(sent)+7*864e5).toISOString() : null;
@@ -13669,6 +13669,25 @@ function storePhoto(file, cb) {
       .catch(err => { if (err==='unconfigured') _r2Off = true; cb(b64, b64); });
   });
 }
+// Payment slips: a photo (compressed, as storePhoto) or a PDF (stored as is, up to 3 MB — the
+// request carries it as base64). cb('') when it could not be stored.
+const _isSlipFile = f => !!f && (/^image\//.test(f.type||'') || f.type==='application/pdf' || /\.pdf$/i.test(f.name||''));
+const _isPdfUrl = u => /\.pdf(\?|#|$)/i.test(String(u||'')) || /^data:application\/pdf/i.test(String(u||''));
+function storeSlip(file, cb){
+  if (/^image\//.test(file.type||'')) return storePhoto(file, url => cb(url||''));
+  if (file.size > 3*1024*1024){ toast('PDF is too large (max 3 MB)'); cb(''); return; }
+  const rd = new FileReader();
+  rd.onload = () => { const b64 = String(rd.result||'').replace(/^data:[^;,]*;/, 'data:application/pdf;');
+    _uploadDataUrl(b64).then(u => { if (/^data:/.test(u)) { toast('Could not upload the PDF'); cb(''); } else cb(u); }); };
+  rd.onerror = () => { toast('Could not read the PDF'); cb(''); };
+  rd.readAsDataURL(file);
+}
+// A slip as shown in panels: the photo (tap to zoom) or a link to the PDF.
+function _slipView(url, cls){
+  return _isPdfUrl(url)
+    ? '<a class="pay-slip-pdf" href="'+esc(url)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+di('receipt',15)+'<span>PDF slip</span></a>'
+    : '<img'+(cls?' class="'+cls+'"':'')+' src="'+esc(url)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">';
+}
 // Upload an already-compressed base64 data URL to R2; resolves to the public URL (or the
 // base64 itself if R2 isn't configured).
 function _uploadDataUrl(b64){
@@ -15282,7 +15301,7 @@ function _renderDPInner(order, localOrder) {
     if (_unp || _pb || _slip || _pnote || _pinv) {
       html += '<div><div class="dp-section-ttl">Payment</div><div class="dp-pay">'
         + (_unp ? '<span class="dp-pay-st warn">Unpaid</span>' : (_pb ? '<span class="dp-pay-st">'+esc('Paid by '+_pb)+'</span>' : ((localOrder.paidAt || localOrder.finStatus==='paid' || (_fuLink && _fuLink.payment==='paid')) ? '<span class="dp-pay-st">Paid</span>' : '')))
-        + (_slip ? '<img class="dp-pay-slip" src="'+esc(_slip)+'" alt="Payment slip" onclick="openZoom(this.src,\'Payment slip\')">' : '')
+        + (_slip ? _slipView(_slip,'dp-pay-slip') : '')
         + (_unp ? '<button type="button" class="fu-act" onclick="openOrderPay(\''+localOrder.id+'\')">'+di('wallet',15)+'<span>Record payment</span></button>'
            : ((localOrder.src==='shopify' && /^(pending|partially_paid)$/.test(localOrder.finStatus||'')) ? '<button type="button" class="fu-act" onclick="orderPushPaid(\''+localOrder.id+'\')">Update Shopify</button>' : '')
              + ((localOrder.paidAt && localOrder.finStatus!=='paid') ? '<button type="button" class="btn btn-ghost btn-sm" onclick="orderPayUndo(\''+localOrder.id+'\')">Undo</button>' : ''))

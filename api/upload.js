@@ -44,14 +44,15 @@ export default async function handler(req, res) {
   }
 
   const data = (req.body && req.body.data) || '';
-  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(data);
-  if (!m) return res.status(400).json({ error: 'Expected a base64 image data URL in "data"' });
+  // An image, or a PDF (payment slips).
+  const m = /^data:(image\/[a-zA-Z0-9.+-]+|application\/pdf);base64,(.+)$/.exec(data);
+  if (!m) return res.status(400).json({ error: 'Expected a base64 image or PDF data URL in "data"' });
 
   const contentType = m[1];
   const bytes = Buffer.from(m[2], 'base64');
   if (bytes.length > 8 * 1024 * 1024) return res.status(413).json({ error: 'Image too large' });
 
-  const ext = (contentType.split('/')[1] || 'jpg').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '');
+  const ext = contentType === 'application/pdf' ? 'pdf' : (contentType.split('/')[1] || 'jpg').replace('jpeg', 'jpg').replace(/[^a-z0-9]/gi, '');
   const rand = Math.random().toString(36).slice(2, 10);
   const key = `orders/${Date.now()}-${rand}.${ext}`;
 
