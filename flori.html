@@ -4282,7 +4282,7 @@ function _mentionBox(inpId){
   const sym=m[1], q=(m[2]||'').trim().toLowerCase();
   let hits;
   if(sym==='@'){
-    hits=(TEAM||[]).filter(p=>p.name&&(!q||p.name.toLowerCase().startsWith(q))&&(!currentUser||p.id!==currentUser.id)).slice(0,6)
+    hits=(TEAM||[]).filter(p=>p.name&&(!q||p.name.toLowerCase().split(/\s+/).some(w=>w.startsWith(q))||p.name.toLowerCase().startsWith(q))&&(!currentUser||p.id!==currentUser.id)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,40)   // everyone (scrolls), any word of the name
       .map(p=>({ html:_avatarHTML(p,22)+'<span>'+esc(p.name)+'</span><span style="color:var(--c-muted);font-size:10.5px">'+esc(p.position||p.role||'')+'</span>', val:p.name }));
   } else {
     hits=[...new Set((TODOS||[]).map(t=>t.grp).filter(Boolean))].filter(g=>!q||String(g).toLowerCase().startsWith(q)).slice(0,6)
@@ -4293,7 +4293,7 @@ function _mentionBox(inpId){
     // Appended to <body> (a card's rounded overflow can never clip it) and placed in PAGE
     // coordinates: a fixed box drifted away from the input on iPhone once the keyboard or
     // zoom moved the visual viewport.
-    box.style.cssText='position:absolute;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow:hidden;z-index:100000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+    box.style.cssText='position:absolute;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow-x:hidden;overflow-y:auto;max-height:260px;overscroll-behavior:contain;z-index:100000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
     document.body.appendChild(box);
     inp.addEventListener('blur',()=>setTimeout(()=>{ box.style.display='none'; },200)); }
   const r=inp.getBoundingClientRect();
