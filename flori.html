@@ -2533,6 +2533,15 @@ function _seedOrderHashes(){ _rowHashes = {}; ORDERS.forEach(o => { try { _rowHa
 // load and the webhook all skip these ids. Canonical (shopId) form. Shared via the
 // settings store so a delete on one device sticks on all of them.
 let DELETED_ORDERS = new Set();
+// New Orders entries deleted on any device. Loading only reads what changed since last time,
+// so without this list a device keeps its old copy of a deleted entry and can write it back.
+let DELETED_FU = (function(){ try{ return new Set(JSON.parse(localStorage.getItem('flori-fu-deleted')||'[]')); }catch(_){ return new Set(); } })();
+async function _fuMarkDeleted(id){
+  DELETED_FU.add(String(id)); _lsSet('flori-fu-deleted', JSON.stringify([...DELETED_FU]));
+  if (!hasSB()) return;
+  try{ const r=await sbGetVal('deleted_followups'); const arr=Array.isArray(r)?r:(typeof r==='string'?JSON.parse(r||'[]'):[]); arr.forEach(x=>DELETED_FU.add(String(x)));
+       await sbSet('deleted_followups', [...DELETED_FU]); }catch(_){}
+}
 function saveDeletedOrders(){
   _lsSet('flori-deleted', JSON.stringify([...DELETED_ORDERS]));
   if (hasSB()) sbSet('deleted_orders', [...DELETED_ORDERS]).catch(()=>{});
@@ -3377,12 +3386,13 @@ async function loadFromSupabase(opts = {}) {
   try {
     loadTodos();   // personal to-do list (private per login) — fire-and-forget
     loadTeam();    // profiles directory (Team page + @mentions) — fire-and-forget
-    const [orders, fuRes, invRes, purRes, remoteRemoved, remoteDeleted] = await Promise.all([
-      sbGetRecentOrders(), sbGetSmart('followups'), sbGetSmart('inventory'), sbGetSmart('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders')
+    const [orders, fuRes, invRes, purRes, remoteRemoved, remoteDeleted, remoteFuDel] = await Promise.all([
+      sbGetRecentOrders(), sbGetSmart('followups'), sbGetSmart('inventory'), sbGetSmart('purchases'), sbGetVal('removed_items'), sbGetVal('deleted_orders'), sbGetVal('deleted_followups')
     ]);
     // Order-delete tombstones (shared). Union the remote list with any local deletes
     // so a just-deleted order isn't resurrected before its tombstone has synced.
     if (Array.isArray(remoteDeleted)) remoteDeleted.forEach(id => DELETED_ORDERS.add(String(id)));
+    if (Array.isArray(remoteFuDel)) { remoteFuDel.forEach(id => DELETED_FU.add(String(id))); _lsSet('flori-fu-deleted', JSON.stringify([...DELETED_FU])); }
     // Line-item delete tombstones. The orders table has no removedItems column and
     // the webhook rewrites line_items straight from Shopify, so the canonical copy
     // lives in the shared settings store (saveOrders writes it). Seed from there,
@@ -3452,7 +3462,7 @@ async function loadFromSupabase(opts = {}) {
         formToken: f.form_token||'', formStatus: f.form_status||'', formSentAt: f.form_sent_at||null, formSubmittedAt: f.form_submitted_at||null, custNote: f.cust_note||'', noCard: !!f.no_card, feeAuto: f.fee_auto==null ? null : !!f.fee_auto,
         photo: f.photo||'', shopifyDraftId: f.shopify_draft_id||null, ts: f.ts||Date.now()
       }));
-      FOLLOWUPS = fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu;
+      FOLLOWUPS = (fuRes.delta ? _mergeById(FOLLOWUPS, mappedFu) : mappedFu).filter(f => !DELETED_FU.has(String(f.id)));
       mappedFu.forEach(f => { try{ _fuHash[f.id] = _rowHash(_fuRow(f)); }catch(_){} });   // as in the database: unchanged rows are not written back
       _lsSetLean('flori-followup', FOLLOWUPS);
       changed = true;
@@ -7211,7 +7221,11 @@ function purRecvConfirm(addStock){
 
 /* ─── Follow-up ──────────────────────────────────────────────── */
 let FOLLOWUPS = [];
-function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];} }
+function loadFollowups() { try { FOLLOWUPS = JSON.parse(localStorage.getItem('flori-followup') || '[]'); } catch(e){FOLLOWUPS=[];}
+  FOLLOWUPS = FOLLOWUPS.filter(f => !DELETED_FU.has(String(f.id)));
+  // The cached copy is what this device last saw from the database: unchanged entries are not
+  // written back (an old cached copy of an entry deleted elsewhere used to come back).
+  FOLLOWUPS.forEach(f => { try{ if(!(f.id in _fuHash)) _fuHash[f.id] = _rowHash(_fuRow(f)); }catch(_){} }); }
 // Rows as they were last loaded/saved (hash). saveFollowups writes ONLY entries that changed:
 // writing every entry from this device used to put an old copy back over newer edits —
 // another device's, or what a customer just submitted through the order form.
@@ -7237,7 +7251,7 @@ function saveFollowups() {
   _lsSetLean('flori-followup', FOLLOWUPS);
   if (hasSB()) {
     const rows = [], hashes = {};
-    FOLLOWUPS.forEach(f => { if (!f.ts) f.ts=Date.now(); const r=_fuRow(f), h=_rowHash(r); if (_fuHash[f.id]!==h){ rows.push(r); hashes[f.id]=h; } });
+    FOLLOWUPS.forEach(f => { if (DELETED_FU.has(String(f.id))) return; if (!f.ts) f.ts=Date.now(); const r=_fuRow(f), h=_rowHash(r); if (_fuHash[f.id]!==h){ rows.push(r); hashes[f.id]=h; } });
     if (!rows.length) return;
     sbUpsert('followups', rows).then(ok => {
       if (ok) Object.assign(_fuHash, hashes);
@@ -7873,7 +7887,7 @@ function saveFollowup() {
   saveFollowups(); closeModal('m-followup'); toast('✓ Saved'); renderFollowup();
 }
 
-function delFollowup(id) { if(!confirm('Delete this follow-up entry? This cannot be undone.'))return; FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); saveFollowups(); if(hasSB())sbDelete('followups',id); renderFollowup(); toast('Entry removed'); }
+function delFollowup(id) { if(!confirm('Delete this follow-up entry? This cannot be undone.'))return; FOLLOWUPS=FOLLOWUPS.filter(x=>x.id!==id); _fuMarkDeleted(id); saveFollowups(); if(hasSB())sbDelete('followups',id).then(()=>{ if(typeof _bcSend==='function') _bcSend('followups'); }); renderFollowup(); toast('Entry removed'); }
 function toggleFUStatus(id) {
   const f=FOLLOWUPS.find(x=>x.id===id); if(!f) return;
   // 'draft' is set automatically by createShopifyDraft (not part of the manual
