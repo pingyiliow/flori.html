@@ -147,6 +147,15 @@ async function handleTeam(res, T, jwt) {
       if (!p.ok) return res.status(400).json({ error: (await p.text()).slice(0, 200) });
       return res.status(200).json({ ok: true });
     }
+    // The login email of one member (logins live in auth, not in profiles).
+    if (op === 'email') {
+      const id = String(T.id || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'id required' });
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users/${id}`, { headers: H });
+      const u = await r.json().catch(() => ({}));
+      if (!r.ok) return res.status(404).json({ error: 'Login not found' });
+      return res.status(200).json({ email: u.email || '' });
+    }
     if (op === 'remove') {
       const { id } = T;
       if (!id) return res.status(400).json({ error: 'id required' });

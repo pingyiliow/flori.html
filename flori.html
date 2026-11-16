@@ -4657,11 +4657,16 @@ function openMemberView(id){
 function openMemberManage(id){
   const p=TEAM.find(x=>x.id===id); if(!p) return;
   _teamSheet('Manage · '+esc(p.name||''),
-    _tf('Name','tm-name',p.name)
+    _tf('Email','tm-email','','email','Loading…')
+    +_tf('Name','tm-name',p.name)
     +_tf('Role','tm-role',p.role||'florist','text','admin / cs / florist / driver')
     +_tf('Position','tm-pos',p.position)
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">'+_tf('Phone','tm-phone',p.phone)+_tf('Birthday','tm-bday',p.birthday,'date')+'</div>'
     +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn btn-ghost" style="flex:1" onclick="_teamSheetClose()">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="saveMemberEdit(\''+id+'\',this)">Save</button></div>');
+  // The login email, from the server (owner only).
+  { const e=document.getElementById('tm-email'); if(e){ e.readOnly=true; e.addEventListener('focus',()=>e.select()); } }
+  _teamApi({ op:'email', id }).then(j=>{ const e=document.getElementById('tm-email'); if(e){ e.value=(j&&j.email)||''; e.placeholder='No email'; } })
+    .catch(()=>{ const e=document.getElementById('tm-email'); if(e) e.placeholder='Could not load'; });
 }
 async function saveMemberEdit(id,btn){
   const v=k=>{ const e=document.getElementById(k); return e?e.value.trim():''; };
