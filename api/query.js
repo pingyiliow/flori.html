@@ -156,6 +156,16 @@ async function handleTeam(res, T, jwt) {
       if (!r.ok) return res.status(404).json({ error: 'Login not found' });
       return res.status(200).json({ email: u.email || '' });
     }
+    // Set a new password for a member's login.
+    if (op === 'password') {
+      const id = String(T.id || ''), password = String(T.password || '');
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'id required' });
+      if (password.length < 6) return res.status(400).json({ error: 'Password needs at least 6 characters' });
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users/${id}`, { method: 'PUT', headers: H, body: JSON.stringify({ password }) });
+      const u = await r.json().catch(() => ({}));
+      if (!r.ok) return res.status(400).json({ error: (u && (u.msg || u.message || u.error_description)) || 'Could not set the password' });
+      return res.status(200).json({ ok: true });
+    }
     if (op === 'remove') {
       const { id } = T;
       if (!id) return res.status(400).json({ error: 'id required' });
