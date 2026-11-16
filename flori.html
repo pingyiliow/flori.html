@@ -4289,7 +4289,7 @@ function _mentionBox(inpId){
       .map(g=>{ const c=_avaColor(g); return { html:'<span style="width:7px;height:7px;border-radius:50%;background:'+c[1]+';flex:none"></span><span>'+esc(g)+'</span>', val:g }; });
   }
   if(!hits.length){ if(box) box.style.display='none'; return; }
-  if(!box){ box=document.createElement('div'); box.id=inpId+'-sug';
+  if(!box){ box=document.createElement('div'); box.id=inpId+'-sug'; box.className='mention-sug'; box.dataset.for=inpId;
     // Appended to <body> (a card's rounded overflow can never clip it) and placed in PAGE
     // coordinates: a fixed box drifted away from the input on iPhone once the keyboard or
     // zoom moved the visual viewport.
@@ -4303,6 +4303,12 @@ function _mentionBox(inpId){
   box.innerHTML=hits.map((h,i)=>'<div role="option" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+sym+'\',\''+esc(h.val).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+h.html+'</div>').join('');
   box.style.display='block';
 }
+// Close any open @ / # list: tapping elsewhere or changing page must never leave it on screen
+// (on iPhone the input's blur does not always fire, and the list stayed stuck over the page).
+function _mentionCloseAll(except){ document.querySelectorAll('.mention-sug').forEach(b=>{ if(b!==except) b.style.display='none'; }); }
+document.addEventListener('pointerdown', e=>{ const t=e.target; if(!t||!t.closest) return; if(t.closest('.mention-sug')) return;
+  const open=[...document.querySelectorAll('.mention-sug')].filter(b=>b.style.display!=='none'); if(!open.length) return;
+  open.forEach(b=>{ if(t.id!==b.dataset.for) b.style.display='none'; }); }, true);
 function _mentionPick(inpId,sym,val){
   const inp=document.getElementById(inpId); if(!inp) return;
   inp.value=inp.value.replace(/([@#])([^@#]*)$/, sym+val+' ');
@@ -9157,6 +9163,7 @@ async function selectCalDay(key) {
 const APP_BUILD = 20261025;
 const PAGES = ['home','orders','stock','prep','followup','customers','wanotify','driver','records','todo','team'];
 function goPage(pg) {
+  if (typeof _mentionCloseAll==='function') _mentionCloseAll();
   // Role guard — bounce to the dashboard if allowed, else to the driver page
   // (driver-role users can't access 'home', so bouncing there would blank them).
   if(!canAccess(pg)) pg = canAccess('home') ? 'home' : 'driver';
