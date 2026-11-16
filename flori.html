@@ -4577,7 +4577,11 @@ let _ownerFlag=null;
 function isOwner(){ return _ownerFlag===true; }
 async function _checkOwner(){
   if(_ownerFlag!==null) return _ownerFlag;
-  try{ const j=await _teamApi({ op:'check' }); _ownerFlag=!!(j&&j.owner); }catch(_){ _ownerFlag=false; }
+  // Only a real answer is kept. A failed check (login token still refreshing right after the
+  // app opens, a network blip) used to be cached as "not owner" for the whole session, so
+  // Manage team vanished; now it is asked again, and the Team page re-renders once it knows.
+  try{ const j=await _teamApi({ op:'check' }); _ownerFlag=!!(j&&j.owner); }
+  catch(_){ if(!_checkOwner._retry){ _checkOwner._retry=setTimeout(()=>{ _checkOwner._retry=null; _checkOwner().then(ok=>{ if(ok && document.getElementById('pg-team')?.classList.contains('on')) renderTeam(); }); }, 2500); } return false; }
   return _ownerFlag;
 }
 async function _teamApi(T){
