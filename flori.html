@@ -440,9 +440,6 @@
           <button class="btn btn-ghost" onclick="exportData()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>  Export all data</button>
           <button class="btn btn-ghost" style="color:var(--c-red)" onclick="clearAll()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>  Clear all local data</button>
         </div>
-        <div style="font-size:11.5px;color:var(--c-muted);line-height:1.6;margin-top:12px">
-          Shortcuts: <code class="sp-kbd">1</code> Home · <code class="sp-kbd">2</code> Orders · <code class="sp-kbd">3</code> Stock · <code class="sp-kbd">R</code> Sync · <code class="sp-kbd">S</code> Settings
-        </div>
         <div style="font-size:11.5px;color:var(--c-muted);margin-top:10px">Bamboo Flower Club v1.0 · Bamboo Green Florist (M) Sdn Bhd</div>
       </div>
     </details>
@@ -4293,19 +4290,24 @@ function _mentionBox(inpId){
   }
   if(!hits.length){ if(box) box.style.display='none'; return; }
   if(!box){ box=document.createElement('div'); box.id=inpId+'-sug';
-    // Fixed + appended to <body>: a card's rounded overflow can never clip the list.
-    box.style.cssText='position:fixed;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow:hidden;z-index:100000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
+    // Appended to <body> (a card's rounded overflow can never clip it) and placed in PAGE
+    // coordinates: a fixed box drifted away from the input on iPhone once the keyboard or
+    // zoom moved the visual viewport.
+    box.style.cssText='position:absolute;background:var(--c-surface);border:1.5px solid var(--c-border);border-radius:10px;overflow:hidden;z-index:100000;min-width:190px;box-shadow:0 8px 24px rgba(0,0,0,.18)';
     document.body.appendChild(box);
     inp.addEventListener('blur',()=>setTimeout(()=>{ box.style.display='none'; },200)); }
   const r=inp.getBoundingClientRect();
-  box.style.left=r.left+'px'; box.style.top=(r.bottom+4)+'px'; box.style.maxWidth=Math.max(220,Math.round(r.width))+'px';
-  box.innerHTML=hits.map((h,i)=>'<div onmousedown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+sym+'\',\''+esc(h.val).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+h.html+'</div>').join('');
+  box.style.left=(r.left+window.scrollX)+'px'; box.style.top=(r.bottom+window.scrollY+4)+'px'; box.style.maxWidth=Math.max(220,Math.round(r.width))+'px';
+  // Picked on pointerdown: on a phone the tap's mousedown comes late, after the input's blur
+  // had already started closing the list.
+  box.innerHTML=hits.map((h,i)=>'<div role="option" onmousedown="event.preventDefault()" onpointerdown="event.preventDefault();_mentionPick(\''+inpId+'\',\''+sym+'\',\''+esc(h.val).replace(/'/g,"\\'")+'\')" style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;font-size:12.5px;'+(i?'border-top:1px solid var(--c-border);':'')+'background:var(--c-surface)">'+h.html+'</div>').join('');
   box.style.display='block';
 }
 function _mentionPick(inpId,sym,val){
   const inp=document.getElementById(inpId); if(!inp) return;
   inp.value=inp.value.replace(/([@#])([^@#]*)$/, sym+val+' ');
-  const box=document.getElementById(inpId+'-sug'); if(box) box.style.display='none';
+  // Closed a moment later: the tap's own click then lands on the list, not on whatever is under it.
+  const box=document.getElementById(inpId+'-sug'); if(box){ box.style.pointerEvents='auto'; setTimeout(()=>{ box.style.display='none'; }, 350); }
   inp.focus();
 }
 function _mentionTargets(text){
