@@ -80,6 +80,13 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .f .tick{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:15px;color:var(--color-ink);cursor:pointer;min-height:36px}
 .f .tick input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--color-accent)}
 .f textarea:disabled{opacity:.5}
+.iw{border-bottom:1px solid var(--color-rule);padding-bottom:14px}
+.iw .item{border-bottom:0;padding-bottom:0}
+.f.cardf{margin:12px 0 0}
+.iw:has(.ph) .f.cardf{margin-left:76px}
+.f.cardf textarea{min-height:64px}
+.f.nocard{margin-top:8px}
+.f.nocard .tick{margin-top:0}
 .seg button[disabled]:not(.on){opacity:.45}
 .addr{position:relative}
 .hits{border:1px solid var(--color-rule);border-top:0;background:var(--color-surface)}
@@ -175,22 +182,22 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 
   // keep what was typed when the language switches
   function keep(){ if (view!=='form' || !D) return; const v = id => { const e=document.getElementById(id); return e ? e.value : undefined; };
-    ['name','contact','email','recipName','recipPhone','recipCompany','dueDate','dueTime','addr','deliveryInstr','cardMsg','custNote'].forEach(k => { const x=v('f-'+k); if (x!==undefined) D[k]=x; }); D.fulfil = fulfil;
-    const nc = document.getElementById('f-noCard'); if (nc) D.noCard = nc.checked; }
+    ['name','contact','email','recipName','recipPhone','recipCompany','dueDate','dueTime','addr','deliveryInstr','custNote'].forEach(k => { const x=v('f-'+k); if (x!==undefined) D[k]=x; }); D.fulfil = fulfil;
+    const nc = document.getElementById('f-noCard'); if (nc) D.noCard = nc.checked;
+    const cs = [...document.querySelectorAll('.cardf textarea')];
+    if (cs.length) { if (!D.noCard) D._cards = cs.map(x => x.value); D.cardMsg = joinCard(D._cards||[]); } }
   // Delivery goes out in two sessions; a time staff already agreed stays as a third choice.
   const SLOTS = [['10am - 2pm','slotAm'], ['2pm - 6pm','slotPm']];
+  // Pickup: one-hour windows, 9am to 6pm.
+  const PK_SLOTS = ['9am - 10am','10am - 11am','11am - 12pm','12pm - 1pm','1pm - 2pm','2pm - 3pm','3pm - 4pm','4pm - 5pm','5pm - 6pm'].map(s => [s, '']);
   const REQ = '<span class="req" aria-hidden="true">*</span>';
   function timeHtml(pk){
-    const cur = String(D.dueTime||'').trim(), known = SLOTS.some(s => s[0]===cur);
-    const opts = SLOTS.map(s => [s[0], t(s[1])+', '+s[0].replace(' - ',' – ')]).concat(cur && !known ? [[cur, cur]] : []);
+    const cur = String(D.dueTime||'').trim(), list = pk ? PK_SLOTS : SLOTS, known = list.some(s => s[0]===cur);
+    const opts = list.map(s => [s[0], (s[1] ? t(s[1])+', ' : '')+s[0].replace(' - ',' – ')]).concat(cur && !known ? [[cur, cur]] : []);
     return '<div class="f" id="w-dueTime"><label for="f-dueTime">'+(pk?t('ptime'):t('dtime'))+REQ+'</label><select id="f-dueTime" required>'
       + '<option value="">'+t('slotPick')+'</option>'
       + opts.map(o => '<option value="'+esc(o[0])+'"'+(o[0]===cur?' selected':'')+'>'+esc(o[1])+'</option>').join('')
       + '</select><div class="err">'+(pk?t('slotNeedP'):t('slotNeed'))+'</div></div>'; }
-  function cardHtml(){
-    return '<div class="f" id="w-cardMsg"><label for="f-cardMsg">'+t('card')+REQ+'</label><textarea id="f-cardMsg"'+(D.noCard?' disabled':'')+'>'+esc(D.noCard?'':D.cardMsg)+'</textarea>'
-      + '<label class="tick"><input type="checkbox" id="f-noCard"'+(D.noCard?' checked':'')+'> '+t('noCard')+'</label>'
-      + '<div class="err">'+t('cardNeed')+'</div></div>'; }
 
   // Delivery fee: worked out from the address when staff left it open (feeAuto); a pickup
   // then has none. Otherwise it is the fee staff set.
@@ -215,11 +222,34 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     && (D.fulfil==='pickup' || (String(D.recipName||'').trim() && String(D.addr||'').trim())));
   // Every photo of an item: the first beside it, the rest in a row under the name; tap to enlarge.
   const ph = (u, cls) => '<button type="button" class="ph'+(cls?' '+cls:'')+'" data-src="'+esc(u)+'" aria-label="'+t('photo')+'"><img src="'+esc(u)+'" alt="" loading="lazy"></button>';
-  const itemsHtml = () => (D.items||[]).map(it => { const im = it.images||[]; return '<div class="item">'+(im[0]?ph(im[0]):'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+(it.note?'<small class="fn"><span class="fl">'+t('fnote')+'</span>'+esc(it.note)+'</small>':'')
-    +(im.length>1?'<div class="thumbs">'+im.slice(1).map(u=>ph(u,'sm')).join('')+'</div>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>'; }).join('')
-    + feeRow()
-    + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+feeNow())+'</b></div>';
-  const refreshItems = () => { const el = document.getElementById('items'); if (el) el.innerHTML = itemsHtml(); };
+  const itemRow = it => { if (!it) return ''; const im = it.images||[]; return '<div class="item">'+(im[0]?ph(im[0]):'')+'<div class="t"><b>'+esc(it.name)+'</b>'+(it.qty>1?'<small>× '+it.qty+'</small>':'')+(it.note?'<small class="fn"><span class="fl">'+t('fnote')+'</span>'+esc(it.note)+'</small>':'')
+    +(im.length>1?'<div class="thumbs">'+im.slice(1).map(u=>ph(u,'sm')).join('')+'</div>':'')+'</div>'+(it.price!=null?'<span class="p num">'+rm(it.price*(it.qty||1))+'</span>':'')+'</div>'; };
+  const totHtml = () => feeRow() + '<div class="total"><span>'+t('total')+'</span><b class="num">'+rm((D.amount||0)+feeNow())+'</b></div>';
+  const itemsHtml = () => (D.items||[]).map(itemRow).join('') + totHtml();
+  // Card message: one box under each flower. Stored as one text for staff and Shopify,
+  // "Hera: …" per flower when the order has more than one.
+  const cardNames = () => { const seen = {}; return (D.items||[]).map(it => { const n = String(it.name||'').trim() || 'Item'; seen[n] = (seen[n]||0) + 1; return seen[n]>1 ? n+' ('+seen[n]+')' : n; }); };
+  function splitCard(text){
+    const ns = cardNames(), s = String(text||'');
+    if (ns.length < 2) return [s];
+    const out = ns.map(() => []); let cur = 0;
+    s.split('\n').forEach(line => {
+      const l = line.replace(/^\s+/, '');
+      const i = ns.findIndex(n => l.startsWith(n+':') || l.startsWith(n+'：'));
+      if (i >= 0) { cur = i; out[i].push(l.slice(ns[i].length+1).replace(/^\s+/, '')); } else out[cur].push(line);
+    });
+    return out.map(a => a.join('\n').trim());
+  }
+  function joinCard(parts){
+    const ns = cardNames();
+    if (ns.length < 2) return String(parts[0]||'');
+    return ns.map((n,i) => String(parts[i]||'').trim() ? n+': '+String(parts[i]).trim() : '').filter(Boolean).join('\n\n');
+  }
+  const cardBox = i => '<div class="f cardf" id="w-card'+i+'"><label for="f-card'+i+'">'+t('card')+REQ+'</label><textarea id="f-card'+i+'"'+(D.noCard?' disabled':'')+'>'+esc(D.noCard?'':(D._cards[i]||''))+'</textarea><div class="err">'+t('cardNeed')+'</div></div>';
+  const formItemsHtml = () => { if (!D._cards) D._cards = splitCard(D.cardMsg); const its = (D.items||[]).length ? D.items : [null];
+    return its.map((it,i) => '<div class="iw">'+itemRow(it)+cardBox(i)+'</div>').join('')
+      + '<div class="f nocard"><label class="tick"><input type="checkbox" id="f-noCard"'+(D.noCard?' checked':'')+'> '+t('noCard')+'</label></div>'; };
+  const refreshItems = () => { const el = document.getElementById('tot'); if (el) el.innerHTML = totHtml(); };
   const addrMsg = (html, info) => { const el = document.getElementById('addr-msg'); if (el) { el.innerHTML = html || ''; el.classList.toggle('info', !!info); } };
   const outMsg = () => esc(t('feeOut'));
   // Ask the server for the fee of the address typed or picked (only when it is worked out).
@@ -276,23 +306,27 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const pk = fulfil==='pickup';
     app.innerHTML = '<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
       + (complete() ? '' : D.paid ? '<div class="box">'+t('paidFill')+'</div>' : (D.slip ? '<div class="box">'+t('slipFill')+'</div>' : ''))
-      + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+itemsHtml()+'</div>'+cardHtml()+'</div>'
+      + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+formItemsHtml()+'</div><div id="tot">'+totHtml()+'</div></div>'
       + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name')+REQ,D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone')+REQ,D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
       + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'"'+(D.paid?' disabled':'')+'>'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'"'+(D.paid?' disabled':'')+'>'+t('pick')+'</button></div></div>'
         + '<div class="two">'+field('dueDate',(pk?t('pdate'):t('ddate'))+REQ,D.dueDate,'type="date" min="'+todayIso()+'"')+timeHtml(pk)+'</div>'
         + (pk ? '' : field('recipName',t('rname')+REQ,D.recipName,'')+field('recipPhone',t('rphone'),D.recipPhone,'inputmode="tel" class="num" placeholder="+60"')
           + field('recipCompany',t('company'),D.recipCompany,'autocomplete="organization"')
-          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+REQ+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off" placeholder="'+t('addrPh')+'">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div><div class="msg'+(D.feeOut&&D.feeAuto?' info':'')+'" id="addr-msg">'+(D.feeOut&&D.feeAuto?outMsg():'')+'</div></div>'
+          + '<div class="f addr" id="w-addr"><label for="f-addr">'+t('addr')+REQ+'</label><textarea id="f-addr" class="grow" rows="1" autocomplete="off">'+esc(D.addr)+'</textarea><div class="hits" id="hits"></div><div class="err">'+t('need')+'</div><div class="msg'+(D.feeOut&&D.feeAuto?' info':'')+'" id="addr-msg">'+(D.feeOut&&D.feeAuto?outMsg():'')+'</div></div>'
           + field('deliveryInstr',t('instr'),D.deliveryInstr,'',true))
       + '</div>'
       + '<button class="btn" type="button" id="go">'+(D.paid?t('savech'):t('confirm'))+'</button><p class="fine">'+t('fine')+'</p>';
     // Paid: delivery or pickup stays as paid for (the price would change).
-    if (!D.paid) document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl; render(); });
+    if (!D.paid) document.querySelectorAll('[data-fl]').forEach(b => b.onclick = () => { keep(); D.fulfil = b.dataset.fl;
+      // A slot of the other list does not carry over (delivery sessions vs pickup hours).
+      if (SLOTS.concat(PK_SLOTS).some(s => s[0]===D.dueTime)) D.dueTime = ''; render(); });
     document.getElementById('go').onclick = submit;
     const tm = document.getElementById('f-dueTime'); if (tm) tm.onchange = () => { D.dueTime = tm.value; if (tm.value) document.getElementById('w-dueTime').classList.remove('bad'); };
-    const nc = document.getElementById('f-noCard'), ct = document.getElementById('f-cardMsg');
-    if (nc && ct) nc.onchange = () => { ct.disabled = nc.checked; if (nc.checked) { D.cardMsg = ct.value; ct.value = ''; } else ct.value = D.cardMsg || ''; document.getElementById('w-cardMsg').classList.remove('bad'); };
+    const nc = document.getElementById('f-noCard'), cs = [...document.querySelectorAll('.cardf textarea')];
+    if (nc) nc.onchange = () => { if (nc.checked) D._cards = cs.map(x => x.value);
+      cs.forEach((x,i) => { x.disabled = nc.checked; x.value = nc.checked ? '' : (D._cards[i]||''); x.closest('.f').classList.remove('bad'); }); };
+    cs.forEach(x => x.addEventListener('input', () => { if (x.value.trim()) document.querySelectorAll('.cardf').forEach(w => w.classList.remove('bad')); }));
     const a = document.getElementById('f-addr'); if (a) { wireAddr(a); if (a.value.trim()) quoteFee(0); }
   }
 
@@ -314,8 +348,10 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   async function submit(){
     keep();
     const req = ['name','contact','dueDate','dueTime'].concat(fulfil==='pickup' ? [] : ['recipName','addr']);
-    if (!D.noCard) req.unshift('cardMsg');
-    let first = null; req.forEach(k => { const w = document.getElementById('w-'+k); const bad = !String(D[k]||'').trim(); if (w) w.classList.toggle('bad', bad); if (bad && !first) first = w; });
+    // A card message under at least one flower, unless none is needed.
+    const cardBad = !D.noCard && !String(D.cardMsg||'').trim();
+    let first = null; document.querySelectorAll('.cardf').forEach(w => { w.classList.toggle('bad', cardBad); if (cardBad && !first) first = w; });
+    req.forEach(k => { const w = document.getElementById('w-'+k); const bad = !String(D[k]||'').trim(); if (w) w.classList.toggle('bad', bad); if (bad && !first) first = w; });
     if (first) { first.scrollIntoView({ block:'center' }); const i = first.querySelector('input,textarea'); if (i) i.focus(); return; }
     const addrStop = msg => { const w = document.getElementById('w-addr'); addrMsg(msg); if (w) w.scrollIntoView({ block:'center' }); };
     if (D.feeAuto && fulfil!=='pickup') {
