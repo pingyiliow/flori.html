@@ -9692,7 +9692,7 @@ function applyOrderChange(p){
    start info and the driver's last known GPS. Windowed to today+tomorrow. */
 let ROUTES = [];
 let _rtRealtime = null, _rtRenderTimer = null;
-function _mapDbRoute(r){ return { id:r.id, date:r.route_date, name:r.name, driver:r.driver||null, startedAt:r.started_at||null, startedBy:r.started_by||null, lastLat:r.last_lat??null, lastLng:r.last_lng??null, lastLocAt:r.last_loc_at||null, startLat:r.start_lat??null, startLng:r.start_lng??null, startAddr:r.start_addr||null, createdAt:r.created_at||null }; }
+function _mapDbRoute(r){ return { id:r.id, date:(r.route_date ? String(r.route_date).slice(0,10) : null), name:r.name, driver:r.driver||null, startedAt:r.started_at||null, startedBy:r.started_by||null, lastLat:r.last_lat??null, lastLng:r.last_lng??null, lastLocAt:r.last_loc_at||null, startLat:r.start_lat??null, startLng:r.start_lng??null, startAddr:r.start_addr||null, createdAt:r.created_at||null }; }
 function _routeRow(rt){ return { id:rt.id, route_date:rt.date, name:rt.name, driver:rt.driver||null, started_at:rt.startedAt||null, started_by:rt.startedBy||null, last_lat:rt.lastLat??null, last_lng:rt.lastLng??null, last_loc_at:rt.lastLocAt||null, start_lat:rt.startLat??null, start_lng:rt.startLng??null, start_addr:rt.startAddr||null }; }
 async function loadRoutes(){
   if (!hasSB()) return;
@@ -9716,10 +9716,35 @@ async function loadRoutesForDate(iso){
     }
   } catch(e){ console.warn('loadRoutesForDate', e && e.message); }
 }
+// Safety net against "route disappeared": if an order still references a route that isn't in
+// ROUTES (date-window miss, date-type mismatch, missed realtime event), fetch that route by id
+// straight from the DB so the assignment always re-appears. Only real DB deletion can orphan it.
+let _routeFetchTried = new Set();
+async function _recoverAssignedRoutes(){
+  if (!hasSB() || typeof ORDERS==='undefined') return;
+  const have = new Set(ROUTES.map(r => r.id));
+  const missing = [...new Set(ORDERS.filter(o => o.routeId && !have.has(o.routeId)).map(o => o.routeId))]
+    .filter(id => !_routeFetchTried.has(id));
+  if (!missing.length) return;
+  missing.forEach(id => _routeFetchTried.add(id));
+  try {
+    const { data, error } = await sb.from('routes').select('*').in('id', missing);
+    if (!error && Array.isArray(data) && data.length){
+      const have2 = new Set(ROUTES.map(r => r.id));
+      let added = false;
+      data.forEach(r => { if (!have2.has(r.id)){ ROUTES.push(_mapDbRoute(r)); added = true; } });
+      if (added && typeof renderDriver==='function') renderDriver();
+    }
+  } catch(_){}
+}
 function saveRoute(rt){
   const i = ROUTES.findIndex(r => r.id === rt.id);
   if (i === -1) ROUTES.push(rt); else ROUTES[i] = rt;
-  if (hasSB()) sbUpsert('routes', [_routeRow(rt)]).then(ok => { if (ok) _bcSend('routes', { iso: rt.date }); }).catch(console.error);
+  _routeFetchTried.delete(rt.id);   // a (re)saved route is known again
+  if (hasSB()) sbUpsert('routes', [_routeRow(rt)]).then(ok => {
+    if (ok) _bcSend('routes', { iso: rt.date });
+    else toast('⚠ Route didn’t save to cloud — check connection and try again');   // surface silent loss
+  }).catch(console.error);
 }
 function createRoute(name, dateISO, driver){
   const rt = { id: (crypto.randomUUID ? crypto.randomUUID() : 'rt-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)),
@@ -11995,6 +12020,7 @@ function renderDriver(){
   const iso = _drvDateISO();
   const stops = _drvStops(iso);
   const routes = _drvRoutesFor(iso);
+  _recoverAssignedRoutes();   // any assigned order whose route isn't loaded → fetch it by id (re-renders)
   const isAdmin = hasRole('admin') || hasRole('cs');   // CS is a full dispatcher on the Delivery page (assign drivers, build/edit routes); only a pure driver gets the read-only "my deliveries" view
   const bySeq = (a,b) => (a.routeSeq ?? 1e9) - (b.routeSeq ?? 1e9) || String(a.dueTime||'').localeCompare(String(b.dueTime||''));
   // A driver only sees their own (or any-driver) routes — count/show only those stops, not
