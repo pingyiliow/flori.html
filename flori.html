@@ -14047,6 +14047,14 @@ function saveOrder() {
       entry.totalAdj = Math.abs(d)>0.005 ? { delta:d, base:String(parseFloat(prevOrder.total)||0) } : null;
     }
   }
+  // Preserve app-managed driver/dispatch state the edit form never shows — otherwise saving an
+  // edited order wipes its route assignment (route_id), OTW stamp, proof photos, delivered flags
+  // etc. back to null, dropping it off the route (the "routes vanish every day" bug).
+  if(prevOrder){
+    ['routeId','routeSeq','otwAt','proofPhoto','proofPhotos','cake','fulfilled','deliveredAt','deliveredBy','deliveredLat','deliveredLng','lalamoveOrderId'].forEach(f=>{
+      if(entry[f]===undefined && prevOrder[f]!==undefined) entry[f]=prevOrder[f];
+    });
+  }
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
   saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   _orderToCustomer(entry, _pickParts);
