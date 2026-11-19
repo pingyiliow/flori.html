@@ -9750,6 +9750,7 @@ function subscribeBroadcast(){
           if(d.t==='orders' && Array.isArray(d.ids)) d.ids.forEach(id=>_bcPendIds.add(String(id)));
           else if(d.t==='routes'){ _bcPendRoutes=true; if(d.iso)_bcPendRouteIso=d.iso; }
           else if(d.t==='todos') _bcPendTodos=true;
+          else if(d.t==='reload'){ _remoteReload(); return; }
           else if(d.t) _bcPendOther=true;
           clearTimeout(_bcFlushTimer);
           _bcFlushTimer=setTimeout(_bcFlush, 600);
@@ -15865,6 +15866,15 @@ function _overlayOpen(){
 }
 let _updReloading = false;
 function _updNow(){ _updReloading = true; console.log('[build] new version — reloading'); location.reload(); }
+// Refresh every open page now (sent after an urgent fix). Saves pending taps first and
+// never throws away text being typed: waits until the field is left. Stays signed in.
+function _remoteReload(){
+  const ae=document.activeElement;
+  const typing=(ae && /^(INPUT|TEXTAREA)$/.test(ae.tagName) && ae.value) || (ae && ae.isContentEditable);
+  if(typing){ setTimeout(_remoteReload, 5000); return; }
+  try{ if(typeof _tapFlushAll==='function') _tapFlushAll(); }catch(_){}
+  setTimeout(()=>{ _updReloading=true; location.reload(); }, 2500);
+}
 function _updTry(){
   _updPending = true;
   if (document.hidden) { _updNow(); return; }                    // invisible moment — free reload
