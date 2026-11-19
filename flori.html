@@ -13682,6 +13682,7 @@ function openAddOrder(){
   openModal('m-order');
 }
 function openAddInv(cat) {
+  _invPasteIdx = null;
   document.getElementById('i-edit-id').value = '';
   document.getElementById('i-name').value = '';
   _fillCatSelect((typeof cat === 'string' && cat) ? cat : (INV_CATS[0]?INV_CATS[0].key:'cut'));
@@ -13735,6 +13736,7 @@ function _renderInvSizeEditor(){
     }).join('');
   }
   _invToggleItemPrice();
+  if(typeof _invPasteMark==='function') _invPasteMark();
 }
 // Hide the item-level Cost/Selling fields when the item is split into sizes — each size
 // carries its own price then.
@@ -13745,7 +13747,7 @@ function _invToggleItemPrice(){
   if(sf) sf.style.display=has?'none':'';
 }
 function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'', cost:'', sell:'', photos:[] }); _renderInvSizeEditor(); }
-function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _renderInvSizeEditor(); }
+function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _invPasteIdx=null; _renderInvSizeEditor(); }
 function invSizeField(idx,f,v){ if(_invSizeEdit[idx]){ _invSizeEdit[idx][f]=v; _invSizeTouched.add(_invSizeEdit[idx].id); } }
 // Per-size reference photos (in the Edit form): thumbnails with tap-to-zoom, ✕ delete
 // and a + Add tile. Uploads go through storePhoto (R2 URL), stored on size.photos.
@@ -13759,16 +13761,28 @@ function _invSizePhotoStripHTML(idx, s){
 function invSizePhotoAdd(idx){
   const s=_invSizeEdit[idx]; if(!s) return;
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
-  inp.onchange=function(){
-    const files=Array.from(inp.files||[]); if(!files.length) return;
-    if(!Array.isArray(s.photos)) s.photos=[];
-    toast(files.length>1?('Uploading '+files.length+' photos…'):'Uploading…');
-    let pending=files.length;
-    _invSizeTouched.add(s.id);
-    files.forEach(f=>storePhoto(f, src=>{ s.photos.push(src); if(--pending===0){ _renderInvSizeEditor(); toast('✓ Photo added'); } }));
-  };
+  inp.onchange=function(){ _invSizePhotoFiles(idx, Array.from(inp.files||[])); };
   inp.click();
 }
+function _invSizePhotoFiles(idx, files){
+  const s=_invSizeEdit[idx]; if(!s || !files || !files.length) return;
+  if(!Array.isArray(s.photos)) s.photos=[];
+  toast(files.length>1?('Uploading '+files.length+' photos…'):'Uploading…');
+  let pending=files.length;
+  _invSizeTouched.add(s.id);
+  files.forEach(f=>storePhoto(f, src=>{ s.photos.push(src); if(--pending===0){ _renderInvSizeEditor(); toast('✓ Photo added'); } }));
+}
+// Paste a photo into a variant: tap its card first (it is outlined), then paste.
+// Tapping anywhere else in the form sends a paste to the item's own photo again.
+let _invPasteIdx=null;
+function _invPasteMark(){ document.querySelectorAll('#i-sizes-list .i-szcard').forEach((c,k)=>c.classList.toggle('paste-on', k===_invPasteIdx)); }
+document.addEventListener('pointerdown', e=>{
+  const m=document.getElementById('m-inv'); if(!m || !m.classList.contains('on') || !m.contains(e.target)) return;
+  const card=e.target.closest && e.target.closest('#i-sizes-list .i-szcard');
+  _invPasteIdx = card ? [...document.querySelectorAll('#i-sizes-list .i-szcard')].indexOf(card) : null;
+  if(_invPasteIdx<0) _invPasteIdx=null;
+  _invPasteMark();
+}, true);
 function invSizePhotoDel(idx, pi){ const s=_invSizeEdit[idx]; if(!s||!Array.isArray(s.photos)) return; s.photos.splice(pi,1); _invSizeTouched.add(s.id); _renderInvSizeEditor(); }
 // Reconcile the editor's size list back onto the item (called from saveInv).
 function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
@@ -13811,7 +13825,7 @@ async function editInv(id) {
   document.getElementById('i-notes').value = i.notes || '';
   const _utE=document.getElementById('i-tracked'); if(_utE){ _utE.checked=!i.untracked; _invTrackToggle(); }
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
-  _invEditSnap = JSON.parse(JSON.stringify(i)); _invSizeTouched = new Set();
+  _invEditSnap = JSON.parse(JSON.stringify(i)); _invSizeTouched = new Set(); _invPasteIdx = null;
   _invSizeEdit = itemSizes(i).map(s=>({...s})); _renderInvSizeEditor();                   // load this item's sizes into the editor
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-tabs').style.display = 'none';   // no Details/Stock tabs — adjust qty from the detail popup
@@ -13974,6 +13988,11 @@ function photoZoneDrop(e, zoneId, hiddenId){
 // Paste an image into whichever photo-zone modal is currently open.
 document.addEventListener('paste', function(e){
   const specs = [['m-inv','i-photo-zone','i-photo'], ['m-pur','p-photo-zone','p-photo']];
+  { const m=document.getElementById('m-inv');
+    if(m && m.classList.contains('on') && _invPasteIdx!=null && _invSizeEdit[_invPasteIdx]){
+      const fs=[...((e.clipboardData&&e.clipboardData.items)||[])].filter(it=>it.type && it.type.indexOf('image')===0).map(it=>it.getAsFile()).filter(Boolean);
+      if(fs.length){ e.preventDefault(); _invSizePhotoFiles(_invPasteIdx, fs); return; }
+    } }
   for(const [modalId, zoneId, hiddenId] of specs){
     const m=document.getElementById(modalId);
     if(m && m.classList.contains('on')){
