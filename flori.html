@@ -674,9 +674,9 @@
         <div class="ff" id="i-price-ff"><label class="ff-l">Cost price (RM)</label><input id="i-price" type="number" step="0.01" min="0" placeholder="what you pay"></div>
         <div class="ff" id="i-sell-ff"><label class="ff-l">Selling price (RM) <span style="color:var(--c-muted);font-weight:400">Optional</span></label><input id="i-sell" type="number" step="0.01" min="0" placeholder="what you sell for"></div>
         <div class="ff"><label class="ff-l">Reorder at</label><input id="i-reorder" type="number" min="0" placeholder="alert below (default 5)"></div>
-        <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Sizes <span style="color:var(--c-muted);font-weight:400">Optional</span></label>
+        <div class="ff" style="grid-column:1/-1" id="i-sizes-wrap"><label class="ff-l">Variants <span style="color:var(--c-muted);font-weight:400">Optional</span></label>
           <div id="i-sizes-list"></div>
-          <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="invSizeAdd()">＋ Add size</button>
+          <button type="button" class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="invSizeAdd()">＋ Add variant</button>
         </div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Notes</label><textarea id="i-notes" placeholder="Supplier…"></textarea></div>
         <div class="ff" style="grid-column:1/-1"><label class="ff-l">Photo</label>
@@ -1741,7 +1741,7 @@ const I18N_ZH = {
   // Stock page — categories, add-item modal, Shopify search & detail popup
   'Manage categories':'管理分类','Categories':'分类','Set category':'设置分类','Done':'完成',
   'Details':'详情','Family':'款式','Color':'颜色','SKU':'货号','Optional':'选填',
-  'Unit':'单位','Size':'尺寸','Price (RM)':'价格 (RM)','Reorder at':'补货点','Used in designs':'用于设计',
+  'Unit':'单位','Size':'尺寸','Variants':'款式','＋ Add variant':'＋ 加款式','Price (RM)':'价格 (RM)','Reorder at':'补货点','Used in designs':'用于设计',
   '＋ Receive':'＋ 收货','− Use':'− 用掉','Recent':'近期记录','＋ New category':'＋ 新分类',
   'Manual':'手动','Shopify':'Shopify','Edit details':'编辑资料','Save details':'保存资料',
   'Remove from stock':'从库存移除','Set category ':'设置分类',
@@ -2750,20 +2750,72 @@ async function _invRefreshOne(id){
     return true;
   }catch(_){ return false; }
 }
-async function _invSaveDelta(item, ops){
-  if(!item) return;
+// Saves of one item run one after another on this phone (fast taps used to read the same
+// count and each write their own result, losing taps).
+const _invChains={};
+function _invQueue(id, fn){ const p=(_invChains[id]||Promise.resolve()).then(fn); _invChains[id]=p.catch(()=>{}); return p; }
+const _invSleep = ms => new Promise(r=>setTimeout(r, ms));
+// Writes the row only if nobody changed it since it was read (updated_at unchanged);
+// 'retry' means another phone saved first: read again and re-apply.
+let _invCasOff = false;
+async function _invCasWrite(fresh, merged){
+  const row = _invRow(merged);
+  if(!fresh.updated_at || _invCasOff) return (await sbUpsert('inventory', [row])) ? 'ok' : 'fail';
+  try{
+    const { data, error } = await sb.from('inventory').update(row).eq('id', fresh.id).eq('updated_at', fresh.updated_at).select('id');
+    if(error){ console.warn('inventory write', error.message); return 'fail'; }
+    return (data && data.length) ? 'ok' : 'retry';
+  }catch(e){ console.warn('inventory write', e && e.message); return 'fail'; }
+}
+// Read the row, apply, write if unchanged; again on a clash. A failed read never writes.
+async function _invReadApplyWrite(item, apply){
+  for(let attempt=0; attempt<6; attempt++){
+    let fresh;
+    try{ const { data, error } = await sb.from('inventory').select('*').eq('id', item.id); if(error) throw error; fresh = data && data[0]; }
+    catch(e){ console.warn('inventory read', e && e.message); await _invSleep(1500); continue; }
+    if(!fresh) return { missing:true };
+    const merged = apply(fresh);
+    const r = await _invCasWrite(fresh, merged);
+    if(r==='ok') return { merged };
+    if(r==='retry' && !_invCasOff){
+      // Nothing matched although the row did not change: the check itself does not work
+      // here, so write plainly from now on (as before) instead of never saving.
+      try{ const { data } = await sb.from('inventory').select('updated_at').eq('id', item.id);
+        if(data && data[0] && data[0].updated_at===fresh.updated_at){ _invCasOff = true; console.warn('inventory: conditional write unavailable'); continue; } }catch(_){}
+    }
+    await _invSleep(r==='retry' ? 120 + Math.random()*300 : 1500);
+  }
+  return { failed:true };
+}
+function _invApplyLocal(item, merged){
+  const local = INVENTORY.find(x=>x.id===item.id) || item;
+  Object.assign(local, merged);
+  if(!Array.isArray(local.sizes) || !local.sizes.length) delete local.sizes;
+  _lsSetLean('flori-inventory', INVENTORY);
+  _bcSend('inventory');
+  if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderInventory==='function') renderInventory();
+  if(typeof _stkRefresh==='function') _stkRefresh();
+}
+// Could not save: show the database's version again, never a count that was not saved.
+async function _invNotSaved(item){
+  toast(LANG==='zh' ? '⚠ 没有保存，请检查网络再试' : '⚠ Not saved, check the connection and try again');
+  if(await _invRefreshOne(item.id)){
+    const local = INVENTORY.find(x=>x.id===item.id); if(local && (!Array.isArray(local.sizes) || !local.sizes.length)) delete local.sizes;
+    if(typeof renderInventory==='function') renderInventory(); if(typeof _stkRefresh==='function') _stkRefresh();
+  }
+}
+function _invSaveDelta(item, ops){ if(!item) return Promise.resolve(); return _invQueue(item.id, ()=>_invSaveDeltaNow(item, ops)); }
+async function _invSaveDeltaNow(item, ops){
   _lsSetLean('flori-inventory', INVENTORY);
   if(!hasSB()) return;
-  try{
-    const { data, error } = await sb.from('inventory').select('*').eq('id', item.id);
-    if(error) throw error;
-    const fresh = data && data[0];
-    if(!fresh){ _invSaveOne(item); return; }          // not in the database yet
+  const res = await _invReadApplyWrite(item, fresh=>{
     const moves = Array.isArray(fresh.moves) ? fresh.moves.slice() : [];
     const have = new Set(moves.map(_mvKey));
     const sizes = Array.isArray(fresh.sizes) ? fresh.sizes.map(x=>({ ...x })) : null;
     let qty = fresh.qty || 0;
     (ops||[]).forEach(op=>{
+      // Old moves marked as handled (stock reconcile), so running it again adds nothing.
+      if(Array.isArray(op.markRecon)){ const ks=new Set(op.markRecon); moves.forEach((m,k)=>{ if(ks.has(_mvKey(m))) moves[k]={ ...m, recon:true }; }); }
       if(op.move && have.has(_mvKey(op.move))) return;
       const d = Number(op.delta) || 0;
       if(op.sizeId && sizes){ const sz=sizes.find(x=>x.id===op.sizeId); if(sz){ let v=(parseInt(sz.qty,10)||0)+d; if(op.clamp && v<0) v=0; sz.qty=v; } }
@@ -2772,19 +2824,84 @@ async function _invSaveDelta(item, ops){
     });
     if(sizes && sizes.length) qty = sizes.reduce((t,x)=>t+(parseInt(x.qty,10)||0), 0);
     moves.sort((a,b)=>String((b&&b.ts)||'').localeCompare(String((a&&a.ts)||'')));
-    const merged = { ...fresh, qty, sizes: (sizes && sizes.length) ? sizes : fresh.sizes, moves: moves.slice(0,80) };
-    const ok = await sbUpsert('inventory', [_invRow(merged)]);
-    if(!ok) return;
-    // Take the database's version (it may carry other devices' changes too).
-    const local = INVENTORY.find(x=>x.id===item.id) || item;
-    Object.assign(local, merged);
-    _lsSetLean('flori-inventory', INVENTORY);
-    _bcSend('inventory');
-    if(document.getElementById('pg-stock') && document.getElementById('pg-stock').classList.contains('on') && typeof renderInventory==='function') renderInventory();
-    if(typeof _stkRefresh==='function') _stkRefresh();
-  }catch(e){ console.warn('inventory delta save', e && e.message); _invSaveOne(item); }
+    return { ...fresh, qty, sizes: (sizes && sizes.length) ? sizes : fresh.sizes, moves: moves.slice(0,80) };
+  });
+  if(res.missing){ _invSaveOne(item); return; }          // not in the database yet
+  if(res.failed){ await _invNotSaved(item); return; }
+  // Take the database's version (it carries other devices' changes too).
+  _invApplyLocal(item, res.merged);
 }
-function _invLow(i){ return (i.qty||0) <= (i.reorder!=null && i.reorder!=='' ? i.reorder : INV_LOW); }
+// Edits that are not counts (category, name, photo, variant names...) write only what was
+// changed, on top of the row as it is in the database now. Counts and history always come
+// from the database, so a phone with an old copy can no longer put old counts back.
+//   o.fields   item fields this edit changed
+//   o.sizes    the variant list was edited: o.sizeIds = variants whose details changed
+//              (omit = all), o.removed = variants deleted, o.migrateFirst = the first
+//              variant of an item that was a single count until now (it takes that count)
+const _INV_META=['name','cat','unit','untracked','sku','family','color','size','price','reorder','notes','photo','linked','sell'];
+let _invMetaChain=Promise.resolve();
+function _invSaveMeta(item, o){ if(!item) return Promise.resolve(); _invMetaChain=_invQueue(item.id, ()=>_invSaveMetaNow(item, o||{})).catch(e=>console.warn('inventory meta save', e&&e.message)); return _invMetaChain; }
+async function _invSaveMetaNow(item, o){
+  _lsSetLean('flori-inventory', INVENTORY);
+  if(!hasSB()) return;
+  const res = await _invReadApplyWrite(item, fresh=>_invMergeMeta(item, o, fresh));
+  if(res.missing){ _invSaveOne(item); return; }          // not in the database yet
+  if(res.failed){ await _invNotSaved(item); return; }
+  _invApplyLocal(item, res.merged);
+}
+function _invMergeMeta(item, o, fresh){
+  const merged = { ...fresh };
+  (o.fields||[]).forEach(f=>{ merged[f] = (item[f]===undefined) ? null : item[f]; });
+  if(o.sizes){
+    const fs = Array.isArray(fresh.sizes) ? fresh.sizes : [];
+    const ls = itemSizes(item);
+    const removed = new Set(o.removed||[]);
+    const touched = Array.isArray(o.sizeIds) ? new Set(o.sizeIds) : null;
+    const byId = new Map(fs.map(z=>[z.id, z]));
+    const out = [];
+    ls.forEach(z=>{
+      const f = byId.get(z.id);
+      if(f){ const v = (touched && !touched.has(z.id)) ? { ...f } : { ...z }; v.qty = f.qty; out.push(v); }
+      else { const v = { ...z }; if(o.migrateFirst===z.id && !fs.length) v.qty = fresh.qty||0; out.push(v); }
+    });
+    // A variant added on another phone meanwhile stays.
+    fs.forEach(f=>{ if(!removed.has(f.id) && !ls.some(z=>z.id===f.id)) out.push({ ...f }); });
+    const sum = a => a.reduce((t,x)=>t+(parseInt(x.qty,10)||0), 0);
+    merged.sizes = out.length ? out : null;
+    if(out.length) merged.qty = sum(out); else if(fs.length) merged.qty = sum(fs);
+  }
+  return merged;
+}
+// Shared settings blobs keyed by item id: change ONE item's entry on top of the stored copy.
+// Writing this phone's whole copy back put other items' old values back. A failed read
+// writes nothing.
+const _blobChains={};
+// Read the stored setting, change it with fn, write it back. empty() gives the starting value
+// when nothing is stored yet.
+function _settingPatch(key, fn, empty){
+  if(!hasSB()) return Promise.resolve(null);
+  _blobChains[key]=(_blobChains[key]||Promise.resolve()).then(async()=>{
+    const { data, error } = await sb.from('settings').select('value').eq('key', key).maybeSingle();
+    if(error) throw error;
+    const v = data ? data.value : null;
+    let o = v ? ((typeof v==='string') ? JSON.parse(v) : v) : empty();
+    if(!o || typeof o!=='object') throw new Error('bad '+key);
+    o = fn(o) || o;
+    await sbSet(key, JSON.stringify(o));
+    return o;
+  }).catch(e=>{ console.warn('setting patch', key, e&&e.message); toast(LANG==='zh' ? '⚠ 没有保存，请检查网络再试' : '⚠ Not saved, check the connection and try again'); return null; });
+  return _blobChains[key];
+}
+function _blobPatch(key, id, val){
+  if(id==null) return Promise.resolve(null);
+  return _settingPatch(key, o=>{ if(val===undefined || val===null) delete o[id]; else o[id]=val; }, ()=>({}));
+}
+// Stock categories: one category added / renamed / deleted on top of the stored list.
+function _catsPatch(fn){
+  try{ _lsSet('flori-inv-cats',JSON.stringify(INV_CATS)); }catch(_){}
+  return _settingPatch('inv_categories', a=>{ if(!Array.isArray(a)) a=INV_CATS.map(c=>({...c})); fn(a); return a; }, ()=>INV_CATS.map(c=>({...c})));
+}
+function _invLow(i){ return (i.qty||0) <=(i.reorder!=null && i.reorder!=='' ? i.reorder : INV_LOW); }
 function _invMoveTime(ts){ try{ return new Date(ts).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }catch(e){ return ''; } }
 function _invRenderMoves(i){
   const el = document.getElementById('i-moves'); if(!el) return;
@@ -3097,18 +3214,44 @@ function invAdjust(id, delta, type){
   let next = before + delta; if(next < 0) next = 0;
   const applied = next - before; if(applied === 0){ if(delta<0) toast(LANG==='zh'?'已经是 0':'Already at 0'); return; }
   i.qty = next;
-  i.moves = Array.isArray(i.moves) ? i.moves : [];
-  const _mv = { ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:type||(applied>0?'in':'out') };
-  i.moves.unshift(_mv);
-  if(i.moves.length > 40) i.moves = i.moves.slice(0,40);
-  const _saved = _invSaveDelta(i, [{ delta:applied, clamp:true, move:_mv }]); renderInventory(); if(typeof renderHome==='function') renderHome();
+  const _net = _tapAdd(i, null, applied, ''); renderInventory(); if(typeof renderHome==='function') renderHome();
   if(document.getElementById('i-edit-id') && document.getElementById('i-edit-id').value === id){
     const q=document.getElementById('i-qty'); if(q) q.value = i.qty; _invRenderMoves(i);   // keep an open editor in sync
   }
-  toast((applied>0?(LANG==='zh'?'＋收货 ':'+ in '):(LANG==='zh'?'－用掉 ':'− used '))+Math.abs(applied)+' · '+i.name);
-  // If this box drives Shopify availability, mirror the new count to the linked variants.
-  if(typeof stockCtl==='function' && stockCtl(i.id).length && typeof _pushStockToShopify==='function') _saved.then(()=>_pushStockToShopify(i));
+  if(_net) toast((_net>0?(LANG==='zh'?'＋收货 ':'+ in '):(LANG==='zh'?'－用掉 ':'− used '))+Math.abs(_net)+' · '+i.name);
 }
+// Quick taps on + / − become ONE history entry ("+ in 4") and one save, 1.5 s after the
+// last tap. The screen shows each tap at once.
+const _tapBuf={};
+function _tapAdd(it, sid, applied, label){
+  const k=it.id+'|'+(sid||'');
+  let b=_tapBuf[k];
+  it.moves=Array.isArray(it.moves)?it.moves:[];
+  if(!b || !it.moves.includes(b.mv)){
+    if(b){ clearTimeout(b.t); _tapFlush(k); }
+    b=_tapBuf[k]={ id:it.id, sid:sid||null, mv:{ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:0, type:'in' } };
+    if(sid) b.mv.size=label||'';
+    it.moves.unshift(b.mv); if(it.moves.length>40) it.moves=it.moves.slice(0,40);
+  }
+  b.mv.delta+=applied; b.mv.type=b.mv.delta>0?'in':'out';
+  if(!b.mv.delta) it.moves=it.moves.filter(m=>m!==b.mv);
+  clearTimeout(b.t); b.t=setTimeout(()=>_tapFlush(k), 1500);
+  return b.mv.delta;
+}
+function _tapFlush(k){
+  const b=_tapBuf[k]; if(!b) return; delete _tapBuf[k]; clearTimeout(b.t);
+  if(!b.mv.delta) return;
+  const it=INVENTORY.find(x=>x.id===b.id) || { id:b.id };
+  const op={ delta:b.mv.delta, clamp:true, move:{ ...b.mv } }; if(b.sid) op.sizeId=b.sid;
+  _invSaveDelta(it, [op]).then(()=>{
+    const cur=INVENTORY.find(x=>x.id===b.id);
+    // If this box drives Shopify availability, mirror the new count to the linked variants.
+    if(cur && typeof stockCtl==='function' && stockCtl(cur.id).length && typeof _pushStockToShopify==='function') _pushStockToShopify(cur, b.sid?{sizeId:b.sid}:undefined);
+  });
+}
+function _tapFlushAll(){ Object.keys(_tapBuf).forEach(_tapFlush); }
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) _tapFlushAll(); });
+window.addEventListener('pagehide', _tapFlushAll);
 function invAdjustFromModal(sign){
   const id = document.getElementById('i-edit-id').value; if(!id) return;
   const n = Math.abs(parseInt(document.getElementById('i-adjust-qty').value,10)||0); if(!n){ toast(LANG==='zh'?'输入数量':'Enter a quantity'); return; }
@@ -5745,7 +5888,7 @@ function _fillCatSelect(sel){
 function invCatSelect(el){
   if(el.value!=='__new__') return;
   const name=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim();
-  if(name){ const key=_catNewKey(); INV_CATS.push({key,label:name}); saveInvCats(); _fillCatSelect(key); }
+  if(name){ const key=_catNewKey(); INV_CATS.push({key,label:name}); _catsPatch(a=>{ if(!a.some(c=>c.key===key)) a.push({key,label:name}); }); _fillCatSelect(key); }
   else _fillCatSelect(INV_CATS[0]?INV_CATS[0].key:'other');
 }
 // Manage panel — add / rename / delete any category.
@@ -5760,8 +5903,8 @@ function _renderCatsList(){
       +'<button onclick="catDelete(\''+c.key+'\')" style="border:none;background:none;cursor:pointer;color:var(--c-red);padding:4px" title="'+(zh?'删除':'Delete')+'">'+di('trash',15)+'</button>'
     +'</div>'; }).join('') || '<div style="font-size:12px;color:var(--c-muted);padding:8px 0">'+(zh?'还没有分类':'No categories yet')+'</div>';
 }
-function catAdd(){ const n=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim(); if(!n) return; INV_CATS.push({key:_catNewKey(),label:n}); saveInvCats(); _renderCatsList(); renderInventory(); }
-function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt(LANG==='zh'?'改名：':'Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; saveInvCats(); _renderCatsList(); renderInventory(); }
+function catAdd(){ const n=(prompt(LANG==='zh'?'新分类名称：':'New category name:')||'').trim(); if(!n) return; const key=_catNewKey(); INV_CATS.push({key,label:n}); _catsPatch(a=>{ if(!a.some(c=>c.key===key)) a.push({key,label:n}); }); _renderCatsList(); renderInventory(); }
+function catRename(key){ const c=INV_CATS.find(x=>x.key===key); if(!c) return; const n=(prompt(LANG==='zh'?'改名：':'Rename:',c.label)||'').trim(); if(!n||n===c.label) return; c.label=n; _catsPatch(a=>{ const x=a.find(y=>y.key===key); if(x) x.label=n; else a.push({key,label:n}); }); _renderCatsList(); renderInventory(); }
 function catDelete(key){
   const zh=LANG==='zh';
   const c=INV_CATS.find(x=>x.key===key); if(!c) return;
@@ -5770,8 +5913,8 @@ function catDelete(key){
   affected.forEach(i=>{ i.cat='other'; });
   INV_CATS=INV_CATS.filter(x=>x.key!==key);
   if(!INV_CATS.some(x=>x.key==='other')) INV_CATS.push({key:'other',label:'Other'});
-  if(affected.length) saveInventory(affected);
-  saveInvCats(); _renderCatsList(); renderInventory();
+  affected.forEach(i=>_invSaveMeta(i, { fields:['cat'] }));
+  _catsPatch(a=>{ const r=a.filter(x=>x.key!==key); if(!r.some(x=>x.key==='other')) r.push({key:'other',label:'Other'}); return r; }); _renderCatsList(); renderInventory();
 }
 const INV_LOW = 5; // qty at or below this is flagged low-stock
 
@@ -5843,7 +5986,7 @@ function _stkDragUp(){
   const from=keys.indexOf(d.key), to=keys.indexOf(d.target.dataset.key);
   if(from<0||to<0||from===to) return;
   keys.splice(from,1); keys.splice(to,0,d.key);
-  STOCK_ORDER[d.cat]=keys; saveStockOrder();
+  STOCK_ORDER[d.cat]=keys; try{ _lsSet('flori-stock-order',JSON.stringify(STOCK_ORDER)); }catch(_){} _blobPatch('stock_order', d.cat, keys);
   renderInventory();
 }
 function invToggleFam(key){ if(_stkDragSuppress) return; if(_invExpanded.has(key)) _invExpanded.delete(key); else _invExpanded.add(key); renderInventory(); }
@@ -5897,7 +6040,7 @@ function _invCard(i){
   const nSz = (typeof itemHasSizes==='function' && itemHasSizes(i)) ? itemSizes(i).length : 0;
   return '<div class="stk-card'+(low?' low':'')+(zero?' zero':'')+'" onclick="openStkView(\'inv\',\''+i.id+'\')">'
     +_invThumb(i.photo,_invIcon(i.cat))
-    +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+'</div>'+_stkSub([nSz?(nSz+(zh?' 个尺寸':' sizes')):(i.unit?esc(i.unit):''), _stkLowTag(low,zero)])+'</div>'
+    +'<div class="stk-left"><div class="stk-name">'+esc(i.name)+'</div>'+_stkSub([nSz?(nSz+(zh?' 个款式':' variants')):(i.unit?esc(i.unit):''), _stkLowTag(low,zero)])+'</div>'
     +'<span class="stk-qty'+(zero?' zero':(low?' low':''))+'">'+qty+'</span>'
   +'</div>';
 }
@@ -5948,7 +6091,7 @@ function invTrackStart(id){
   const ans=prompt(zh?('「'+(i.name||'')+'」加入库存。起始数量?'):('Add "'+(i.name||'')+'" to stock. Starting quantity?'), String(i.qty||0));
   if(ans===null) return;
   i.untracked=false; i.qty=parseInt(ans,10)||0;
-  _invSaveOne(i); renderInventory(); if(typeof renderHome==='function') renderHome(); if(typeof _applyBOM==='function') _applyBOM();
+  _invSaveMeta(i, { fields:['untracked','qty'] }); renderInventory(); if(typeof renderHome==='function') renderHome(); if(typeof _applyBOM==='function') _applyBOM();
   toast('✓ '+(zh?'已加入库存':'Added to stock')+' · '+(i.name||''));
 }
 function _invListHTML(){
@@ -6040,6 +6183,13 @@ let SHOP_STOCK_IDS = [];
 function _rebuildShopStockIds(){ const rem=new Set(_shopStockCfg.removed||[]); SHOP_STOCK_IDS = Array.from(new Set(SHOP_STOCK_DEFAULTS.concat(_shopStockCfg.extra||[]))).filter(id=>!rem.has(id)); }
 _rebuildShopStockIds();
 async function loadShopStockIds(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_stock_ids'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o){ _shopStockCfg = Array.isArray(o) ? {extra:o, removed:[]} : {extra:o.extra||[], removed:o.removed||[]}; try{ _lsSet('flori-shop-stock-ids',JSON.stringify(_shopStockCfg)); }catch(_){} _rebuildShopStockIds(); syncShopifyStock(true); } }catch(_){} }
+function _shopStockIdsPatch(gid, add){
+  try{ _lsSet('flori-shop-stock-ids',JSON.stringify(_shopStockCfg)); }catch(_){}
+  _settingPatch('shop_stock_ids', v=>{ const o=Array.isArray(v)?{extra:v,removed:[]}:{extra:v.extra||[],removed:v.removed||[]};
+    o.extra=o.extra.filter(x=>x!==gid); o.removed=o.removed.filter(x=>x!==gid);
+    if(add){ if(SHOP_STOCK_DEFAULTS.indexOf(gid)<0) o.extra.push(gid); } else if(SHOP_STOCK_DEFAULTS.indexOf(gid)>=0) o.removed.push(gid);
+    return o; }, ()=>({extra:[],removed:[]}));
+}
 function saveShopStockIds(){ try{ _lsSet('flori-shop-stock-ids',JSON.stringify(_shopStockCfg)); }catch(_){} if(hasSB()) sbSet('shop_stock_ids', JSON.stringify(_shopStockCfg)); }
 function addShopStockId(gid){
   if(!gid) return false;
@@ -6047,13 +6197,13 @@ function addShopStockId(gid){
   _shopStockCfg.removed=(_shopStockCfg.removed||[]).filter(x=>x!==gid);
   if(SHOP_STOCK_DEFAULTS.indexOf(gid)<0) _shopStockCfg.extra=Array.from(new Set((_shopStockCfg.extra||[]).concat([gid])));
   _rebuildShopStockIds();
-  if(SHOP_STOCK_IDS.indexOf(gid)>=0 && !was){ saveShopStockIds(); return true; }
+  if(SHOP_STOCK_IDS.indexOf(gid)>=0 && !was){ _shopStockIdsPatch(gid, true); return true; }
   return false;
 }
 function removeShopStockId(gid){
   _shopStockCfg.extra=(_shopStockCfg.extra||[]).filter(x=>x!==gid);
   if(SHOP_STOCK_DEFAULTS.indexOf(gid)>=0) _shopStockCfg.removed=Array.from(new Set((_shopStockCfg.removed||[]).concat([gid])));
-  _rebuildShopStockIds(); saveShopStockIds();
+  _rebuildShopStockIds(); _shopStockIdsPatch(gid, false);
   SHOPIFY_STOCK=(SHOPIFY_STOCK||[]).filter(p=>p.id!==gid);
 }
 let SHOPIFY_STOCK = [];
@@ -6373,11 +6523,12 @@ function _applySizeRecover(list){
     const before=parseInt(sz.qty,10)||0, applied=(r.to||0)-before; if(applied===0) return;
     sz.qty=r.to;
     it.moves=Array.isArray(it.moves)?it.moves:[];
-    it.moves.unshift({ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:'rebuild', size:sz.label });
+    const _rmv={ ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:'rebuild', size:sz.label };
+    it.moves.unshift(_rmv); (it.__ops=it.__ops||[]).push({ delta:applied, sizeId:sz.id, clamp:true, move:_rmv });
     if(it.moves.length>80) it.moves=it.moves.slice(0,80);
     _rollupItemQty(it); touched.add(it);
   });
-  touched.forEach(it=>{ _persistSizes(it); _invSaveOne(it); if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); });
+  touched.forEach(it=>{ const ops=(it.__ops||[]); delete it.__ops; _invSaveDelta(it, ops).then(()=>{ if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); }); });
   if(typeof renderInventory==='function') renderInventory();
   if(typeof _stkRefresh==='function') _stkRefresh();
   toast((zh?'已重建 ':'Rebuilt ')+touched.size+(zh?' 项':' item(s)'));
@@ -6497,7 +6648,7 @@ function openShopCat(pid){ openCatPick('shop', pid); }   // back-compat
 function saveShopCatModal(){
   const val=(document.getElementById('shopcat-sel')||{}).value||'';
   if(_catPickKind==='shop'){ setShopCat(_catPickId, val); }
-  else if(_catPickKind==='inv'){ const it=INVENTORY.find(x=>x.id===_catPickId); if(it){ it.cat=val||'other'; _invSaveOne(it); renderInventory(); } }
+  else if(_catPickKind==='inv'){ const it=INVENTORY.find(x=>x.id===_catPickId); if(it){ it.cat=val||'other'; _invSaveMeta(it, { fields:['cat'] }); renderInventory(); } }
   closeModal('m-shopcat'); _stkRefresh();
 }
 // Manual category assignment for Shopify-tracked items (productId → category key).
@@ -6505,7 +6656,7 @@ function saveShopCatModal(){
 let SHOP_ITEM_CAT = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-shop-cat')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
 async function loadShopCat(){ if(!hasSB()) return; try{ const v=await sbGetVal('shop_item_cat'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ SHOP_ITEM_CAT=o; try{ _lsSet('flori-shop-cat',JSON.stringify(o)); }catch(_){} if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')) renderInventory(); } }catch(_){} }
 function saveShopCat(){ try{ _lsSet('flori-shop-cat',JSON.stringify(SHOP_ITEM_CAT)); }catch(_){} if(hasSB()) sbSet('shop_item_cat', JSON.stringify(SHOP_ITEM_CAT)); }
-function setShopCat(pid, cat){ if(cat) SHOP_ITEM_CAT[pid]=cat; else delete SHOP_ITEM_CAT[pid]; saveShopCat(); renderInventory(); }
+function setShopCat(pid, cat){ if(cat) SHOP_ITEM_CAT[pid]=cat; else delete SHOP_ITEM_CAT[pid]; try{ _lsSet('flori-shop-cat',JSON.stringify(SHOP_ITEM_CAT)); }catch(_){} _blobPatch('shop_item_cat', pid, cat||undefined); renderInventory(); }
 // Local details for Shopify-tracked items (productId → {sku,size,notes,reorder}).
 // Purely your own annotations — NEVER written to Shopify. Persisted in a shared
 // settings blob so all devices see the same SKUs/notes.
@@ -6523,7 +6674,7 @@ function shopMeta(pid){ return SHOP_ITEM_META[pid] || {}; }
 // variant's Shopify available (0 ⇒ out of stock). Needs the write_inventory scope.
 let STOCK_SHOP_CTL = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-shopctl')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
 async function loadStockShopCtl(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_shop_ctl'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SHOP_CTL=o; try{ _lsSet('flori-stock-shopctl',JSON.stringify(o)); }catch(_){} if(typeof _backfillLinkRecipes==='function') _backfillLinkRecipes(); } }catch(_){} }
-function saveStockShopCtl(){ try{ _lsSet('flori-stock-shopctl',JSON.stringify(STOCK_SHOP_CTL)); }catch(_){} if(hasSB()) sbSet('stock_shop_ctl', JSON.stringify(STOCK_SHOP_CTL)); }
+function saveStockShopCtl(id){ try{ _lsSet('flori-stock-shopctl',JSON.stringify(STOCK_SHOP_CTL)); }catch(_){} if(id!=null) _blobPatch('stock_shop_ctl', id, STOCK_SHOP_CTL[id]); }
 function stockCtl(id){ return Array.isArray(STOCK_SHOP_CTL[id]) ? STOCK_SHOP_CTL[id] : []; }
 function stockCtlCount(id){ return stockCtl(id).reduce((s,l)=>s+((l.invItemIds||[]).length),0); }
 // Per-item size buckets live in a shared settings blob (no new DB column), keyed by
@@ -6532,7 +6683,8 @@ function stockCtlCount(id){ return stockCtl(id).reduce((s,l)=>s+((l.invItemIds||
 // rollup sum so the item's column still reflects total stock.
 let STOCK_SIZES = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-sizes')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
 async function loadStockSizes(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_sizes'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SIZES=o; try{ _lsSet('flori-stock-sizes',JSON.stringify(o)); }catch(_){} if(typeof _hydrateSizes==='function'){ _hydrateSizes(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')&&typeof renderInventory==='function') renderInventory(); } } }catch(_){} }
-function saveStockSizes(){ try{ _lsSet('flori-stock-sizes',JSON.stringify(STOCK_SIZES)); }catch(_){} if(hasSB()) sbSet('stock_sizes', JSON.stringify(STOCK_SIZES)); }
+// Local copy only: the row holds the variants now. The stored blob is only cleared per item.
+function saveStockSizes(){ try{ _lsSet('flori-stock-sizes',JSON.stringify(STOCK_SIZES)); }catch(_){} }
 // Copy the persisted sizes onto each in-memory inventory item (called after INVENTORY loads).
 // The ROW is the source of truth for sizes/sell now. Only fall back to the legacy
 // settings blob for items whose row still carries none (not yet migrated); returns the
@@ -6542,24 +6694,20 @@ function _hydrateSizes(){
   const bf=[];
   INVENTORY.forEach(it=>{
     let did=false;
-    if(!Array.isArray(it.sizes) || !it.sizes.length){
-      const s=(typeof STOCK_SIZES!=='undefined')?STOCK_SIZES[it.id]:null;
-      if(Array.isArray(s)&&s.length){ it.sizes=s.map(z=>({...z})); did=true; }
-    }
+
     if(Array.isArray(it.sizes)&&it.sizes.length) _rollupItemQty(it); else if('sizes' in it) delete it.sizes;
-    if(it.sell==null || it.sell===''){ const sv=(typeof STOCK_SELL!=='undefined')?STOCK_SELL[it.id]:undefined; if(sv!=null&&sv!=='') { it.sell=sv; did=true; } }
     if(did) bf.push(it);
   });
   return bf;
 }
 // Persist one item's sizes back to the blob (paired with _invSaveOne for the rollup qty).
-function _persistSizes(it){ if(!it) return; if(itemHasSizes(it)) STOCK_SIZES[it.id]=it.sizes; else delete STOCK_SIZES[it.id]; saveStockSizes(); }
+function _persistSizes(it){ if(!it) return; if(itemHasSizes(it)) STOCK_SIZES[it.id]=it.sizes; else { const had=(it.id in STOCK_SIZES); delete STOCK_SIZES[it.id]; if(had) _blobPatch('stock_sizes', it.id, undefined); } saveStockSizes(); }
 // Selling price per item — kept in a shared settings blob (no DB column). item.price
 // stays the COST price (existing column); item.sell is the selling price, blob-persisted.
 let STOCK_SELL = (function(){ try{ const v=JSON.parse(localStorage.getItem('flori-stock-sell')||'null'); if(v&&typeof v==='object') return v; }catch(_){} return {}; })();
 async function loadStockSell(){ if(!hasSB()) return; try{ const v=await sbGetVal('stock_sell'); let o=v?((typeof v==='string')?JSON.parse(v):v):null; if(o&&typeof o==='object'){ STOCK_SELL=o; try{ _lsSet('flori-stock-sell',JSON.stringify(o)); }catch(_){} if(typeof _hydrateSizes==='function'){ _hydrateSizes(); if(document.getElementById('pg-stock')&&document.getElementById('pg-stock').classList.contains('on')&&typeof renderInventory==='function') renderInventory(); } } }catch(_){} }
-function saveStockSell(){ try{ _lsSet('flori-stock-sell',JSON.stringify(STOCK_SELL)); }catch(_){} if(hasSB()) sbSet('stock_sell', JSON.stringify(STOCK_SELL)); }
-function _persistSell(it){ if(!it) return; if(it.sell!=null && it.sell!=='') STOCK_SELL[it.id]=it.sell; else delete STOCK_SELL[it.id]; saveStockSell(); }
+function saveStockSell(){ try{ _lsSet('flori-stock-sell',JSON.stringify(STOCK_SELL)); }catch(_){} }
+function _persistSell(it){ if(!it) return; if(it.sell!=null && it.sell!=='') STOCK_SELL[it.id]=it.sell; else delete STOCK_SELL[it.id]; saveStockSell(); _blobPatch('stock_sell', it.id, STOCK_SELL[it.id]); }
 // ── Multi-size boxes ────────────────────────────────────────────────────────
 // A box can hold several SIZES in ONE stock card. Each size is its own bucket:
 //   item.sizes = [{ id, label, qty, reorder }]
@@ -6576,30 +6724,31 @@ function stockCtlForSize(id, sizeId){ return stockCtl(id).filter(l=>(l.sizeId||n
 // Enable sizes on a single-count item (Approach A): the current qty + reorder + all
 // existing product links become the FIRST size, then append a fresh empty size.
 function stkAddSize(id){
-  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const zh=LANG==='zh';
+  const it=INVENTORY.find(x=>x.id===id); if(!it) return; const zh=LANG==='zh'; let mig=null;
   if(!itemHasSizes(it)){
-    const first={ id:_newSizeId(), label:(it.size&&String(it.size).trim())||(zh?'尺寸 1':'Size 1'), qty:parseInt(it.qty,10)||0, reorder:(it.reorder!=null&&it.reorder!=='')?it.reorder:'' };
+    const first={ id:_newSizeId(), label:(it.size&&String(it.size).trim())||(zh?'款式 1':'Variant 1'), qty:parseInt(it.qty,10)||0, reorder:(it.reorder!=null&&it.reorder!=='')?it.reorder:'' };
     it.sizes=[first];
-    const links=stockCtl(id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[id]=links; saveStockShopCtl(); }
+    const links=stockCtl(id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[id]=links; saveStockShopCtl(id); }
+    mig=first.id;
   }
   const n=itemSizes(it).length+1;
-  it.sizes.push({ id:_newSizeId(), label:(zh?'尺寸 ':'Size ')+n, qty:0, reorder:'' });
-  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+  it.sizes.push({ id:_newSizeId(), label:(zh?'款式 ':'Variant ')+n, qty:0, reorder:'' });
+  _rollupItemQty(it); _persistSizes(it); _invSaveMeta(it, { sizes:true, sizeIds:[], migrateFirst:mig }); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
 }
 function stkRenameSize(id, sid){
   const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz) return;
-  const v=prompt(LANG==='zh'?'尺寸名称：':'Size name:', sz.label||''); if(v===null) return;
-  sz.label=v.trim()||sz.label; _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+  const v=prompt(LANG==='zh'?'款式名称：':'Variant name:', sz.label||''); if(v===null) return;
+  sz.label=v.trim()||sz.label; _persistSizes(it); _invSaveMeta(it, { sizes:true, sizeIds:[sid] }); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
 }
 function stkDeleteSize(id, sid){
   const it=INVENTORY.find(x=>x.id===id); if(!it) return; const zh=LANG==='zh';
-  const sizes=itemSizes(it); if(sizes.length<=1){ toast(zh?'至少保留一个尺寸':'Keep at least one size'); return; }
+  const sizes=itemSizes(it); if(sizes.length<=1){ toast(zh?'至少保留一个款式':'Keep at least one variant'); return; }
   const sz=_sizeById(it,sid); if(!sz) return;
   const nLinks=stockCtlForSize(id,sid).length;
-  if(!confirm((zh?'删除尺寸「':'Delete size "')+(sz.label||'')+(zh?'」？':'"?')+(nLinks?('\n'+(zh?('它连接的 '+nLinks+' 个产品会解除'):(nLinks+' linked product(s) will be unlinked'))):''))) return;
+  if(!confirm((zh?'删除款式「':'Delete variant "')+(sz.label||'')+(zh?'」？':'"?')+(nLinks?('\n'+(zh?('它连接的 '+nLinks+' 个产品会解除'):(nLinks+' linked product(s) will be unlinked'))):''))) return;
   it.sizes=sizes.filter(s=>s.id!==sid);
-  const links=stockCtl(id).filter(l=>(l.sizeId||null)!==sid); if(links.length) STOCK_SHOP_CTL[id]=links; else delete STOCK_SHOP_CTL[id]; saveStockShopCtl();
-  _rollupItemQty(it); _persistSizes(it); _invSaveOne(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
+  const links=stockCtl(id).filter(l=>(l.sizeId||null)!==sid); if(links.length) STOCK_SHOP_CTL[id]=links; else delete STOCK_SHOP_CTL[id]; saveStockShopCtl(id);
+  _rollupItemQty(it); _persistSizes(it); _invSaveMeta(it, { sizes:true, sizeIds:[], removed:[sid] }); _stkRefresh(); if(typeof renderInventory==='function') renderInventory();
   _pushStockToShopify(it);
 }
 function stkAdjSize(id, sid, delta){
@@ -6607,12 +6756,8 @@ function stkAdjSize(id, sid, delta){
   const before=parseInt(sz.qty,10)||0; let next=before+delta; if(next<0) next=0; const applied=next-before;
   if(applied===0){ if(delta<0) toast(zh?'已经是 0':'Already at 0'); return; }
   sz.qty=next;
-  it.moves=Array.isArray(it.moves)?it.moves:[];
-  const _mv = { ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:applied, type:applied>0?'in':'out', size:sz.label||'' };
-  it.moves.unshift(_mv);
-  if(it.moves.length>40) it.moves=it.moves.slice(0,40);
+  _tapAdd(it, sid, applied, sz.label||'');
   _rollupItemQty(it); _persistSizes(it); _stkRefresh(); if(typeof renderInventory==='function') renderInventory(); if(typeof renderHome==='function') renderHome();
-  _invSaveDelta(it, [{ delta:applied, sizeId:sid, clamp:true, move:_mv }]).then(()=>_pushStockToShopify(it, {sizeId:sid}));
 }
 function stkSetSize(id, sid, val){
   const it=INVENTORY.find(x=>x.id===id); if(!it) return; const sz=_sizeById(it,sid); if(!sz){ _stkRefresh(); return; }
@@ -6629,8 +6774,8 @@ function _szPriceLine(sz, zh){
 // The size-row block shown inside the stock modal for a multi-size item.
 function _stkSizesHTML(i){
   const zh=LANG==='zh';
-  let h='<div class="skv-sec" style="display:flex;align-items:center;gap:6px;margin-top:2px">'+(zh?'尺寸与库存':'Sizes & stock')
-    +'<a onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')" style="margin-left:auto;font-size:10.5px;color:var(--c-burg);cursor:pointer;font-weight:700;text-transform:none;letter-spacing:0">'+(zh?'编辑尺寸':'Edit sizes')+'</a></div>';
+  let h='<div class="skv-sec" style="display:flex;align-items:center;gap:6px;margin-top:2px">'+(zh?'款式与库存':'Variants & stock')
+    +'<a onclick="closeModal(\'m-stkview\');editInv(\''+i.id+'\')" style="margin-left:auto;font-size:10.5px;color:var(--c-burg);cursor:pointer;font-weight:700;text-transform:none;letter-spacing:0">'+(zh?'编辑款式':'Edit variants')+'</a></div>';
   itemSizes(i).forEach(sz=>{
     const q=parseInt(sz.qty,10)||0;
     const lowAt=(sz.reorder!=null&&sz.reorder!=='')?sz.reorder:((i.reorder!=null&&i.reorder!=='')?i.reorder:INV_LOW);
@@ -6823,7 +6968,7 @@ function stkCtlRemoveRecipe(nameEnc){
   if(typeof saveRecipes==='function') saveRecipes();
   _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory();
 }
-function stkCtlRemove(i){ const links=stockCtl(_stkCtlId).slice(); links.splice(i,1); if(links.length) STOCK_SHOP_CTL[_stkCtlId]=links; else delete STOCK_SHOP_CTL[_stkCtlId]; saveStockShopCtl(); _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory(); }
+function stkCtlRemove(i){ const links=stockCtl(_stkCtlId).slice(); links.splice(i,1); if(links.length) STOCK_SHOP_CTL[_stkCtlId]=links; else delete STOCK_SHOP_CTL[_stkCtlId]; saveStockShopCtl(_stkCtlId); _stkCtlRenderList(); if(typeof renderInventory==='function') renderInventory(); }
 function stkCtlStartAdd(){
   _stkCtlEditIdx=-1; _stkCtlProduct=null;
   const el=document.getElementById('stkctl-list'); if(el) el.style.display='none';
@@ -6907,7 +7052,7 @@ function stkCtlSaveEditor(){
   const entry={ productId:_stkCtlProduct.id, productTitle:_stkCtlProduct.title, option:option, value:value, invItemIds:invItemIds, addedAt:(prevAt||Date.now()) };
   if(sizeId) entry.sizeId=sizeId;
   if(_stkCtlEditIdx>=0 && links[_stkCtlEditIdx]) links[_stkCtlEditIdx]=entry; else links.push(entry);
-  STOCK_SHOP_CTL[_stkCtlId]=links; saveStockShopCtl();
+  STOCK_SHOP_CTL[_stkCtlId]=links; saveStockShopCtl(_stkCtlId);
   const it=INVENTORY.find(x=>x.id===_stkCtlId);
   const ptitle=_stkCtlProduct.title;
   _stkCtlProduct=null; _stkCtlEditIdx=-1; _stkCtlShowList(); if(typeof renderInventory==='function') renderInventory();
@@ -6976,7 +7121,7 @@ function saveShopMeta(){
   const ro=g('shopmeta-reorder'); if(ro!=='') m.reorder=Math.max(0, parseInt(ro,10)||0);
   if(!m.sku && !m.size && !m.notes && m.reorder==null) delete SHOP_ITEM_META[_shopMetaPid];
   else SHOP_ITEM_META[_shopMetaPid]=m;
-  saveShopMetaStore(); closeModal('m-shopmeta'); _stkRefresh(); renderInventory();
+  try{ _lsSet('flori-shop-meta',JSON.stringify(SHOP_ITEM_META)); }catch(_){} _blobPatch('shop_item_meta', _shopMetaPid, SHOP_ITEM_META[_shopMetaPid]); closeModal('m-shopmeta'); _stkRefresh(); renderInventory();
   toast(LANG==='zh'?'已保存':'Saved');
 }
 // Small gear on a Shopify card → opens a category picker (kept off the card face to
@@ -7046,7 +7191,7 @@ function _invRecoverBanner(){
   const zh=LANG==='zh';
   return '<div onclick="openSizeRecover()" class="stk-warn">'
     +'<span style="display:inline-flex;flex:none">'+di('warn',15)+'</span>'
-    +'<span style="flex:1">'+(zh?(rec.length+' 个尺寸库存可能在同步问题中丢失 — 点此从记录重建'):(rec.length+' size count'+(rec.length>1?'s':'')+' may have been lost — tap to rebuild from history'))+'</span>'
+    +'<span style="flex:1">'+(zh?(rec.length+' 个款式库存可能在同步问题中丢失 — 点此从记录重建'):(rec.length+' variant count'+(rec.length>1?'s':'')+' may have been lost — tap to rebuild from history'))+'</span>'
     +'<span style="flex:none;color:#9a8f86">›</span>'
   +'</div>';
 }
@@ -7107,14 +7252,16 @@ function _applyBoxDupReconcile(list){
     const it=INVENTORY.find(x=>x.id===r.id); if(!it) return;
     const sc=_boxDupScan(it); const b=sc[r.sizeId||'']; if(!b||b.addBack<=0) return;
     b.extras.forEach(m=>{ m.recon=true; });                      // mark duplicates handled (so re-running can't double-apply)
+    const _fmv={ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:+b.addBack, type:'fix', orderNo:'reconcile', size:(b.label||'')};
+    (it.__ops=it.__ops||[]).push({ delta:+b.addBack, sizeId:r.sizeId||null, clamp:true, move:_fmv, markRecon:b.extras.map(_mvKey) });
     if(r.sizeId){ const sz=_sizeById(it,r.sizeId); if(!sz) return; sz.qty=(parseInt(sz.qty,10)||0)+b.addBack; _rollupItemQty(it); }
     else { it.qty=(it.qty||0)+b.addBack; }
     it.moves=Array.isArray(it.moves)?it.moves:[];
-    it.moves.unshift({ts:new Date().toISOString(), by:(currentUserName||'staff'), delta:+b.addBack, type:'fix', orderNo:'reconcile', size:(b.label||'')});
+    it.moves.unshift(_fmv);
     if(it.moves.length>80) it.moves=it.moves.slice(0,80);
     touched.add(it);
   });
-  touched.forEach(it=>{ if(typeof _persistSizes==='function') _persistSizes(it); _invSaveOne(it); if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); });
+  touched.forEach(it=>{ const ops=(it.__ops||[]); delete it.__ops; _invSaveDelta(it, ops).then(()=>{ if(typeof _pushStockToShopify==='function' && stockCtl(it.id).length) _pushStockToShopify(it); }); });
   if(typeof renderInventory==='function') renderInventory();
   if(typeof _stkRefresh==='function') _stkRefresh();
   toast((zh?'已退回 ':'Added back to ')+touched.size+(zh?' 项':' item(s)'));
@@ -13555,7 +13702,7 @@ function openAddInv(cat) {
 // ── Sizes editor (inside the stock-item Edit form) ──────────────────────────
 // Names (Large/Medium/Small) + measurements live here; each size's stock count and
 // linked products are managed from the stock popup. Working copy applied on save.
-let _invSizeEdit=[];
+let _invSizeEdit=[], _invEditSnap=null, _invSizeTouched=new Set();
 function _renderInvSizeEditor(){
   const el=document.getElementById('i-sizes-list'); const zh=LANG==='zh';
   if(el){
@@ -13563,7 +13710,7 @@ function _renderInvSizeEditor(){
       const q=parseInt(s.qty,10)||0;
       return '<div class="i-szcard">'
         +'<div class="i-szc-top">'
-          +'<input class="i-szname" type="text" value="'+esc(s.label||'')+'" placeholder="'+(zh?'名称 (大/中/小)':'Name (L / M / S)')+'" oninput="invSizeField('+idx+',\'label\',this.value)">'
+          +'<input class="i-szname" type="text" value="'+esc(s.label||'')+'" placeholder="'+(zh?'名称（如 大、米白）':'Name (e.g. Large, Ivory)')+'" oninput="invSizeField('+idx+',\'label\',this.value)">'
           +'<span class="i-szqty" title="'+(zh?'库存在弹窗调整':'stock is set in the popup')+'">'+q+'</span>'
           +'<button type="button" class="i-szdel" onclick="invSizeDel('+idx+')" aria-label="'+(zh?'删除':'Delete')+'">'+di('trash',14)+'</button>'
         +'</div>'
@@ -13588,7 +13735,7 @@ function _invToggleItemPrice(){
 }
 function invSizeAdd(){ _invSizeEdit.push({ id:_newSizeId(), label:'', measure:'', qty:0, reorder:'', cost:'', sell:'', photos:[] }); _renderInvSizeEditor(); }
 function invSizeDel(idx){ _invSizeEdit.splice(idx,1); _renderInvSizeEditor(); }
-function invSizeField(idx,f,v){ if(_invSizeEdit[idx]) _invSizeEdit[idx][f]=v; }
+function invSizeField(idx,f,v){ if(_invSizeEdit[idx]){ _invSizeEdit[idx][f]=v; _invSizeTouched.add(_invSizeEdit[idx].id); } }
 // Per-size reference photos (in the Edit form): thumbnails with tap-to-zoom, ✕ delete
 // and a + Add tile. Uploads go through storePhoto (R2 URL), stored on size.photos.
 function _invSizePhotoStripHTML(idx, s){
@@ -13606,27 +13753,28 @@ function invSizePhotoAdd(idx){
     if(!Array.isArray(s.photos)) s.photos=[];
     toast(files.length>1?('Uploading '+files.length+' photos…'):'Uploading…');
     let pending=files.length;
+    _invSizeTouched.add(s.id);
     files.forEach(f=>storePhoto(f, src=>{ s.photos.push(src); if(--pending===0){ _renderInvSizeEditor(); toast('✓ Photo added'); } }));
   };
   inp.click();
 }
-function invSizePhotoDel(idx, pi){ const s=_invSizeEdit[idx]; if(!s||!Array.isArray(s.photos)) return; s.photos.splice(pi,1); _renderInvSizeEditor(); }
+function invSizePhotoDel(idx, pi){ const s=_invSizeEdit[idx]; if(!s||!Array.isArray(s.photos)) return; s.photos.splice(pi,1); _invSizeTouched.add(s.id); _renderInvSizeEditor(); }
 // Reconcile the editor's size list back onto the item (called from saveInv).
 function _applyInvSizesFromEditor(it, prevHadSizes, formQty){
   const zh=LANG==='zh';
   const _numOrBlank=v=>{ v=(v==null?'':String(v).trim()); if(v==='') return ''; const n=parseFloat(v); return isNaN(n)?'':n; };
-  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'尺寸 ':'Size ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||''), cost:_numOrBlank(s.cost), sell:_numOrBlank(s.sell), photos:Array.isArray(s.photos)?s.photos.filter(Boolean):[] }));
+  const clean=_invSizeEdit.map((s,k)=>({ id:s.id||_newSizeId(), label:(String(s.label||'').trim())||((zh?'款式 ':'Variant ')+(k+1)), measure:String(s.measure||'').trim(), qty:parseInt(s.qty,10)||0, reorder:(s.reorder==null||s.reorder==='')?'':(parseInt(s.reorder,10)||''), cost:_numOrBlank(s.cost), sell:_numOrBlank(s.sell), photos:Array.isArray(s.photos)?s.photos.filter(Boolean):[] }));
   if(!clean.length){
-    if(prevHadSizes){ const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ delete l.sizeId; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); } }   // revert to single count: unlink sizeId
+    if(prevHadSizes){ const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ delete l.sizeId; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(it.id); } }   // revert to single count: unlink sizeId
     delete it.sizes; _persistSizes(it); return;
   }
   const remain=new Set(clean.map(s=>s.id));
   if(!prevHadSizes){
     const first=clean[0]; if((parseInt(first.qty,10)||0)===0) first.qty=parseInt(formQty,10)||0;   // Approach A: first size takes the old count
-    const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(); }
+    const links=stockCtl(it.id); if(links.length){ links.forEach(l=>{ if(!l.sizeId) l.sizeId=first.id; }); STOCK_SHOP_CTL[it.id]=links; saveStockShopCtl(it.id); }
   } else {
     const links=stockCtl(it.id).filter(l=>!l.sizeId || remain.has(l.sizeId));   // drop links whose size was removed
-    if(links.length) STOCK_SHOP_CTL[it.id]=links; else delete STOCK_SHOP_CTL[it.id]; saveStockShopCtl();
+    if(links.length) STOCK_SHOP_CTL[it.id]=links; else delete STOCK_SHOP_CTL[it.id]; saveStockShopCtl(it.id);
   }
   it.sizes=clean; _rollupItemQty(it); _persistSizes(it);
 }
@@ -13652,6 +13800,7 @@ async function editInv(id) {
   document.getElementById('i-notes').value = i.notes || '';
   const _utE=document.getElementById('i-tracked'); if(_utE){ _utE.checked=!i.untracked; _invTrackToggle(); }
   const _uw=document.getElementById('i-usedin-wrap'); if(_uw) _uw.style.display='none';   // "used in" lives on the item's detail popup now
+  _invEditSnap = JSON.parse(JSON.stringify(i)); _invSizeTouched = new Set();
   _invSizeEdit = itemSizes(i).map(s=>({...s})); _renderInvSizeEditor();                   // load this item's sizes into the editor
   setPhotoZone('i-photo-zone', 'i-photo', i.photo || '');
   document.getElementById('i-tabs').style.display = 'none';   // no Details/Stock tabs — adjust qty from the detail popup
@@ -14083,10 +14232,18 @@ function saveInv(){
     linked:_invLinked.slice()};
   const _sell=_sellRaw===''?null:(parseFloat(_sellRaw)||null);
   let item;
-  if(editId){ item=INVENTORY.find(x=>x.id===editId); if(item){ const prevHadSizes=itemHasSizes(item); Object.assign(item,data); _applyInvSizesFromEditor(item, prevHadSizes, data.qty); } }
+  let meta=null;
+  if(editId){ item=INVENTORY.find(x=>x.id===editId); if(item){ const prevHadSizes=itemHasSizes(item); const prevIds=itemSizes(item).map(s=>s.id); Object.assign(item,data); _applyInvSizesFromEditor(item, prevHadSizes, data.qty);
+    const nowIds=new Set(itemSizes(item).map(s=>s.id));
+    meta={ sizes:true, sizeIds:[..._invSizeTouched], removed:prevIds.filter(x=>!nowIds.has(x)), migrateFirst:(!prevHadSizes && itemHasSizes(item)) ? itemSizes(item)[0].id : null }; } }
   else { item={id:'inv-'+Date.now(),...data}; INVENTORY.push(item); _applyInvSizesFromEditor(item, false, data.qty); }
   if(item){ if(_sell!=null) item.sell=_sell; else delete item.sell; _persistSell(item); }   // selling price → blob (cost price stays the item column)
-  saveInventory(item ? [item] : []);closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
+  if(meta){
+    // Only the fields this form changed; counts stay as they are in the database.
+    const nv=v=>(v==null||v==='')?null:JSON.stringify(v), snap=_invEditSnap||{};
+    meta.fields=_INV_META.filter(f=>nv(snap[f])!==nv(item[f]));
+    _invSaveMeta(item, meta);
+  } else saveInventory(item ? [item] : []);closeModal('m-inv');toast(editId?'✓ Updated':'✓ Item added');renderInventory();
   if(item && typeof _pushStockToShopify==='function' && stockCtl(item.id).length) _pushStockToShopify(item);   // reflect seeded counts to Shopify
 }
 function savePur(){
