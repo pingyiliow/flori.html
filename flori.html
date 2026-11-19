@@ -6414,9 +6414,19 @@ let _stkViewKind=null, _stkViewId=null;
 function openStkView(kind, id, redrawOnly){
   if(_stkDragSuppress) return;   // a reorder drag just ended — don't open the card
   const el=document.getElementById('stkview-body'); if(!el) return;
+  // A redraw (after + / −) keeps the popup where it was scrolled; it used to jump to the top.
+  const _keep = [];
+  if(redrawOnly){
+    const box=document.getElementById('m-stkview');
+    if(box){ [box].concat([...box.querySelectorAll('*')]).forEach((n,k)=>{ if(n.scrollTop>0) _keep.push([k, n.scrollTop]); }); }
+  }
   _stkViewKind=kind; _stkViewId=id;
   el.innerHTML = kind==='inv' ? _stkViewInv(INVENTORY.find(x=>x.id===id)) : _stkViewShop((SHOPIFY_STOCK||[]).find(x=>x.id===id));
   openModal('m-stkview');
+  if(_keep.length){
+    const box=document.getElementById('m-stkview'), all=[box].concat([...box.querySelectorAll('*')]);
+    _keep.forEach(([k,t])=>{ if(all[k]) all[k].scrollTop=t; });
+  }
   // Fetch the latest row ONCE when the popup opens. A redraw must never fetch: the redraw
   // after the fetch used to fetch again, looping forever (popup rebuilt nonstop, X unclickable).
   if(kind==='inv' && !redrawOnly) _invRefreshOne(id).then(ok=>{ if(ok && _stkViewKind==='inv' && _stkViewId===id) _stkRefresh(); });
