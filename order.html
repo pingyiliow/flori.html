@@ -149,7 +149,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       rname:'Recipient name', rphone:'Recipient phone', company:'Company, restaurant, hotel or hospital (optional)', companyRo:'Company / building', addr:'Delivery address', addrPh:'Start typing the address', instr:'Delivery instructions',  card:'Card message', rem:'Remarks',
       confirm:'Confirm order', savech:'Save changes', saving:'Saving…', fine:'You can still make changes until we confirm your order.', need:'Please fill this in',
       h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
-      bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot, photo or PDF', pdfBig:'The PDF is too large (max 3 MB). Please send a screenshot or send it on WhatsApp.', uploading:'Uploading…', upok:'Receipt received, thank you', upbad:'Upload failed, please try again or send it on WhatsApp',
+      bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot, photo or PDF', pdfBig:'The PDF is too large (max 3 MB). Please send a screenshot or send it on WhatsApp.', uploading:'Uploading…', upok:'Receipt received, thank you', upmore:'Tap to add another receipt', upbad:'Upload failed, please try again or send it on WhatsApp',
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
       h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed. If you need to change anything, feel free to contact us on WhatsApp.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
@@ -158,7 +158,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       rname:'收花人姓名', rphone:'收花人电话', company:'公司、餐厅、酒店或医院名称（选填）', companyRo:'公司 / 大楼', addr:'送货地址', addrPh:'输入地址搜索', instr:'送货说明',  card:'卡片内容', rem:'备注',
       confirm:'确认订单', savech:'保存修改', saving:'保存中…', fine:'在我们确认订单之前，您都可以修改。', need:'请填写',
       h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
-      bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图、照片或 PDF', pdfBig:'PDF 太大（最多 3 MB），请改用截图或用 WhatsApp 发送。', uploading:'上传中…', upok:'已收到收据，谢谢', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
+      bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图、照片或 PDF', pdfBig:'PDF 太大（最多 3 MB），请改用截图或用 WhatsApp 发送。', uploading:'上传中…', upok:'已收到收据，谢谢', upmore:'点击再加一张收据', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
       wa:'在 WhatsApp 发送收据', pending:'已收到您的付款收据。确认收款后，您的订单才会正式确认，确认后我们会把订单确认发给您。', edit:'修改订单资料', paidok:'已确认收款，谢谢。',
       h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认。如需更改，欢迎通过 WhatsApp 联系我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们',
       h1gone:'链接已失效', gone:'这个订单链接已关闭。请 WhatsApp 我们，我们会协助您。', h1bad:'找不到链接', bad:'请检查我们发给您的链接，或 WhatsApp 我们。', err:'出了点问题，请再试一次。' }
@@ -295,7 +295,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
         + '<div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
         + '<div class="r"><span>'+t('acno')+'</span><b class="num">322 9170 500</b><button class="copy" type="button" id="copy">'+t('copy')+'</button></div></div>'
         + '<div class="qr"><img src="/duitnow-qr.jpg" width="220" height="314" alt="DuitNow QR, Bamboo Green Florist (M)"></div><p class="cap"><a href="/duitnow-qr.jpg" download="bamboo-duitnow-qr.jpg">'+t('saveqr')+'</a></p>'
-        + '<label class="drop'+(slipState==='ok'||D.slip?' ok':'')+'" id="drop"><input type="file" accept="image/*,application/pdf" id="slip"><b>'+(slipState==='up'?t('uploading'):(slipState==='ok'||D.slip?t('upok'):t('up')))+'</b>'+(slipState==='ok'||D.slip||slipState==='up'?'':'<span>'+t('upsub')+'</span>')+'</label>'
+        + '<label class="drop'+(slipState==='ok'||D.slip?' ok':'')+'" id="drop"><input type="file" accept="image/*,application/pdf" id="slip"><b>'+(slipState==='up'?t('uploading'):(slipState==='ok'||D.slip?t('upok'):t('up')))+'</b>'+(slipState==='up'?'':'<span>'+((slipState==='ok'||D.slip)?t('upmore'):t('upsub'))+'</span>')+'</label>'
         + '<a class="btn" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a>');
       const c=document.getElementById('copy'); if (c) c.onclick = () => { try { navigator.clipboard.writeText('3229170500'); } catch(_) {} toast(t('copied')); };
       const s=document.getElementById('slip'); if (s) s.onchange = () => upload(s.files && s.files[0]);

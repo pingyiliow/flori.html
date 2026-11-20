@@ -164,7 +164,9 @@ async function formHandler(body, res) {
     const base = String(process.env.R2_PUBLIC_URL || '').replace(/\/$/, '');
     if (!base || url.indexOf(base + '/') !== 0) return res.status(400).json({ error: 'bad_url' });
     // A receipt also counts as the customer's go-ahead (complete orders skip Confirm order).
-    const { ok } = await svc('followups?id=eq.' + encodeURIComponent(row.id), { method: 'PATCH', body: JSON.stringify({ pay_slip: url, form_status: 'submitted', form_submitted_at: row.form_submitted_at || new Date().toISOString() }) });
+    const slips = String(row.pay_slip || '').split(/\s+/).filter(Boolean);
+    if (!slips.includes(url)) slips.push(url);
+    const { ok } = await svc('followups?id=eq.' + encodeURIComponent(row.id), { method: 'PATCH', body: JSON.stringify({ pay_slip: slips.slice(-10).join('\n'), form_status: 'submitted', form_submitted_at: row.form_submitted_at || new Date().toISOString() }) });
     if (!ok) return res.status(500).json({ error: 'save_failed' });
     await pingStaff();
     return res.status(200).json({ ok: true });
