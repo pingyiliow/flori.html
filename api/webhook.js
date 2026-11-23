@@ -320,6 +320,7 @@ export default async function handler(req, res) {
 // only (customer / checkout phone, else the New Orders contact), never the recipient's.
 // De-duped per order in wa_events, so the many orders/updated webhooks send nothing more.
 const CONFIRM_TPL = 'orderconfirmation';
+const CONFIRM_ONLINE = false;   // true = online-store orders too (button opens Shopify's status page)
 const _WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function _whenLine(type, iso, time) {
   let d = '';
@@ -337,6 +338,8 @@ async function sendOrderConfirmed(sb, order, fuId, info) {
 
   let fu = null;
   if (fuId) { const { data } = await sb.from('followups').select('id,name,contact,form_token').eq('id', fuId).maybeSingle(); fu = data || null; }
+  // For now only orders made from New Orders; online-store orders follow once these run well.
+  if (!fu && !CONFIRM_ONLINE) return;
   const orderId = String(order.id), orderNo = order.name || ('#' + orderId);
   const log = row => sb.from('wa_notifications').insert({ order_id: orderId, order_no: orderNo, template: CONFIRM_TPL, created_at: new Date().toISOString(), ...row }).then(() => {}, () => {});
   const to = toE164MY((order.customer && order.customer.phone) || order.phone || (fu && fu.contact));
