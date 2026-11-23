@@ -190,9 +190,13 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   const SLOTS = [['10am - 2pm','slotAm'], ['2pm - 6pm','slotPm']];
   // Pickup: one-hour windows, 9am to 6pm.
   const PK_SLOTS = ['9am - 10am','10am - 11am','11am - 12pm','12pm - 1pm','1pm - 2pm','2pm - 3pm','3pm - 4pm','4pm - 5pm','5pm - 6pm'].map(s => [s, '']);
+  // Sunday pickup: mornings only, 10am to 2pm.
+  const PK_SUN = ['10am - 11am','11am - 12pm','12pm - 1pm','1pm - 2pm'];
+  const isSun = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d||'')) && new Date(d+'T00:00:00').getDay()===0;
+  const pkSlots = d => isSun(d) ? PK_SLOTS.filter(s => PK_SUN.includes(s[0])) : PK_SLOTS;
   const REQ = '<span class="req" aria-hidden="true">*</span>';
   function timeHtml(pk){
-    const cur = String(D.dueTime||'').trim(), list = pk ? PK_SLOTS : SLOTS, known = list.some(s => s[0]===cur);
+    const cur = String(D.dueTime||'').trim(), list = pk ? pkSlots(D.dueDate) : SLOTS, known = list.some(s => s[0]===cur);
     const opts = list.map(s => [s[0], (s[1] ? t(s[1])+', ' : '')+s[0].replace(' - ',' – ')]).concat(cur && !known ? [[cur, cur]] : []);
     return '<div class="f" id="w-dueTime"><label for="f-dueTime">'+(pk?t('ptime'):t('dtime'))+REQ+'</label><select id="f-dueTime" required>'
       + '<option value="">'+t('slotPick')+'</option>'
@@ -322,7 +326,14 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       // A slot of the other list does not carry over (delivery sessions vs pickup hours).
       if (SLOTS.concat(PK_SLOTS).some(s => s[0]===D.dueTime)) D.dueTime = ''; render(); });
     document.getElementById('go').onclick = submit;
-    const tm = document.getElementById('f-dueTime'); if (tm) tm.onchange = () => { D.dueTime = tm.value; if (tm.value) document.getElementById('w-dueTime').classList.remove('bad'); };
+    const wireTime = () => { const tm = document.getElementById('f-dueTime'); if (tm) tm.onchange = () => { D.dueTime = tm.value; if (tm.value) document.getElementById('w-dueTime').classList.remove('bad'); }; };
+    wireTime();
+    // A pickup date change re-lists the times (Sunday has mornings only); a time Sunday
+    // does not have is cleared.
+    const dd = document.getElementById('f-dueDate');
+    if (dd && pk) dd.addEventListener('change', () => { D.dueDate = dd.value;
+      if (isSun(dd.value) && PK_SLOTS.some(s => s[0]===D.dueTime) && !PK_SUN.includes(D.dueTime)) D.dueTime = '';
+      const w = document.getElementById('w-dueTime'); if (w) { w.outerHTML = timeHtml(true); wireTime(); } });
     const nc = document.getElementById('f-noCard'), cs = [...document.querySelectorAll('.cardf textarea')];
     if (nc) nc.onchange = () => { if (nc.checked) D._cards = cs.map(x => x.value);
       cs.forEach((x,i) => { x.disabled = nc.checked; x.value = nc.checked ? '' : (D._cards[i]||''); x.closest('.f').classList.remove('bad'); }); };
