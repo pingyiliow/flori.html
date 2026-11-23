@@ -186,6 +186,158 @@ async function formHandler(body, res) {
   return res.status(400).json({ error: 'unknown_form_mode' });
 }
 
+// ── Customer invoice (/invoice.html) ─────────────────────────────────────────────────
+// Invoice no. = the Shopify order number. Read live from Shopify, so edits and payments
+// always show. Opened with either the order-form link (t = form_token) or, for any Shopify
+// order, o = order id + k = the order's own token (the Shopify order status link carries
+// it, so the order confirmation email can build the link). The customer may change the
+// billing details ONCE: they are saved, the invoice is emailed to them, and the details
+// lock; after that only staff (signed in to BloomFlow) can change them or send it again.
+const INV_SITE = 'https://www.bambooflowerclub.com';
+const INV_FIELDS = 'id,name,token,order_status_url,created_at,cancelled_at,financial_status,currency,current_total_price,total_price,total_outstanding,line_items,shipping_lines,shipping_address,billing_address,customer,phone,email,note_attributes,payment_gateway_names';
+async function shopRest(path) {
+  const tok = await shopToken();
+  const r = await fetch('https://' + SHOP + '/admin/api/2025-01/' + path, { headers: { 'X-Shopify-Access-Token': tok, Accept: 'application/json' } });
+  return { ok: r.ok, j: await r.json().catch(() => null) };
+}
+async function invLoad(body) {
+  let fu = null, id = '';
+  if (body.t) {
+    fu = await formRow(body.t);
+    if (!fu) return { err: 'not_found' };
+    if (!fu.order_no) return { err: 'not_ready' };
+    const q = await svc('orders?name=eq.' + encodeURIComponent(fu.order_no) + '&select=id');
+    id = (q.ok && Array.isArray(q.j) && q.j[0] && q.j[0].id) || '';
+    if (!id) { const r = await shopRest('orders.json?status=any&fields=id&name=' + encodeURIComponent(fu.order_no)); id = (r.j && r.j.orders && r.j.orders[0] && r.j.orders[0].id) || ''; }
+    if (!id) return { err: 'not_ready' };
+  } else {
+    id = String(body.o || '').replace(/\D/g, '');
+    if (!id || !/^[A-Za-z0-9]{16,80}$/.test(String(body.k || ''))) return { err: 'not_found' };
+  }
+  const r = await shopRest('orders/' + encodeURIComponent(id) + '.json?fields=' + INV_FIELDS);
+  const order = r.j && r.j.order;
+  if (!order) return { err: 'not_found' };
+  if (!body.t) {
+    const seg = (String(order.order_status_url || '').match(/\/orders\/([^/?#]+)/) || [])[1] || '';
+    const k = String(body.k);
+    if (k !== String(order.token || '') && k !== seg) return { err: 'not_found' };
+    const f = await svc('followups?order_no=eq.' + encodeURIComponent(order.name) + '&select=*');
+    fu = (f.ok && Array.isArray(f.j) && f.j[0]) || null;
+  }
+  if (order.cancelled_at) return { err: 'cancelled' };
+  const s = await svc('settings?key=eq.' + encodeURIComponent('inv_bill_' + order.id) + '&select=value');
+  let bill = s.ok && Array.isArray(s.j) && s.j[0] ? s.j[0].value : null;
+  if (typeof bill === 'string') { try { bill = JSON.parse(bill); } catch (_) { bill = null; } }
+  return { order, fu, bill: bill && typeof bill === 'object' ? bill : null };
+}
+const _invDay = iso => { try { return new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); } catch (_) { return iso; } };
+const _invAddr = a => !a ? '' : [a.company, a.address1, a.address2, [a.zip, a.city].filter(Boolean).join(' '), a.province].map(x => String(x || '').trim()).filter(Boolean).join(', ');
+function invData({ order, fu, bill }) {
+  const attr = k => (((order.note_attributes || []).find(a => a && String(a.name).toLowerCase() === k.toLowerCase())) || {}).value || '';
+  const pickup = /pick|collect/.test((attr('Order Fulfillment Type') || attr('Type Of Order')).toLowerCase()) || (!!fu && fu.fulfil === 'pickup');
+  const items = (order.line_items || []).map(li => ({ name: String(li.title || ''), variant: String(li.variant_title || ''),
+    qty: li.current_quantity != null ? li.current_quantity : li.quantity, price: Number(li.price) || 0 })).filter(i => i.qty > 0);
+  const r2 = n => Math.round(n * 100) / 100;
+  const sub = r2(items.reduce((s, i) => s + i.price * i.qty, 0));
+  const ship = r2((order.shipping_lines || []).reduce((s, l) => s + (Number(l.price) || 0), 0));
+  const total = r2(Number(order.current_total_price != null ? order.current_total_price : order.total_price) || 0);
+  const disc = Math.max(0, r2(sub + ship - total));
+  const fs = String(order.financial_status || '');
+  const outst = order.total_outstanding != null ? Number(order.total_outstanding) : null;
+  const paidFull = fs === 'paid' || (!!fu && fu.payment === 'paid');
+  const due = paidFull || /refunded|voided/.test(fs) ? 0 : r2(outst != null ? outst : total);
+  const c = order.customer || {};
+  const custName = [c.first_name, c.last_name].filter(Boolean).join(' ');
+  const defName = (fu && fu.name) || custName || (order.billing_address && order.billing_address.name) || '';
+  const ba = order.billing_address;
+  const defAddr = !fu && ba && String(ba.name || '').trim().toLowerCase() === defName.trim().toLowerCase() ? _invAddr(ba) : '';
+  const b = bill || {};
+  const sa = order.shipping_address;
+  const dueIso = fu && /^\d{4}-\d{2}-\d{2}$/.test(String(fu.due_date || '')) ? fu.due_date : '';
+  const method = (fu && fu.paid_by) || (order.payment_gateway_names || []).filter(g => g && !/^manual$/i.test(g)).map(g => /shopify_payments/i.test(g) ? 'Card' : g).join(', ');
+  return {
+    no: order.name, date: new Date(order.created_at || Date.now()).toLocaleDateString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', day: 'numeric', month: 'short', year: 'numeric' }),
+    bill: { name: bill ? (b.name || '') : defName, attn: b.attn || '', phone: bill ? (b.phone || '') : ((fu && fu.contact) || c.phone || order.phone || ''), addr: bill ? (b.addr || '') : defAddr },
+    locked: !!b.locked, sentTo: b.sentTo || '', email: b.email || (fu && fu.email) || order.email || c.email || '',
+    pickup, to: pickup ? { name: 'Store pickup', addr: 'Bamboo Green Florist, 14000 Bukit Mertajam, Penang' }
+      : { name: (sa && sa.name) || (fu && fu.recip_name) || '', addr: _invAddr(sa ? { ...sa, company: sa.company } : null) || (fu && fu.addr) || '' },
+    when: { date: dueIso ? _invDay(dueIso) : (attr('Order Due Date') || attr('Delivery Date') || ''), time: (fu && fu.due_time) || attr('Order Due Time') || attr('Delivery Time') || '' },
+    items, sub, disc, ship, total, due, paid: r2(total - due), paidFull, refunded: /refunded/.test(fs), method, currency: order.currency || 'MYR',
+  };
+}
+const _rm = n => 'RM ' + (Number(n) || 0).toFixed(2);
+const _he = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+function invEmail(d, link) {
+  const ink = '#2A2622', mute = '#6E665D', rule = '#D6CFC0', green = '#2E4A3D';
+  const row = (k, v, big) => `<tr><td style="padding:4px 0;color:${big ? ink : mute};font-size:${big ? 15 : 13}px;${big ? 'font-weight:600;' : ''}">${k}</td><td style="padding:4px 0;text-align:right;font-size:${big ? 18 : 13}px;color:${ink};">${v}</td></tr>`;
+  const items = d.items.map(i => `<tr><td style="padding:10px 0;border-bottom:1px solid ${rule};font-size:14px;color:${ink};">${_he(i.name)}${i.variant ? `<div style="font-size:12px;color:${mute};">${_he(i.variant)}</div>` : ''}</td><td style="padding:10px 8px;border-bottom:1px solid ${rule};text-align:center;font-size:14px;">${i.qty}</td><td style="padding:10px 0;border-bottom:1px solid ${rule};text-align:right;font-size:14px;white-space:nowrap;">${_rm(i.price * i.qty)}</td></tr>`).join('');
+  const billLines = [d.bill.addr, d.bill.attn && 'Attn: ' + d.bill.attn, d.bill.phone].filter(Boolean).map(_he).join('<br>');
+  const html = `<!doctype html><html><body style="margin:0;background:#F3EFE6;font-family:Helvetica,Arial,sans-serif;color:${ink};">
+<div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+<div style="background:#fff;padding:28px 24px;">
+<img src="${INV_SITE}/logo-wordmark.png" alt="Bamboo Green Florist" width="150" style="display:block;height:auto;border:0;">
+<h1 style="font-family:Georgia,serif;font-weight:400;font-size:28px;margin:24px 0 4px;">Invoice ${_he(d.no)}</h1>
+<p style="margin:0;color:${mute};font-size:13px;">${_he(d.date)}</p>
+<p style="margin:20px 0 0;font-size:12px;color:${mute};">Bill to</p>
+<p style="margin:4px 0 0;font-size:14px;line-height:1.5;"><b>${_he(d.bill.name)}</b>${billLines ? '<br>' + billLines : ''}</p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;border-collapse:collapse;">${items}</table>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border-collapse:collapse;">
+${row('Subtotal', _rm(d.sub))}${d.disc ? row('Discount', '- ' + _rm(d.disc)) : ''}${d.ship ? row('Delivery', _rm(d.ship)) : ''}${row('Total', _rm(d.total), true)}${d.due ? row('Balance due', _rm(d.due)) : row('Paid', _rm(d.paid))}
+</table>
+<a href="${_he(link)}" style="display:block;margin-top:24px;background:${green};color:#F3EFE6;text-align:center;padding:14px 20px;text-decoration:none;font-weight:600;font-size:15px;">Download invoice (PDF)</a>
+</div>
+<p style="font-size:12px;color:${mute};line-height:1.5;margin:16px 4px 0;">Bamboo Green Florist (M) Sdn Bhd, ROC: 202101043623 (1443923-M)<br>9, Persiaran Sunway Wellesley, Pusat Perniagaan Sunway Wellesley, 14000 Bukit Mertajam, Penang<br>+60 12-477 8120 · sales@bambooflorist.com.my</p>
+</div></body></html>`;
+  const text = `Invoice ${d.no} (${d.date})\nBill to: ${d.bill.name}\nTotal: ${_rm(d.total)}${d.due ? `\nBalance due: ${_rm(d.due)}` : ''}\nDownload: ${link}\n\nBamboo Green Florist (M) Sdn Bhd`;
+  return { subject: `Invoice ${d.no} from Bamboo Green Florist`, html, text };
+}
+async function invHandler(body, req, res) {
+  if (!SB_SVC) return res.status(501).json({ error: 'not_configured' });
+  const jwt = body.authToken || (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  // Staff: a link for any Shopify order (o + k), for the order panel's Invoice button.
+  if (body.mode === 'inv-link') {
+    if (!(await verifyStaff(jwt))) return res.status(401).json({ error: 'Not authenticated' });
+    const id = String(body.id || '').replace(/\D/g, '');
+    const r = await shopRest('orders/' + encodeURIComponent(id) + '.json?fields=id,token');
+    const o = r.j && r.j.order;
+    if (!o || !o.token) return res.status(404).json({ error: 'not_found' });
+    return res.status(200).json({ path: '/invoice.html?o=' + o.id + '&k=' + o.token });
+  }
+  let L;
+  try { L = await invLoad(body); } catch (e) { return res.status(502).json({ error: 'shopify' }); }
+  if (L.err) return res.status(L.err === 'not_found' ? 404 : 409).json({ error: L.err });
+  const staff = jwt ? await verifyStaff(jwt) : false;
+  if (body.mode === 'inv-get') { const d = invData(L); return res.status(200).json({ ...d, staff, canEdit: staff || !d.locked }); }
+  if (body.mode === 'inv-bill') {
+    const cur = L.bill || {};
+    if (cur.locked && !staff) return res.status(409).json({ error: 'locked' });
+    const b = body.bill || {};
+    const nb = { name: _s(b.name, 160), attn: _s(b.attn, 120), phone: _s(b.phone, 40), addr: _s(b.addr, 400), email: _s(b.email, 160).toLowerCase() };
+    if (!nb.name) return res.status(422).json({ error: 'name' });
+    const mailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nb.email);
+    if (!staff && !mailOk) return res.status(422).json({ error: 'email' });
+    const key = 'inv_bill_' + L.order.id;
+    const put = v => svc('settings', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ key, value: v }) });
+    const base = { ...nb, locked: !!cur.locked, sentTo: cur.sentTo || '', by: staff ? 'staff' : 'customer', at: new Date().toISOString() };
+    const w = await put(base);
+    if (!w.ok) return res.status(500).json({ error: 'save_failed' });
+    if (!mailOk) return res.status(200).json({ ...invData({ ...L, bill: base }), staff, canEdit: staff, sent: false });
+    // Email the invoice; the details lock only once it has gone out.
+    const d = invData({ ...L, bill: base });
+    const link = INV_SITE + '/invoice.html?' + (body.t ? 't=' + encodeURIComponent(body.t) : 'o=' + L.order.id + '&k=' + encodeURIComponent(body.k));
+    const msg = invEmail(d, link);
+    const key2 = process.env.RESEND_API_KEY, from = process.env.NOTIFY_EMAIL_FROM, reply = process.env.NOTIFY_EMAIL_REPLYTO;
+    if (!key2 || !from) return res.status(502).json({ error: 'email_failed' });
+    const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + key2, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to: nb.email, bcc: reply || undefined, reply_to: reply || undefined, subject: msg.subject, html: msg.html, text: msg.text }) }).catch(() => null);
+    if (!r || !r.ok) return res.status(502).json({ error: 'email_failed' });
+    const done = { ...base, locked: true, sentTo: nb.email, sentAt: new Date().toISOString() };
+    await put(done);
+    return res.status(200).json({ ...invData({ ...L, bill: done }), staff, canEdit: staff, sent: true });
+  }
+  return res.status(400).json({ error: 'unknown_mode' });
+}
+
 async function verifyStaff(jwt) {
   if (!jwt) return false;
   try {
@@ -202,6 +354,8 @@ export default async function handler(req, res) {
   try { body = typeof req.body === 'object' && req.body ? req.body : JSON.parse(req.body || '{}'); } catch {}
   // Customer order form: its own data, no Google key needed.
   if (body.mode === 'form-get' || body.mode === 'form-save' || body.mode === 'form-slip' || body.mode === 'form-fee') return formHandler(body, res);
+  // Customer invoice: its own access check (form link or the order's token), no Google key.
+  if (body.mode === 'inv-get' || body.mode === 'inv-bill' || body.mode === 'inv-link') return invHandler(body, req, res);
 
   const KEY = process.env.GOOGLE_MAPS_API_KEY;
   if (!KEY) return res.status(501).json({ error: 'geo_not_configured' });

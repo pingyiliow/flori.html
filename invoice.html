@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Invoice | Bamboo Green Florist</title>
+<link rel="icon" href="/logo-green.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Hallmark · build · scope: app · theme: loom (ecru, accent ink green by request) · customer invoice page + PDF · signature: the total, set large in Caslon beside the paid mark · v2.0.0 */
+/* critique: an invoice is read by an accountant, not admired: who, what, how much, paid or not, in that order; nothing else */
+:root{
+  --color-paper:#F3EFE6; --color-paper-2:#EBE5D8; --color-sheet:#FFFFFF;
+  --color-ink:#2A2622; --color-ink-2:#3F3A35; --color-muted:#6E665D; --color-rule:#D6CFC0;
+  --color-accent:#2E4A3D; --color-accent-2:#3D5E4F; --color-accent-ink:#F3EFE6; --color-due:#8A5A12; --color-req:#C0392B; --color-focus:#2E4A3D;
+  --font-display:"Libre Caslon Display",Georgia,serif; --font-body:"Hanken Grotesk",system-ui,sans-serif; --font-num:"DM Mono",ui-monospace,monospace;
+  --dur:140ms;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overflow-x:clip}
+body{font-family:var(--font-body);font-size:14px;line-height:1.45;color:var(--color-ink);background:var(--color-paper);-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--color-focus);outline-offset:2px}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+
+.bar{max-width:794px;margin:0 auto;padding:16px 16px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;background:var(--color-accent);color:var(--color-accent-ink);font-weight:600;text-decoration:none;transition:background-color var(--dur)}
+.btn:hover{background:var(--color-accent-2)}
+.btn:disabled{opacity:.6;cursor:default}
+.btn.ghost{background:transparent;color:var(--color-accent);box-shadow:inset 0 0 0 1.5px var(--color-accent)}
+.btn.ghost:hover{background:var(--color-paper-2)}
+.lang{margin-left:auto;display:flex;box-shadow:inset 0 0 0 1px var(--color-rule)}
+.lang button{padding:8px 12px;font-size:13px;font-weight:600;color:var(--color-muted);min-height:36px;transition:background-color var(--dur),color var(--dur)}
+.lang button.on{background:var(--color-ink);color:var(--color-paper)}
+.lock{max-width:794px;margin:12px auto 0;padding:0 16px;font-size:13px;color:var(--color-muted)}
+
+.billf{max-width:794px;margin:12px auto 0;padding:20px 16px;background:var(--color-sheet);box-shadow:inset 0 0 0 1px var(--color-rule);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 16px}
+.ff label{display:block;font-size:13px;font-weight:500;color:var(--color-muted);margin-bottom:6px}
+.ff .req{color:var(--color-req)}
+.ff input,.ff textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--color-rule);background:var(--color-paper);font-size:16px;border-radius:0;transition:border-color var(--dur)}
+.ff input:focus-visible,.ff textarea:focus-visible{outline:2px solid var(--color-focus);outline-offset:0}
+.ff.bad input,.ff.bad textarea{border-color:var(--color-req)}
+.ff.wide{grid-column:1/-1}
+.ff textarea{resize:vertical;line-height:1.4}
+.fb{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px}
+
+.msg{max-width:520px;margin:64px auto;padding:0 20px}
+.msg h1{font-family:var(--font-display);font-weight:400;font-size:32px;line-height:1.1}
+.msg p{margin-top:12px;font-size:15px;color:var(--color-ink-2)}
+.msg .btn{margin-top:24px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;background:var(--color-ink);color:var(--color-paper);padding:12px 18px;font-size:14px;max-width:calc(100% - 32px);opacity:0;transition:opacity var(--dur);pointer-events:none}
+.toast.on{opacity:1}
+
+/* the sheet: A4 width; container queries so the PDF copy keeps the desktop layout on a phone */
+.pw{max-width:794px;margin:16px auto 48px;container-type:inline-size}
+.sheet{background:var(--color-sheet);padding:48px 56px;box-shadow:0 1px 0 var(--color-rule),0 12px 32px -18px rgba(42,38,34,.35)}
+.head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px;align-items:start;padding-bottom:20px;border-bottom:2px solid var(--color-ink)}
+.head img{height:64px;width:auto;display:block}
+.seller{margin-top:18px;font-size:12.5px;color:var(--color-ink-2)}
+.seller b{display:block;font-size:13.5px;color:var(--color-ink)}
+.title{text-align:right}
+.title h1{font-family:var(--font-display);font-weight:400;font-size:44px;line-height:1;letter-spacing:-.01em}
+.meta{margin-top:14px;display:grid;grid-template-columns:auto auto;gap:4px 16px;font-size:12.5px;justify-content:end}
+.meta span{color:var(--color-muted);text-align:left}
+.meta b{font-weight:500;text-align:right}
+.parties{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.2fr) minmax(0,.8fr);gap:28px;padding:20px 0;border-bottom:1px solid var(--color-rule)}
+.parties h2{font-size:12px;font-weight:600;color:var(--color-muted);margin-bottom:6px}
+.parties p{overflow-wrap:break-word;white-space:pre-line}
+.parties .n{font-weight:600}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{font-size:12px;font-weight:600;color:var(--color-muted);text-align:left;padding:12px 0 8px;border-bottom:1px solid var(--color-ink)}
+th.r,td.r{text-align:right}
+td{padding:12px 0;border-bottom:1px solid var(--color-rule);vertical-align:top;overflow-wrap:break-word}
+td small{display:block;color:var(--color-muted);font-size:12px;margin-top:2px}
+td.q,th.q{width:56px;text-align:center}
+td.u,td.a{width:110px;white-space:nowrap}
+.sum{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:32px;margin-top:20px;align-items:start}
+.pay h2{font-size:12px;font-weight:600;color:var(--color-muted);margin-bottom:6px}
+.stamp{display:inline-flex;align-items:center;padding:6px 12px;box-shadow:inset 0 0 0 1.5px var(--color-accent);color:var(--color-accent);font-weight:600;font-size:13px}
+.stamp.due{box-shadow:inset 0 0 0 1.5px var(--color-due);color:var(--color-due)}
+.pay p{margin-top:8px;font-size:12.5px;color:var(--color-ink-2)}
+.bank{margin-top:8px;font-size:12.5px}
+.bank div{display:flex;gap:8px}
+.bank span{color:var(--color-muted);width:96px;flex:none}
+.rows div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px}
+.rows div span:first-child{color:var(--color-muted)}
+.rows .tot{margin-top:6px;padding-top:12px;border-top:2px solid var(--color-ink);align-items:baseline}
+.rows .tot span:first-child{color:var(--color-ink);font-weight:600}
+.rows .tot b{font-family:var(--font-display);font-weight:400;font-size:30px}
+.rows .bal b{color:var(--color-due)}
+.foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--color-rule);display:flex;justify-content:space-between;gap:16px;font-size:12px;color:var(--color-muted)}
+
+@container (max-width:640px){
+  .sheet{padding:24px 16px;box-shadow:none}
+  .head{grid-template-columns:minmax(0,1fr)}
+  .title{text-align:left}
+  .meta{justify-content:start}
+  .title h1{font-size:36px}
+  .parties{grid-template-columns:minmax(0,1fr);gap:16px}
+  .sum{grid-template-columns:minmax(0,1fr);gap:20px}
+  .sum .rows{order:-1}
+  td.u,th.u{display:none}
+  .foot{flex-direction:column}
+}
+@media (max-width:640px){
+  .pw{margin:12px 0 32px}
+  .billf{grid-template-columns:minmax(0,1fr)}
+}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff}
+  .bar,.billf,.lock,.toast{display:none!important}
+  .pw{max-width:none;margin:0}
+  .sheet{padding:0;box-shadow:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><div class="msg"><p>Loading</p></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(() => {
+  const P = new URLSearchParams(location.search);
+  const ACCESS = P.get('t') ? { t: P.get('t') } : { o: P.get('o') || '', k: P.get('k') || '' };
+  const SHOP_WA = '60124778120';
+  let lang = 'en'; try { lang = localStorage.getItem('bf-form-lang') === 'zh' ? 'zh' : 'en'; } catch (_) {}
+  // Signed in to BloomFlow on this browser: staff can change details after they lock.
+  let staffTok = ''; try { const s = JSON.parse(localStorage.getItem('bf-auth-session') || 'null'); staffTok = (s && (s.access_token || (s.currentSession && s.currentSession.access_token))) || ''; } catch (_) {}
+  const T = {
+    en: { pdf:'Download PDF', making:'Preparing PDF', edit:'Change billing details', billto:'Bill to (person or company)', attn:'Attn', phone:'Phone', addr:'Billing address', email:'Email the invoice to',
+      send:'Save and email invoice', save:'Save', cancel:'Cancel', sending:'Sending', sentTo:'Invoice emailed to ', lockedMsg:'Billing details are confirmed. To change them, contact us on WhatsApp.',
+      confirm:'Billing details can be changed once only. Save them and email the invoice to ', saved:'Saved', err:'Something went wrong. Please try again.', emailErr:'The email could not be sent. Please check the address and try again.',
+      needName:'Fill in who to bill', needEmail:'Fill in a valid email', locked:'These details are already confirmed', wa:'WhatsApp us',
+      h404:'Invoice not found', p404:'This invoice link is not valid. Please contact us on WhatsApp.', hready:'Invoice not ready yet', pready:'Your invoice will be ready once your order is confirmed.',
+      hcancel:'Order cancelled', pcancel:'This order was cancelled, so there is no invoice for it.' },
+    zh: { pdf:'下载 PDF', making:'正在生成 PDF', edit:'更改账单资料', billto:'账单抬头（个人或公司）', attn:'收件人 (Attn)', phone:'电话', addr:'账单地址', email:'发票发送至邮箱',
+      send:'保存并发送发票', save:'保存', cancel:'取消', sending:'发送中', sentTo:'发票已发送至 ', lockedMsg:'账单资料已确认。如需更改，请通过 WhatsApp 联系我们。',
+      confirm:'账单资料只能更改一次。保存并把发票发送至 ', saved:'已保存', err:'出了点问题，请再试一次。', emailErr:'邮件发送失败，请检查邮箱地址后再试。',
+      needName:'请填写账单抬头', needEmail:'请填写有效的邮箱', locked:'资料已确认，无法更改', wa:'WhatsApp 我们',
+      h404:'找不到发票', p404:'此发票链接无效，请通过 WhatsApp 联系我们。', hready:'发票尚未准备好', pready:'订单确认后即可下载发票。',
+      hcancel:'订单已取消', pcancel:'此订单已取消，因此没有发票。' },
+  };
+  const t = k => (T[lang] && T[lang][k]) || T.en[k] || k;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const rm = n => 'RM ' + (Number(n) || 0).toFixed(2);
+  const app = document.getElementById('app');
+  let D = null, formOpen = false;
+  let toastT; const toast = m => { const e = document.getElementById('toast'); e.textContent = m; e.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => e.classList.remove('on'), 3200); };
+  async function api(body){
+    try { const r = await fetch('/api/geo', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ...ACCESS, ...(staffTok ? { authToken: staffTok } : {}), ...body }) });
+      return { ok: r.ok, status: r.status, j: await r.json().catch(() => ({})) }; } catch (_) { return { ok:false, status:0, j:{} }; }
+  }
+  const msgView = (h, p) => { app.innerHTML = '<div class="msg"><h1>'+esc(h)+'</h1><p>'+esc(p)+'</p><a class="btn" href="https://wa.me/'+SHOP_WA+'" target="_blank" rel="noopener">'+esc(t('wa'))+'</a></div>'; };
+
+  function sheetHtml(d){
+    const b = d.bill, lines = (...a) => a.filter(Boolean).map(x => '<p>'+esc(x)+'</p>').join('');
+    const items = d.items.map(i => '<tr><td>'+esc(i.name)+(i.variant ? '<small>'+esc(i.variant)+'</small>' : '')+'</td><td class="q num">'+i.qty+'</td><td class="r u num">'+rm(i.price)+'</td><td class="r a num">'+rm(i.price*i.qty)+'</td></tr>').join('');
+    const pay = d.refunded ? '<span class="stamp">Refunded</span>'
+      : d.due > 0 ? '<span class="stamp due">Balance due '+rm(d.due)+'</span><div class="bank"><div><span>Bank</span>Public Bank</div><div><span>Account name</span>Bamboo Green Florist (M) Sdn Bhd</div><div><span>Account no.</span><b class="num">322 9170 500</b></div><div><span>Reference</span><b class="num">'+esc(d.no)+'</b></div></div>'
+      : '<span class="stamp">Paid in full</span>'+(d.method ? '<p>'+esc(d.method)+'</p>' : '');
+    return '<main class="sheet" id="sheet">'
+      + '<div class="head"><div><img src="/logo-wordmark.png" alt="Bamboo Green Florist, est. 1984" width="180" height="64">'
+      + '<p class="seller"><b>Bamboo Green Florist (M) Sdn Bhd</b>ROC: <span class="num">202101043623 (1443923-M)</span><br>9, Persiaran Sunway Wellesley, Pusat Perniagaan Sunway Wellesley,<br>14000 Bukit Mertajam, Penang<br><span class="num">+60 12-477 8120</span> &nbsp; sales@bambooflorist.com.my</p></div>'
+      + '<div class="title"><h1>Invoice</h1><div class="meta"><span>Invoice no.</span><b class="num">'+esc(d.no)+'</b><span>Date</span><b>'+esc(d.date)+'</b></div></div></div>'
+      + '<div class="parties"><div><h2>Bill to</h2><p class="n">'+esc(b.name)+'</p>'+lines(b.addr, b.attn && 'Attn: '+b.attn)+(b.phone ? '<p class="num">'+esc(b.phone)+'</p>' : '')+'</div>'
+      + '<div><h2>'+(d.pickup ? 'Pickup' : 'Delivered to')+'</h2><p class="n">'+esc(d.to.name)+'</p>'+lines(d.to.addr)+'</div>'
+      + '<div><h2>'+(d.pickup ? 'Pickup date' : 'Delivery date')+'</h2><p class="n">'+esc(d.when.date || '-')+'</p>'+lines(d.when.time)+'</div></div>'
+      + '<table><thead><tr><th>Item</th><th class="q">Qty</th><th class="r u">Unit price</th><th class="r">Amount</th></tr></thead><tbody>'+items+'</tbody></table>'
+      + '<div class="sum"><div class="pay"><h2>Payment</h2>'+pay+'</div><div class="rows">'
+      + '<div><span>Subtotal</span><span class="num">'+rm(d.sub)+'</span></div>'
+      + (d.disc ? '<div><span>Discount</span><span class="num">- '+rm(d.disc)+'</span></div>' : '')
+      + (d.ship ? '<div><span>Delivery</span><span class="num">'+rm(d.ship)+'</span></div>' : '')
+      + '<div class="tot"><span>Total</span><b class="num">'+rm(d.total)+'</b></div>'
+      + (d.due > 0 ? (d.paid > 0 ? '<div><span>Paid</span><span class="num">'+rm(d.paid)+'</span></div>' : '')+'<div class="bal"><span>Balance due</span><b class="num">'+rm(d.due)+'</b></div>' : (d.refunded ? '' : '<div><span>Paid</span><span class="num">'+rm(d.total)+'</span></div>'))
+      + '</div></div>'
+      + '<div class="foot"><span>Computer-generated invoice. No signature required.</span><span>Thank you for choosing Bamboo Green Florist.</span></div></main>';
+  }
+  const ff = (id, label, val, attrs, req, wide, area) => '<div class="ff'+(wide?' wide':'')+'" id="w-'+id+'"><label for="b-'+id+'">'+esc(label)+(req?'<span class="req" aria-hidden="true">*</span>':'')+'</label>'
+    + (area ? '<textarea id="b-'+id+'" rows="2">'+esc(val)+'</textarea>' : '<input id="b-'+id+'" value="'+esc(val)+'" '+(attrs||'')+'>')+'</div>';
+  function render(){
+    const d = D, b = d.bill;
+    document.title = 'Invoice ' + d.no + ' | Bamboo Green Florist';
+    document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
+    const custLocked = d.locked && !d.staff;
+    app.innerHTML = '<div class="bar"><button class="btn" type="button" id="pdf">'+esc(t('pdf'))+'</button>'
+      + (d.canEdit ? '<button class="btn ghost" type="button" id="edit" aria-expanded="'+formOpen+'" aria-controls="billf">'+esc(t('edit'))+'</button>' : '')
+      + '<div class="lang" role="group" aria-label="Language"><button type="button" data-l="en" class="'+(lang==='en'?'on':'')+'">EN</button><button type="button" data-l="zh" class="'+(lang==='zh'?'on':'')+'">中文</button></div></div>'
+      + (d.sentTo ? '<p class="lock">'+esc(t('sentTo')+d.sentTo)+(custLocked ? '. '+esc(t('lockedMsg')) : '')+'</p>' : '')
+      + (d.canEdit ? '<form class="billf" id="billf" novalidate'+(formOpen?'':' hidden')+'>'
+        + ff('name', t('billto'), b.name, 'autocomplete="organization"', true) + ff('attn', t('attn'), b.attn, 'autocomplete="name"')
+        + ff('phone', t('phone'), b.phone, 'inputmode="tel" autocomplete="tel" class="num"') + ff('email', t('email'), d.sentTo || d.email, 'type="email" autocomplete="email"', !d.staff)
+        + ff('addr', t('addr'), b.addr, '', false, true, true)
+        + '<div class="fb"><button class="btn" type="submit" id="save">'+esc(d.staff ? t('save') : t('send'))+'</button><button class="btn ghost" type="button" id="cancel">'+esc(t('cancel'))+'</button></div></form>' : '')
+      + '<div class="pw">'+sheetHtml(d)+'</div>';
+    document.getElementById('pdf').onclick = downloadPdf;
+    document.querySelectorAll('.lang button').forEach(x => x.onclick = () => { lang = x.dataset.l; try { localStorage.setItem('bf-form-lang', lang); } catch (_) {} render(); });
+    const e = document.getElementById('edit'), f = document.getElementById('billf');
+    if (e) e.onclick = () => { formOpen = !formOpen; f.hidden = !formOpen; e.setAttribute('aria-expanded', formOpen); if (formOpen) document.getElementById('b-name').focus(); };
+    if (f) { document.getElementById('cancel').onclick = () => { formOpen = false; render(); }; f.onsubmit = saveBill; }
+  }
+  async function saveBill(ev){
+    ev.preventDefault();
+    const v = id => (document.getElementById('b-'+id).value || '').trim();
+    const bill = { name: v('name'), attn: v('attn'), phone: v('phone'), addr: v('addr'), email: v('email') };
+    const okMail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(bill.email);
+    document.getElementById('w-name').classList.toggle('bad', !bill.name);
+    document.getElementById('w-email').classList.toggle('bad', !D.staff ? !okMail : (!!bill.email && !okMail));
+    if (!bill.name) { toast(t('needName')); document.getElementById('b-name').focus(); return; }
+    if ((!D.staff && !okMail) || (D.staff && bill.email && !okMail)) { toast(t('needEmail')); document.getElementById('b-email').focus(); return; }
+    if (!D.staff && !confirm(t('confirm') + bill.email + '?')) return;
+    const s = document.getElementById('save'); s.disabled = true; s.textContent = t('sending');
+    const r = await api({ mode:'inv-bill', bill });
+    if (r.ok) { D = r.j; formOpen = false; render(); toast(r.j.sent ? t('sentTo') + r.j.sentTo : t('saved')); return; }
+    s.disabled = false; s.textContent = D.staff ? t('save') : t('send');
+    if (r.j && r.j.error === 'locked') { await load(); toast(t('locked')); return; }
+    toast(r.j && r.j.error === 'email_failed' ? t('emailErr') : t('err'));
+  }
+  // PDF of the sheet at A4 width (desktop layout even on a phone); print as the fallback.
+  let h2p = null;
+  const loadH2p = () => h2p || (h2p = new Promise((ok, no) => { const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; s.onload = () => ok(window.html2pdf); s.onerror = no; document.head.appendChild(s); }));
+  async function downloadPdf(){
+    const btn = document.getElementById('pdf'); btn.disabled = true; btn.textContent = t('making');
+    const box = document.createElement('div'); box.className = 'pw'; box.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;max-width:none;margin:0';
+    box.innerHTML = sheetHtml(D); box.firstChild.style.boxShadow = 'none'; document.body.appendChild(box);
+    try {
+      const lib = await loadH2p(); try { await document.fonts.ready; } catch (_) {}
+      await lib().set({ margin: [8, 8, 8, 8], filename: 'Invoice-' + String(D.no).replace(/[^\w-]/g, '') + '.pdf', image: { type: 'jpeg', quality: 0.96 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: 794 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'avoid-all'] } }).from(box.firstChild).save();
+    } catch (_) { window.print(); }
+    box.remove(); btn.disabled = false; btn.textContent = t('pdf');
+  }
+  async function load(){
+    const r = await api({ mode:'inv-get' });
+    if (r.ok) { D = r.j; render(); return; }
+    const e = r.j && r.j.error;
+    if (e === 'not_ready') return msgView(t('hready'), t('pready'));
+    if (e === 'cancelled') return msgView(t('hcancel'), t('pcancel'));
+    if (r.status === 404) return msgView(t('h404'), t('p404'));
+    msgView(t('err'), '');
+  }
+  load();
+})();
+</script>
+</body>
+</html>
