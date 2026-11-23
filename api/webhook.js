@@ -319,7 +319,7 @@ export default async function handler(req, res) {
 // page when the order came from New Orders, else Shopify's order status page. Buyer phone
 // only (customer / checkout phone, else the New Orders contact), never the recipient's.
 // De-duped per order in wa_events, so the many orders/updated webhooks send nothing more.
-const CONFIRM_TPL = 'order_confirmed_link';
+const CONFIRM_TPL = 'orderconfirmation';
 const _WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function _whenLine(type, iso, time) {
   let d = '';

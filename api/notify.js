@@ -194,7 +194,7 @@ const TEMPLATES = {
   // {{2}}=order {{3}}=delivery/pickup date line; URL button (index 0) base
   // https://www.bambooflowerclub.com/{{1}} = the BloomFlow order page (order.html?t=…), or
   // s/<Shopify status path> for online-store orders (vercel.json redirects /s/ to the store).
-  order_confirmed_link: { lang: 'en', body: ['name', 'orderNo', 'when'], urlBtnIndex: 0 },
+  orderconfirmation: { lang: 'en', body: ['name', 'orderNo', 'when'], urlBtnIndex: 0 },
 };
 
 export function buildTemplate(to, tpl, vars) {
