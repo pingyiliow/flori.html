@@ -2,6 +2,8 @@
 // Receives Shopify order webhooks and saves to Supabase
 
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
+import { toE164MY, buildTemplate, firstNameOf, statusUrlSuffix } from './notify.js';
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -284,8 +286,8 @@ export default async function handler(req, res) {
   // "Completed" now that it's a real order. The follow-up id rides as a hidden
   // line-item property (_bloomflow_followup); older drafts carried it as a tag,
   // so fall back to that.
+  let fuId = null;
   try {
-    let fuId = null;
     for (const li of (order.line_items || [])) {
       const p = (li.properties || []).find(x => x && x.name === '_bloomflow_followup');
       if (p && p.value) { fuId = String(p.value).trim(); break; }
@@ -303,8 +305,79 @@ export default async function handler(req, res) {
     }
   } catch (e) { console.error('Follow-up tag check failed:', e.message); }
 
+  // WhatsApp order confirmation to the buyer (once per order). Never fails the webhook.
+  try { await sendOrderConfirmed(sb, order, fuId, { type, due_on, dueTime }); }
+  catch (e) { console.error('[Webhook] order confirmation failed:', e.message); }
+
   console.log(`[Webhook] ${topic} → ${order.name} saved`);
   return res.status(200).json({ ok: true, order: order.name });
+}
+
+// WhatsApp "order confirmed" to the BUYER when a Shopify order is made. On only while the
+// settings row notify_order_confirmed holds the ISO time it was switched on (orders made
+// before that never get one) and NOTIFY_ENABLED is set. The button opens the BloomFlow order
+// page when the order came from New Orders, else Shopify's order status page. Buyer phone
+// only (customer / checkout phone, else the New Orders contact), never the recipient's.
+// De-duped per order in wa_events, so the many orders/updated webhooks send nothing more.
+const CONFIRM_TPL = 'order_confirmed_link';
+const _WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], _MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function _whenLine(type, iso, time) {
+  let d = '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(iso || ''))) { const x = new Date(iso + 'T00:00:00Z'); d = _WD[x.getUTCDay()] + ', ' + x.getUTCDate() + ' ' + _MO[x.getUTCMonth()] + ' ' + x.getUTCFullYear(); }
+  const at = [d, String(time || '').trim()].filter(Boolean).join(', ');
+  return (type === 'pickup' ? 'Store pickup' : 'Delivery') + ': ' + (at || 'date to be confirmed');
+}
+async function sendOrderConfirmed(sb, order, fuId, info) {
+  const WA_PHONE_ID = process.env.WHATSAPP_PHONE_NUMBER_ID, WA_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!WA_PHONE_ID || !WA_TOKEN || !/^(1|true|yes|on)$/i.test(process.env.NOTIFY_ENABLED || '')) return;
+  const { data: sw } = await sb.from('settings').select('value').eq('key', 'notify_order_confirmed').maybeSingle();
+  const since = Date.parse(sw && typeof sw.value === 'string' ? sw.value : '');
+  const made = Date.parse(order.created_at || '');
+  if (!since || !made || made < since || Date.now() - made > 2 * 864e5) return;
+
+  let fu = null;
+  if (fuId) { const { data } = await sb.from('followups').select('id,name,contact,form_token').eq('id', fuId).maybeSingle(); fu = data || null; }
+  const orderId = String(order.id), orderNo = order.name || ('#' + orderId);
+  const log = row => sb.from('wa_notifications').insert({ order_id: orderId, order_no: orderNo, template: CONFIRM_TPL, created_at: new Date().toISOString(), ...row }).then(() => {}, () => {});
+  const to = toE164MY((order.customer && order.customer.phone) || order.phone || (fu && fu.contact));
+  if (!to) return;   // no buyer phone: Shopify's own email still goes out
+  // Claimed first: orders/create and orders/updated can arrive together.
+  const { error: dup } = await sb.from('wa_events').insert({ event_id: orderId + ':order_confirmed:wa' });
+  if (dup) return;
+
+  let btn = '';
+  if (fu) {
+    let tok = String(fu.form_token || '');
+    if (!/^[a-f0-9]{32,64}$/.test(tok)) {
+      tok = crypto.randomBytes(16).toString('hex');
+      const { error } = await sb.from('followups').update({ form_token: tok }).eq('id', fu.id);
+      if (error) tok = '';
+    }
+    if (tok) btn = 'order.html?t=' + tok;
+  }
+  if (!btn) { const s = statusUrlSuffix(order); if (s) btn = 's/' + s; }
+  if (!btn) { await log({ phone: to, status: 'skip', error: 'no_order_link' }); return; }
+  const c = order.customer || {};
+  const name = String(c.first_name || '').trim() || (fu && String(fu.name || '').trim().split(/\s+/)[0]) || firstNameOf(order);
+  const vars = { name, orderNo, when: _whenLine(info.type, info.due_on, info.dueTime), btnParam: btn };
+  let err = null, id = null;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v21.0/${WA_PHONE_ID}/messages`, {
+      method: 'POST', headers: { Authorization: `Bearer ${WA_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildTemplate(to, CONFIRM_TPL, vars)),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) err = (j && j.error && j.error.message) || ('HTTP ' + r.status);
+    else id = j && j.messages && j.messages[0] && j.messages[0].id;
+  } catch (e) { err = e.message; }
+  await log(err ? { phone: to, status: 'error', error: err } : { phone: to, status: 'sent', meta_message_id: id || null });
+  if (fu) {
+    try {
+      await fetch(process.env.SUPABASE_URL + '/realtime/v1/api/broadcast', { method: 'POST',
+        headers: { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: 'Bearer ' + process.env.SUPABASE_SERVICE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [{ topic: 'bf-live', event: 'chg', payload: { t: 'followups' } }] }) });
+    } catch (_) {}
+  }
 }
 
 // Collect an email onto a customer's email list (customers.emails text[]), keyed by

@@ -190,6 +190,11 @@ const TEMPLATES = {
   // button (no send-time params); body {{1}}=name {{2}}=order {{3}}=tracking URL. NOTE: the
   // Meta template name is misspelled "deivery" — must match it exactly.
   deivery_withlalamovelink: { lang: 'en', body: ['name', 'orderNo', 'trackUrl'] },
+  // Order confirmation (sent from api/webhook.js when a Shopify order is made). Body {{1}}=name
+  // {{2}}=order {{3}}=delivery/pickup date line; URL button (index 0) base
+  // https://www.bambooflowerclub.com/{{1}} = the BloomFlow order page (order.html?t=…), or
+  // s/<Shopify status path> for online-store orders (vercel.json redirects /s/ to the store).
+  order_confirmed_link: { lang: 'en', body: ['name', 'orderNo', 'when'], urlBtnIndex: 0 },
 };
 
 export function buildTemplate(to, tpl, vars) {

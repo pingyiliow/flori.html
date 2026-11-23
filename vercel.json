@@ -67,5 +67,12 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/s/:path*",
+      "destination": "https://bambooflorist.com.my/:path*",
+      "permanent": false
+    }
   ]
 }
