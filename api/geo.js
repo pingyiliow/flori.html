@@ -64,6 +64,18 @@ async function shopFee(row, addr) {
     return { fee: Math.min(...rates.map(x => Number(x.price && x.price.amount) || 0)) };
   } catch (_) { return { error: true }; }
 }
+// Public holidays: Sunday pickup hours. Staff keep the list in Settings (settings
+// public_holidays); this is the starting list until they first edit it.
+const HOLIDAYS_DEFAULT = [{"d":"2026-12-25","n":"Christmas Day"},{"d":"2027-01-01","n":"New Year's Day"},{"d":"2027-01-22","n":"Thaipusam"},{"d":"2027-02-06","n":"Chinese New Year"},{"d":"2027-02-07","n":"Chinese New Year Holiday"},{"d":"2027-02-08","n":"Chinese New Year Holiday"},{"d":"2027-02-24","n":"Nuzul Al-Quran"},{"d":"2027-03-10","n":"Hari Raya Aidilfitri"},{"d":"2027-03-11","n":"Hari Raya Aidilfitri Holiday"},{"d":"2027-05-01","n":"Labour Day"},{"d":"2027-05-17","n":"Hari Raya Haji"},{"d":"2027-05-20","n":"Wesak Day"},{"d":"2027-06-06","n":"Awal Muharram"},{"d":"2027-06-07","n":"Agong's Birthday"},{"d":"2027-07-07","n":"George Town World Heritage City Day"},{"d":"2027-07-10","n":"Penang Governor's Birthday"},{"d":"2027-08-15","n":"Prophet Muhammad's Birthday"},{"d":"2027-08-16","n":"Prophet Muhammad's Birthday Holiday"},{"d":"2027-08-31","n":"Merdeka Day"},{"d":"2027-09-16","n":"Malaysia Day"},{"d":"2027-10-28","n":"Deepavali"},{"d":"2027-12-25","n":"Christmas Day"}];
+async function holidays() {
+  let list = HOLIDAYS_DEFAULT;
+  try {
+    const { ok, j } = await svc('settings?key=eq.public_holidays&select=value');
+    if (ok && Array.isArray(j) && j[0]) { const v = typeof j[0].value === 'string' ? JSON.parse(j[0].value) : j[0].value; if (Array.isArray(v)) list = v; }
+  } catch (_) {}
+  const today = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+  return list.map(h => String(h && h.d || '')).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= today);
+}
 async function svc(path, opts) {
   opts = opts || {};
   const r = await fetch(SB_URL + '/rest/v1/' + path, { ...opts, headers: { apikey: SB_SVC, Authorization: 'Bearer ' + SB_SVC, 'Content-Type': 'application/json', Prefer: 'return=representation', ...(opts.headers || {}) } });
@@ -116,7 +128,7 @@ async function formHandler(body, res) {
   const row = await formRow(body.t);
   if (!row) return res.status(404).json({ error: 'not_found' });
   const st = formState(row);
-  if (body.mode === 'form-get') return res.status(200).json(formPublic(row));
+  if (body.mode === 'form-get') return res.status(200).json({ ...formPublic(row), holidays: await holidays() });
   if (st !== 'open') return res.status(409).json({ error: st });
   if (body.mode === 'form-fee') {
     if (!feeAuto(row)) return res.status(200).json({ fixed: true, fee: Number(row.delivery_fee) || 0 });

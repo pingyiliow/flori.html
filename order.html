@@ -192,7 +192,9 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
   const PK_SLOTS = ['9am - 10am','10am - 11am','11am - 12pm','12pm - 1pm','1pm - 2pm','2pm - 3pm','3pm - 4pm','4pm - 5pm','5pm - 6pm'].map(s => [s, '']);
   // Sunday pickup: mornings only, 10am to 2pm.
   const PK_SUN = ['10am - 11am','11am - 12pm','12pm - 1pm','1pm - 2pm'];
-  const isSun = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d||'')) && new Date(d+'T00:00:00').getDay()===0;
+  // Public holidays have Sunday hours too (the list comes with the form).
+  let HOL = [];
+  const isSun = d => /^\d{4}-\d{2}-\d{2}$/.test(String(d||'')) && (new Date(d+'T00:00:00').getDay()===0 || HOL.includes(d));
   const pkSlots = d => isSun(d) ? PK_SLOTS.filter(s => PK_SUN.includes(s[0])) : PK_SLOTS;
   const REQ = '<span class="req" aria-hidden="true">*</span>';
   function timeHtml(pk){
@@ -407,7 +409,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     if (!r.ok) { app.innerHTML = '<h1>'+t('h1bad')+'</h1><div class="box">'+t('bad')+'</div><a class="btn" href="'+waLink('Hi, about my order request')+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
     // Complete orders open on the check-and-pay page; the customer need not confirm first.
     // Details missing (even when already paid): the form first; complete: check-and-pay.
-    D = r.j; view = D.state==='locked' ? 'done' : (complete() ? 'pay' : 'form'); render();
+    D = r.j; if (Array.isArray(D.holidays)) HOL = D.holidays; view = D.state==='locked' ? 'done' : (complete() ? 'pay' : 'form'); render();
   }
   // Photo viewer: tap a photo to see it whole; tap anywhere or press Escape to close.
   const zoom = document.getElementById('zoom');
