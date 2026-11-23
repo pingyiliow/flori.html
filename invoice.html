@@ -133,15 +133,15 @@ td.u,td.a{width:110px;white-space:nowrap}
   // Signed in to BloomFlow on this browser: staff can change details after they lock.
   let staffTok = ''; try { const s = JSON.parse(localStorage.getItem('bf-auth-session') || 'null'); staffTok = (s && (s.access_token || (s.currentSession && s.currentSession.access_token))) || ''; } catch (_) {}
   const T = {
-    en: { pdf:'Download PDF', making:'Preparing PDF', edit:'Change billing details', billto:'Bill to (person or company)', attn:'Attn', phone:'Phone', addr:'Billing address', email:'Email the invoice to',
-      send:'Save and email invoice', save:'Save', cancel:'Cancel', sending:'Sending', sentTo:'Invoice emailed to ', lockedMsg:'Billing details are confirmed. To change them, contact us on WhatsApp.',
-      confirm:'Billing details can be changed once only. Save them and email the invoice to ', saved:'Saved', err:'Something went wrong. Please try again.', emailErr:'The email could not be sent. Please check the address and try again.',
+    en: { pdf:'Download PDF', making:'Preparing PDF', edit:'Email invoice', billto:'Bill to (person or company)', attn:'Attn', phone:'Phone', addr:'Billing address', email:'Email the invoice to',
+      send:'Send invoice', save:'Save', cancel:'Cancel', sending:'Sending', sentTo:'Invoice emailed to ', lockedMsg:'Billing details are confirmed. To change them, contact us on WhatsApp.',
+      confirm:'The billing details cannot be changed after the invoice is sent. Send it to ', saved:'Saved', err:'Something went wrong. Please try again.', emailErr:'The email could not be sent. Please check the address and try again.',
       needName:'Fill in who to bill', needEmail:'Fill in a valid email', locked:'These details are already confirmed', wa:'WhatsApp us',
       h404:'Invoice not found', p404:'This invoice link is not valid. Please contact us on WhatsApp.', hready:'Invoice not ready yet', pready:'Your invoice will be ready once your order is confirmed.',
       hcancel:'Order cancelled', pcancel:'This order was cancelled, so there is no invoice for it.' },
-    zh: { pdf:'下载 PDF', making:'正在生成 PDF', edit:'更改账单资料', billto:'账单抬头（个人或公司）', attn:'收件人 (Attn)', phone:'电话', addr:'账单地址', email:'发票发送至邮箱',
-      send:'保存并发送发票', save:'保存', cancel:'取消', sending:'发送中', sentTo:'发票已发送至 ', lockedMsg:'账单资料已确认。如需更改，请通过 WhatsApp 联系我们。',
-      confirm:'账单资料只能更改一次。保存并把发票发送至 ', saved:'已保存', err:'出了点问题，请再试一次。', emailErr:'邮件发送失败，请检查邮箱地址后再试。',
+    zh: { pdf:'下载 PDF', making:'正在生成 PDF', edit:'发票发送到邮箱', billto:'账单抬头（个人或公司）', attn:'收件人 (Attn)', phone:'电话', addr:'账单地址', email:'发票发送至邮箱',
+      send:'发送发票', save:'保存', cancel:'取消', sending:'发送中', sentTo:'发票已发送至 ', lockedMsg:'账单资料已确认。如需更改，请通过 WhatsApp 联系我们。',
+      confirm:'发票发送后账单资料将无法更改。确定发送至 ', saved:'已保存', err:'出了点问题，请再试一次。', emailErr:'邮件发送失败，请检查邮箱地址后再试。',
       needName:'请填写账单抬头', needEmail:'请填写有效的邮箱', locked:'资料已确认，无法更改', wa:'WhatsApp 我们',
       h404:'找不到发票', p404:'此发票链接无效，请通过 WhatsApp 联系我们。', hready:'发票尚未准备好', pready:'订单确认后即可下载发票。',
       hcancel:'订单已取消', pcancel:'此订单已取消，因此没有发票。' },
@@ -188,17 +188,21 @@ td.u,td.a{width:110px;white-space:nowrap}
     document.title = 'Invoice ' + d.no + ' | Bamboo Green Florist';
     document.documentElement.lang = lang === 'zh' ? 'zh' : 'en';
     const custLocked = d.locked && !d.staff;
-    app.innerHTML = '<div class="bar"><button class="btn" type="button" id="pdf">'+esc(t('pdf'))+'</button>'
-      + (d.canEdit ? '<button class="btn ghost" type="button" id="edit" aria-expanded="'+formOpen+'" aria-controls="billf">'+esc(t('edit'))+'</button>' : '')
+    // Customers get the invoice by email first (that also confirms the billing details);
+    // the PDF download opens once it has been sent. Staff always have both.
+    const canPdf = d.staff || !!d.sentTo;
+    app.innerHTML = '<div class="bar">'
+      + (canPdf ? '<button class="btn" type="button" id="pdf">'+esc(t('pdf'))+'</button>' : '')
+      + (d.canEdit ? '<button class="btn'+(canPdf?' ghost':'')+'" type="button" id="edit" aria-expanded="'+formOpen+'" aria-controls="billf">'+esc(t('edit'))+'</button>' : '')
       + '<div class="lang" role="group" aria-label="Language"><button type="button" data-l="en" class="'+(lang==='en'?'on':'')+'">EN</button><button type="button" data-l="zh" class="'+(lang==='zh'?'on':'')+'">中文</button></div></div>'
       + (d.sentTo ? '<p class="lock">'+esc(t('sentTo')+d.sentTo)+(custLocked ? '. '+esc(t('lockedMsg')) : '')+'</p>' : '')
       + (d.canEdit ? '<form class="billf" id="billf" novalidate'+(formOpen?'':' hidden')+'>'
         + ff('name', t('billto'), b.name, 'autocomplete="organization"', true) + ff('attn', t('attn'), b.attn, 'autocomplete="name"')
         + ff('phone', t('phone'), b.phone, 'inputmode="tel" autocomplete="tel" class="num"') + ff('email', t('email'), d.sentTo || d.email, 'type="email" autocomplete="email"', !d.staff)
         + ff('addr', t('addr'), b.addr, '', false, true, true)
-        + '<div class="fb"><button class="btn" type="submit" id="save">'+esc(d.staff ? t('save') : t('send'))+'</button><button class="btn ghost" type="button" id="cancel">'+esc(t('cancel'))+'</button></div></form>' : '')
+        + '<div class="fb"><button class="btn" type="submit" id="save">'+esc(t('send'))+'</button><button class="btn ghost" type="button" id="cancel">'+esc(t('cancel'))+'</button></div></form>' : '')
       + '<div class="pw">'+sheetHtml(d)+'</div>';
-    document.getElementById('pdf').onclick = downloadPdf;
+    const pb = document.getElementById('pdf'); if (pb) pb.onclick = downloadPdf;
     document.querySelectorAll('.lang button').forEach(x => x.onclick = () => { lang = x.dataset.l; try { localStorage.setItem('bf-form-lang', lang); } catch (_) {} render(); });
     const e = document.getElementById('edit'), f = document.getElementById('billf');
     if (e) e.onclick = () => { formOpen = !formOpen; f.hidden = !formOpen; e.setAttribute('aria-expanded', formOpen); if (formOpen) document.getElementById('b-name').focus(); };
@@ -217,7 +221,7 @@ td.u,td.a{width:110px;white-space:nowrap}
     const s = document.getElementById('save'); s.disabled = true; s.textContent = t('sending');
     const r = await api({ mode:'inv-bill', bill });
     if (r.ok) { D = r.j; formOpen = false; render(); toast(r.j.sent ? t('sentTo') + r.j.sentTo : t('saved')); return; }
-    s.disabled = false; s.textContent = D.staff ? t('save') : t('send');
+    s.disabled = false; s.textContent = t('send');
     if (r.j && r.j.error === 'locked') { await load(); toast(t('locked')); return; }
     toast(r.j && r.j.error === 'email_failed' ? t('emailErr') : t('err'));
   }

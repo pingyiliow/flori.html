@@ -280,11 +280,14 @@ function invEmail(d, link) {
 <p style="margin:0;color:${mute};font-size:13px;">${_he(d.date)}</p>
 <p style="margin:20px 0 0;font-size:12px;color:${mute};">Bill to</p>
 <p style="margin:4px 0 0;font-size:14px;line-height:1.5;"><b>${_he(d.bill.name)}</b>${billLines ? '<br>' + billLines : ''}</p>
+<p style="margin:16px 0 0;font-size:12px;color:${mute};">${d.pickup ? 'Pickup' : 'Delivered to'}</p>
+<p style="margin:4px 0 0;font-size:14px;line-height:1.5;"><b>${_he(d.to.name)}</b>${d.to.addr ? '<br>' + _he(d.to.addr) : ''}${d.when.date ? '<br>' + _he([d.when.date, d.when.time].filter(Boolean).join(', ')) : ''}</p>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;border-collapse:collapse;">${items}</table>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:12px;border-collapse:collapse;">
 ${row('Subtotal', _rm(d.sub))}${d.disc ? row('Discount', '- ' + _rm(d.disc)) : ''}${d.ship ? row('Delivery', _rm(d.ship)) : ''}${row('Total', _rm(d.total), true)}${d.due ? row('Balance due', _rm(d.due)) : row('Paid', _rm(d.paid))}
 </table>
-<a href="${_he(link)}" style="display:block;margin-top:24px;background:${green};color:#F3EFE6;text-align:center;padding:14px 20px;text-decoration:none;font-weight:600;font-size:15px;">Download invoice (PDF)</a>
+${d.due ? `<p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:${ink};"><b>Payment</b><br>Public Bank · Bamboo Green Florist (M) Sdn Bhd<br>Account no. 322 9170 500 · Reference ${_he(d.no)}</p>` : `<p style="margin:20px 0 0;font-size:13px;color:${green};font-weight:600;">Paid in full${d.method ? ' · ' + _he(d.method) : ''}</p>`}
+<a href="${_he(link)}" style="display:block;margin-top:24px;background:${green};color:#F3EFE6;text-align:center;padding:14px 20px;text-decoration:none;font-weight:600;font-size:15px;">View and download invoice (PDF)</a>
 </div>
 <p style="font-size:12px;color:${mute};line-height:1.5;margin:16px 4px 0;">Bamboo Green Florist (M) Sdn Bhd, ROC: 202101043623 (1443923-M)<br>9, Persiaran Sunway Wellesley, Pusat Perniagaan Sunway Wellesley, 14000 Bukit Mertajam, Penang<br>+60 12-477 8120 · sales@bambooflorist.com.my</p>
 </div></body></html>`;
@@ -333,6 +336,9 @@ async function invHandler(body, req, res) {
     if (!r || !r.ok) return res.status(502).json({ error: 'email_failed' });
     const done = { ...base, locked: true, sentTo: nb.email, sentAt: new Date().toISOString() };
     await put(done);
+    // An order panel open on another device shows "Invoice sent" straight away.
+    try { await fetch(SB_URL + '/realtime/v1/api/broadcast', { method: 'POST', headers: { apikey: SB_SVC, Authorization: 'Bearer ' + SB_SVC, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ topic: 'bf-live', event: 'chg', payload: { t: 'invoice', id: String(L.order.id) } }] }) }); } catch (_) {}
     return res.status(200).json({ ...invData({ ...L, bill: done }), staff, canEdit: staff, sent: true });
   }
   return res.status(400).json({ error: 'unknown_mode' });
