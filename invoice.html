@@ -113,10 +113,12 @@ td.u,td.a{width:110px;white-space:nowrap}
 }
 @media print{
   @page{size:A4;margin:14mm}
-  body{background:#fff}
+  html,body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .bar,.billf,.lock,.toast{display:none!important}
   .pw{max-width:none;margin:0}
   .sheet{padding:0;box-shadow:none}
+  .stamp{box-shadow:none;border:1.5px solid currentColor}
+  tr,.sum,.parties,.foot{break-inside:avoid}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -225,32 +227,17 @@ td.u,td.a{width:110px;white-space:nowrap}
     if (r.j && r.j.error === 'locked') { await load(); toast(t('locked')); return; }
     toast(r.j && r.j.error === 'email_failed' ? t('emailErr') : t('err'));
   }
-  // PDF of the sheet at A4 width (desktop layout even on a phone); print as the fallback.
-  // The sheet is drawn at a fixed 794px from the top-left of the page (a phone's narrow,
-  // scrolled window used to crop and shift it), under a cover, then placed on A4.
-  const libs = {};
-  const loadJs = src => libs[src] || (libs[src] = new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }));
+  // PDF through the browser's own print-to-PDF: real text (sharp at any zoom, selectable,
+  // Chinese included) in the page's own fonts. A picture of the page blurred when zoomed.
+  // The print stylesheet lays the sheet out on A4; the title becomes the file name.
   async function downloadPdf(){
-    const btn = document.getElementById('pdf'); btn.disabled = true; btn.textContent = t('making');
-    const sx = window.scrollX, sy = window.scrollY;
-    const cover = document.createElement('div'); cover.style.cssText = 'position:fixed;inset:0;z-index:30;background:var(--color-paper)';
-    const box = document.createElement('div'); box.className = 'pw'; box.style.cssText = 'position:absolute;left:0;top:0;z-index:29;width:794px;max-width:none;margin:0;background:#fff';
-    box.innerHTML = sheetHtml(D); box.firstChild.style.boxShadow = 'none';
-    document.body.append(box, cover);
-    try {
-      await Promise.all([loadJs('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'), loadJs('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')]);
-      try { await document.fonts.ready; } catch (_) {}
-      window.scrollTo(0, 0);
-      const cv = await window.html2canvas(box, { scale: 2, backgroundColor: '#ffffff', useCORS: true, x: 0, y: 0, scrollX: 0, scrollY: 0, width: 794, windowWidth: 794 });
-      const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-      const m = 8, pw = 210 - m * 2, ph = 297 - m * 2, h = cv.height * pw / cv.width;
-      const img = cv.toDataURL('image/jpeg', 0.95);
-      if (h <= ph) pdf.addImage(img, 'JPEG', m, m, pw, h);
-      else { for (let y = 0, i = 0; y < h; y += ph, i++) { if (i) pdf.addPage(); pdf.addImage(img, 'JPEG', m, m - y, pw, h); } }
-      pdf.save('Invoice-' + String(D.no).replace(/[^\w-]/g, '') + '.pdf');
-    } catch (_) { box.remove(); cover.remove(); window.print(); }
-    box.remove(); cover.remove(); window.scrollTo(sx, sy);
-    btn.disabled = false; btn.textContent = t('pdf');
+    try { await document.fonts.ready; } catch (_) {}
+    const title = document.title;
+    document.title = 'Invoice-' + String(D.no).replace(/[^\w-]/g, '');
+    const back = () => { document.title = title; window.removeEventListener('afterprint', back); };
+    window.addEventListener('afterprint', back);
+    window.print();
+    setTimeout(back, 60000);
   }
   async function load(){
     const r = await api({ mode:'inv-get' });
