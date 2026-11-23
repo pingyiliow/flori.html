@@ -4,15 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
+<meta name="description" content="Check your Bamboo Green Florist order, pay, and see it confirmed.">
 <title>Confirm your order | Bamboo Green Florist</title>
 <link rel="icon" href="/logo-green.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Hanken+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-/* Hallmark · redesign: full · scope: app · theme: loom (ecru, accent ink green by request) · customer order form + payment page · signature: the order itself sits at the top, already filled in · v2.0.0 */
-/* critique: a customer checks, not types: what staff already know is filled in, one section per question, one green button at the end */
+/* Hallmark · redesign: full · scope: app · theme: loom (brand kept: ecru, ink green, Caslon, wordmark) · customer order page: details, pay, confirmed · signature: one card that is the order, carried from screen to screen · v2.0.0 */
+/* critique: each screen answers one question (is this right, how do I pay, is it done) with one green button; details fold away, the rest drops to quiet rows */
+/* Hallmark · dropped logo-green.png in the header · replaced by the wordmark the owner supplied (the icon stays the favicon) */
 :root{
-  --color-paper:#F3EFE6; --color-paper-2:#EBE5D8; --color-surface:#FAF8F3;
+  --color-paper:#F3EFE6; --color-paper-2:#EBE5D8; --color-surface:#FAF8F3; --color-card:#FFFFFF; --color-accent-soft:#E3EAE5; --color-off:#E4DED2;
   --color-ink:#2A2622; --color-ink-2:#3F3A35; --color-muted:#6E665D; --color-rule:#D6CFC0;
   --color-accent:#2E4A3D; --color-accent-2:#3D5E4F; --color-accent-ink:#F3EFE6; --color-warn:#8A5A12; --color-req:#C0392B; --color-focus:#2E4A3D;
   --font-display:"Libre Caslon Display",Georgia,serif; --font-body:"Hanken Grotesk",system-ui,sans-serif; --font-num:"DM Mono",ui-monospace,monospace;
@@ -20,6 +22,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{overflow-x:clip}
+::selection{background:var(--color-accent-soft)}
+input,textarea{caret-color:var(--color-accent)}
 body{font-family:var(--font-body);font-size:16px;color:var(--color-ink);background:var(--color-paper);-webkit-font-smoothing:antialiased}
 button,input,textarea{font:inherit;color:inherit}
 button{background:none;border:0;cursor:pointer}
@@ -32,7 +36,7 @@ button{background:none;border:0;cursor:pointer}
 .lang{display:flex;box-shadow:inset 0 0 0 1px var(--color-rule)}
 .lang button{padding:8px 12px;font-size:13px;font-weight:600;color:var(--color-muted);min-height:36px;transition:background-color var(--dur),color var(--dur)}
 .lang button.on{background:var(--color-ink);color:var(--color-paper)}
-h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.01em;margin-top:28px;overflow-wrap:break-word;min-width:0}
+h1{text-wrap:balance;font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.01em;margin-top:28px;overflow-wrap:break-word;min-width:0}
 .ref{margin-top:8px;font-size:14px;color:var(--color-muted)}
 .sec{margin-top:28px}
 .sec h2{font-size:15px;font-weight:600;padding-bottom:8px;border-bottom:2px solid var(--color-ink)}
@@ -79,7 +83,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .f.bad .seg{box-shadow:inset 0 0 0 1px var(--color-warn)}
 .f .tick{display:flex;align-items:center;gap:8px;margin:10px 0 0;font-size:15px;color:var(--color-ink);cursor:pointer;min-height:36px}
 .f .tick input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--color-accent)}
-.f textarea:disabled{opacity:.5}
+.f textarea:disabled{background:var(--color-off);color:var(--color-muted);cursor:not-allowed}
 .iw{border-bottom:1px solid var(--color-rule);padding-bottom:14px}
 .iw .item{border-bottom:0;padding-bottom:0}
 .f.cardf{margin:12px 0 0}
@@ -87,7 +91,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .f.cardf textarea{min-height:64px}
 .f.nocard{margin-top:8px}
 .f.nocard .tick{margin-top:0}
-.seg button[disabled]:not(.on){opacity:.45}
+.seg button[disabled]:not(.on){background:var(--color-off);color:var(--color-muted);cursor:not-allowed}
 .addr{position:relative}
 .hits{border:1px solid var(--color-rule);border-top:0;background:var(--color-surface)}
 .hits:empty{display:none}
@@ -97,7 +101,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:52px;margin-top:28px;background:var(--color-accent);color:var(--color-accent-ink);font-weight:600;font-size:16px;text-decoration:none;transition:background-color var(--dur)}
 .btn:hover{background:var(--color-accent-2)}
 .btn:active{transform:translateY(1px)}
-.btn[disabled]{opacity:.6;cursor:default}
+.btn[disabled]{background:var(--color-off);color:var(--color-muted);cursor:not-allowed}
 .btn.ghost{background:transparent;color:var(--color-accent);box-shadow:inset 0 0 0 1.5px var(--color-accent);margin-top:12px}
 .btn.ghost:hover{background:var(--color-paper-2)}
 .fine{margin-top:12px;font-size:13px;color:var(--color-muted);text-align:center}
@@ -149,6 +153,46 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 .bar .tt span{display:block;font-size:12px;color:var(--color-muted)}
 .bar .tt b{display:block;font-family:var(--font-display);font-weight:400;font-size:24px;white-space:nowrap}
 .bar .btn{width:auto;flex:1;max-width:260px;margin:0 0 0 auto;min-height:48px}
+/* one card per question */
+.card{margin-top:16px;background:var(--color-card);border:1px solid var(--color-rule);padding:4px 16px 16px}
+.card > h2{font-size:15px;font-weight:600;padding-top:12px}
+.card .iw:last-of-type{border-bottom:0}
+.card .item:last-child{border-bottom:0}
+.card .total{padding-bottom:0}
+.card .shop{margin:12px 0 0}
+.who{padding:12px 0 0;border-top:1px solid var(--color-rule);font-size:14px;line-height:1.5;color:var(--color-ink-2)}
+.who b{font-weight:600;color:var(--color-ink)}
+.total{gap:12px}
+.pst{display:flex;justify-content:flex-end;margin:-4px 0 12px}
+.tag{display:inline-block;padding:2px 8px;font-family:var(--font-body);font-size:12px;font-weight:600;color:var(--color-accent);background:var(--color-accent-soft);vertical-align:middle}
+.tag.wait{color:var(--color-warn);background:var(--color-paper-2)}
+details.fold{margin-top:12px;border-top:1px solid var(--color-rule)}
+details.fold summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;font-size:14px;font-weight:600;color:var(--color-accent);cursor:pointer;list-style:none}
+details.fold summary::-webkit-details-marker{display:none}
+details.fold summary svg{flex:none;transition:transform var(--dur)}
+details.fold[open] summary svg{transform:rotate(180deg)}
+details.fold .ro .r:last-child{border-bottom:0}
+.link{display:inline-flex;align-items:center;min-height:44px;font-size:14px;font-weight:600;color:var(--color-accent);text-decoration:underline;text-underline-offset:3px}
+.link:hover{color:var(--color-accent-2)}
+button.link{padding:0}
+.due{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:16px;padding:16px;background:var(--color-ink);color:var(--color-paper)}
+.due span{font-size:14px}
+.due b{font-family:var(--font-display);font-weight:400;font-size:34px;line-height:1}
+.card .note{margin-top:8px;font-size:14px}
+.card .seg{margin-top:12px}
+.pane{margin-top:4px}
+.card .bank{border-top:0;margin-top:4px}
+.card .bank .r:last-child{border-bottom:0}
+.card .drop{margin-top:12px}
+.okmark{margin-top:24px;width:48px;height:48px;border-radius:50%;background:var(--color-accent);color:var(--color-accent-ink);display:grid;place-items:center}
+.okmark + h1{margin-top:12px}
+.more{margin-top:20px;border-top:1px solid var(--color-rule)}
+.more a{display:flex;align-items:center;gap:12px;min-height:60px;border-bottom:1px solid var(--color-rule);text-decoration:none;color:var(--color-ink);font-size:15px;transition:background-color var(--dur)}
+.more a:hover{background:var(--color-surface)}
+.more .tx{flex:1;min-width:0}
+.more .tx small{display:block;font-size:13px;color:var(--color-muted)}
+.more svg{flex:none;color:var(--color-muted)}
+.more svg.ic{color:var(--color-accent)}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -156,13 +200,13 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
 <body>
 <div class="wrap">
   <header class="top">
-    <img src="/logo-green.png" alt="Bamboo Green Florist" width="42" height="48">
+    <img src="/logo-wordmark.png" alt="Bamboo Green Florist" width="104" height="37" style="height:37px;width:auto">
         <div class="lang" role="group" aria-label="Language"><button type="button" data-l="en">EN</button><button type="button" data-l="zh">中文</button></div>
   </header>
   <main id="app"><p class="ref" style="margin-top:28px">Loading…</p></main>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<div class="zoom" id="zoom" hidden><img alt=""></div>
+<div class="zoom" id="zoom" hidden><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt=""></div>
 
 <script>
 (function(){
@@ -174,7 +218,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       h1pay:'Order received', topay:'To pay', paynote:'Pay by instant transfer or DuitNow, then send us the receipt. We prepare your order once the payment is verified.',
       bank:'Bank', acname:'Account name', acno:'Account number', copy:'Copy', copied:'Copied', saveqr:'Save QR', up:'Upload payment receipt', upsub:'Tap to choose a screenshot, photo or PDF', pdfBig:'The PDF is too large (max 3 MB). Please send a screenshot or send it on WhatsApp.', uploading:'Uploading…', upok:'Receipt received, thank you', upmore:'Tap to add another receipt', upbad:'Upload failed, please try again or send it on WhatsApp',
       wa:'Send receipt on WhatsApp', pending:'We have received your payment receipt. Your order will be confirmed once the payment is verified, and we will send you the order confirmation after that.', edit:'Change order details', paidok:'Payment verified, thank you.',
-      h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed. If you need to change anything, feel free to contact us on WhatsApp.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us', shop:'Shop more flowers', inv:'Get invoice',
+      h1done:'Order confirmed', ordno:'Order', locked:'Your order is confirmed. If you need to change anything, feel free to contact us on WhatsApp.', pay:'Payment', paidv:'Verified', pend:'Waiting for verification', wa2:'WhatsApp us', shop:'Shop more flowers', inv:'Get invoice', chg:'Need a change?', shopSite:'bambooflorist.com.my', paidTag:'Paid', to:'To', qrTab:'DuitNow QR', bankTab:'Bank transfer', sendRc:'Send us the receipt',
       h1gone:'This link has expired', gone:'This order link is no longer open. Please WhatsApp us and we will help you.', h1bad:'Link not found', bad:'Please check the link we sent, or WhatsApp us.', err:'Something went wrong, please try again.' },
     zh:{ paidFill:'感谢您的付款。请填写以下资料，以便我们为您准备订单。', slipFill:'已收到您的付款收据。请填写以下资料，以便我们为您准备订单。', slotAm:'上午', slotPm:'下午', slotNeed:'请选择送货时段', slotNeedP:'请选择自取时段', slotPick:'请选择时段', noCard:'不需要卡片', cardNeed:'请填写卡片内容，或勾选不需要卡片', photo:'查看图片', fnote:'花艺要求', h1chk:'核对您的订单', feeAddr:'请输入送货地址', feeOut:'此地址不在我们一般的送货范围内，我们会跟您确认运费。', feeTbc:'待确认', tbcPay:'我们会确认此地址的运费，并通过 WhatsApp 把总额发给您，届时再付款。', feePc:'请在地址里填写邮编', details:'订单资料', h1:'确认您的订单', ref:'订单申请', your:'您的订单', del:'运费', total:'总额', you:'您的资料', name:'姓名', phone:'电话', email:'电邮',
       getting:'送货或自取', deliv:'送货', pick:'到店自取', s1:'资料', s2:'付款', s3:'完成', pickFrom:'取花地点', shopHrs:'周一至周六 9am – 6pm · 周日及公共假期 10am – 2pm', maps:'在 Google 地图打开', collector:'谁来取花？（选填）', ddate:'送货日期', dtime:'送货时间', pdate:'自取日期', ptime:'自取时间',
@@ -183,7 +227,7 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
       h1pay:'已收到订单', topay:'应付', paynote:'请用即时转账或 DuitNow 付款，然后把收据发给我们。确认收款后，我们才开始准备您的订单。',
       bank:'银行', acname:'户口名称', acno:'户口号码', copy:'复制', copied:'已复制', saveqr:'保存二维码', up:'上传付款收据', upsub:'点击选择截图、照片或 PDF', pdfBig:'PDF 太大（最多 3 MB），请改用截图或用 WhatsApp 发送。', uploading:'上传中…', upok:'已收到收据，谢谢', upmore:'点击再加一张收据', upbad:'上传失败，请再试一次或用 WhatsApp 发送',
       wa:'在 WhatsApp 发送收据', pending:'已收到您的付款收据。确认收款后，您的订单才会正式确认，确认后我们会把订单确认发给您。', edit:'修改订单资料', paidok:'已确认收款，谢谢。',
-      h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认。如需更改，欢迎通过 WhatsApp 联系我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们', shop:'继续选购花礼', inv:'获取发票',
+      h1done:'订单已确认', ordno:'订单', locked:'您的订单已确认。如需更改，欢迎通过 WhatsApp 联系我们。', pay:'付款', paidv:'已确认', pend:'等待确认', wa2:'WhatsApp 我们', shop:'继续选购花礼', inv:'获取发票', chg:'需要修改？', shopSite:'bambooflorist.com.my', paidTag:'已付款', to:'送给', qrTab:'DuitNow 二维码', bankTab:'银行转账', sendRc:'把收据发给我们',
       h1gone:'链接已失效', gone:'这个订单链接已关闭。请 WhatsApp 我们，我们会协助您。', h1bad:'找不到链接', bad:'请检查我们发给您的链接，或 WhatsApp 我们。', err:'出了点问题，请再试一次。' }
   };
   const SHOP_WA = '60124778120';
@@ -285,6 +329,17 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     return its.map((it,i) => '<div class="iw">'+itemRow(it)+cardBox(i)+'</div>').join('')
       + '<div class="f nocard"><label class="tick"><input type="checkbox" id="f-noCard"'+(D.noCard?' checked':'')+'> '+t('noCard')+'</label></div>'; };
   const totalNow = () => rm((D.amount||0)+feeNow());
+  const chev = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  const nextIc = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+  // When and to whom, in two short lines under the flowers.
+  const whoHtml = () => { const pk = D.fulfil==='pickup';
+    const when = [pk ? t('pick') : t('deliv'), fmtDate(D.dueDate), D.dueTime].filter(Boolean).join(', ');
+    return '<div class="who"><b>'+esc(when)+'</b>'+(!pk && D.recipName ? '<br>'+esc(t('to')+' '+D.recipName) : '')+'</div>'; };
+  // The order as one card: flowers, fee, total, when and who; everything else folds away.
+  const orderCard = (withTotal, tag, extra) => '<div class="card">'+(D.items||[]).map(itemRow).join('')+feeRow()
+    + (withTotal ? '<div class="total"><span>'+t('total')+'</span><b class="num">'+totalNow()+'</b></div>'+(tag ? '<div class="pst">'+tag+'</div>' : '') : '')
+    + whoHtml()
+    + '<details class="fold"><summary>'+t('details')+chev+'</summary><div class="ro">'+detailsHtml()+'</div>'+(extra||'')+'</details></div>';
   const refreshItems = () => { const el = document.getElementById('tot'); if (el) el.innerHTML = feeRow(); const b = document.getElementById('bar-total'); if (b) b.textContent = totalNow(); };
   const addrMsg = (html, info) => { const el = document.getElementById('addr-msg'); if (el) { el.innerHTML = html || ''; el.classList.toggle('info', !!info); } };
   const outMsg = () => esc(t('feeOut'));
@@ -314,29 +369,36 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     if (D.state==='expired') { app.innerHTML = '<h1>'+t('h1gone')+'</h1><div class="box">'+t('gone')+'</div><a class="btn" href="'+waLink('Hi, about my order request '+(D.ref||''))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'; return; }
     if (D.state==='locked') view = 'done';
     if (view==='done') {
-      app.innerHTML = stepsHtml(3)+'<h1>'+t('h1done')+'</h1><p class="ref">'+(D.orderNo ? t('ordno')+' <span class="num">'+esc(D.orderNo)+'</span>' : t('ref')+' <span class="num">'+esc(D.ref)+'</span>')+'</p>'
-        + '<div class="box">'+t('locked')+'</div>'
-        + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
-        + '<div class="sec ro"><h2>'+t('details')+'</h2>'+detailsHtml()+row(t('pay'), D.paid?t('paidv'):t('pend'))+'</div>'
+      // Confirmed: the order card, one green button (the invoice), two quiet rows.
+      app.innerHTML = stepsHtml(3)+'<div class="okmark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4"/></svg></div>'
+        + '<h1>'+t('h1done')+'</h1><p class="ref">'+(D.orderNo ? t('ordno')+' <span class="num">'+esc(D.orderNo)+'</span>' : t('ref')+' <span class="num">'+esc(D.ref)+'</span>')+'</p>'
+        + orderCard(true, D.paid ? '<span class="tag">'+t('paidTag')+'</span>' : '<span class="tag wait">'+t('pend')+'</span>')
         + (D.fulfil==='pickup' ? shopHtml() : '')
         + (D.orderNo ? '<a class="btn" href="/invoice.html?t='+encodeURIComponent(tok)+'">'+t('inv')+'</a>' : '')
-        + '<a class="btn'+(D.orderNo?' ghost':'')+'" href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'
-        + '<a class="btn ghost" href="https://bambooflorist.com.my/" target="_blank" rel="noopener">'+t('shop')+'</a>';
+        + '<nav class="more" aria-label="More">'
+        + '<a href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="tx">'+t('chg')+'<small>'+t('wa2')+'</small></span>'+nextIc+'</a>'
+        + '<a href="https://bambooflorist.com.my/" target="_blank" rel="noopener"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c-4-3-8-6-8-11a4 4 0 018-1 4 4 0 018 1c0 5-4 8-8 11z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="tx">'+t('shop')+'<small>'+t('shopSite')+'</small></span>'+nextIc+'</a>'
+        + '</nav>';
       return;
     }
     if (view==='pay') {
+      // Pay: the amount first, the order folded, one way to pay at a time, then the receipt.
+      const tbc = feeTbc(), sent = slipState==='ok' || D.slip;
       app.innerHTML = stepsHtml(2)+'<h1>'+(D.submitted||D.slip ? t('h1pay') : t('h1chk'))+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
-        + '<div class="sec"><h2>'+t('your')+'</h2>'+itemsHtml()+'</div>'
-        + '<div class="sec ro"><h2>'+t('details')+'</h2>'+detailsHtml()+'</div>'
+        + (D.paid ? '<div class="box">'+t('paidok')+'</div>'
+           : tbc ? '<div class="box">'+t('tbcPay')+'</div><a class="btn" href="'+waLink('Hi, about the delivery fee for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa2')+'</a>'
+           : '<div class="due"><span>'+t('topay')+'</span><b class="num">'+totalNow()+'</b></div>'+(sent ? '<div class="box" id="pending">'+t('pending')+'</div>' : ''))
+        + orderCard(false, '', '<button class="link" type="button" id="edit">'+t('edit')+'</button>')
         + (D.fulfil==='pickup' ? shopHtml() : '')
-        + '<button class="btn ghost" type="button" id="edit">'+t('edit')+'</button>'
-        + '<div class="sec"><h2>'+t('pay')+'</h2></div>'
-        + (D.paid ? '<div class="box">'+t('paidok')+'</div>' : feeTbc() ? '<div class="box">'+t('tbcPay')+'</div><a class="btn" href="'+waLink('Hi, about the delivery fee for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa2')+'</a>' : ((slipState==='ok'||D.slip) ? '<div class="box" id="pending">'+t('pending')+'</div>' : '<p class="note">'+t('paynote')+'</p>')
-        + '<div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
-        + '<div class="r"><span>'+t('acno')+'</span><b class="num">322 9170 500</b><button class="copy" type="button" id="copy">'+t('copy')+'</button></div></div>'
-        + '<div class="qr"><img src="/duitnow-qr.jpg" width="220" height="314" alt="DuitNow QR, Bamboo Green Florist (M)"></div><p class="cap"><a href="/duitnow-qr.jpg" download="bamboo-duitnow-qr.jpg">'+t('saveqr')+'</a></p>'
-        + '<label class="drop'+(slipState==='ok'||D.slip?' ok':'')+'" id="drop"><input type="file" accept="image/*,application/pdf" id="slip"><b>'+(slipState==='up'?t('uploading'):(slipState==='ok'||D.slip?t('upok'):t('up')))+'</b>'+(slipState==='up'?'':'<span>'+((slipState==='ok'||D.slip)?t('upmore'):t('upsub'))+'</span>')+'</label>'
-        + '<a class="btn" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a>');
+        + (D.paid || tbc ? '' : '<div class="card"><h2>'+t('pay')+'</h2>'+(sent ? '' : '<p class="note">'+t('paynote')+'</p>')
+          + '<div class="seg" role="tablist"><button type="button" role="tab" class="on" aria-selected="true" aria-controls="pane-qr" id="tab-qr">'+t('qrTab')+'</button><button type="button" role="tab" aria-selected="false" aria-controls="pane-bank" id="tab-bank">'+t('bankTab')+'</button></div>'
+          + '<div class="pane" id="pane-qr" role="tabpanel" aria-labelledby="tab-qr"><div class="qr"><img src="/duitnow-qr.jpg" width="220" height="314" alt="DuitNow QR, Bamboo Green Florist (M)"></div><p class="cap"><a href="/duitnow-qr.jpg" download="bamboo-duitnow-qr.jpg">'+t('saveqr')+'</a></p></div>'
+          + '<div class="pane" id="pane-bank" role="tabpanel" aria-labelledby="tab-bank" hidden><div class="bank"><div class="r"><span>'+t('bank')+'</span><b>Public Bank</b></div><div class="r"><span>'+t('acname')+'</span><b>Bamboo Green Florist (M) Sdn Bhd</b></div>'
+          + '<div class="r"><span>'+t('acno')+'</span><b class="num">322 9170 500</b><button class="copy" type="button" id="copy">'+t('copy')+'</button></div></div></div></div>')
+        + '<div class="card"><h2>'+t('sendRc')+'</h2>'
+        + '<label class="drop'+(sent?' ok':'')+'" id="drop"><input type="file" accept="image/*,application/pdf" id="slip"><b>'+(slipState==='up'?t('uploading'):(sent?t('upok'):t('up')))+'</b>'+(slipState==='up'?'':'<span>'+(sent?t('upmore'):t('upsub'))+'</span>')+'</label>'
+        + '<a class="link" href="'+waLink('Payment receipt for order request '+D.ref)+'" target="_blank" rel="noopener">'+t('wa')+'</a></div>';
+      document.querySelectorAll('[role=tab]').forEach(b => b.onclick = () => document.querySelectorAll('[role=tab]').forEach(x => { const on = x===b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on); document.getElementById(x.getAttribute('aria-controls')).hidden = !on; }));
       const c=document.getElementById('copy'); if (c) c.onclick = () => { try { navigator.clipboard.writeText('3229170500'); } catch(_) {} toast(t('copied')); };
       const s=document.getElementById('slip'); if (s) s.onchange = () => upload(s.files && s.files[0]);
       const ed=document.getElementById('edit'); if (ed) ed.onclick = () => { view='form'; render(); window.scrollTo(0,0); };
@@ -346,10 +408,10 @@ h1{font-family:var(--font-display);font-weight:400;font-size:36px;line-height:1.
     const pk = fulfil==='pickup';
     app.innerHTML = stepsHtml(1)+'<h1>'+t('h1')+'</h1><p class="ref">'+t('ref')+' <span class="num">'+esc(D.ref)+'</span></p>'
       + (complete() ? '' : D.paid ? '<div class="box">'+t('paidFill')+'</div>' : (D.slip ? '<div class="box">'+t('slipFill')+'</div>' : ''))
-      + '<div class="sec"><h2>'+t('your')+'</h2><div id="items">'+formItemsHtml()+'</div><div id="tot">'+feeRow()+'</div></div>'
-      + '<div class="sec"><h2>'+t('you')+'</h2>'+field('name',t('name')+REQ,D.name,'autocomplete="name"')
+      + '<div class="card"><h2>'+t('your')+'</h2><div id="items">'+formItemsHtml()+'</div><div id="tot">'+feeRow()+'</div></div>'
+      + '<div class="card"><h2>'+t('you')+'</h2>'+field('name',t('name')+REQ,D.name,'autocomplete="name"')
         + '<div class="two">'+field('contact',t('phone')+REQ,D.contact,'inputmode="tel" autocomplete="tel" class="num"')+field('email',t('email'),D.email,'type="email" autocomplete="email"')+'</div></div>'
-      + '<div class="sec"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'"'+(D.paid?' disabled':'')+'>'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'"'+(D.paid?' disabled':'')+'>'+t('pick')+'</button></div></div>'
+      + '<div class="card"><h2>'+t('getting')+'</h2><div class="f"><div class="seg"><button type="button" data-fl="delivery" class="'+(pk?'':'on')+'"'+(D.paid?' disabled':'')+'>'+t('deliv')+'</button><button type="button" data-fl="pickup" class="'+(pk?'on':'')+'"'+(D.paid?' disabled':'')+'>'+t('pick')+'</button></div></div>'
         + (pk ? shopHtml() : '')
         + field('dueDate',(pk?t('pdate'):t('ddate'))+REQ,D.dueDate,'type="date" min="'+todayIso()+'"')+timeHtml(pk)
         + (pk ? field('collector',t('collector'),String(D.recipName||'').trim()===String(D.name||'').trim()?'':D.recipName,'autocomplete="off"')
