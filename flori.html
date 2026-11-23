@@ -8626,6 +8626,8 @@ async function createShopifyDraft() {
   ];
   { const _ch = {whatsapp:'WhatsApp',facebook:'Facebook',instagram:'Instagram',shopify:'Shopify',walkin:'Walk-in',other:'Other'}[f.channel] || f.channel;
     if (_ch) customAttributes.push({ key:'Order Channel', value: _ch }); }
+  { const _col = String(f.recipName||'').trim();
+    if (f.fulfil==='pickup' && _col && _col!==String(f.name||'').trim()) customAttributes.push({ key:'Collected by', value: _col }); }
   { const _sl=_slipList(f.paySlip).filter(u=>/^https?:/.test(u)); if (_sl.length) customAttributes.push({ key:'Payment Slip', value: _sl.join('\n') }); }
   // Card message + flower/design instructions + remark → VISIBLE order attributes, so
   // they show clearly on the Shopify order and sync back into the daily-order detail.
