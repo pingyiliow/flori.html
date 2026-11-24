@@ -4254,7 +4254,9 @@ function orderCardConsolidated(o, opts){
   const rows = items.map((it, idx) => {
     const ready = o.fulfilled ? true : (multi ? !!it.ready : !!o.ready);
     const img = itemPhotos(it)[0] || (idx === 0 ? o.image : null) || null;
-    const thumb = img ? `<span class="orw-th"><img src="${String(img).replace(/"/g,'&quot;')}" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>` : '';
+    const _phs = itemPhotos(it).length ? itemPhotos(it) : (img ? [img] : []);
+    const _phJs = 'event.stopPropagation();openGallery('+JSON.stringify(_phs).replace(/"/g,'&quot;')+',0,\'\')';
+    const thumb = img ? `<span class="orw-th" role="button" tabindex="0" aria-label="View photo" onclick="${_phJs}" onkeydown="if(event.key==='Enter'||event.key===' '){${_phJs}}"><img src="${String(img).replace(/"/g,'&quot;')}" alt="" loading="lazy" onerror="this.parentNode.remove()"></span>` : '';
     const qty = (it.quantity > 1) ? ` <span class="q">× ${it.quantity}</span>` : '';
     const p = _liUnit(it) || 0, _w = _liWas(it); const priceTxt = (p > 0 && multi) ? `<span class="orw-price num">${_w ? '<s class="was">RM '+(_w*(it.quantity||1)).toFixed(2)+'</s> ' : ''}RM ${(p*(it.quantity||1)).toFixed(2)}</span>` : '';
     const on = o.fulfilled ? `event.stopPropagation()` : `event.stopPropagation();cycleItemReady('${o.id}',${idx})`;
@@ -15655,6 +15657,7 @@ function _renderDPInner(order, localOrder) {
   const priorityOpts = [
     ['normal','Normal'],['high','High'],['urgent','Urgent']
   ].map(([v,l])=>`<option value="${v}" ${(localOrder.priority||'normal')===v?'selected':''}>${l}</option>`).join('');
+  const _topAt = html.length;
   html += `<div class="dp-card">
     <div class="dp-assign">
       <label>Designer<select onchange="quickAssign('${localOrder.id}','designer',this.value)">${designerOpts}</select></label>
@@ -15842,10 +15845,9 @@ function _renderDPInner(order, localOrder) {
   const allPhotos = []; const _seen = new Set();
   (liSrc.lineItems||[]).forEach(li => itemPhotos(li).forEach(s => { if(s && !_seen.has(s)){ _seen.add(s); allPhotos.push(s); } }));
   if (liSrc.image && !_seen.has(liSrc.image)) { allPhotos.unshift(liSrc.image); _seen.add(liSrc.image); }
-  html += `<details class="dp-fold"><summary>Photos <small>${allPhotos.length}</small><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></summary><div class="dp-fold-in">
+  if (!(liSrc.lineItems||[]).length && allPhotos.length) html += `<details class="dp-fold"><summary>Photos <small>${allPhotos.length}</small><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></summary><div class="dp-fold-in">
     ${allPhotos.length
-      ? renderDpCarousel(allPhotos)
-      : `<div style="font-size:12px;color:var(--c-muted);padding:6px 0">No photos yet — use the ＋ Add button on a product above (tap or drag &amp; drop an image).</div>`}
+      ? renderDpCarousel(allPhotos) : ''}
   </div></details>`;
 
   // ── Lalamove (visible on EVERY device — booking id lives on the order row) ──
@@ -15856,8 +15858,8 @@ function _renderDPInner(order, localOrder) {
         ${(typeof _lalaHasBooking==='function' && _lalaHasBooking(localOrder))?`<button onclick="closeDP();manageLalamove('${localOrder.id}')" class="btn btn-ghost btn-sm" style="margin-left:auto">Manage</button>`:''}
       </div></div>`;
   }
-  // ── Flower Recipe ──
-  html += `<div class="dp-card">
+  // ── Flower Recipe: first card in the panel ──
+  const _rcp = `<div class="dp-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="dp-section-ttl" style="margin-bottom:0">Flower recipe</div>
       <button onclick="closeDP();openRecipe('${localOrder.id}')" style="font-size:11px;color:var(--c-sage);text-decoration:underline;background:none;border:none;cursor:pointer">${_ownRecipe?di('edit',11)+' Edit recipe':di('leaf',11)+(recipe.length?' Adjust for this order':' Add recipe')}</button>
@@ -15867,6 +15869,7 @@ function _renderDPInner(order, localOrder) {
       : `<div style="font-size:12px;color:var(--c-muted);font-style:italic;font-family:var(--f-head)">No recipe added yet.</div>`
     }
   </div>`;
+  html = html.slice(0, _topAt) + _rcp + html.slice(_topAt);
 
   // ── Order Note ──
   if (note) {

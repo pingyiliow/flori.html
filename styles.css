@@ -1275,7 +1275,8 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .orw-tag.late{color:var(--c-red);font-weight:600}
 .orw-items{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .orw-item{display:flex;align-items:center;gap:12px;min-height:30px}
-.orw-th{width:44px;height:44px;flex:none;overflow:hidden;background:var(--color-paper-2)}
+.orw-th{width:44px;height:44px;flex:none;overflow:hidden;background:var(--color-paper-2);cursor:zoom-in}
+.orw-th:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
 .orw-th img{width:100%;height:100%;object-fit:cover;display:block;outline:1px solid color-mix(in oklab,var(--color-ink) 8%,transparent);outline-offset:-1px}
 .orw-pname{flex:1;min-width:0;font-size:15px}
 .orw-pname .q{color:var(--c-muted);font-size:13px}
