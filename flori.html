@@ -8942,7 +8942,8 @@ async function orderInvoice(id, how){
   let authToken=''; try{ if(hasSB()){ const {data}=await sb.auth.getSession(); authToken=data?.session?.access_token||''; } }catch(_){}
   let url = '';
   try {
-    const r = await fetch('/api/geo', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ mode:'inv-link', id: shopId(o.id), authToken }) });
+    const man = o.src !== 'shopify';
+    const r = await fetch('/api/geo', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ mode:'inv-link', id: man ? o.id : shopId(o.id), manual: man, authToken }) });
     const j = await r.json().catch(()=>({}));
     if (r.ok && j.path) url = location.origin + j.path;
   } catch(_){}
@@ -15685,13 +15686,13 @@ function _renderDPInner(order, localOrder) {
         + (_links ? '<div class="dp-tlinks">'+_links+'</div>' : '')
         + '<div class="dp-slips">'+_slipList(_slip).map(u=>_slipView(u,'dp-pay-slip')).join('')
         + '<button type="button" class="dp-slip-add" onclick="orderAddSlip('+_q+')" aria-label="Add payment slip">'+di('plus',16)+'<span>Slip</span></button></div>'
-        + (localOrder.src==='shopify' ? '<div class="dp-inv" id="dp-inv"><button type="button" class="dp-inv-btn" onclick="dpInvToggle(event)" aria-haspopup="menu" aria-expanded="false">'+di('receipt',18)
+        + ('<div class="dp-inv" id="dp-inv"><button type="button" class="dp-inv-btn" onclick="dpInvToggle(event)" aria-haspopup="menu" aria-expanded="false">'+di('receipt',18)
             + '<span class="dp-inv-tx">Invoice<small id="dp-inv-st"'+(_invSent[_id]?' class="sent"':'')+'>'+esc(_invSent[_id] ? _invSentTxt(_invSent[_id]) : 'Not sent')+'</small></span><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>'
             + '<div class="dp-inv-menu" id="dp-inv-menu" role="menu" hidden>'
             + '<button type="button" class="dp-mi" role="menuitem" onclick="dpInvClose();orderInvoice('+_q+',\'open\')">'+di('receipt',16)+' Open invoice</button>'
             + '<button type="button" class="dp-mi" role="menuitem" onclick="dpInvClose();orderInvoice('+_q+',\'wa\')">'+di('chat',16)+' Send on WhatsApp</button>'
             + '<button type="button" class="dp-mi" role="menuitem" onclick="dpInvClose();orderInvoice('+_q+',\'copy\')">'+di('copy',16)+' Copy link</button>'
-            + '</div></div>' : '')
+            + '</div></div>')
         + '</div>';
     }
   }
@@ -15802,7 +15803,7 @@ function _renderDPInner(order, localOrder) {
     </div>`;
   }
   html += _payCard;
-  if (localOrder.src==='shopify') setTimeout(() => _dpInvStatus(localOrder.id), 0);
+  setTimeout(() => _dpInvStatus(localOrder.id), 0);
 
   // ── Order Photos — a read-only gallery of all the product photos combined, tap
   // to view full size. Photos are managed per-product in the Items section above

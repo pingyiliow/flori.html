@@ -129,7 +129,7 @@ td.u,td.a{width:110px;white-space:nowrap}
 <script>
 (() => {
   const P = new URLSearchParams(location.search);
-  const ACCESS = P.get('t') ? { t: P.get('t') } : { o: P.get('o') || '', k: P.get('k') || '' };
+  const ACCESS = P.get('t') ? { t: P.get('t') } : P.get('m') ? { m: P.get('m'), k: P.get('k') || '' } : { o: P.get('o') || '', k: P.get('k') || '' };
   const SHOP_WA = '60124778120';
   let lang = 'en'; try { lang = localStorage.getItem('bf-form-lang') === 'zh' ? 'zh' : 'en'; } catch (_) {}
   // Signed in to BloomFlow on this browser: staff can change details after they lock.

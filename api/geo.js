@@ -9,6 +9,8 @@
 // Cost note: one request per NEW order address, cached forever in orders.lat/lng by the
 // caller — ~300/month vs Google's 10,000 free Essentials calls (see driver-mode plan).
 
+import crypto from 'crypto';
+
 const SB_URL  = process.env.SUPABASE_URL  || 'https://oyrngwazbqmxoeihyfoy.supabase.co';
 const SB_ANON = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95cm5nd2F6YnFteG9laWh5Zm95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MzQ1MjksImV4cCI6MjA5NjMxMDUyOX0.SFySJvTDJCa2in9r_Rvvg5akPMEhGloCS6H08RtPOPE';
 
@@ -200,8 +202,23 @@ async function shopRest(path) {
   const r = await fetch('https://' + SHOP + '/admin/api/2025-01/' + path, { headers: { 'X-Shopify-Access-Token': tok, Accept: 'application/json' } });
   return { ok: r.ok, j: await r.json().catch(() => null) };
 }
+// Manual orders (made in BloomFlow, not in Shopify) have no Shopify token: their link is
+// signed here, k = HMAC of the order id with the server key.
+const invKey = id => crypto.createHmac('sha256', String(SB_SVC || '')).update('bf-inv:' + id).digest('hex').slice(0, 40);
 async function invLoad(body) {
   let fu = null, id = '';
+  if (body.m) {
+    const mid = String(body.m);
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(mid) || String(body.k || '') !== invKey(mid)) return { err: 'not_found' };
+    const q = await svc('orders?id=eq.' + encodeURIComponent(mid) + '&select=*');
+    const row = q.ok && Array.isArray(q.j) && q.j[0];
+    if (!row) return { err: 'not_found' };
+    if (row.name) { const f = await svc('followups?order_no=eq.' + encodeURIComponent(row.name) + '&select=*'); fu = (f.ok && Array.isArray(f.j) && f.j[0]) || null; }
+    const s = await svc('settings?key=eq.' + encodeURIComponent('inv_bill_' + row.id) + '&select=value');
+    let bill = s.ok && Array.isArray(s.j) && s.j[0] ? s.j[0].value : null;
+    if (typeof bill === 'string') { try { bill = JSON.parse(bill); } catch (_) { bill = null; } }
+    return { manual: row, fu, bill: bill && typeof bill === 'object' ? bill : null };
+  }
   if (body.t) {
     fu = await formRow(body.t);
     if (!fu) return { err: 'not_found' };
@@ -265,6 +282,36 @@ function invData({ order, fu, bill }) {
     items, sub, disc, ship, total, due, paid: r2(total - due), paidFull, refunded: /refunded/.test(fs), method, currency: order.currency || 'MYR',
   };
 }
+// The same invoice from a manual order row: item prices (sale price when lower), the order's
+// total; anything the total adds on top of the items is the delivery fee.
+function invDataManual({ manual: row, fu, bill }) {
+  const r2 = n => Math.round(n * 100) / 100;
+  const items = (Array.isArray(row.line_items) ? row.line_items : []).map(li => {
+    const p = parseFloat(li && li.price), s = parseFloat(li && li.sale);
+    return { name: String((li && li.title) || ''), variant: String((li && (li.variantTitle || li.variant_title)) || ''), qty: parseInt(li && li.quantity, 10) || 1,
+      price: !isNaN(s) && !isNaN(p) && s < p - 0.005 ? s : (isNaN(p) ? 0 : p) };
+  }).filter(i => i.name && i.qty > 0);
+  const sub = r2(items.reduce((t, i) => t + i.price * i.qty, 0));
+  const total = r2(Number(row.total) || Number(row.manual_price) || sub);
+  const ship = total > sub + 0.005 ? r2(total - sub) : 0;
+  const disc = total < sub - 0.005 ? r2(sub - total) : 0;
+  const paidFull = !!(row.paid_by || row.paid_at || row.financial_status === 'paid' || (fu && fu.payment === 'paid'));
+  const due = paidFull ? 0 : total;
+  const b = bill || {};
+  const pickup = row.type === 'pickup';
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(row.due_on || '')) ? row.due_on : (/^\d{4}-\d{2}-\d{2}$/.test(String(row.due_date || '')) ? row.due_date : '');
+  return {
+    no: row.name || '', date: new Date(row.created_at || Date.now()).toLocaleDateString('en-GB', { timeZone: 'Asia/Kuala_Lumpur', day: 'numeric', month: 'short', year: 'numeric' }),
+    bill: { name: bill ? (b.name || '') : ((fu && fu.name) || row.customer || ''), attn: b.attn || '', phone: bill ? (b.phone || '') : ((fu && fu.contact) || row.cust_phone || ''), addr: bill ? (b.addr || '') : '' },
+    locked: !!b.locked, sentTo: b.sentTo || '', email: b.email || row.cust_email || (fu && fu.email) || '',
+    pickup, to: pickup ? { name: 'Store pickup', addr: 'Bamboo Green Florist, 14000 Bukit Mertajam, Penang' }
+      : { name: row.recip_name || (fu && fu.recip_name) || '', addr: row.address || row.manual_addr || (fu && fu.addr) || '' },
+    when: { date: iso ? _invDay(iso) : String(row.due_date || ''), time: row.due_time || '' },
+    items, sub, disc, ship, total, due, paid: r2(total - due), paidFull, refunded: false,
+    method: row.paid_by || (fu && fu.paid_by) || '', currency: row.currency || 'MYR',
+  };
+}
+const invAny = L => L.manual ? invDataManual(L) : invData(L);
 const _rm = n => 'RM ' + (Number(n) || 0).toFixed(2);
 const _he = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 function invEmail(d, link) {
@@ -300,6 +347,11 @@ async function invHandler(body, req, res) {
   // Staff: a link for any Shopify order (o + k), for the order panel's Invoice button.
   if (body.mode === 'inv-link') {
     if (!(await verifyStaff(jwt))) return res.status(401).json({ error: 'Not authenticated' });
+    if (body.manual) {
+      const mid = String(body.id || '');
+      if (!/^[A-Za-z0-9_-]{1,80}$/.test(mid)) return res.status(404).json({ error: 'not_found' });
+      return res.status(200).json({ path: '/invoice.html?m=' + encodeURIComponent(mid) + '&k=' + invKey(mid) });
+    }
     const id = String(body.id || '').replace(/\D/g, '');
     const r = await shopRest('orders/' + encodeURIComponent(id) + '.json?fields=id,token');
     const o = r.j && r.j.order;
@@ -310,7 +362,8 @@ async function invHandler(body, req, res) {
   try { L = await invLoad(body); } catch (e) { return res.status(502).json({ error: 'shopify' }); }
   if (L.err) return res.status(L.err === 'not_found' ? 404 : 409).json({ error: L.err });
   const staff = jwt ? await verifyStaff(jwt) : false;
-  if (body.mode === 'inv-get') { const d = invData(L); return res.status(200).json({ ...d, staff, canEdit: staff || !d.locked }); }
+  if (body.mode === 'inv-get') { const d = invAny(L); return res.status(200).json({ ...d, staff, canEdit: staff || !d.locked }); }
+  const oid = String(L.manual ? L.manual.id : L.order.id);
   if (body.mode === 'inv-bill') {
     const cur = L.bill || {};
     if (cur.locked && !staff) return res.status(409).json({ error: 'locked' });
@@ -319,15 +372,15 @@ async function invHandler(body, req, res) {
     if (!nb.name) return res.status(422).json({ error: 'name' });
     const mailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(nb.email);
     if (!staff && !mailOk) return res.status(422).json({ error: 'email' });
-    const key = 'inv_bill_' + L.order.id;
+    const key = 'inv_bill_' + oid;
     const put = v => svc('settings', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ key, value: v }) });
     const base = { ...nb, locked: !!cur.locked, sentTo: cur.sentTo || '', by: staff ? 'staff' : 'customer', at: new Date().toISOString() };
     const w = await put(base);
     if (!w.ok) return res.status(500).json({ error: 'save_failed' });
-    if (!mailOk) return res.status(200).json({ ...invData({ ...L, bill: base }), staff, canEdit: staff, sent: false });
+    if (!mailOk) return res.status(200).json({ ...invAny({ ...L, bill: base }), staff, canEdit: staff, sent: false });
     // Email the invoice; the details lock only once it has gone out.
-    const d = invData({ ...L, bill: base });
-    const link = INV_SITE + '/invoice.html?' + (body.t ? 't=' + encodeURIComponent(body.t) : 'o=' + L.order.id + '&k=' + encodeURIComponent(body.k));
+    const d = invAny({ ...L, bill: base });
+    const link = INV_SITE + '/invoice.html?' + (body.t ? 't=' + encodeURIComponent(body.t) : L.manual ? 'm=' + encodeURIComponent(oid) + '&k=' + encodeURIComponent(body.k) : 'o=' + oid + '&k=' + encodeURIComponent(body.k));
     const msg = invEmail(d, link);
     const key2 = process.env.RESEND_API_KEY, from = process.env.NOTIFY_EMAIL_FROM, reply = process.env.NOTIFY_EMAIL_REPLYTO;
     if (!key2 || !from) return res.status(502).json({ error: 'email_failed' });
@@ -338,8 +391,8 @@ async function invHandler(body, req, res) {
     await put(done);
     // An order panel open on another device shows "Invoice sent" straight away.
     try { await fetch(SB_URL + '/realtime/v1/api/broadcast', { method: 'POST', headers: { apikey: SB_SVC, Authorization: 'Bearer ' + SB_SVC, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: [{ topic: 'bf-live', event: 'chg', payload: { t: 'invoice', id: String(L.order.id) } }] }) }); } catch (_) {}
-    return res.status(200).json({ ...invData({ ...L, bill: done }), staff, canEdit: staff, sent: true });
+      body: JSON.stringify({ messages: [{ topic: 'bf-live', event: 'chg', payload: { t: 'invoice', id: oid } }] }) }); } catch (_) {}
+    return res.status(200).json({ ...invAny({ ...L, bill: done }), staff, canEdit: staff, sent: true });
   }
   return res.status(400).json({ error: 'unknown_mode' });
 }
