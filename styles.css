@@ -760,6 +760,13 @@ body.role-driver .shell{grid-template-columns:1fr}
 .dp-msg.card{background:var(--color-paper-2);border-left-color:var(--color-accent);font-style:italic}
 .dp-msg.flower{background:var(--c-sage-bg);border-left-color:var(--c-sage)}
 .dp-msg-l{display:block;font-size:12px;font-weight:600;font-style:normal;color:var(--c-muted);margin-bottom:2px}
+.dp-item-x{padding-bottom:10px}
+.dp-item-x .dp-make-ph{margin-top:6px}
+.dp-msg-edit{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--c-sage);font-family:var(--f-body);font-style:normal;cursor:pointer;transition:filter .14s}
+.dp-msg-edit:hover{filter:brightness(.97)}
+.dp-msg-edit:focus-visible{outline:2px solid var(--color-accent);outline-offset:1px}
+.dp-msg-edit.empty{background:transparent;border-left-color:var(--color-rule);color:var(--c-muted);font-style:italic}
+.dp-msg-edit .dp-msg-l svg{vertical-align:-1px;margin-left:2px}
 .dp-assign{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .dp-assign label{display:block;font-size:12px;font-weight:500;color:var(--c-muted)}
 .dp-assign select{display:block;width:100%;margin-top:4px;min-height:42px;padding:0 10px;border:1px solid var(--color-rule);background:var(--color-card);font-size:14px;color:var(--c-ink);border-radius:0;cursor:pointer}
