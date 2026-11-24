@@ -1275,6 +1275,12 @@ tr.row-fulfilled:hover td{background:#F2F2F0 !important}
 .orw-tag.late{color:var(--c-red);font-weight:600}
 .orw-items{margin-top:8px;display:flex;flex-direction:column;gap:8px}
 .orw-item{display:flex;align-items:center;gap:12px;min-height:30px}
+.csum-row{display:flex;justify-content:space-between;align-items:center;gap:10px;min-height:40px;font-size:12.5px;padding:4px 8px;margin:0 -8px;border-top:1px solid var(--c-border);cursor:pointer;transition:background-color .14s}
+.csum-row:hover{background:var(--color-paper-2)}
+.csum-row.on{background:var(--color-accent-soft)}
+.csum-row.on .csum-nm{font-weight:700}
+.csum-row:focus-visible{outline:2px solid var(--color-accent);outline-offset:-2px}
+.csum-nm{color:var(--c-ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .orw-th{width:44px;height:44px;flex:none;overflow:hidden;background:var(--color-paper-2);cursor:zoom-in}
 .orw-th:focus-visible{outline:2px solid var(--color-accent);outline-offset:2px}
 .orw-th img{width:100%;height:100%;object-fit:cover;display:block;outline:1px solid color-mix(in oklab,var(--color-ink) 8%,transparent);outline-offset:-1px}

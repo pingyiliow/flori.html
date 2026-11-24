@@ -5625,8 +5625,10 @@ function _custSearchSummary(list){
   const billBtn = `<button onclick="openCustomerStatement(IDX)" title="Printable statement" style="font-size:11px;font-weight:700;color:var(--c-burg);background:none;border:1.5px solid var(--c-burg);border-radius:99px;padding:4px 11px;cursor:pointer;white-space:nowrap">${di('receipt',12)} Statement</button>`;
   let rows = '';
   if(!single){
+    // Tap a customer to list only their orders (tap again for everyone).
+    const pk = _custPickKey();
     rows = '<div style="margin-top:10px;display:flex;flex-direction:column;gap:2px">' +
-      groups.map((g,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;padding:4px 0;border-top:1px solid var(--c-border)"><span style="color:var(--c-ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.name)} <span style="color:var(--c-muted)">· ${g.n}</span></span><span style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span style="font-weight:700;color:var(--c-burg)">${rm(g.sum)}${miss(g.missing)}</span><button onclick="openCustomerStatement(${i})" title="Printable statement" style="font-size:10px;color:var(--c-burg);background:none;border:1px solid var(--c-border);border-radius:99px;padding:2px 8px;cursor:pointer">${di('receipt',11)}</button></span></div>`).join('') +
+      groups.map((g,i)=>`<div class="csum-row${pk===g.k?' on':''}" role="button" tabindex="0" aria-pressed="${pk===g.k}" onclick="custPick(${i})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();custPick(${i})}"><span class="csum-nm">${esc(g.name)} <span style="color:var(--c-muted)">· ${g.n}</span></span><span style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span style="font-weight:700;color:var(--c-burg)">${rm(g.sum)}${miss(g.missing)}</span><button onclick="event.stopPropagation();openCustomerStatement(${i})" title="Printable statement" style="font-size:10px;color:var(--c-burg);background:none;border:1px solid var(--c-border);border-radius:99px;padding:2px 8px;cursor:pointer">${di('receipt',11)}</button></span></div>`).join('') +
       '</div>';
   }
   const headLabel = single
@@ -5645,6 +5647,15 @@ function _custSearchSummary(list){
   </div>`;
 }
 let _custSumGroups = [];
+// The customer picked in the search summary, kept only while the search text is the same.
+let _custPick = null;
+function _custSearchNow(){ return String((document.getElementById('order-search')||{}).value||'').trim().toLowerCase(); }
+function _custPickKey(){ return (_custPick && _custPick.s === _custSearchNow()) ? _custPick.k : null; }
+function custPick(i){
+  const g = _custSumGroups[i]; if(!g) return;
+  _custPick = (_custPickKey() === g.k) ? null : { k: g.k, s: _custSearchNow() };
+  renderOrders();
+}
 function _stmtMoney(n){ return 'RM '+Number(n||0).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 // Open a printable consolidated STATEMENT for one customer group from the search summary.
 // Self-contained page (shop header, one line per order, grand total) → Print / Save as PDF.
@@ -5784,7 +5795,7 @@ function _ordHead(list, srch){
 function renderOrders() {
   const srch = document.getElementById('order-search')?.value.trim().toLowerCase();
   if (srch && srch.length>=3) _orderSearchFetchDebounced(srch);
-  const list = sortedOrders(filteredOrders());
+  let list = sortedOrders(filteredOrders());
   const tb = document.getElementById('orders-list');
   const allF = srch ? ORDERS : filteredOrders();
   const cntPu = document.getElementById('count-pickup');
@@ -5796,6 +5807,7 @@ function renderOrders() {
     return;
   }
   let html = srch ? _custSearchSummary(list) : '';
+  { const pk = srch ? _custPickKey() : null; if (pk) list = list.filter(o => (((o.customer||o.name||'').trim()) || 'Unknown').toLowerCase() === pk); }
   _ordHead(list, srch);
   const _oneDay = !srch && (calFilter || orderFilter==='today' || orderFilter==='tomorrow');
   if (prodMode) {
