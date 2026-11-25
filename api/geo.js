@@ -196,6 +196,8 @@ async function formHandler(body, res) {
 // billing details ONCE: they are saved, the invoice is emailed to them, and the details
 // lock; after that only staff (signed in to BloomFlow) can change them or send it again.
 const INV_SITE = 'https://www.bambooflowerclub.com';
+// The link customers get: the shop's own domain (a Shopify URL redirect /invoice -> invoice.html, query kept).
+const INV_PUBLIC = 'https://bambooflorist.com.my/invoice';
 const INV_FIELDS = 'id,name,token,order_status_url,created_at,cancelled_at,financial_status,currency,current_total_price,total_price,total_outstanding,line_items,shipping_lines,shipping_address,billing_address,customer,phone,email,note_attributes,payment_gateway_names';
 async function shopRest(path) {
   const tok = await shopToken();
@@ -380,7 +382,7 @@ async function invHandler(body, req, res) {
     if (!mailOk) return res.status(200).json({ ...invAny({ ...L, bill: base }), staff, canEdit: staff, sent: false });
     // Email the invoice; the details lock only once it has gone out.
     const d = invAny({ ...L, bill: base });
-    const link = INV_SITE + '/invoice.html?' + (body.t ? 't=' + encodeURIComponent(body.t) : L.manual ? 'm=' + encodeURIComponent(oid) + '&k=' + encodeURIComponent(body.k) : 'o=' + oid + '&k=' + encodeURIComponent(body.k));
+    const link = INV_PUBLIC + '?' + (body.t ? 't=' + encodeURIComponent(body.t) : L.manual ? 'm=' + encodeURIComponent(oid) + '&k=' + encodeURIComponent(body.k) : 'o=' + oid + '&k=' + encodeURIComponent(body.k));
     const msg = invEmail(d, link);
     const key2 = process.env.RESEND_API_KEY, from = process.env.NOTIFY_EMAIL_FROM, reply = process.env.NOTIFY_EMAIL_REPLYTO;
     if (!key2 || !from) return res.status(502).json({ error: 'email_failed' });

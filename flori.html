@@ -8963,6 +8963,8 @@ async function orderInvoice(id, how){
   } catch(_){}
   if (!url){ if (win) win.close(); toast('Invoice link unavailable, try again'); return; }
   if (how==='open'){ if (win) win.location.href = url; else window.open(url, '_blank'); return; }
+  // Customers get the shop's own domain (bambooflorist.com.my/invoice forwards to this page).
+  url = 'https://bambooflorist.com.my/invoice' + url.slice(url.indexOf('?'));
   const fu = FOLLOWUPS.find(f => f.orderNo && String(f.orderNo)===String(o.name));
   const ph = _waNum(o.custPhone || (fu && fu.contact) || '');
   if (how==='wa' && ph){
