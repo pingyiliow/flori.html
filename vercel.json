@@ -50,6 +50,19 @@
       ]
     },
     {
+      "source": "/order.html",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
       "source": "/invoice.html",
       "headers": [
         {
@@ -82,6 +95,12 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/order.html",
+      "has": [{ "type": "query", "key": "t", "value": "(?<t>[A-Za-z0-9_-]+)" }],
+      "destination": "https://bambooflorist.com.my/order?t=:t",
+      "permanent": false
+    },
     {
       "source": "/s/:path*",
       "destination": "https://bambooflorist.com.my/:path*",

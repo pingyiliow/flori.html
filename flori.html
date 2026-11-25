@@ -8805,7 +8805,8 @@ function _fuStage(f){
 const _fuNeeds = f => { const s=_fuStage(f); return s==='enquiry' || s==='ready' || s==='verify' || s==='waiting'; };
 // ── Customer order form link ─────────────────────────────────────────────────────────
 function _fuNewToken(){ const a=new Uint8Array(16); crypto.getRandomValues(a); return Array.from(a).map(b=>b.toString(16).padStart(2,'0')).join(''); }
-function _fuFormLink(f){ return location.origin + '/order.html?t=' + f.formToken; }
+// Customers only ever see the shop's own domain (bambooflorist.com.my/order loads this form).
+function _fuFormLink(f){ return 'https://bambooflorist.com.my/order?t=' + f.formToken; }
 function _fuFormDate(iso){ try{ return new Date(iso).toLocaleDateString('en-GB',{ day:'numeric', month:'short' }); }catch(_){ return ''; } }
 // Copy the form link (staff paste it to the customer themselves): make the link if needed
 // and keep it open 7 more days.
