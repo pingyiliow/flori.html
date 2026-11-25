@@ -356,7 +356,9 @@ async function sendOrderConfirmed(sb, order, fuId, info) {
       const { error } = await sb.from('followups').update({ form_token: tok }).eq('id', fu.id);
       if (error) tok = '';
     }
-    if (tok) btn = 'order.html?t=' + tok;
+    // bambooflorist.com.my/order?t=… (Shopify page) — on the old button base the same path is
+    // forwarded there by vercel.json.
+    if (tok) btn = 'order?t=' + tok;
   }
   if (!btn) { const s = statusUrlSuffix(order); if (s) btn = 's/' + s; }
   if (!btn) { await log({ phone: to, status: 'skip', error: 'no_order_link' }); return; }

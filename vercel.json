@@ -96,6 +96,12 @@
   ],
   "redirects": [
     {
+      "source": "/order",
+      "has": [{ "type": "query", "key": "t", "value": "(?<t>[A-Za-z0-9_-]+)" }],
+      "destination": "https://bambooflorist.com.my/order?t=:t",
+      "permanent": false
+    },
+    {
       "source": "/order.html",
       "has": [{ "type": "query", "key": "t", "value": "(?<t>[A-Za-z0-9_-]+)" }],
       "destination": "https://bambooflorist.com.my/order?t=:t",
