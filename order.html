@@ -375,7 +375,7 @@ button.link{padding:0}
         + '<h1>'+t('h1done')+'</h1><p class="ref">'+(D.orderNo ? t('ordno')+' <span class="num">'+esc(D.orderNo)+'</span>' : t('ref')+' <span class="num">'+esc(D.ref)+'</span>')+'</p>'
         + orderCard(true, D.paid ? '<span class="tag">'+t('paidTag')+'</span>' : '<span class="tag wait">'+t('pend')+'</span>')
         + (D.fulfil==='pickup' ? shopHtml() : '')
-        + (D.orderNo ? '<a class="btn" href="/invoice.html?t='+encodeURIComponent(tok)+'">'+t('inv')+'</a>' : '')
+        + (D.orderNo ? '<a class="btn" href="https://bambooflorist.com.my/invoice?t='+encodeURIComponent(tok)+'">'+t('inv')+'</a>' : '')
         + '<nav class="more" aria-label="More">'
         + '<a href="'+waLink('Hi, about my order '+(D.orderNo||D.ref))+'" target="_blank" rel="noopener"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="tx">'+t('chg')+'<small>'+t('wa2')+'</small></span>'+nextIc+'</a>'
         + '<a href="https://bambooflorist.com.my/" target="_blank" rel="noopener"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21c-4-3-8-6-8-11a4 4 0 018-1 4 4 0 018 1c0 5-4 8-8 11z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="tx">'+t('shop')+'<small>'+t('shopSite')+'</small></span>'+nextIc+'</a>'
