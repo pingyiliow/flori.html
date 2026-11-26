@@ -14381,7 +14381,16 @@ function saveOrder() {
     });
   }
   if(editId){const idx=ORDERS.findIndex(x=>x.id===editId);if(idx!==-1)ORDERS[idx]=entry;else ORDERS.push(entry);}else ORDERS.push(entry);
-  saveOrders(entry); if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
+  // On EDIT, PATCH only the columns the form owns — never a full-row write — so a device with a
+  // stale copy can't regress app-managed state (ready tick, route_id, fulfilled, OTW stamp,
+  // proof photos, delivered flags, Lalamove link, payment) the way saveOrders(entry) did. New
+  // orders still insert via saveOrders (saveOrderPatch updates-by-id, a no-op for a new row).
+  if(editId){
+    const _ep=_orderRow(entry); delete _ep.id; delete _ep.wb;
+    ['ready','ready_by','ready_at','fulfilled','fulfilled_by','fulfilled_at','otw_at','route_id','route_seq','proof_photo','proof_photos','cake','delivered_lat','delivered_lng','delivered_at','delivered_by','lalamove_url','paid_by','paid_at','pay_slip','pay_note','financial_status'].forEach(k=>delete _ep[k]);
+    saveOrderPatch(entry, _ep);
+  } else saveOrders(entry);
+  if(typeof _applyBOM==='function')_applyBOM(); closeModal('m-order');
   _orderToCustomer(entry, _pickParts);
   ['o-designer','o-priority','o-internal-note','o-staff'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=id==='o-priority'?'normal':''});
   _oStaffOpts(); _oAddrPick=null; _oAddrHide();
